@@ -8,44 +8,51 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           `{MachineParameters}.
 
-  Notation D := ((leibnizO Word) -n> iPropO Σ).
-  Notation R := ((leibnizO Reg) -n> iPropO Σ).
-  Implicit Types w : (leibnizO Word).
+  Notation D := ((leibnizO LWord) -n> iPropO Σ).
+  Notation R := ((leibnizO LReg) -n> iPropO Σ).
+  Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
 
   (* NOTE: I think having PC:= wsrc in the IH in below definition, rather than restricting induction to capabilities only, would allow us to more generally apply the induction hypothesis in multiple cases. Now we do the `wp_notCorrectPC`-related reasoning in multiple places, not just in the top-level ftlr. *)
 
-  Definition ftlr_instr (r : leibnizO Reg) (p : Perm)
-        (b e a : Addr) (w : Word) (i: instr) (P : D) :=
+  Definition ftlr_instr (lregs : leibnizO LReg) (p : Perm)
+        (b e a : Addr) (v : Version) (lw : LWord) (i: instr) (P : D) :=
       p = RX ∨ p = RWX
-    → (∀ x : RegName, is_Some (r !! x))
-    → isCorrectPC (WCap p b e a)
+    → (∀ x : RegName, is_Some (lregs !! x))
+    → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
-    → decodeInstrW w = i
-    -> □ ▷ (∀ a0 a1 a2 a3 a4,
-             full_map a0
-          -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
+    → decodeInstrWL lw = i
+    -> □ ▷ (∀ lregs' p' b' e' a' v',
+             full_map lregs'
+          -∗ (∀ (r1 : RegName) (lv : LWord),
+              ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+          -∗ registers_mapsto (<[PC:=LCap p' b' e' a' v']> lregs')
           -∗ na_own logrel_nais ⊤
-             -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
-    -∗ (fixpoint interp1) (WCap p b e a)
-    -∗ inv (logN.@a) (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0)
-    -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜r !! r1 = Some v⌝ → (fixpoint interp1) v)
-    -∗ ▷ □ (∀ w : Word, P w -∗ (fixpoint interp1) w)
-            ∗ (if decide (writeAllowed_in_r_a (<[PC:=WCap p b e a]> r) a) then ▷ □ (∀ w : Word, (fixpoint interp1) w -∗ P w) else emp)
+             -∗ □ (fixpoint interp1) (LCap p' b' e' a' v') -∗ interp_conf)
+    -∗ (fixpoint interp1) (LCap p b e a v)
+    -∗ inv (logN.@(a,v)) (∃ lw0 : leibnizO LWord, (a,v) ↦ₐ lw0 ∗ P lw0)
+    -∗ (∀ (r1 : RegName) (lv : LWord),
+        ⌜r1 ≠ PC⌝ → ⌜lregs !! r1 = Some lv⌝ → (fixpoint interp1) lv)
+    -∗ ▷ □ (∀ lw : LWord, P lw -∗ (fixpoint interp1) lw)
+            ∗ (if decide (writeAllowed_in_r_av (<[PC:=LCap p b e a v]> lregs) a v)
+               then ▷ □ (∀ lw : LWord, (fixpoint interp1) lw -∗ P lw)
+               else emp)
     -∗ na_own logrel_nais ⊤
-    -∗ a ↦ₐ w
-    -∗ ▷ P w
-    -∗ (▷ (∃ w0 : leibnizO Word, a ↦ₐ w0 ∗ P w0) ={⊤ ∖ ↑logN.@a,⊤}=∗ emp)
-    -∗ PC ↦ᵣ WCap p b e a
-    -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=WCap p b e a]> r), k ↦ᵣ y)
-    -∗
-        WP Instr Executable
-        @ ⊤ ∖ ↑logN.@a {{ v, |={⊤ ∖ ↑logN.@a,⊤}=> WP Seq (of_val v)
-                                                    {{ v0, ⌜v0 = HaltedV⌝
-                                                           → ∃ r1 : Reg, full_map r1 ∧ registers_mapsto r1
-                                                                                                        ∗ na_own logrel_nais ⊤ }} }}.
+    -∗ (a,v) ↦ₐ lw
+    -∗ ▷ P lw
+    -∗ (▷ (∃ lw0 : leibnizO LWord, (a,v) ↦ₐ lw0 ∗ P lw0) ={⊤ ∖ ↑logN.@(a,v),⊤}=∗ emp)
+    -∗ PC ↦ᵣ LCap p b e a v
+    -∗ ([∗ map] k↦y ∈ delete PC (<[PC:=LCap p b e a v]> lregs), k ↦ᵣ y)
+    -∗ WP Instr Executable
+        @ ⊤ ∖ ↑logN.@(a,v)
+        {{ v0, |={⊤ ∖ ↑logN.@(a,v),⊤}=>
+             WP Seq (of_val v0)
+               {{ v1, ⌜v1 = HaltedV⌝ →
+                      ∃ lregs0 : LReg,
+                        full_map lregs0 ∧ registers_mapsto lregs0 ∗ na_own logrel_nais ⊤
+               }}
+        }}.
 
 
 End fundamental.

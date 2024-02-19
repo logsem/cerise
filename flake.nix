@@ -35,7 +35,7 @@
 
             devShells.default = pkgs.mkShell (with packages.default; {
               name = pname + "-dev";
-              packages = buildInputs ++ [ pkgs.coq coqPackages.coq-lsp ];
+              packages = buildInputs ++ [ coqPackages.coq coqPackages.coq-lsp ];
             });
           });
 }

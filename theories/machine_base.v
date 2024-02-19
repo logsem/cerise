@@ -60,6 +60,7 @@ Inductive instr: Type :=
 | EInit (dst r: RegName)
 | EDeInit (dst r: RegName)
 | EStoreId (dst r1 r2: RegName)
+| IsUnique (dst src: RegName)
 | Fail
 | Halt.
 
@@ -391,6 +392,13 @@ Lemma withinBounds_le_addr {z} (b e a : finz z):
   withinBounds b e a = true →
   (b <= a)%f ∧ (a < e)%f.
 Proof. rewrite withinBounds_true_iff //. Qed.
+
+Lemma withinBounds_in_seq {z} (b e a : finz z) :
+  withinBounds b e a = true -> a ∈ finz.seq_between b e.
+  Proof.
+    intros Hbounds.
+    by apply withinBounds_true_iff, elem_of_finz_seq_between in Hbounds.
+Qed.
 
 Lemma isWithinBounds_bounds_alt {z} b e (a0 a1 a2 : finz z) :
   withinBounds  b e a0 = true →
@@ -760,8 +768,9 @@ Proof.
       | EInit dst r => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)]
       | EDeInit dst r => GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)]
       | EStoreId dst r1 r2 => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | Fail => GenNode 22 []
-      | Halt => GenNode 23 []
+      | IsUnique dst src => GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)]
+      | Fail => GenNode 23 []
+      | Halt => GenNode 24 []
       end).
   set (dec := fun e =>
       match e with
@@ -787,8 +796,9 @@ Proof.
       | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] => EInit dst r
       | GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)] => EDeInit dst r
       | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => EStoreId dst r1 r2
-      | GenNode 22 [] => Fail
-      |  GenNode 23 [] => Halt
+      | GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)] => IsUnique dst src
+      | GenNode 23 [] => Fail
+      | GenNode 24 [] => Halt
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

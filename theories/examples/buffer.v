@@ -1,43 +1,45 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 Require Import Eqdep_dec List.
-From cap_machine Require Import rules logrel fundamental.
+From cap_machine Require Import rules seal_store.
+(* From cap_machine Require Import rules logrel fundamental. *)
 From cap_machine Require Import proofmode.
-From cap_machine.examples Require Import template_adequacy.
+(* From cap_machine.examples Require Import template_adequacy. *)
 Open Scope Z_scope.
 
 Section buffer.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
           `{MP: MachineParameters}.
 
-  Definition buffer_code (off: Z) : list Word :=
+  Definition buffer_code (off: Z) : list LWord :=
     (* code: *)
-    encodeInstrsW [
+    encodeInstrsLW [
       Mov r_t1 PC;
       Lea r_t1 4 (* [data-code] *);
       Subseg r_t1 (off + 4)%Z (* [data] *) (off + 7)%Z (* [data+3] *);
       Jmp r_t0
     ].
-  Definition buffer_data : list Word :=
+  Definition buffer_data : list LWord :=
     (* data: *)
-    map WInt [72 (* 'H' *); 105 (* 'i' *); 0; 42 (* secret value *)]
+    map LWInt [72 (* 'H' *); 105 (* 'i' *); 0; 42 (* secret value *)]
     (* end: *).
 
-  Lemma buffer_spec (a_first: Addr) wadv w1 φ :
+
+  Lemma buffer_spec (a_first: Addr) (v: Version) (wadv w1 : LWord) φ :
     let len_region := length (buffer_code a_first) + length buffer_data in
     ContiguousRegion a_first len_region →
 
-   ⊢ (( PC ↦ᵣ WCap RWX a_first (a_first ^+ len_region)%a a_first
-      ∗ r_t0 ↦ᵣ wadv
-      ∗ r_t1 ↦ᵣ w1
-      ∗ codefrag a_first (buffer_code a_first)
-      ∗ ▷ (let a_data := (a_first ^+ 4)%a in
-             PC ↦ᵣ updatePcPerm wadv
+    ⊢ (( PC ↦ᵣ LCap RWX a_first (a_first ^+ len_region)%a a_first v
            ∗ r_t0 ↦ᵣ wadv
-           ∗ r_t1 ↦ᵣ WCap RWX a_data (a_data ^+ 3)%a a_data
-           ∗ codefrag a_first (buffer_code a_first)
-           -∗ WP Seq (Instr Executable) {{ φ }}))
-      -∗ WP Seq (Instr Executable) {{ φ }})%I.
+           ∗ r_t1 ↦ᵣ w1
+           ∗ codefrag a_first v (buffer_code a_first)
+           ∗ ▷ (let a_data := (a_first ^+ 4)%a in
+                PC ↦ᵣ updatePcPermL wadv
+                  ∗ r_t0 ↦ᵣ wadv
+                  ∗ r_t1 ↦ᵣ LCap RWX a_data (a_data ^+ 3)%a a_data v
+                  ∗ codefrag a_first v (buffer_code a_first)
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+         -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros len_region.
     iIntros (Hcont) "(HPC & Hr0 & Hr1 & Hprog & Hφ)".

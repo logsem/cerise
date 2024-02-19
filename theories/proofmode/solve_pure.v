@@ -1,6 +1,6 @@
 From Coq Require Import ZArith Lia ssreflect.
 From stdpp Require Import base.
-From cap_machine Require Import machine_base machine_parameters addr_reg solve_addr.
+From cap_machine Require Import machine_base machine_parameters addr_reg solve_addr logical_mapsto.
 From cap_machine Require Export solve_addr_extra classes class_instances.
 From cap_machine.rules Require Import rules_Get rules_AddSubLt.
 From machine_utils Require Export solve_pure.
@@ -39,6 +39,11 @@ Qed.
 
 #[export] Hint Resolve isCorrectPC_ExecPCPerm_InBounds : solve_pure.
 
+(* isCorrectLPC *)
+
+#[export] Hint Mode isCorrectLPC + : solve_pure.
+
+#[export] Hint Resolve isCorrectLPC_ExecPCPerm_InBounds : solve_pure.
 (* Proxy lemma for DecodeInstr *)
 
 Lemma DecodeInstr_prove `{MachineParameters} w i :
@@ -49,6 +54,13 @@ Proof.
 Qed.
 #[export] Hint Resolve DecodeInstr_prove : solve_pure.
 
+Lemma DecodeInstrL_prove `{MachineParameters} lw i :
+  DecodeInstrL lw i →
+  decodeInstrWL lw = i.
+Proof.
+  intros ->. reflexivity.
+Qed.
+#[export] Hint Resolve DecodeInstrL_prove : solve_pure.
 (* ExecPCPerm, PermFlows *)
 
 #[export] Hint Mode ExecPCPerm + : solve_pure.
@@ -141,3 +153,10 @@ Proof. do 3 eexists. repeat apply conj. solve_pure. all: reflexivity. Qed.
 
 Goal E ≠ RO. solve_pure. Qed.
 Goal forall (P: Prop), P → P. intros. solve_pure. Qed.
+
+Goal forall p  a,
+  ExecPCPerm p →
+  (* SubBounds b e a (a ^+ 5)%a → *)
+  ContiguousRegion a 5 →
+  isCorrectPC (WCap p a (a ^+ 5)%a (a ^+ 1)%a).
+Proof. intros. solve_pure. Qed.

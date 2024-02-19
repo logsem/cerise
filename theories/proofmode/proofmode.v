@@ -17,21 +17,24 @@ Section codefrag.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
     `{MP: MachineParameters}.
 
-  Lemma codefrag_lookup_acc a0 (cs: list Word) (i: nat) w:
-    SimplTC (cs !! i) (Some w) →
-    codefrag a0 cs -∗
-      (a0 ^+ i)%a ↦ₐ w ∗ ((a0 ^+ i)%a ↦ₐ w -∗ codefrag a0 cs).
-  Proof.
-    iIntros (Hi) "Hcs".
-    iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
-    rewrite /codefrag.
-    destruct Hub as [? Hub].
-    iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
-    eapply finz_seq_between_lookup with (n:=length cs).
-    { apply lookup_lt_is_Some_1; eauto. }
-    { solve_addr. }
-    iFrame.
-  Qed.
+Lemma codefrag_lookup_acc a v (cs: list LWord) (i: nat) w:
+  SimplTC (cs !! i) (Some w) →
+  codefrag a v cs -∗
+  ((a ^+ i)%a, v) ↦ₐ w ∗ (((a ^+ i)%a, v) ↦ₐ w -∗ codefrag a v cs).
+Proof.
+  iIntros (Hi) "Hcs".
+  iDestruct (codefrag_contiguous_region with "Hcs") as %Hub.
+  rewrite /codefrag.
+  destruct Hub as [? Hub].
+  iDestruct (big_sepL2_lookup_acc with "Hcs") as "[Hw Hcont]"; only 2: by eauto.
+  rewrite list_lookup_fmap.
+  inversion Hi.
+  erewrite finz_seq_between_lookup with (n:=length cs); cycle 1.
+  { apply lookup_lt_is_Some_1; eauto. }
+  { solve_addr. }
+  eauto.
+  iFrame.
+Qed.
 
 End codefrag.
 
@@ -78,23 +81,23 @@ Tactic Notation "changePCto" constr(a) := changePCto0 a.
 
 Ltac codefrag_facts h :=
   let h := constr:(h:ident) in
-  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?code) ] =>
+  match goal with |- context [ Esnoc _ h (codefrag ?a_base _ ?code) ] =>
     (match goal with H : ContiguousRegion a_base _ |- _ => idtac end ||
      let HH := fresh in
      iDestruct (codefrag_contiguous_region with h) as %HH;
-     cbn [length map encodeInstrsW] in HH
+     cbn [length map encodeInstrsLW] in HH
     );
     (match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => idtac end ||
      (try match goal with H : SubBounds ?b ?e _ _ |- _ =>
             let HH := fresh in
             assert (HH: SubBounds b e a_base (a_base ^+ length code)%a) by solve_addr;
-            cbn [length map encodeInstrsW] in HH
+            cbn [length map encodeInstrsLW] in HH
           end))
   end.
 
 Ltac clear_codefrag_facts h :=
   let h := constr:(h:ident) in
-  match goal with |- context [ Esnoc _ h (codefrag ?a_base ?code) ] =>
+  match goal with |- context [ Esnoc _ h (codefrag ?a_base _ ?code) ] =>
     try match goal with H : ContiguousRegion a_base _ |- _ => clear H end;
     try match goal with H : SubBounds _ _ a_base (a_base ^+ _)%a |- _ => clear H end
   end.
@@ -146,10 +149,10 @@ Section codefrag_subblock.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
           `{MP: MachineParameters}.
 
-  Lemma codefrag_block0_acc a0 (l1 l2: list Word):
-    codefrag a0 (l1 ++ l2) -∗
-    codefrag a0 l1 ∗
-    (codefrag a0 l1 -∗ codefrag a0 (l1 ++ l2)).
+  Lemma codefrag_block0_acc a0 v (l1 l2: list LWord):
+    codefrag a0 v (l1 ++ l2) -∗
+    codefrag a0 v l1 ∗
+    (codefrag a0 v l1 -∗ codefrag a0 v (l1 ++ l2)).
   Proof.
     rewrite /codefrag. iIntros "H".
     iDestruct (codefrag_contiguous_region with "H") as %Hregion.
@@ -160,12 +163,12 @@ Section codefrag_subblock.
     rewrite region_mapsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
   Qed.
 
-  Lemma codefrag_block_acc (n: nat) a0 (cs: list Word) l1 l l2:
+  Lemma codefrag_block_acc (n: nat) a0 v (cs: list LWord) l1 l l2:
     NthSubBlock cs n l1 l l2 →
-    codefrag a0 cs -∗
+    codefrag a0 v cs -∗
     ∃ (ai: Addr), ⌜(a0 + length l1)%a = Some ai⌝ ∗
-    codefrag ai l ∗
-    (codefrag ai l -∗ codefrag a0 cs).
+    codefrag ai v l ∗
+    (codefrag ai v l -∗ codefrag a0 v cs).
   Proof.
     unfold NthSubBlock. intros ->. rewrite /codefrag. iIntros "H".
     iDestruct (codefrag_contiguous_region with "H") as %[a1 Ha1].
@@ -332,57 +335,58 @@ Qed.
    [FramableMachineResource] from [machine_utils/tactics.v]
 *)
 
-Class FramableRegisterPointsto (r: RegName) (w: Word) := {}.
+Class FramableRegisterPointsto (r: RegName) (lw: LWord) := {}.
 #[export] Hint Mode FramableRegisterPointsto + - : typeclass_instances.
-Class FramableMemoryPointsto (a: Addr) (dq: dfrac) (w: Word) := {}.
-#[export] Hint Mode FramableMemoryPointsto + - - : typeclass_instances.
-Class FramableCodefrag (a: Addr) (l: list Word) := {}.
-#[export] Hint Mode FramableCodefrag + - : typeclass_instances.
+Class FramableMemoryPointsto (a: Addr) (v: Version) (dq: dfrac) (w: LWord) := {}.
+#[export] Hint Mode FramableMemoryPointsto + - - - : typeclass_instances.
+Class FramableCodefrag (a: Addr) (v: Version) (l: list LWord) := {}.
+#[export] Hint Mode FramableCodefrag + - - : typeclass_instances.
 
 Instance FramableRegisterPointsto_default r w :
   FramableRegisterPointsto r w
 | 100. Qed.
 
-Instance FramableMemoryPointsto_default a dq w :
-  FramableMemoryPointsto a dq w
+Instance FramableMemoryPointsto_default a v dq w :
+  FramableMemoryPointsto a v dq w
 | 100. Qed.
 
-Instance FramableCodefrag_default a l :
-  FramableCodefrag a l
+Instance FramableCodefrag_default a v l :
+  FramableCodefrag a v l
 | 100. Qed.
 
-Instance FramableMachineResource_reg `{regG Σ} r w :
-  FramableRegisterPointsto r w →
-  FramableMachineResource (r ↦ᵣ w).
+Instance FramableMachineResource_reg `{regG Σ} r lw :
+  FramableRegisterPointsto r lw →
+  FramableMachineResource (r ↦ᵣ lw).
 Qed.
 
-Instance FramableMachineResource_mem `{memG Σ} a dq w :
-  FramableMemoryPointsto a dq w →
-  FramableMachineResource (a ↦ₐ{dq} w).
+Instance FramableMachineResource_mem `{memG Σ} a v dq w :
+  FramableMemoryPointsto a v dq w →
+  FramableMachineResource ((a,v) ↦ₐ{dq} w).
 Qed.
 
-Instance FramableMachineResource_codefrag `{memG Σ} a l :
-  FramableCodefrag a l →
-  FramableMachineResource (codefrag a l).
+Instance FramableMachineResource_codefrag `{memG Σ} a v l :
+  FramableCodefrag a v l →
+  FramableMachineResource (codefrag a v l).
 Qed.
 
 
 (* remembering names after auto-framing done by iFrameAuto *)
 
-Ltac2 Type hyp_table_kind := [ Reg | Mem | Codefrag ].
+Ltac2 Type hyp_table_kind := [ LReg | LMem | Codefrag ].
 
 Ltac2 record_framed
-      (table: (constr * constr * hyp_table_kind) list ref)
+      (table: (constr * constr * constr * hyp_table_kind) list ref)
       (framed: constr * constr)
   :=
   let (hname, hh) := framed in
-  let (lhs, kind) :=
+  let (lhs, lhsv, kind) :=
     lazy_match! hh with
-    | (?r ↦ᵣ _)%I => (r, Reg)
-    | (?a ↦ₐ{_} _)%I => (a, Mem)
-    | (codefrag ?a _) => (a, Codefrag)
+    | (?r ↦ᵣ _)%I => (r, r, LReg)
+    | ((?a, ?v) ↦ₐ{_} _)%I => (a, v, LMem)
+    (* TODO | (?la ↦ₐ{_} _)%I => (la, la, LMem2) ? *)
+    | (codefrag ?a ?v _) => (a, v, Codefrag)
     end in
-  table.(contents) := (hname, lhs, kind) :: table.(contents).
+  table.(contents) := (hname, lhs, lhsv, kind) :: table.(contents).
 
 (* iApplyCapAuto *)
 
@@ -467,28 +471,33 @@ Ltac iApplyCapAuto_init lemma :=
 (* Name resources in the goal according to the table *)
 
 Definition check_addr_eq (a b: Addr) `{FinZEq _ a b res} := res.
+Definition check_version_eq (v v': Version) `{VersionEq v v' res} := res.
 
-Ltac2 name_cap_resource (name, lhs, kind) :=
+Ltac2 name_cap_resource (name, lhs, lhsv, kind) :=
   match kind with
-  | Reg =>
+  | LReg =>
     match! goal with [ |- context [ (?r ↦ᵣ ?x)%I ] ] =>
       assert_constr_eq r lhs;
       ltac1:(x r name |- change (r ↦ᵣ x)%I with (name ∷ (r ↦ᵣ x))%I)
         (Ltac1.of_constr x) (Ltac1.of_constr r) (Ltac1.of_constr name)
     end
-  | Mem =>
-    match! goal with [ |- context [ (?a ↦ₐ{?dq} ?x)%I ] ] =>
+  | LMem =>
+    match! goal with [ |- context [ ((?a, ?v) ↦ₐ{?dq} ?x)%I ] ] =>
       let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
       assert_constr_eq is_lhs 'true;
-      ltac1:(x dq a name |- change (a ↦ₐ{dq} x)%I with (name ∷ (a ↦ₐ{dq} x))%I)
-        (Ltac1.of_constr x) (Ltac1.of_constr dq) (Ltac1.of_constr a) (Ltac1.of_constr name)
+      let is_lhsv := eval unfold check_version_eq in (@check_version_eq $v $lhsv _ _) in
+      assert_constr_eq is_lhsv 'true;
+      ltac1:(x dq a v name |- change ((a, v) ↦ₐ{dq} x)%I with (name ∷ ((a, v) ↦ₐ{dq} x))%I)
+        (Ltac1.of_constr x) (Ltac1.of_constr dq) (Ltac1.of_constr a) (Ltac1.of_constr v) (Ltac1.of_constr name)
     end
   | Codefrag =>
-    match! goal with [ |- context [ codefrag ?a ?l ] ] =>
+    match! goal with [ |- context [ codefrag ?a ?v ?l ] ] =>
       let is_lhs := eval unfold check_addr_eq in (@check_addr_eq $a $lhs _ _) in
       assert_constr_eq is_lhs 'true;
-      ltac1:(l a name |- change (codefrag a l) with (name ∷ (codefrag a l)))
-        (Ltac1.of_constr l) (Ltac1.of_constr a) (Ltac1.of_constr name)
+      let is_lhsv := eval unfold check_version_eq in (@check_version_eq $v $lhsv _ _) in
+      assert_constr_eq is_lhsv 'true;
+      ltac1:(l v a name |- change (codefrag a v l) with (name ∷ (codefrag a v l)))
+        (Ltac1.of_constr l) (Ltac1.of_constr a) (Ltac1.of_constr v) (Ltac1.of_constr name)
     end
   end.
 
@@ -507,7 +516,7 @@ Ltac2 reintro_cap_resources tbl :=
 (* cleanup *)
 (* TODO: make this extensible. Remove updatePcPerm? unfolding sometimes causes issues. *)
 Ltac2 iApplyCapAuto_cleanup () :=
-  cbn [rules_Get.denote rules_AddSubLt.denote updatePcPerm].
+  cbn [rules_Get.denote rules_AddSubLt.denote updatePcPerm updatePcPermL].
 
 (* iApplyCapAutoCore *)
 
@@ -552,12 +561,12 @@ Proof. solve_addr. Qed.
 
 Ltac iInstr_lookup0 hprog hi hcont :=
   let hprog := constr:(hprog:ident) in
-  lazymatch goal with |- context [ Esnoc _ hprog (codefrag ?a_base _) ] =>
-  lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (WCap _ _ _ ?pc_a))%I ] =>
+  lazymatch goal with |- context [ Esnoc _ hprog (codefrag ?a_base ?v _) ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hpc (PC ↦ᵣ (LCap _ _ _ ?pc_a ?v))%I ] =>
     let base_off := eval unfold as_weak_addr_incr in (@as_weak_addr_incr pc_a a_base _ _) in
     lazymatch base_off with
     | (?base, ?off) =>
-      iPoseProofCore (codefrag_lookup_acc _ _ off with hprog) as false (fun H =>
+      iPoseProofCore (codefrag_lookup_acc _ _ _ off with hprog) as false (fun H =>
         eapply tac_and_destruct with H _ hi hcont _ _ _;
         [pm_reflexivity
         |pm_reduce; tc_solve
@@ -573,12 +582,12 @@ Tactic Notation "iInstr_lookup" constr(hprog) "as" constr(hi) constr(hcont) :=
 Ltac iInstr_get_rule0 hi cont :=
   let hi := constr:(hi:ident) in
   once (
-    (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] => idtac end
+    (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrWL ?instr)%I ] => idtac end
      + (lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ ?instr)%I ] =>
            fail 1 "Next instruction is not of the form (encodeInstrW _):" instr
          end + fail "" hi "not found"))
   );
-  lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrW ?instr)%I ] =>
+  lazymatch goal with |- context [ Esnoc _ hi (_ ↦ₐ encodeInstrWL ?instr)%I ] =>
     dispatch_instr_rule instr cont
   end.
 
@@ -588,8 +597,8 @@ Ltac iInstr_close hprog :=
   (* because of iApplyCapAuto's context shuffling, [hi] and [hcont]
      are not valid anymore... recover them. *)
   (* XXX make this a bit more robust *)
-  lazymatch goal with |- context [ Esnoc _ ?hi (_ ↦ₐ encodeInstrW _)%I ] =>
-  lazymatch goal with |- context [ Esnoc _ ?hcont (_ ↦ₐ encodeInstrW _ -∗ _)%I ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hi (_ ↦ₐ encodeInstrWL _)%I ] =>
+  lazymatch goal with |- context [ Esnoc _ ?hcont (_ ↦ₐ encodeInstrWL _ -∗ _)%I ] =>
     notypeclasses refine (tac_specialize false _ hi _ hcont _ _ _ _ _ _ _ _ _);
     [pm_reflexivity
     |pm_reflexivity

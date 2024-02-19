@@ -1,6 +1,6 @@
 From Coq Require Import ZArith.
 From stdpp Require Import base option.
-From cap_machine Require Import machine_base machine_parameters addr_reg.
+From cap_machine Require Import machine_base machine_parameters addr_reg logical_mapsto.
 From machine_utils Require Export classes.
 
 (* Helper classes, complementing the ones from machine_utils *)
@@ -10,3 +10,11 @@ From machine_utils Require Export classes.
 Class DecodeInstr `{MachineParameters} (w: Word) (i: instr) :=
   MkDecodeInstr: decodeInstrW w = i.
 #[global] Hint Mode DecodeInstr - + - : typeclass_instances.
+
+Class DecodeInstrL `{MachineParameters} (lw: LWord) (i: instr) :=
+  MkDecodeInstrL: decodeInstrWL lw = i.
+#[global] Hint Mode DecodeInstrL - + - : typeclass_instances.
+
+Class VersionEq (v v' : Version) (res : bool) :=
+  MkVersionEq: res = true → v = v'.
+#[global] Hint Mode VersionEq + + - : typeclass_instances.

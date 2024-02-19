@@ -123,5 +123,7 @@ Ltac dispatch_instr_rule instr cont :=
   (* Halt *)
   | Halt => cont (@wp_halt)
   (* not found *)
+  (* TODO @Denis EInit, EDeInit, EStoreId *)
+  (* TODO @Bastien IsUnique *)
   | _ => fail "No suitable rule found for instruction" instr
   end.

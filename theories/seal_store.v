@@ -2,6 +2,7 @@ From iris.algebra Require Import gmap auth excl csum.
 From iris.base_logic Require Import lib.own saved_prop.
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import cap_lang stdpp_extra.
+From cap_machine Require Import logical_mapsto.
 
 
 (* No Excl' here: do not want the valid option element, as this disallows us from changing the branch in the sum type *)
@@ -19,16 +20,16 @@ Qed.
 
 Class sealStoreG Σ := SealStoreG { (* Create record constructor for typeclass *)
     SG_sealStore ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPreds ::  savedPredG Σ Word;
+    SG_storedPreds ::  savedPredG Σ LWord;
     SG_sealN : gname;
 }.
 
 Definition sealStorePreΣ :=
-  #[ GFunctor (gmapUR OType (csumR (exclR unitO) (agreeR gnameO))); savedPredΣ Word].
+  #[ GFunctor (gmapUR OType (csumR (exclR unitO) (agreeR gnameO))); savedPredΣ LWord].
 
 Class sealStorePreG Σ := {
     SG_sealStorePre ::  inG Σ (gmapUR OType (csumR (exclR unitO) (agreeR gnameO)));
-    SG_storedPredsPre ::  savedPredG Σ Word;
+    SG_storedPredsPre ::  savedPredG Σ LWord;
 }.
 
 Instance sealStoreG_preG `{sealStoreG Σ} : sealStorePreG Σ.
@@ -61,7 +62,7 @@ Qed.
 Section Store.
   Context `{!sealStoreG Σ}.
 
-  Definition seal_pred (o : OType) (P : Word → iProp Σ) :=
+  Definition seal_pred (o : OType) (P : LWord → iProp Σ) :=
     (∃ γpred: gname, own SG_sealN ({[o := Cinr (to_agree γpred)]})
                      ∗ saved_pred_own γpred DfracDiscarded P)%I.
   Global Instance seal_pred_persistent i P : Persistent (seal_pred i P).
@@ -81,7 +82,7 @@ Section Store.
     iIntros (x). iApply (saved_pred_agree with "Hpred1 Hpred2").
   Qed.
 
-  Lemma seal_store_update_alloc (o : OType) (P : Word → iProp Σ):
+  Lemma seal_store_update_alloc (o : OType) (P : LWord → iProp Σ):
    can_alloc_pred o ==∗ seal_pred o P.
   Proof.
     rewrite /seal_pred /can_alloc_pred.

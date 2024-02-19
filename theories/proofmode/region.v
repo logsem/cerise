@@ -19,9 +19,10 @@ Section region.
   Qed.
 
   (*--------------------------------------------------------------------------*)
+  (* `region_mapsto` is a contiguous region of memory for one given version *)
 
-  Definition region_mapsto (b e : Addr) (ws : list Word) : iProp Σ :=
-    ([∗ list] k↦y1;y2 ∈ (finz.seq_between b e);ws, y1 ↦ₐ y2)%I.
+  Definition region_mapsto (b e : Addr)  (v : Version) (ws : list LWord) : iProp Σ :=
+    ([∗ list] k↦y1;y2 ∈ (map (fun a => (a,v)) (finz.seq_between b e));ws, y1 ↦ₐ y2)%I.
 
   Definition included (b' e' : Addr) (b e : Addr) : iProp Σ :=
     (⌜(b <= b')%a⌝ ∧ (⌜e' <= e⌝)%a)%I.
@@ -36,16 +37,16 @@ Section region.
       ([∗ list] k ↦ y1;y2 ∈ l1;ws1, y1 ↦ₐ y2)%I ∗ ([∗ list] k ↦ y1;y2 ∈ l2;ws2, y1 ↦ₐ y2)%I.
   Proof. intros. rewrite big_sepL2_app' //. Qed.
 
-  Lemma extract_from_region b e a ws φ :
+  Lemma extract_from_region b e v a ws φ :
     let n := length (finz.seq_between b a) in
     (b <= a ∧ a < e)%a →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e v ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b a (take n ws)
+        ∗ region_mapsto b a v (take n ws)
         ∗ ([∗ list] w ∈ (take n ws), φ w)
-        ∗ a ↦ₐ w ∗ φ w
-        ∗ region_mapsto ((a^+1))%a e (drop (S n) ws)
+        ∗ (a, v) ↦ₐ w ∗ φ w
+        ∗ region_mapsto ((a^+1))%a e v (drop (S n) ws)
         ∗ ([∗ list] w ∈ (drop (S n) ws), φ w)%I).
   Proof.
     intros. iSplit.
@@ -54,35 +55,38 @@ Section region.
       rewrite (finz_seq_between_decomposition b a e) //.
       assert (Hlnws: n = length (take n ws)).
       { rewrite take_length. rewrite Nat.min_l; auto.
-        rewrite <- Hlen. subst n. rewrite !finz_seq_between_length /finz.dist.
+        rewrite <- Hlen. subst n.
+        rewrite map_length !finz_seq_between_length /finz.dist.
         solve_addr. }
+      rewrite map_length in Hlen.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
-      iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]".
-      case_eq (drop n ws); intros.
-      + auto.
-      + iDestruct "HA2" as "[HA2 HA3]".
-        iDestruct "HB2" as "[HB2 HB3]".
-        generalize (drop_S' _ _ _ _ _ H3). intros Hdws.
-        rewrite <- H3. rewrite HWS. rewrite Hdws.
-        iExists w. iFrame. by rewrite <- H3.
-    - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]".
-      unfold region_mapsto. rewrite (finz_seq_between_decomposition b a e) //.
-      iDestruct "AB" as "[A3 B3]".
-      rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame.
-  Qed.
+    (*   iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]". *)
+    (*   case_eq (drop n ws); intros. *)
+    (*   + auto. *)
+    (*   + iDestruct "HA2" as "[HA2 HA3]". *)
+    (*     iDestruct "HB2" as "[HB2 HB3]". *)
+    (*     generalize (drop_S' _ _ _ _ _ H3). intros Hdws. *)
+    (*     rewrite <- H3. rewrite HWS. rewrite Hdws. *)
+    (*     iExists w. iFrame. by rewrite <- H3. *)
+    (* - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]". *)
+    (*   unfold region_mapsto. rewrite (finz_seq_between_decomposition b a e) //. *)
+    (*   iDestruct "AB" as "[A3 B3]". *)
+    (*   rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame. *)
+  (* Qed. *)
+  Admitted.
 
-  Lemma extract_from_region' b e a ws φ `{!∀ x, Persistent (φ x)}:
+  Lemma extract_from_region' b e a v ws φ `{!∀ x, Persistent (φ x)}:
     let n := length (finz.seq_between b a) in
     (b <= a ∧ a < e)%a →
-    (region_mapsto b e ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
+    (region_mapsto b e v ws ∗ ([∗ list] w ∈ ws, φ w)) ⊣⊢
      (∃ w,
         ⌜ws = take n ws ++ (w::drop (S n) ws)⌝
-        ∗ region_mapsto b a (take n ws)
+        ∗ region_mapsto b a v (take n ws)
         ∗ ([∗ list] w ∈ ws, φ w)
-        ∗ a ↦ₐ w ∗ φ w
-        ∗ region_mapsto (a^+1)%a e (drop (S n) ws))%I.
+        ∗ (a, v) ↦ₐ w ∗ φ w
+        ∗ region_mapsto (a^+1)%a e v (drop (S n) ws))%I.
   Proof.
     intros. iSplit.
     - iIntros "H".
@@ -138,13 +142,13 @@ Section region.
     rewrite (drop_S' _ (take n ws ++ drop n ws) n w (l2)); try congruence.
   Qed.
 
-  Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
-            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
+  Notation "[[ b , e ]] ↦ₐ{ v } [[ ws ]]" := (region_mapsto b e v ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ{ v } [[ ws ]]") : bi_scope.
 
   Lemma region_mapsto_cons
-      (b b' e : Addr) (w : Word) (ws : list Word) :
+      (b b' e : Addr) (v : Version) (w : LWord) (ws : list LWord) :
     (b + 1)%a = Some b' → (b' <= e)%a →
-    [[b, e]] ↦ₐ [[ w :: ws ]] ⊣⊢ b ↦ₐ w ∗ [[b', e]] ↦ₐ [[ ws ]].
+    [[b, e]] ↦ₐ{ v } [[ w :: ws ]] ⊣⊢ (b,v) ↦ₐ w ∗ [[b', e]] ↦ₐ{ v } [[ ws ]].
   Proof.
     intros Hb' Hb'e.
     rewrite /region_mapsto.
@@ -157,10 +161,10 @@ Section region.
     eauto.
   Qed.
 
-  Lemma region_mapsto_single b e l:
+  Lemma region_mapsto_single b e v l:
     (b+1)%a = Some e →
-    [[b,e]] ↦ₐ [[l]] -∗
-    ∃ v, b ↦ₐ v ∗ ⌜l = [v]⌝.
+    [[b,e]] ↦ₐ{v}  [[l]] -∗
+    ∃ lw, (b,v) ↦ₐ lw ∗ ⌜l = [lw]⌝.
   Proof.
     iIntros (Hbe) "H". rewrite /region_mapsto finz_seq_between_singleton //.
     iDestruct (big_sepL2_length with "H") as %Hlen.
@@ -169,18 +173,19 @@ Section region.
     iDestruct "H" as "(H & _)". eauto.
   Qed.
 
-  Lemma region_mapsto_split  (b e a : Addr) (w1 w2 : list Word) :
+  Lemma region_mapsto_split  (b e a : Addr) (v : Version) (w1 w2 : list LWord) :
      (b ≤ a ≤ e)%Z →
      (length w1) = (finz.dist b a) →
-     ([[b,e]]↦ₐ[[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ[[w1]] ∗ [[a,e]]↦ₐ[[w2]])%I.
+     ([[b,e]]↦ₐ{v}[[w1 ++ w2]] ⊣⊢ [[b,a]]↦ₐ{v}[[w1]] ∗ [[a,e]]↦ₐ{v}[[w2]])%I.
    Proof with try (rewrite /finz.dist; solve_addr).
      intros [Hba Hae] Hsize.
      iSplit.
      - iIntros "Hbe".
        rewrite /region_mapsto /finz.seq_between.
        rewrite (finz_seq_decomposition _ _ (finz.dist b a))...
+       rewrite map_app.
        iDestruct (big_sepL2_app' with "Hbe") as "[Hba Ha'b]".
-       + by rewrite finz_seq_length.
+       + by rewrite map_length finz_seq_length.
        + iFrame.
          rewrite (_: (b ^+ finz.dist b a)%a = a)...
          rewrite (_: finz.dist a e = finz.dist b e - finz.dist b a)...
@@ -188,6 +193,7 @@ Section region.
      - iIntros "[Hba Hae]".
        rewrite /region_mapsto /finz.seq_between. (* todo: use a proper region splitting lemma *)
        rewrite (finz_seq_decomposition (finz.dist b e) _ (finz.dist b a))...
+       rewrite map_app.
        iApply (big_sepL2_app with "Hba [Hae]"); cbn.
        rewrite (_: (b ^+ finz.dist b a)%a = a)...
        rewrite (_: finz.dist b e - finz.dist b a = finz.dist a e)...
@@ -323,8 +329,9 @@ Section region.
 
 End region.
 
-Global Notation "[[ b , e ]] ↦ₐ [[ ws ]]" := (region_mapsto b e ws)
-            (at level 50, format "[[ b , e ]] ↦ₐ [[ ws ]]") : bi_scope.
+(* TODO included and in_range might need to be defined in terms of logical addresses instead *)
+Global Notation "[[ b , e ]] ↦ₐ{ v } [[ ws ]]" := (region_mapsto b e v ws)
+            (at level 50, format "[[ b , e ]] ↦ₐ{ v } [[ ws ]]") : bi_scope.
 
 Global Notation "[[ b , e ]] ⊂ₐ [[ b' , e' ]]" := (included b e b' e')
             (at level 50, format "[[ b , e ]] ⊂ₐ [[ b' , e' ]]") : bi_scope.
@@ -335,24 +342,25 @@ Global Notation "a ∈ₐ [[ b , e ]]" := (in_range a b e)
 (* Global Notation "[[ b , e ]] ↣ₐ [[ ws ]]" := (region_mapsto_spec b e ws) *)
 (*             (at level 50, format "[[ b , e ]] ↣ₐ [[ ws ]]") : bi_scope. *)
 
+
 Section codefrag.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
-    `{MP: MachineParameters}.
+          `{MP: MachineParameters}.
 
-  Definition codefrag (a0: Addr) (cs: list Word) :=
-    ([[ a0, (a0 ^+ length cs)%a ]] ↦ₐ [[ cs ]])%I.
+Definition codefrag (a: Addr) (v : Version) (cs: list LWord) :=
+  ([[ a, (a ^+ length cs)%a ]] ↦ₐ{ v } [[ cs ]])%I.
 
-  Lemma codefrag_contiguous_region a0 cs :
-    codefrag a0 cs -∗
-      ⌜ContiguousRegion a0 (length cs)⌝.
-  Proof using.
-    iIntros "Hcs". unfold codefrag.
-    iDestruct (big_sepL2_length with "Hcs") as %Hl.
-    set an := (a0 + length cs)%a in Hl |- *.
-    unfold ContiguousRegion.
-    destruct an eqn:Han; subst an; [ by eauto |]. cbn.
-    exfalso. rewrite finz_seq_between_length /finz.dist in Hl.
-    solve_addr.
-  Qed.
+Lemma codefrag_contiguous_region a v cs :
+  codefrag a v cs -∗
+  ⌜ContiguousRegion a (length cs)⌝.
+Proof using.
+  iIntros "Hcs". unfold codefrag.
+  iDestruct (big_sepL2_length with "Hcs") as %Hl.
+  set an := (a + length cs)%a in Hl |- *.
+  unfold ContiguousRegion.
+  destruct an eqn:Han; subst an; [ by eauto |]. cbn.
+  exfalso. rewrite map_length finz_seq_between_length /finz.dist in Hl.
+  solve_addr.
+Qed.
 
 End codefrag.

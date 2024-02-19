@@ -22,7 +22,8 @@ Inductive ConfFlag : Type :=
 Definition Conf: Type := ConfFlag * ExecConf.
 
 (* NOTE: could use TChajed's coq-record-update library if this gets much more annoying https://github.com/tchajed/coq-record-update/tree/master/src *)
-Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := MkExecConf (<[r:=w]>(reg φ)) (mem φ) (etable φ) (enumcur φ).
+Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg' (mem φ) (etable φ) (enumcur φ).
+Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
 Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
@@ -206,6 +207,130 @@ Proof.
 Qed.
 
 
+Definition is_scap (w : Word) :=
+  match w with
+    | WCap p b e a => true
+    | WSealed _ (SCap p b e a) => true
+    | _ => false end.
+Definition get_scap (w : Word) : option Sealable :=
+  match w with
+    | WCap p b e a => Some (SCap p b e a)
+    | WSealed _ (SCap p b e a) => Some (SCap p b e a)
+    | _ => None end.
+Lemma get_is_scap w sb : get_scap w = Some sb → is_scap w = true.
+Proof. unfold get_scap, is_scap. repeat (case_match); auto. all: intro; by exfalso. Qed.
+
+
+
+Definition overlap_wordb (w1 w2 : Word) : bool :=
+  match get_scap w1, get_scap w2 with
+  | Some (SCap _ b1 e1 _), Some (SCap _ b2 e2 _) =>
+      if (b1 <? b2)%a
+      then (b2 <=? (e1 ^+ (-1)))%a
+      else (b1 <=? (e2 ^+ (-1)))%a
+  | _, _ => false
+  end.
+
+Definition overlap_word (w1 w2 :Word) : Prop := overlap_wordb w1 w2 = true.
+
+(* Returns [true] if [r] is unique. *)
+Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
+  match regs !! src with
+  | None => false (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc =>
+      foldl
+        (fun (uniqueb : bool) (r : RegName) =>
+           if decide (r = src)
+           then uniqueb
+           else
+             match regs !! r with
+             | None => uniqueb (* if we don't find the register, then it cannot overlap *)
+             | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
+             end
+        )
+        true
+        all_registers
+  end
+.
+
+Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+  Forall
+    (fun (r : RegName) =>
+       r <> src ->
+       match regs !! r with
+       | None => True
+       | Some w => not (overlap_word wsrc w)
+       end)
+    all_registers.
+
+Lemma sweep_registers_spec (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_registers regs src = true ->
+  regs !! src = Some wsrc ->
+  unique_in_registers regs src wsrc.
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /unique_in_registers.
+  apply Forall_fold_right.
+Admitted.
+
+(* Returns [true] if [r] is unique. *)
+Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+  match regs !! src with
+  | None => false (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc =>
+      foldl
+        (fun (uniqueb : bool) (a : Addr) =>
+           match mem !! a with
+           | None => uniqueb (* if we don't find the addr, then it cannot overlap *)
+           | Some wr => (negb (overlap_wordb wsrc wr)) && uniqueb
+           end
+        )
+        true
+        all_memory
+  end
+  .
+
+Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
+  Forall
+    (fun (a : Addr) =>
+       match mem !! a with
+       | None => True
+       | Some w => not (overlap_word wsrc w)
+       end)
+    all_memory.
+
+Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_memory mem regs src = true ->
+  regs !! src = Some wsrc ->
+  unique_in_memory mem wsrc.
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /unique_in_memory.
+  apply Forall_fold_right.
+Admitted.
+
+(* Returns [true] if [r] is unique. *)
+Definition sweep  (mem : Mem) (regs : Reg) (r : RegName)  : bool :=
+  let unique_mem := sweep_memory mem regs r in
+  let unique_reg := sweep_registers regs r in
+  unique_mem && unique_reg
+.
+
+Definition unique_in_machine
+  (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+  regs !! src = Some wsrc ->
+  unique_in_memory mem wsrc /\ unique_in_registers regs src wsrc.
+
+Lemma sweep_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  regs !! src = Some wsrc ->
+  sweep mem regs src = true ->
+  unique_in_machine mem regs src wsrc.
+Proof.
+  intros Hsrc [Hsweep_mem Hsweep_reg]%andb_prop _.
+  eapply sweep_memory_spec in Hsweep_mem; eauto.
+  eapply sweep_registers_spec in Hsweep_reg; eauto.
+Qed.
+
 Section opsem.
   Context `{MachineParameters}.
 
@@ -372,7 +497,17 @@ Section opsem.
         else None
     | _,_ => None
     end
-  | _ => None (* TODO EInit, EDeInit, EStoreId *)
+  | EInit _ _ => None      (* TODO @Denis *)
+  | EDeInit _ _ => None    (* TODO @Denis *)
+  | EStoreId _ _ _ => None (* TODO @Denis *)
+  | IsUnique dst src =>
+      wsrc ← (reg φ) !! src;
+      match wsrc with
+      | WCap p b e a =>
+          let uniqueb := sweep (mem φ) (reg φ) src in
+          updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
+      | _ => None
+      end
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
@@ -602,6 +737,7 @@ Section opsem.
     ; repeat destruct (otype_of_argument (reg φ) _)
     ; repeat destruct (word_of_argument (reg φ) _)
     ; repeat destruct (z_of_argument (reg φ) _)
+    ; try destruct (sweep src (reg φ) (mem φ))
     ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.

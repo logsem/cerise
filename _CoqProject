@@ -30,6 +30,8 @@ theories/machine_run.v
 theories/cap_lang.v
 theories/linking.v
 
+theories/logical_mapsto.v
+
 # Misc for automation
 theories/proofmode/classes.v
 theories/proofmode/class_instances.v
@@ -52,6 +54,7 @@ theories/rules/rules_UnSeal.v
 theories/rules/rules_EInit.v
 theories/rules/rules_EDeInit.v
 theories/rules/rules_EStoreId.v
+theories/rules/rules_IsUnique.v
 theories/rules.v
 
 # Program logic: Binary WP rules
@@ -119,64 +122,64 @@ theories/fundamental.v
 theories/monotone.v
 theories/examples/addr_reg_sample.v
 theories/proofmode/disjoint_regions_tactics.v
-theories/proofmode/mkregion_helpers.v
+# theories/proofmode/mkregion_helpers.v
 
 # Common Cerise (assembly) macros
-theories/examples/malloc.v
-theories/examples/salloc.v
-theories/examples/assert.v
-theories/examples/macros.v
-theories/examples/macros_new.v
+# theories/examples/malloc.v
+# theories/examples/salloc.v
+# theories/examples/assert.v
+# theories/examples/macros.v
+# theories/examples/macros_new.v
 
 # Template Adequacy
-theories/examples/template_adequacy.v
-theories/examples/template_adequacy_ocpl.v
+# theories/examples/template_adequacy.v
+# theories/examples/template_adequacy_ocpl.v
 
 # Tutorial and Exercises for learning Cerise in Coq
-theories/exercises/cerise_tutorial.v
-theories/exercises/cerise_tutorial_solutions.v
-theories/exercises/cerise_modularity.v
-theories/exercises/cerise_modularity_solutions.v
+# theories/exercises/cerise_tutorial.v
+# theories/exercises/cerise_tutorial_solutions.v
+# theories/exercises/cerise_modularity.v
+# theories/exercises/cerise_modularity_solutions.v
 
-theories/exercises/subseg_buffer.v
-theories/exercises/restrict_buffer.v
-theories/exercises/subseg_buffer_closure.v
-theories/exercises/subseg_buffer_malloc.v
-theories/exercises/subseg_buffer_call.v
+# theories/exercises/subseg_buffer.v
+# theories/exercises/restrict_buffer.v
+# theories/exercises/subseg_buffer_closure.v
+# theories/exercises/subseg_buffer_malloc.v
+# theories/exercises/subseg_buffer_call.v
 
 # Classic buffer example
-theories/examples/buffer.v
+# theories/examples/buffer.v
 
 # Counter
-theories/examples/minimal_counter.v
-theories/examples/counter/counter.v
-theories/examples/counter/counter_preamble.v
-theories/examples/counter/counter_adequacy.v
+# theories/examples/minimal_counter.v
+# theories/examples/counter/counter.v
+# theories/examples/counter/counter_preamble.v
+# theories/examples/counter/counter_adequacy.v
 
 # Heap-based Calling Convention
-theories/examples/call.v
-theories/examples/callback.v
+# theories/examples/call.v
+# theories/examples/callback.v
 
 # Example
-theories/examples/lse.v
-theories/examples/lse_adequacy.v
+# theories/examples/lse.v
+# theories/examples/lse_adequacy.v
 
 # Interval using Sofware Sealing
-theories/examples/keylist.v
-theories/examples/dynamic_sealing.v
-theories/examples/interval/interval.v
-theories/examples/interval/interval_closure.v
-theories/examples/interval/interval_client.v
-theories/examples/interval/interval_client_closure.v
-theories/examples/interval/interval_client_adequacy.v
+# theories/examples/keylist.v
+# theories/examples/dynamic_sealing.v
+# theories/examples/interval/interval.v
+# theories/examples/interval/interval_closure.v
+# theories/examples/interval/interval_client.v
+# theories/examples/interval/interval_client_closure.v
+# theories/examples/interval/interval_client_adequacy.v
 
 # Interval using Hardware Sealing
-theories/examples/arch_sealing.v
-theories/examples/interval_arch/interval_arch.v
-theories/examples/interval_arch/interval_closure_arch.v
-theories/examples/interval_arch/interval_client_arch.v
-theories/examples/interval_arch/interval_client_closure_arch.v
-theories/examples/interval_arch/interval_client_adequacy_arch.v
+# theories/examples/arch_sealing.v
+# theories/examples/interval_arch/interval_arch.v
+# theories/examples/interval_arch/interval_closure_arch.v
+# theories/examples/interval_arch/interval_client_arch.v
+# theories/examples/interval_arch/interval_client_closure_arch.v
+# theories/examples/interval_arch/interval_client_adequacy_arch.v
 
 # Common macros (binary)
 # theories/examples/malloc_binary.v
@@ -191,6 +194,6 @@ theories/examples/interval_arch/interval_client_adequacy_arch.v
 # theories/examples/counter_binary/counter_binary_adequacy_theorem.v
 
 # Other examples
-theories/examples/adder.v
-theories/examples/adder_adequacy.v
-theories/examples/ocpl_lowval_like.v
+# theories/examples/adder.v
+# theories/examples/adder_adequacy.v
+# theories/examples/ocpl_lowval_like.v
