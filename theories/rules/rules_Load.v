@@ -352,7 +352,7 @@ Section cap_lang_rules.
        destruct o. all: congruence. }
   Qed.
 
-  Lemma wp_load_success_notinst Ep r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw'
+  Lemma wp_load_success_notinstr Ep r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw'
     lw'' p b e a v pc_a' dq dq':
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
