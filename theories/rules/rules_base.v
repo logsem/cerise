@@ -1496,7 +1496,7 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
-  Lemma wp2_z_of_argument {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
+  Lemma wp2_z_of_argument {src Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
     state_interp_transient φ φt lr lrt lm  lmt df dft ∗
       (∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z)

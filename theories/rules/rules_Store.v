@@ -42,7 +42,7 @@ Section cap_lang_rules.
     (lregs': LReg) (lmem lmem' : LMem) : cap_lang.val → Prop
     :=
   | Store_spec_success p b e a v storev oldv :
-    lword_of_argument lregs r2 = Some storev ->
+    word_of_argumentL lregs r2 = Some storev ->
     reg_allows_store lregs r1 p b e a v →
     lmem !! (a, v) = Some oldv →
     lmem' = (<[(a, v) := storev]> lmem) →
@@ -65,7 +65,7 @@ Section cap_lang_rules.
       (p : Perm) (b e a : Addr) v storev,
       allow_store_map_or_true r1 lregs lmem
       → lregs !! r1 = Some (LCap p b e a v)
-      → lword_of_argument lregs r2 = Some storev
+      → word_of_argumentL lregs r2 = Some storev
       → writeAllowed p = true
       → withinBounds b e a = true
       → ∃ (storev : LWord),
