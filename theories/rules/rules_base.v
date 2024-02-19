@@ -1257,43 +1257,43 @@ Section cap_lang_rules_opt.
     now iApply "HΦs".
   Qed.
 
-  Definition wp_opt2 {A1 A2} (φ1 : option A1) (φ2 : option A2) (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) : iProp Σ :=
+  Definition wp_opt2 {A1 A2} Ep (φ1 : option A1) (φ2 : option A2) (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) : iProp Σ :=
     match φ1 , φ2 with
-      None , None => |={∅}=> Φf
-    | Some x1 , Some x2 => |={∅}=> Φs x1 x2
-    | _ , _ => |={∅}=> False
+      None , None => |={Ep}=> Φf
+    | Some x1 , Some x2 => |={Ep}=> Φs x1 x2
+    | _ , _ => |={Ep}=> False
     end.
 
-  Lemma wp2_diag_univ {A} {φ : option A} {Φf} {Φs : A -> A -> iProp Σ} :
-    (Φf ∧ (∀ x, Φs x x)) ⊢ wp_opt2 φ φ Φf Φs.
+  Lemma wp2_diag_univ {A} {φ : option A} {Ep Φf} {Φs : A -> A -> iProp Σ} :
+    (Φf ∧ (∀ x, Φs x x)) ⊢ wp_opt2 Ep φ φ Φf Φs.
   Proof.
     destruct φ; [rewrite bi.and_elim_r | rewrite bi.and_elim_l];
       now iIntros "Hk".
   Qed.
 
-  Lemma wp_wp2 {A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φs} :
-    wp_opt2 φ1 φ2 Φf (fun x1 x2 => Φs x2) ⊢ wp_opt φ2 (|={∅}=> Φf) (fun x => |={∅}=> Φs x).
+  Lemma wp_wp2 {Ep A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φs} :
+    wp_opt2 Ep φ1 φ2 Φf (fun x1 x2 => Φs x2) ⊢ wp_opt φ2 (|={Ep}=> Φf) (fun x => |={Ep}=> Φs x).
   Proof.
     iIntros "Hk".
     destruct φ1 , φ2; now iMod "Hk" as "Hk".
   Qed.
 
-  Lemma wp2_val {A1 A2} {x1 : A1} {x2 : A2} {Φf Φs} :
-    (|={∅}=> Φs x1 x2) ⊢ wp_opt2 (Some x1) (Some x2) Φf Φs.
+  Lemma wp2_val {A1 A2} {x1 : A1} {x2 : A2} {Φf Φs Ep} :
+    (|={Ep}=> Φs x1 x2) ⊢ wp_opt2 Ep (Some x1) (Some x2) Φf Φs.
   Proof.
     now iIntros "Hk".
   Qed.
 
-  Lemma wp_opt2_eqn {A1 A2} {φ1 : option A1} {φ2 : option A2} (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) :
-    wp_opt2 φ1 φ2 Φf (fun x1 x2 => ⌜ φ1 = Some x1 ⌝ → ⌜ φ2 = Some x2 ⌝ → Φs x1 x2) ⊢ wp_opt2 φ1 φ2 Φf Φs.
+  Lemma wp_opt2_eqn {Ep} {A1 A2} {φ1 : option A1} {φ2 : option A2} (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) :
+    wp_opt2 Ep φ1 φ2 Φf (fun x1 x2 => ⌜ φ1 = Some x1 ⌝ → ⌜ φ2 = Some x2 ⌝ → Φs x1 x2) ⊢ wp_opt2 Ep φ1 φ2 Φf Φs.
   Proof.
     destruct φ1, φ2; cbn; try done.
     iIntros "Hk".
     now iApply "Hk".
   Qed.
 
-  Lemma wp_opt2_eqn_both {A1 A2} {φ1 : option A1} {φ2 : option A2} (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) :
-    wp_opt2 φ1 φ2 (⌜ φ1 = None ⌝ → ⌜ φ2 = None ⌝ → Φf) (fun x1 x2 => ⌜ φ1 = Some x1 ⌝ → ⌜ φ2 = Some x2 ⌝ → Φs x1 x2) ⊢ wp_opt2 φ1 φ2 Φf Φs.
+  Lemma wp_opt2_eqn_both {Ep} {A1 A2} {φ1 : option A1} {φ2 : option A2} (Φf : iProp Σ) (Φs : A1 -> A2 -> iProp Σ) :
+    wp_opt2 Ep φ1 φ2 (⌜ φ1 = None ⌝ → ⌜ φ2 = None ⌝ → Φf) (fun x1 x2 => ⌜ φ1 = Some x1 ⌝ → ⌜ φ2 = Some x2 ⌝ → Φs x1 x2) ⊢ wp_opt2 Ep φ1 φ2 Φf Φs.
   Proof.
     destruct φ1, φ2; cbn; try done.
     - iIntros "Hk".
@@ -1302,24 +1302,24 @@ Section cap_lang_rules_opt.
       now iApply "Hk".
   Qed.
 
-  Lemma wp_opt2_mod {A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φs} :
-    (|={∅}=> wp_opt2 φ1 φ2 Φf Φs) ⊢ wp_opt2 φ1 φ2 Φf Φs.
+  Lemma wp_opt2_mod {Ep} {A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φs} :
+    (|={Ep}=> wp_opt2 Ep φ1 φ2 Φf Φs) ⊢ wp_opt2 Ep φ1 φ2 Φf Φs.
   Proof.
     destruct φ1, φ2;
       now iIntros ">H".
   Qed.
 
-  Lemma wp_opt2_bind {A1 A2} {B1 B2} {φ1 : option A1} {φ2 : option A2} {k1 : A1 -> option B1} {k2 : A2 -> option B2} {Φf Φs} :
-    wp_opt2 φ1 φ2 Φf (fun x1 x2 => wp_opt2 (k1 x1) (k2 x2) Φf Φs) ⊢
-      wp_opt2 (x1 ← φ1 ; k1 x1) (x2 ← φ2 ; k2 x2) Φf Φs.
+  Lemma wp_opt2_bind {Ep} {A1 A2} {B1 B2} {φ1 : option A1} {φ2 : option A2} {k1 : A1 -> option B1} {k2 : A2 -> option B2} {Φf Φs} :
+    wp_opt2 Ep φ1 φ2 Φf (fun x1 x2 => wp_opt2 Ep (k1 x1) (k2 x2) Φf Φs) ⊢
+      wp_opt2 Ep (x1 ← φ1 ; k1 x1) (x2 ← φ2 ; k2 x2) Φf Φs.
   Proof.
     iIntros "Hk".
     iApply wp_opt2_mod.
     destruct φ1, φ2; now iMod "Hk" as "Hk".
   Qed.
 
-  Lemma wp_opt2_mono {A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φsa Φsb} :
-    (∀ x1 x2, Φsa x1 x2 -∗ Φsb x1 x2) ∗ wp_opt2 φ1 φ2 Φf Φsa ⊢ wp_opt2 φ1 φ2 Φf Φsb.
+  Lemma wp_opt2_mono {Ep} {A1 A2} {φ1 : option A1} {φ2 : option A2} {Φf Φsa Φsb} :
+    (∀ x1 x2, Φsa x1 x2 -∗ Φsb x1 x2) ∗ wp_opt2 Ep φ1 φ2 Φf Φsa ⊢ wp_opt2 Ep φ1 φ2 Φf Φsb.
   Proof.
     destruct φ1, φ2; cbn; iIntros "(Hab & Hwp)"; try done.
     now iApply "Hab".
@@ -1452,11 +1452,11 @@ Section cap_lang_rules_opt.
   (*   - now rewrite lookup_fmap Heqr. *)
   (* Qed. *)
   
-  Lemma wp2_reg_lookup {lrt lmt dft r φ φt lr lm df Φs Φf} :
+  Lemma wp2_reg_lookup {Ep} {lrt lmt dft r φ φt lr lm df Φs Φf} :
     r ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
       (∀ lwr, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lwr (lword_get_word lwr)) ⊢
-      wp_opt2 (lrt !! r) (reg φt !! r) Φf Φs.
+      wp_opt2 Ep (lrt !! r) (reg φt !! r) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hσr & Hk)".
     iPoseProof (state_interp_transient_corr with "Hσr") as "%HInv".
@@ -1483,11 +1483,11 @@ Section cap_lang_rules_opt.
     iApply wp2_val. now iApply "Hk".
   Qed.
 
-  Lemma wp2_word_of_argument {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
+  Lemma wp2_word_of_argument {Ep} {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
       (∀ lw, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lw (lword_get_word lw))
-      ⊢ wp_opt2 (word_of_argumentL lrt src) (word_of_argument (reg φt) src) Φf Φs.
+      ⊢ wp_opt2 Ep (word_of_argumentL lrt src) (word_of_argument (reg φt) src) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hσr & HΦs)".
     destruct src as [z|r]; cbn.
@@ -1496,11 +1496,11 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
-  Lemma wp2_z_of_argument {src Φf Φs φ φt lr lrt lm lmt df dft} :
+  Lemma wp2_z_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
     state_interp_transient φ φt lr lrt lm  lmt df dft ∗
       (∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z)
-      ⊢ wp_opt2 (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
+      ⊢ wp_opt2 Ep (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
   Proof.
   Admitted.
 
@@ -1643,13 +1643,13 @@ Section cap_lang_rules_opt.
   (*   by eapply is_cur_word_cap_change, (map_Forall_lookup_1 _ _ _ _ Hcurregs). *)
   (* Qed. *)
 
-  Lemma wp2_opt_incrementPC {φ φt lr lrt lm lmt df dft Φs Φf} :
+  Lemma wp2_opt_incrementPC {Ep} {φ φt lr lrt lm lmt df dft Φs Φf} :
     PC ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
     ((∀ φt' lrt', state_interp_transient φ φt' lr lrt' lm lmt df dft -∗ Φf) ∧
        (∀ lrt' rs',
            state_interp_transient φ (update_regs φt rs') lr lrt' lm lmt df dft -∗ Φs lrt' rs'))
-    ⊢ wp_opt2 (incrementLPC lrt) (incrementPC (reg φt)) Φf Φs.
+    ⊢ wp_opt2 Ep (incrementLPC lrt) (incrementPC (reg φt)) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hφr & Hk)".
     iApply wp_opt2_bind.

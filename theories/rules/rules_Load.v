@@ -148,13 +148,13 @@ Section cap_lang_rules.
       ; rewrite lookup_insert_ne in H6; try congruence; try by simplify_map_eq.
   Qed.
 
-  Lemma wp2_mem_lookup {lrt lmt dft φ φt lr lm df Φs Φf r p b e a v lwa} :
+  Lemma wp2_mem_lookup {Ep} {lrt lmt dft φ φt lr lm df Φs Φf r p b e a v lwa} :
     withinBounds b e a = true ->
     lrt !! r = Some (LCap p b e a v) ->
     lmt !! (a,v) = Some lwa ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
       (state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lwa (lword_get_word lwa)) ⊢
-      wp_opt2 (lmt !! (a,v)) (mem φt !! a) Φf Φs.
+      wp_opt2 Ep (lmt !! (a,v)) (mem φt !! a) Φf Φs.
   Proof.
     iIntros (Hin_bounds Hlrt_r Hlmt_a) "(Hσr & Hk)".
     iPoseProof (state_interp_transient_corr with "Hσr") as "%Hcor".
