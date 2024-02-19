@@ -31,14 +31,14 @@ Section cap_lang_rules.
       incrementLPC (<[ dst := lw ]> lregs) = None →
       Mov_spec lregs dst src lregs' FailedV.
 
-  Lemma wp_Mov pc_p pc_b pc_e pc_a pc_v lw dst src lregs :
+  Lemma wp_Mov Ep pc_p pc_b pc_e pc_a pc_v lw dst src lregs :
     decodeInstrWL lw = Mov dst src ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Mov dst src) ⊆ dom lregs →
     {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ ∅
+      Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
         ⌜ Mov_spec lregs dst src lregs' retv ⌝ ∗
         (pc_a, pc_v) ↦ₐ lw ∗
