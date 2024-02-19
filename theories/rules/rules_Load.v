@@ -236,7 +236,7 @@ Section cap_lang_rules.
       iApply (update_state_interp_from_cap_mod Hdom Hdom_eq Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
-  Lemma wp_load_general
+  Lemma wp_load_general Ep
     pc_p pc_b pc_e pc_a pc_v
     r1 r2 lw (lmem : LMem) (dfracs : LDFrac) lregs :
     decodeInstrWL lw = Load r1 r2 →
@@ -250,7 +250,7 @@ Section cap_lang_rules.
 
     {{{ (▷ [∗ map] la↦dw ∈ prod_merge dfracs lmem, la ↦ₐ{dw.1} dw.2) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ ∅
+      Instr Executable @ Ep
       {{{ lregs' retv, RET retv;
           ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
             ([∗ map] la↦dw ∈ prod_merge dfracs lmem, la ↦ₐ{dw.1} dw.2) ∗
@@ -355,7 +355,7 @@ Section cap_lang_rules.
 
   Lemma wp_load
     pc_p pc_b pc_e pc_a pc_v
-    r1 r2 lw lmem lregs dq :
+    r1 r2 lw lmem lregs dq Ep :
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -364,7 +364,7 @@ Section cap_lang_rules.
     allow_load_map_or_true r2 lregs lmem →
     {{{ (▷ [∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-      Instr Executable @ ∅
+      Instr Executable @ Ep
       {{{ lregs' retv, RET retv;
           ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
             ([∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
