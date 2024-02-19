@@ -1452,8 +1452,6 @@ Section cap_lang_rules_opt.
   (*   - now rewrite lookup_fmap Heqr. *)
   (* Qed. *)
   
-  Lemma wp2_reg_lookup {lrt r φ φt lr Φs Φf} :
-
   Lemma wp2_reg_lookup {lrt lmt dft r φ φt lr lm df Φs Φf} :
     r ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
@@ -1498,10 +1496,10 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
-  Lemma wp2_z_of_argument {src lw Φf Φs φ φt lr lrt} :
+  Lemma wp2_z_of_argument {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
-    state_interp_regs_transient φ φt lr lrt ∗
-      (∀ z, state_interp_regs_transient φ φt lr lrt -∗ Φs z z)
+    state_interp_transient φ φt lr lrt lm  lmt df dft ∗
+      (∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z)
       ⊢ wp_opt2 (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
   Proof.
   Admitted.
@@ -1645,7 +1643,6 @@ Section cap_lang_rules_opt.
   (*   by eapply is_cur_word_cap_change, (map_Forall_lookup_1 _ _ _ _ Hcurregs). *)
   (* Qed. *)
 
-  Lemma wp2_opt_incrementPC {φ φt lr lrt Φs Φf} :
   Lemma wp2_opt_incrementPC {φ φt lr lrt lm lmt df dft Φs Φf} :
     PC ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt df dft ∗
