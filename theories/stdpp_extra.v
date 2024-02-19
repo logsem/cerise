@@ -940,58 +940,388 @@ Definition prod_merge {A B C : Type} `{Countable A} : gmap A B → gmap A C → 
 Lemma prod_merge_empty_r
   {K A B} `{Countable K} (m1 : gmap K A) :
   (@prod_merge _ _ B _ _ m1 ∅) = ∅.
-Admitted.
+Proof.
+  rewrite /prod_merge.
+  rewrite merge_empty_r.
+  rewrite /flip.
+  rewrite /prod_op.
+  induction m1 using map_ind.
+  - apply omap_empty.
+  - assert (((λ y : option A, match y with
+                         | Some _ | _ => None
+                         end) ∘ Some) x = (None : option (prod A B))) by done.
+    apply omap_insert_None with (i := i) (m := m) in H1.
+    rewrite IHm1 in H1.
+    by rewrite delete_empty in H1.
+Qed.
 
 Lemma prod_merge_empty_l
   {K A B} `{Countable K} (m2 : gmap K B) :
   (@prod_merge _ A _ _ _ ∅ m2) = ∅.
-Admitted.
+Proof.
+  rewrite /prod_merge.
+  rewrite merge_empty_l.
+  rewrite /prod_op.
+  induction m2 using map_ind.
+  - apply omap_empty.
+  - assert (((λ _ : option B, None) ∘ Some) x = (None : option (prod A B))) by done.
+    apply omap_insert_None with (i := i) (m := m) in H1.
+    rewrite IHm2 in H1.
+    by rewrite delete_empty in H1.
+Qed.
 
 Lemma prod_merge_insert
   {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) (k : K) (a : A) (b : B) :
   prod_merge (<[k:=a]> m1) (<[k:=b]> m2) =
   <[k:=(a,b)]> (prod_merge m1 m2).
-Admitted.
-
-Lemma prod_merge_snd_inv {K A B} `{Countable K}
-  (m1 : gmap K A) (m2 : gmap K B) :
-  dom m1 ≡ dom m2 ->
-  snd <$> (prod_merge m1 m2) = m2.
 Proof.
-  generalize dependent m2.
-  induction m1 using map_ind ; intros m2 Hdom.
-  - rewrite prod_merge_empty_l fmap_empty /=.
-    destruct m2 using map_ind; try done.
-    rewrite dom_empty dom_insert in Hdom; set_solver.
-  - destruct m2 using map_ind.
-    + rewrite dom_empty dom_insert in Hdom; set_solver.
-    + destruct (decide (i0 = i)); simplify_eq.
-      * (* i = i0*)
-        rewrite prod_merge_insert fmap_insert /=.
-        (* rewrite dom_insert in Hdom. *)
-        rewrite IHm1 ; last done. admit.
-      (* replace i0 with i. 2: { clear -H0 H1 Hdom. admit. } *)
-      (* rewrite -(insert_merge _ _ _ _ x0); try done. *)
-      (* rewrite IHm2. *)
-      (* rewrite <- IHm1. *)
-      (* cbn. *)
+  rewrite /prod_merge //=.
+  erewrite insert_merge; eauto.
+Qed.
 
-Admitted.
+Lemma snd_prod_merge_inv
+  {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) :
+  dom m1 = dom m2 ->
+  snd <$> prod_merge m1 m2 = m2.
+Proof.
+  move: m1.
+  induction m2 as [| k v m2 Hm2_k IHm2 ] using map_ind
+  ; intros m1 Hdom.
+  - by rewrite prod_merge_empty_r fmap_empty.
+  - assert (k ∈ dom m1) as Hk_indom_m1 by set_solver.
+    apply elem_of_dom in Hk_indom_m1.
+    destruct Hk_indom_m1 as [v1 Hm1_k].
+    rewrite /prod_merge fmap_merge.
+    apply map_eq.
+    intros k'.
+    rewrite lookup_merge.
+    destruct (decide (k = k')) ; simplify_map_eq; first done.
+    destruct (m1 !! k') as [v'|] eqn:Hm1_k'.
+    + assert (k' ∈ dom m2) as Hk'_indom_m2.
+      { rewrite dom_insert_L in Hdom.
+        assert ( k' ∈ dom m1) as Hk'_indom_m1 by (apply elem_of_dom; eexists ; eauto).
+        rewrite Hdom in Hk'_indom_m1.
+        set_solver.
+      }
+      apply elem_of_dom in Hk'_indom_m2.
+      destruct Hk'_indom_m2 as [v2 Hm2_k'].
+      rewrite Hm2_k'.
+      by simplify_map_eq.
+    + assert (k' ∉ dom m2) as Hk'_notindom_m2.
+      { rewrite dom_insert_L in Hdom.
+        assert ( k' ∉ dom m1) as Hk'_notindom_m1 by (apply not_elem_of_dom; eauto).
+        rewrite Hdom in Hk'_notindom_m1.
+        set_solver.
+      }
+      apply not_elem_of_dom in Hk'_notindom_m2.
+      by simplify_map_eq.
+Qed.
 
 Lemma lookup_prod_merge_snd {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) va vb:
   prod_merge m1 m2 !! va = Some vb ->
   m2 !! va = Some (snd vb).
 Proof.
-  generalize dependent m1.
+  move: m1.
   induction m2 using map_ind; intros m1 Hprod.
   - rewrite prod_merge_empty_r lookup_empty // in Hprod.
   - destruct (decide (va = i)); simplify_map_eq.
-    2: { rewrite lookup_merge in Hprod; simplify_map_eq.
-         destruct m1 using map_ind.
-         rewrite lookup_empty //= in Hprod.
-         destruct (m !! va); done.
-Admitted.
+    + rewrite lookup_merge in Hprod; simplify_map_eq.
+      destruct (m1 !! i) eqn:Heq ; cbn in * ; [| congruence].
+      destruct vb ; simplify_eq ; cbn in * ; done.
+    + rewrite lookup_merge in Hprod; simplify_map_eq.
+      destruct (m !! va) eqn: Heq_m
+      ; cbn in *
+      ; destruct (m1 !! va) eqn:Heq_m1
+      ; simplify_map_eq; done.
+Qed.
+
+Lemma insert_inj {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) (v : A):
+  m1 !! k = m2 !! k ->
+  <[ k := v ]> m1 = <[ k := v ]> m2 ->
+  m1 = m2.
+Proof.
+  intros Heq_k Heq_insert.
+  apply map_eq.
+  rewrite map_eq' in Heq_insert.
+  intro k'.
+  destruct (decide (k = k')) ; simplify_eq ; first done.
+  destruct (m1 !! k') eqn:Hm1.
+  - specialize (Heq_insert k' a).
+    rewrite lookup_insert_ne //= lookup_insert_ne //= in Heq_insert.
+    apply Heq_insert in Hm1. by rewrite Hm1.
+  - destruct (m2 !! k') eqn:Hm2; last done.
+    specialize (Heq_insert k' a).
+    rewrite lookup_insert_ne //= lookup_insert_ne //= in Heq_insert.
+    eapply Heq_insert in Hm2.
+    rewrite Hm1 in Hm2 ; congruence.
+Qed.
+
+Lemma insert_subseteq_r_inv
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) (v : A) :
+  m1 !! k = None -> (<[ k := v ]> m1) ⊆ m2 → m1 ⊆ m2.
+Proof.
+  intros Hk Hincl.
+  eapply map_subseteq_spec; intros k' v' Hv'.
+  eapply lookup_weaken; last eauto.
+  rewrite lookup_insert_ne //=; intro; simplify_eq.
+Qed.
+
+Lemma insert_weaken
+  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (m m' : gmap K A) (k : K) (v : A) :
+  <[k:=v]> m' ⊆ m -> m !! k = Some v.
+Proof.
+  intros Hincl.
+  by eapply lookup_weaken; eauto; simplify_map_eq.
+Qed.
+
+Lemma map_subseteq_trans
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 m3 : gmap K A): m1 ⊆ m2 -> m2 ⊆ m3 -> m1 ⊆ m3 .
+Proof.
+  intros H12 H23.
+  rewrite map_subseteq_spec.
+  intros k v Hv.
+  eapply lookup_weaken in H12 ; eauto.
+  eapply lookup_weaken in H23 ; eauto.
+Qed.
+
+Lemma delete_subseteq_r
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 : gmap K A) (k : K) :
+  m1 !! k = None → m1 ⊆ m2 → m1 ⊆ delete k m2.
+Proof.
+  intros.
+  eapply map_subseteq_spec.
+  intros k' v' Hk'.
+  destruct (decide (k = k')) ; simplify_map_eq.
+  by eapply lookup_weaken in Hk'.
+Qed.
+
+Lemma delete_subseteq_list_r
+  {K A} `{Countable K, EqDecision K, Countable A, EqDecision A}
+  (m1 m2 m3 : gmap K A) :
+      m1 ##ₘ m3 → m1 ⊆ m2 → m1 ⊆ (m2 ∖ m3).
+Proof.
+  move: m1 m2.
+  induction m3 as [|k v m3 Hm3_k IHm3] using map_ind
+  ; intros m1 m2 Hdisjoint Hincl.
+  - eapply map_subseteq_spec; intros k' v' Hk'.
+    rewrite map_difference_empty.
+    eapply lookup_weaken; eauto.
+  - eapply map_subseteq_spec; intros k' v' Hm1_k'.
+    assert (m2 !! k' = Some v') as Hm2_k' by (eapply lookup_weaken ; eauto).
+    apply map_disjoint_insert_r in Hdisjoint.
+    destruct Hdisjoint as [Hm1_k Hdisjoint].
+    pose proof (delete_subseteq_r m1 m2 k Hm1_k Hincl) as Hdel.
+    eapply IHm3 in Hdel; eauto.
+    assert (k ≠ k') as Hneq_k by (intro ; simplify_map_eq).
+    pose proof Hm1_k' as Hk'.
+    rewrite lookup_difference.
+    simplify_map_eq.
+    eapply map_disjoint_Some_r in Hm1_k'; eauto.
+    by rewrite Hm1_k'.
+Qed.
+
+Lemma delete_difference_assoc
+  {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (m m' : gmap K A) (k' : K) :
+  (delete k' m ∖ m') = delete k' (m ∖ m').
+Proof.
+  move: m k'.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; intros m k'.
+  - by rewrite !map_difference_empty.
+  - by rewrite -!delete_difference IHm' delete_commute.
+Qed.
+
+Lemma list_remove_submsteq
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  list_remove_list [a] la = Some la' ->
+  la' ⊆+ la.
+Proof.
+  induction la'; intros Hla' ; cbn.
+  - eapply submseteq_nil_l.
+  - cbn in *.
+    destruct (list_remove a la) eqn:Hremove ; cbn in * ; last done.
+    rewrite Hla' in Hremove.
+    eapply list_remove_Some in Hremove.
+    setoid_rewrite Hremove.
+    eapply submseteq_cons_l.
+    eexists (a::la'). split.
+    eapply perm_swap.
+    by apply submseteq_cons.
+Qed.
+
+(* TODO Unelegant way to create an extensible tactic,
+   cf. https://stackoverflow.com/questions/48868186/extensible-tactic-in-coq *)
+Ltac destruct_cons_hook0 := fail.
+Ltac destruct_cons_hook := destruct_cons_hook0.
+Ltac destruct_cons:= repeat destruct_cons_hook.
+Ltac destruct_cons_nodup :=
+  match goal with
+   | HNoDup : NoDup (?a :: ?la) |- _ =>
+       let Ha_notin_la := fresh "H" a "_notin_" la in
+       let HNoDup_la := fresh "HNoDup_" la in
+       apply NoDup_cons in HNoDup
+       ; destruct HNoDup as [Ha_notin_la HNoDup_la]
+   end.
+Ltac destruct_cons_notin :=
+  match goal with
+     | HnotIn : ?a' ∉ ?a :: ?la |- _ =>
+         let Hneq := fresh "H" a' "_neq_" a in
+         let HnotIn' := fresh "H" a' "_notin_" la in
+         apply not_elem_of_cons in HnotIn
+         ; destruct HnotIn as [Hneq HnotIn']
+   end.
+Ltac destruct_cons_forall :=
+  match goal with
+     | Hforall : Forall ?f (?a :: ?la)  |- _ =>
+         let Ha := fresh Hforall "_" a in
+         apply Forall_cons in Hforall ; destruct Hforall as [Ha Hforall]
+   end.
+Ltac destruct_cons_in :=
+  match goal with
+  | HIn : ?a' ∈ ?a :: ?la |- _ =>
+      apply elem_of_cons in HIn
+  end.
+Ltac destruct_cons_hook1 := destruct_cons_forall
+                            || destruct_cons_notin
+                            || destruct_cons_in
+                            || destruct_cons_nodup
+                            || destruct_cons_hook0.
+Ltac destruct_cons_hook ::= destruct_cons_hook1.
+
+Lemma list_remove_In
+  {A : Type} `{EqDecision A} (a' : A) (la : list A) :
+  a' ∈ la -> is_Some (list_remove a' la).
+Proof.
+  induction la as [|a la IHla] ; intros * Hin ; first set_solver.
+  destruct_cons.
+  destruct Hin as [|Hin] ; simplify_eq; cbn
+  ; [rewrite decide_True |] ; auto.
+  apply IHla in Hin.
+  destruct (decide (a' = a)) ; simplify_eq; auto.
+  by apply fmap_is_Some.
+Qed.
+
+Lemma list_remove_preserves_notin
+  {A : Type} `{EqDecision A} (a' a'' : A) (la la': list A) :
+  a' ∉ la ->
+  list_remove a'' la = Some la' ->
+  a' ∉ la'.
+Proof.
+  revert a' a'' la'.
+  induction la as [|a la IHla] ; intros * Hnotin Hremove ; first set_solver.
+  destruct_cons.
+  destruct (decide (a'' = a)) ; simplify_eq; cbn in *.
+  + rewrite decide_True in Hremove ; first done.
+    by simplify_eq.
+  + rewrite decide_False in Hremove ; first done.
+    destruct (list_remove a'' la) eqn:?; cbn in * ; simplify_eq.
+    eapply not_elem_of_cons ; split ; first done.
+    eapply IHla ; eauto.
+Qed.
+
+Lemma list_remove_NoDup
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  NoDup la ->
+  list_remove a la = Some la' ->
+  NoDup la'.
+Proof.
+  revert a la' ; induction la ; intros * HNoDup Hremove; cbn in * ; simplify_eq.
+  destruct_cons.
+  destruct (decide (a0 = a)) as [|?] ; simplify_eq; first done.
+  destruct (list_remove a0 la) eqn:?; cbn in * ; simplify_eq.
+  apply NoDup_cons ; split; eauto.
+  eapply list_remove_preserves_notin; eauto.
+Qed.
+
+Lemma list_remove_list_NoDup
+  `{A : Type} `{EqDecision A} (la1 la2 la' : list A) :
+  NoDup la2 ->
+  list_remove_list la1 la2 = Some la' ->
+  NoDup la'.
+Proof.
+  revert la2 la'.
+  induction la1; intros * HNoDup Hremove ; cbn in * ; simplify_eq
+  ; first done.
+  destruct (list_remove a la2) eqn:Hremove' ; cbn in * ; last done.
+  eapply list_remove_NoDup in Hremove'; auto.
+  eapply IHla1; eauto.
+Qed.
+
+Lemma not_elemof_list_remove
+  `{A : Type} `{EqDecision A} (a' : A) (la la' : list A) :
+  a' ∈ la ->
+  NoDup la ->
+  list_remove a' la = Some la' ->
+  a' ∉ la'.
+Proof.
+  revert la' a' ; induction la as [|a la IHla] ; intros * Hin HNoDup Hremove
+  ; cbn in *; first done.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto
+  ; simplify_eq ; first done.
+  destruct (list_remove a' la) eqn:? ; cbn in * ; simplify_eq.
+  apply not_elem_of_cons; split ; first set_solver.
+  apply IHla; auto.
+Qed.
+
+Lemma not_elemof_list_remove_list
+  `{A : Type} `{EqDecision A} (a : A) (la la' : list A) :
+  a ∈ la ->
+  NoDup la ->
+  list_remove_list [a] la = Some la' ->
+  a ∉ la'.
+Proof.
+  revert la' ; induction la as [|a' la' IHla] ; intros * Hin HNoDup Hremove ; cbn in * ; first done.
+  eapply bind_Some in Hremove.
+  destruct Hremove as (a0 & Hremove & ?); simplify_eq.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto
+  ; simplify_eq ; first done.
+  destruct (list_remove a la') eqn:?; cbn in * ; simplify_eq.
+  apply not_elem_of_cons; split ; first set_solver.
+  eapply IHla; eauto.
+Qed.
+
+Lemma list_remove_list_region
+  `{A : Type} `{EqDecision A} (a' : A) (la la' : list A) :
+  a' ∈ la ->
+  NoDup la ->
+  list_remove_list [a'] la = Some la' ->
+  la ⊆+ a' :: la'.
+Proof.
+  revert a' la' ; induction la as [|a la IHla] ; intros * Hin HoDup Hremove
+  ; cbn in *; first done.
+  destruct_cons.
+  destruct Hin as [|Hin] ; cbn in *
+  ; simplify_eq
+  ; [ rewrite decide_True in Hremove ; auto
+    | rewrite decide_False in Hremove ; first (intro ; set_solver)
+    ]
+  ; auto ; cbn in *
+  ; simplify_eq; first set_solver.
+  assert (a' ≠ a) as Hneq by (intro ; set_solver).
+  destruct ( list_remove a' la) as [?|] eqn:Hremove' ; cbn in *; simplify_eq.
+  assert (la ⊆+ a' :: l).
+  eapply IHla; eauto. rewrite Hremove' //=.
+  eapply submseteq_trans with (l2 := (a :: a' ::l)) ; by econstructor.
+Qed.
 
 Lemma prod_merge_delete_l {K A B} `{Countable K}
   (m1 : gmap K A) (m2 : gmap K B) (i : K) :

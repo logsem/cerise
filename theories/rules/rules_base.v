@@ -7,6 +7,7 @@ From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
+Ltac destruct_cons_hook ::= destruct_cons_hook2.
 Ltac inv_head_step :=
   repeat match goal with
          | _ => progress simplify_map_eq/= (* simplify memory stuff *)
@@ -276,6 +277,53 @@ Section cap_lang_rules.
     rewrite (big_sepM_delete _ (<[l:=v]> σ') l).
     { rewrite delete_insert_delete. iFrame. }
     rewrite lookup_insert //.
+  Qed.
+
+  Lemma gen_heap_lmem_version_update `{HmemG : memG Σ, HregG : regG Σ} :
+    ∀ (lmem lm lmem' lm': LMem) (vmap vmap': VMap)
+      (la : list Addr) ( v : Version ),
+      NoDup la ->
+      lmem ⊆ lm ->
+      update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+      Forall (λ a : Addr, lm !! (a, v+1) = None) la ->
+      Forall (λ a : Addr, is_cur_addr (a,v) vmap) la ->
+      gen_heap_interp lm
+      -∗ ([∗ map] k↦y ∈ lmem, mapsto k (DfracOwn 1) y)
+      ==∗ gen_heap_interp lm' ∗ [∗ map] k↦y ∈ lmem', mapsto k (DfracOwn 1) y.
+  Proof.
+    move=> lmem lm lmem' lm' vmap vmap' la.
+    move: lmem lm lmem' lm' vmap vmap'.
+    induction la as [|a la IH]
+    ; iIntros
+        (lmem lm lmem' lm' vmap vmap' v
+           HNoDup_la Hlmem_incl Hupd Hmaxv_lm Hcur_lm)
+        "Hgen Hmem".
+    - (* no addresses updated *)
+      cbn in Hupd ; simplify_eq.
+      iModIntro; iFrame.
+    - destruct_cons.
+      assert (lmem0 ⊆ lm0) as Hlmem0_incl
+          by (eapply update_cur_version_region_preserves_lmem_incl; eauto; done).
+      rewrite /update_cur_version_addr in Hupd0.
+      destruct (vmap0 !! a) as [va |] eqn:Hvmap0_a
+      ; last ( simplify_eq ; iApply (IH with "Hgen"); eauto).
+      rewrite /is_cur_addr /= in Hcur_lm_a.
+      erewrite <- update_cur_version_region_notin_preserves_cur
+        in Hcur_lm_a; eauto.
+      eapply lookup_weaken in Hvmap0_a; eauto.
+      rewrite -/(is_cur_addr (a,va) vmap0) in Hvmap0_a.
+      eapply is_cur_addr_same in Hcur_lm_a; eauto; simplify_map_eq.
+      destruct (lm0 !! (a, v)) as [lw|] eqn:Hlm0_a
+      ; rewrite Hlm0_a in Hupd0
+      ; simplify_eq
+      ; last (iApply (IH with "Hgen"); eauto).
+      iDestruct (IH with "Hgen Hmem") as ">[Hgen Hmem]"; eauto.
+      erewrite <- update_cur_version_region_notin_preserves_lm in Hmaxv_lm_a; eauto.
+      iMod (((gen_heap_alloc lm0 (a, v + 1) lw) with "Hgen"))
+        as "(Hgen & Ha & _)"; auto.
+      iModIntro ; iFrame.
+      iApply (big_sepM_insert with "[Hmem Ha]"); last iFrame.
+      eapply lookup_weaken_None; eauto.
   Qed.
 
   Lemma prim_step_no_kappa {e1 σ1 κ e2 σ2 efs}:
@@ -718,19 +766,19 @@ Section cap_lang_rules.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)".
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
     iSplit. by iPureIntro; apply normal_always_head_reducible.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
-    2: eapply state_phys_corresponds_reg; eauto.
+    2: eapply state_corresponds_reg_get_word; eauto.
     2: intro contra; apply isCorrectLPC_isCorrectPC_iff in contra; auto.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hϕ HPC"; last by iApply "Hϕ".
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
   Qed.
 
@@ -776,7 +824,7 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -784,13 +832,14 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
   Qed.
 
@@ -807,7 +856,7 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -815,13 +864,14 @@ Section cap_lang_rules.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
     cbn in Hstep. simplify_eq.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, cur_map.
+    iExists lr, lm, vmap.
     iFrame; auto.
    Qed.
 
@@ -1362,15 +1412,16 @@ Section cap_lang_rules_opt.
     }
 
     eapply step_exec_inv in Hstep; eauto; cbn.
-    2: eapply state_phys_corresponds_reg ; eauto ; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: eapply state_corresponds_reg_get_word_cap ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
 
     iMod ("H" $! (lword_get_word lw) with "[%] Hcred") as "H".
     { intuition.
-      + now eapply (state_phys_corresponds_reg (LCap pc_p pc_b pc_e pc_a pc_v) _ _ _ _ _ _ _ eq_refl HLinv) .
-      + apply (state_phys_corresponds_mem lw _ (pc_a , pc_v) _ _ _ _ _ _ eq_refl eq_refl HLinv);
-        try now cbn.
-        refine (state_corresponds_cap_cur_addr _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ _ _ Hregs_pc _); try now cbn.
+      + now eapply (state_corresponds_reg_get_word _ _ _ _ _ _ (LCap pc_p pc_b pc_e pc_a pc_v) HLinv).
+      + eapply (state_corresponds_mem_get_word _ _ _ _ _ pc_a pc_v lw HLinv )
+        ; try now cbn.
+        eapply state_corresponds_cap_cur_word ; [ apply HLinv | | | | apply Hregs_pc | ]
+        ; try now cbn.
         eapply (isCorrectPC_withinBounds _ _ _ _ Hcorrpc).
     }
     unfold exec in Hstep.
@@ -1465,7 +1516,7 @@ Section cap_lang_rules_opt.
     rewrite Hlrt.
     rewrite map_subseteq_spec in  Hregs_incl.
     specialize (Hregs_incl r lrw Hlrt).
-    eapply state_phys_log_reg_get_word in Hregs_incl; eauto.
+    eapply state_corresponds_reg_get_word in Hregs_incl; eauto.
     erewrite Hregs_incl.
   
   (* Lemma wp_word_of_argument {src lw Φf Φs φ φt lr lrt} : *)
@@ -1547,7 +1598,7 @@ Section cap_lang_rules_opt.
       eapply is_cur_regs_mono in Hcur_lr'; eauto.
       specialize (Hcur cur_map Hcur_lr').
       destruct Hinv as [Hregs ?] ; split ; auto.
-      by apply lreg_insert_respects_corresponds.
+      by apply lreg_corresponds_insert_respects.
     - iSplit ; first done.
       iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
@@ -1668,7 +1719,8 @@ Section cap_lang_rules_opt.
     iApply (update_state_interp_transient_from_regs_mod Hdom (lw2 := LCap p f f0 f2 v) with "Hφr").
 
     intros cur_map Hcurregs.
-    by eapply is_cur_word_cap_change, (map_Forall_lookup_1 _ _ _ _ Hcurregs).
+    eapply is_cur_lword_lea with (lw := LCap p f f0 f1 v); try now cbn.
+    by eapply (map_Forall_lookup_1 _ _ _ _ Hcurregs).
   Qed.
 
 

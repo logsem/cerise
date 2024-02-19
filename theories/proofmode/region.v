@@ -1,4 +1,7 @@
-From cap_machine Require Export stdpp_extra cap_lang rules_base.
+From cap_machine Require Export stdpp_extra cap_lang.
+From cap_machine Require Export logical_mapsto.
+From cap_machine Require Export cap_lang iris_extra stdpp_extra.
+
 (* From cap_machine Require Import rules_binary_base. *)
 From iris.proofmode Require Import tactics.
 From machine_utils Require Import finz_interval.
@@ -62,20 +65,21 @@ Section region.
       generalize (take_drop n ws). intros HWS.
       rewrite <- HWS. simpl.
       iDestruct "B" as "[HB1 HB2]".
-    (*   iDestruct (mapsto_decomposition _ _ _ _ Hlnws with "A") as "[HA1 HA2]". *)
-    (*   case_eq (drop n ws); intros. *)
-    (*   + auto. *)
-    (*   + iDestruct "HA2" as "[HA2 HA3]". *)
-    (*     iDestruct "HB2" as "[HB2 HB3]". *)
-    (*     generalize (drop_S' _ _ _ _ _ H3). intros Hdws. *)
-    (*     rewrite <- H3. rewrite HWS. rewrite Hdws. *)
-    (*     iExists w. iFrame. by rewrite <- H3. *)
-    (* - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]". *)
-    (*   unfold region_mapsto. rewrite (finz_seq_between_decomposition b a e) //. *)
-    (*   iDestruct "AB" as "[A3 B3]". *)
-    (*   rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame. *)
-  (* Qed. *)
-  Admitted.
+      rewrite map_app.
+      iDestruct (mapsto_decomposition with "A") as "[HA1 HA2]"
+      ;  first by rewrite map_length.
+      case_eq (drop n ws); [|intros w] ; intros.
+      + auto.
+      + iDestruct "HA2" as "[HA2 HA3]".
+        iDestruct "HB2" as "[HB2 HB3]".
+        generalize (drop_S' _ _ _ _ _ H3). intros Hdws.
+        rewrite <- H3. rewrite HWS. rewrite Hdws.
+        iExists w. iFrame. by rewrite <- H3.
+    - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]".
+      unfold region_mapsto. rewrite (finz_seq_between_decomposition b a e) // map_app.
+      iDestruct "AB" as "[A3 B3]".
+      rewrite {5}Hws. iFrame. rewrite {3}Hws. iFrame.
+  Qed.
 
   Lemma extract_from_region' b e a v ws φ `{!∀ x, Persistent (φ x)}:
     let n := length (finz.seq_between b a) in
@@ -326,10 +330,36 @@ Section region.
   (*      rewrite (_: finz.dist b e - finz.dist b a = finz.dist a e)... *)
   (*  Qed. *)
 
+   Lemma NoDup_logical_region (b e : Addr) (v : Version) :
+     NoDup (map (λ a0 : Addr, (a0, v)) (finz.seq_between b e)).
+   Proof.
+     apply NoDup_fmap.
+     { by intros x y Heq ; simplify_eq. }
+     { apply finz_seq_between_NoDup. }
+   Qed.
+
+   Lemma update_logical_memory_region_disjoint
+     (la : list Addr) (v : Version) (lws : list LWord):
+     length la = length lws ->
+     (list_to_map (zip (map (λ a : Addr, (a, v + 1)) la) lws) : LMem)
+       ##ₘ list_to_map (zip (map (λ a : Addr, (a, v)) la) lws).
+   Proof.
+     intros Hlen.
+     apply map_disjoint_list_to_map_zip_l ; [rewrite map_length; lia|].
+     apply Forall_forall.
+     intros a Ha.
+     apply not_elem_of_list_to_map.
+     rewrite fst_zip; [|rewrite map_length; lia].
+     intros Ha'.
+     apply elem_of_list_fmap_2 in Ha, Ha'.
+     destruct Ha as (? & Ha & ?).
+     destruct Ha' as (? & Ha' & ?). simplify_eq; lia.
+   Qed.
 
 End region.
 
-(* TODO included and in_range might need to be defined in terms of logical addresses instead *)
+(* TODO included and in_range might need to be defined
+   in terms of logical addresses instead ? *)
 Global Notation "[[ b , e ]] ↦ₐ{ v } [[ ws ]]" := (region_mapsto b e v ws)
             (at level 50, format "[[ b , e ]] ↦ₐ{ v } [[ ws ]]") : bi_scope.
 

@@ -181,22 +181,23 @@ Qed.
 
 Lemma region_addrs_exists `{Σ : gFunctors} {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
      ⊢ (([∗ list] a0 ∈ a, (∃ b0, φ a0 b0)) ∗-∗
-      (∃ (ws : list B), [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
+      (∃ (ws : list B), ⌜ length ws = length a ⌝ ∗ [∗ list] a0;b0 ∈ a;ws, φ a0 b0))%I.
 Proof.
   iSplit.
   - iIntros "Ha".
     iInduction (a) as [ | a0] "IHn".
-    + iExists []. done.
+    + iExists []. iSplit ; done.
     + iDestruct "Ha" as "[Ha0 Ha]".
       iDestruct "Ha0" as (w0) "Ha0".
-      iDestruct ("IHn" with "Ha") as (ws) "Ha'".
-      iExists (w0 :: ws). iFrame.
+      iDestruct ("IHn" with "Ha") as (ws) "[%Hlen Ha']".
+      iExists (w0 :: ws). iSplit; last iFrame.
+      iPureIntro; cbn ; lia.
   - iIntros "Ha".
     iInduction (a) as [ | a0] "IHn".
     + done.
-    + iDestruct "Ha" as (ws) "Ha".
+    + iDestruct "Ha" as (ws) "[%Hlen Ha']".
       destruct ws;[by iApply bi.False_elim|].
-      iDestruct "Ha" as "[Ha0 Ha]".
+      iDestruct "Ha'" as "[Ha0 Ha]".
       iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto.
       iFrame. eauto.
 Qed.
@@ -490,4 +491,140 @@ Proof.
       exfalso. apply NoDup_cons in Hdup as [Hnin Hdup].
       apply Hnin. apply create_gmap_default_lookup_is_Some in Hsome' as [Hin Hsome'].
       subst. auto.
+Qed.
+
+Lemma big_sepM_insert_difference_1
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
+    ([∗ map] k↦y ∈ m, Φ k y) ⊢
+      ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y).
+Proof.
+  move: m.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; iIntros (m Hincl) "Hm".
+  - rewrite map_difference_empty.
+    by iFrame.
+  - pose proof (insert_weaken _ _ k v Hincl) as Hm_k.
+    rewrite -(insert_id m k v); last assumption.
+    iDestruct (big_sepM_insert_delete with "Hm") as "[Hk Hm]".
+    apply delete_mono with (i:= k) in Hincl.
+    rewrite delete_insert in Hincl; last done.
+    iDestruct (IHm' with "Hm") as "[Hm Hm']"; first done.
+    iSplitL "Hk Hm".
+    + iApply (big_sepM_insert_delete with "[Hk Hm]").
+      rewrite delete_notin; last assumption.
+      iFrame.
+    + erewrite difference_insert with (x3 := v).
+      by rewrite -delete_difference delete_difference_assoc.
+Qed.
+
+Lemma big_sepM_insert_difference_2
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
+  ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y)
+    ⊢ ([∗ map] k↦y ∈ m, Φ k y).
+Proof.
+  move: m.
+  induction m' as [| k v m' Hm'_k IHm' ] using map_ind
+  ; iIntros (m Hincl) "[Hm Hm']".
+  - rewrite map_difference_empty.
+    by iFrame.
+  - pose proof (insert_weaken _ _ k v Hincl) as Hm_k.
+    rewrite -(insert_id m k v); last assumption.
+    iDestruct (big_sepM_insert_delete with "Hm") as "[Hk Hm]".
+    apply delete_mono with (i:= k) in Hincl.
+    rewrite delete_insert in Hincl; last done.
+    iDestruct (IHm' with "[Hm Hm']") as "Hm"; first done.
+    + iSplitL "Hm".
+      * rewrite delete_notin; last assumption; iFrame.
+      * erewrite difference_insert with (x3 := v).
+        by rewrite -delete_difference delete_difference_assoc.
+    + iApply (big_sepM_insert_delete with "[Hk Hm]"); iFrame.
+Qed.
+
+Lemma big_sepM_insert_difference
+  {PROP : bi} {K : Type} {EqDecision0 : EqDecision K} {H : Countable K} {A : Type}
+  (Φ : K → A → PROP) (m m' : gmap K A):
+  m' ⊆ m ->
+    ([∗ map] k↦y ∈ m, Φ k y) ⊣⊢
+      ([∗ map] k↦y ∈ m', Φ k y) ∗ ([∗ map] k↦y ∈ (m ∖ m'), Φ k y).
+Proof.
+  iIntros (Hincl).
+  iSplit; [iIntros "Hm" | iIntros "[Hm Hm']"].
+  - by iDestruct (big_sepM_insert_difference_1 with "Hm") as "$? $?".
+  - iDestruct (big_sepM_insert_difference_2 with "[Hm Hm']") as "$?"
+    ; [eassumption|iFrame].
+Qed.
+
+(* TODO is there a way to make it even more general ? *)
+Definition equiv_zip_fnt
+  {PROP : bi} {A B C : Type}
+  (ϕ : nat -> (A * B * C) -> PROP )
+  (ψ : nat -> (A * (C * B)) -> PROP )
+  :=
+  (∀ (k : nat)
+     (ab_c : (A * B * C))
+     (a_cb : (A * (C * B))),
+      ab_c.1.1 = a_cb.1 ->
+      ab_c.2 = a_cb.2.1 ->
+      ab_c.1.2 = a_cb.2.2 ->
+      (ϕ k ab_c ∗-∗ ψ k a_cb)).
+
+Lemma big_sepL_zip_zip_equiv
+  {PROP : bi} {A B C : Type}
+  (la : list A) (lb : list B) (lc : list C)
+  (ϕ : nat -> (A * B * C) -> PROP )
+  (ψ : nat -> (A * (C * B)) -> PROP ) :
+  length la = length lb ->
+  length lb = length lc ->
+  equiv_zip_fnt ϕ ψ ->
+  (([∗ list] k↦ab_c ∈ zip (zip la lb) lc, ϕ k ab_c)
+     ∗-∗ ([∗ list] k↦a_cb ∈ (zip la (zip lc lb)), ψ k a_cb)).
+  revert lb lc ϕ ψ.
+  induction la as [|a la IHla]; intros * Hlen_lb Hlen_lc Hequiv.
+  - cbn in * ; simplify_eq. iSplit ; iIntros "?" ; done.
+  - destruct lb as [|b lb] ; first (cbn in * ; lia).
+    destruct lc as [|c lc] ; first (cbn in * ; lia).
+    cbn in Hlen_lb, Hlen_lc.
+    injection Hlen_lb ; clear Hlen_lb ; intro Hlen_lb.
+    injection Hlen_lc ; clear Hlen_lc ; intro Hlen_lc.
+    cbn ; iSplit ; iIntros "[Ha Hmem]"
+    ; iDestruct ((Hequiv 0 (a,b,c) (a,(c,b))) with "Ha") as "H"; eauto; cbn
+    ; iFrame; iApply IHla; eauto
+    ; rewrite /equiv_zip_fnt; intros; cbn in *; by eapply Hequiv.
+Qed.
+
+Definition equiv_zip_fnt'
+  {PROP : bi} {A B C : Type}
+  (ψ : nat -> A -> (C * B) -> PROP )
+  (ϕ : nat -> A -> C -> PROP ) :=
+  (∀ (k : nat) (a : A) (b : B) (c : C), (ψ k a (c,b) ∗-∗ ϕ k a c)).
+
+Lemma big_sepL2_zip_r_equiv
+  {PROP : bi} {A B C : Type}
+  (la : list A) (lb : list B) (lc : list C)
+  (ψ : nat -> A -> (C * B) -> PROP )
+  (ϕ : nat -> A -> C -> PROP ) :
+  length la = length lb ->
+  length lb = length lc ->
+  equiv_zip_fnt' ψ ϕ ->
+  (([∗ list] k↦a;cb ∈ la;zip lc lb, ψ k a cb)
+     ∗-∗ ([∗ list] k↦a;c ∈ la;lc, ϕ k a c)).
+Proof.
+  revert lb lc ψ ϕ.
+  induction la as [|a la IHla]; intros * Hlen_lb Hlen_lc Hequiv.
+  - iSplit ; iIntros "?".
+    all: rewrite -Hlen_lb in Hlen_lc; destruct lc as [|] ; last (cbn in * ; lia).
+    all: done.
+  - destruct lb as [|b lb] ; first (cbn in * ; lia).
+    destruct lc as [|c lc] ; first (cbn in * ; lia).
+    cbn in Hlen_lb, Hlen_lc.
+    injection Hlen_lb ; clear Hlen_lb ; intro Hlen_lb.
+    injection Hlen_lc ; clear Hlen_lc ; intro Hlen_lc.
+    cbn ; iSplit ; iIntros "[Ha Hmem]"
+    ; iDestruct (Hequiv 0 a b c with "Ha") as "H"; eauto; cbn
+    ; iFrame; iApply IHla ; eauto
+    ; rewrite /equiv_zip_fnt' ; intros; cbn in *; by eapply Hequiv.
 Qed.

@@ -118,6 +118,8 @@ Ltac dispatch_instr_rule instr cont :=
   | UnSeal ?r _ ?r => cont (@wp_unseal_r2)
   | UnSeal ?r ?r _ => cont (@wp_unseal_r1)
   | UnSeal _ _ _ => cont (@wp_unseal_success)
+  (* IsUnique*)
+  | IsUnique _ _ => cont (@wp_isunique_success)
   (* Fail *)
   | Fail => cont (@wp_fail)
   (* Halt *)

@@ -161,8 +161,8 @@ Section cap_lang_rules.
     destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
     rewrite Hlmt_a.
     eapply lookup_weaken in Hlmt_a, Hlrt_r; eauto.
-    eapply state_phys_corresponds_mem in Hlmt_a; eauto; cbn in Hlmt_a.
-    2: { eapply state_corresponds_cap_cur_addr; eauto; by cbn. }
+    eapply state_corresponds_mem_get_word in Hlmt_a; eauto; cbn in Hlmt_a.
+    2: { eapply state_corresponds_cap_cur_word; eauto; by cbn. }
     rewrite Hlmt_a.
     iApply wp2_val. now iApply "Hk".
   Qed.
@@ -197,9 +197,9 @@ Section cap_lang_rules.
     eapply lookup_weaken in Ha ; eauto.
     apply state_phys_log_corresponds_update_reg; try easy.
     destruct HLinv as [Hinv_reg Hinv_mem].
-    eapply lmem_read_iscur; eauto.
+    eapply lmem_corresponds_read_iscur; eauto.
     eapply lookup_weaken in Hr ; eauto.
-    eapply reg_corresponds_cap_cur_addr ; eauto; by cbn.
+    eapply state_corresponds_cap_cur_word ; eauto; by cbn.
   Qed.
 
   Lemma update_state_interp_transient_from_cap_mod
@@ -227,9 +227,9 @@ Section cap_lang_rules.
       eapply is_cur_regs_mono in Hcur_lr'; eauto.
       destruct Hinv as [Hregs ?] ; split ; auto.
       eapply lookup_weaken in Ha, Hr ; eauto.
-      eapply lmem_read_iscur in Ha; eauto.
-      by apply lreg_insert_respects_corresponds.
-      eapply reg_corresponds_cap_cur_addr; eauto ; by cbn.
+      eapply lmem_corresponds_read_iscur in Ha; eauto.
+      by apply lreg_corresponds_insert_respects.
+      eapply state_corresponds_cap_cur_word; eauto ; by cbn.
     - iSplit ; first done. iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
       destruct Hdom_eq as [_ Hdom_eq].

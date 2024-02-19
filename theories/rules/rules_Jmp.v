@@ -36,7 +36,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %?.
     iDestruct (@gen_heap_valid with "Hr0 Hr") as %Hr_r0.
@@ -46,23 +46,24 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
     unfold exec, exec_opt in Hstep; cbn in *.
-    eapply state_phys_log_reg_get_word in Hr_r0; eauto.
+    eapply state_corresponds_reg_get_word in Hr_r0; eauto.
     rewrite Hr_r0 /= in Hstep; simplify_pair_eq.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
     iSplitR "Hφ HPC Hpc_a Hr" ; [|by iApply "Hφ" ; iFrame].
-    iExists _, lm, cur_map; iFrame; eauto; cbn.
+    iExists _, lm, vmap; iFrame; eauto; cbn.
     iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
     ; destruct HLinv as [[Hstrips Hcur_reg] HmemInv]
     ; cbn in *.
     rewrite -updatePcPermL_spec.
-    apply lreg_insert_respects_corresponds; [split ; auto|].
+    apply lreg_corresponds_insert_respects; [split ; auto|].
     apply is_cur_updatePcPermL.
-    eapply lreg_read_iscur; eauto; split ; eauto.
+    eapply lreg_corresponds_read_iscur; eauto; split ; eauto.
   Qed.
 
 
@@ -81,7 +82,7 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap) "(Hr0 & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %?; auto.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC.
     iDestruct (@gen_heap_valid with "Hr0 HPC") as %Hr_PC'.
@@ -90,15 +91,16 @@ Section cap_lang_rules.
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".
     iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: eapply state_phys_corresponds_reg ; eauto; cbn ; eauto.
-    2: eapply state_phys_corresponds_mem_PC ; eauto; cbn ; eauto.
+    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
+    ; eapply state_corresponds_reg_get_word ; eauto.
+    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
     unfold exec, exec_opt in Hstep; cbn in *.
-    eapply state_phys_log_reg_get_word in Hr_PC; eauto.
+    eapply state_corresponds_reg_get_word in Hr_PC; eauto.
     rewrite Hr_PC /= in Hstep; simplify_pair_eq.
 
     iMod (@gen_heap_update with "Hr0 HPC") as "[Hr0 HPC]".
     iSplitR "Hφ HPC Hpc_a" ; [|by iApply "Hφ" ; iFrame].
-    iExists _, lm, cur_map; iFrame; eauto; cbn.
+    iExists _, lm, vmap; iFrame; eauto; cbn.
     iPureIntro; econstructor; eauto
     ; [| by destruct HLinv as [_ ?]]
     ; destruct HLinv as [[Hstrips Hcur_reg] HmemInv]
@@ -112,10 +114,8 @@ Section cap_lang_rules.
                             | _ => LCap pc_p pc_b pc_e pc_a pc_v
                             end))
            by (destruct pc_p ; auto).
-    apply lreg_insert_respects_corresponds ; [split ; auto|].
-    destruct pc_p; (try by eapply lreg_read_iscur; eauto; split ; eauto).
-    eapply is_cur_word_cap_change with (p':= machine_base.E) (a' := pc_a)
-    ; by eapply lreg_read_iscur; eauto; split ; eauto.
+    apply lreg_corresponds_insert_respects ; [split ; auto|].
+    destruct pc_p; (try by eapply lreg_corresponds_read_iscur; eauto; split ; eauto).
+    eapply is_cur_lword_lea with (p:= machine_base.E) (a := pc_a); eauto; by cbn.
   Qed.
-
 End cap_lang_rules.

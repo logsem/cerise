@@ -32,10 +32,12 @@ theories/linking.v
 
 theories/logical_mapsto.v
 
-# Misc for automation
+# Misc for automation and notations
 theories/proofmode/classes.v
 theories/proofmode/class_instances.v
 theories/proofmode/solve_addr_extra.v
+theories/proofmode/region.v
+theories/proofmode/register_tactics.v
 
 # Program logic: Unary WP rules
 theories/rules/rules_base.v
@@ -72,14 +74,12 @@ theories/rules.v
 # theories/rules_binary.v
 
 # Cerise Proofmode
-theories/proofmode/region.v
 theories/proofmode/contiguous.v
 theories/proofmode/tactics_helpers.v
 theories/proofmode/solve_pure.v
 theories/proofmode/NamedProp.v
 theories/proofmode/proofmode_instr_rules.v
 theories/proofmode/proofmode.v
-theories/proofmode/register_tactics.v
 
 # Unary Logical Relation
 theories/seal_store.v
@@ -98,6 +98,7 @@ theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
+theories/ftlr/IsUnique.v
 theories/fundamental.v
 
 # Binary Logical Relation
