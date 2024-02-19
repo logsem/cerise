@@ -148,93 +148,20 @@ Section cap_lang_rules.
       ; rewrite lookup_insert_ne in H6; try congruence; try by simplify_map_eq.
   Qed.
 
-  Lemma wp2_mem_lookup {Ep} {lrt lmt dft φ φt lr lm df Φs Φf r p b e a v lwa} :
-    withinBounds b e a = true ->
-    lrt !! r = Some (LCap p b e a v) ->
-    lmt !! (a,v) = Some lwa ->
-    state_interp_transient φ φt lr lrt lm lmt df dft ∗
-      (state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lwa (lword_get_word lwa)) ⊢
-      wp_opt2 Ep (lmt !! (a,v)) (mem φt !! a) Φf Φs.
-  Proof.
-    iIntros (Hin_bounds Hlrt_r Hlmt_a) "(Hσr & Hk)".
-    iPoseProof (state_interp_transient_corr with "Hσr") as "%Hcor".
-    destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
-    rewrite Hlmt_a.
-    eapply lookup_weaken in Hlmt_a, Hlrt_r; eauto.
-    eapply state_corresponds_mem_get_word in Hlmt_a; eauto; cbn in Hlmt_a.
-    2: { eapply state_corresponds_cap_cur_word; eauto; by cbn. }
-    rewrite Hlmt_a.
-    iApply wp2_val. now iApply "Hk".
-  Qed.
-
-  Lemma update_state_interp_from_cap_mod {σ dst lw2 Ep lregs lmem df p b e a v r}:
-    dst ∈ dom lregs ->
-    dom df = dom lmem ->
-
-    lregs !! r = Some (LCap p b e a v) ->
-    withinBounds b e a = true ->
-    lmem !! (a, v) = Some lw2 ->
-
-    state_interp_logical σ
-      ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
-      ∗ ([∗ map] la↦dw ∈ prod_merge df lmem, la ↦ₐ{dw.1} dw.2)
-      ⊢ |={Ep}=>
-          state_interp_logical (update_reg σ dst (lword_get_word lw2))
-            ∗ ([∗ map] k↦y ∈ <[ dst := lw2 ]> lregs, k ↦ᵣ y)
-            ∗ ([∗ map] la↦dw ∈ prod_merge df lmem, la ↦ₐ{dw.1} dw.2)
-  .
-  Proof.
-    iIntros (Hdst Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
-    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
-    iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
-    iMod ((gen_heap_update_inSepM _ _ dst lw2) with "Hr Hregs") as "[Hr Hregs]"; eauto.
-    { now apply elem_of_dom. }
-    iModIntro. iFrame.
-    iExists _,_,cur_map; iFrame.
-    iPureIntro.
-    apply snd_prod_merge_subseteq in Hlmem_incl; last done.
-    eapply lookup_weaken in Ha ; eauto.
-    apply state_phys_log_corresponds_update_reg; try easy.
-    destruct HLinv as [Hinv_reg Hinv_mem].
-    eapply lmem_corresponds_read_iscur; eauto.
-    eapply lookup_weaken in Hr ; eauto.
-    eapply state_corresponds_cap_cur_word ; eauto; by cbn.
-  Qed.
-
-  Lemma update_state_interp_transient_from_cap_mod
-    {σ σt lr lrt lm lmt df dft dst lw2 r p b e a v}:
-    dst ∈ dom lrt ->
-    lrt !! r = Some (LCap p b e a v) ->
-    withinBounds b e a = true ->
-    lmt !! (a, v) = Some lw2 ->
-    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
-      state_interp_transient
-      σ (update_reg σt dst (lword_get_word lw2))
-      lr (<[ dst := lw2 ]> lrt) lm lmt df dft.
-  Proof.
-    iIntros (Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem & %Hcor & %Hdom_eq & Hcommit)"; cbn in *.
-    iFrame "Hσ Hregs Hmem".
-    iSplitR.
-    - iPureIntro; cbn.
-      destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
-      exists (<[dst:=lw2]> lr'), lm', cur_map.
-      split; auto.
-      now apply insert_mono.
-      split; auto.
-      assert (is_cur_regs lr' cur_map) as Hcur_lr'
-          by (by destruct Hinv as [[_ Hcur'] _]).
-      eapply is_cur_regs_mono in Hcur_lr'; eauto.
-      destruct Hinv as [Hregs ?] ; split ; auto.
-      eapply lookup_weaken in Ha, Hr ; eauto.
-      eapply lmem_corresponds_read_iscur in Ha; eauto.
-      by apply lreg_corresponds_insert_respects.
-      eapply state_corresponds_cap_cur_word; eauto ; by cbn.
-    - iSplit ; first done. iIntros (Ep) "H".
-      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      destruct Hdom_eq as [_ Hdom_eq].
-      iApply (update_state_interp_from_cap_mod Hdom Hdom_eq Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
-  Qed.
+  Definition exec_optL_Load
+    (lregs : LReg) (lmem : LMem)
+    (dst src : RegName) :=
+    lwsrc ← lregs !! src ;
+    match lwsrc with
+    | LCap p b e a v =>
+        if readAllowed p && withinBounds b e a
+        then
+          lwa ← lmem !! (a, v) ;
+          lpc ← incrementLPC ( <[dst := lwa ]> lregs) ;
+          Some lpc (* trick to bind with update_reg *)
+        else None
+    | _ => None
+    end.
 
   Lemma wp_load_general Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -243,7 +170,6 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Load r1 r2) ⊆ dom lregs →
-
     lmem !! (pc_a, pc_v) = Some lw →
     allow_load_map_or_true r2 lregs lmem →
     dom lmem = dom dfracs →
@@ -271,18 +197,8 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    iApply wp_wp2.
-    (* TODO is there a way to avoid writing the continuation by hand ? *)
-    iApply (wp_opt2_bind (k1 := (fun (lwr : LWord) =>
-             match lwr with
-             | LCap p b e a v =>
-                 if readAllowed p && withinBounds b e a
-                 then (asrc ← lmem !! (a, v) ;
-                       lpc ← incrementLPC ( <[r1 := asrc ]> lregs) ;
-                      Some lpc) (* trick to bind with update_reg *)
-                 else None
-             | _ => None
-             end))).
+    iApply (wp_wp2 (φ1 := exec_optL_Load lregs lmem r1 r2)).
+    iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
 
     iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame.
@@ -290,7 +206,7 @@ Section cap_lang_rules.
     iMod (state_interp_transient_intro (lm := lmem) (df := dfracs)
            with "[$Hregs $Hσ Hmem]") as "Hσ"; iFrame ; first done.
 
-    iApply (wp2_reg_lookup (lrt := lregs)) ; first by set_solver.
+    iApply wp2_reg_lookup ; first by set_solver.
 
     iModIntro.
     iFrame "Hσ".
@@ -332,7 +248,7 @@ Section cap_lang_rules.
     { now set_solver. }
 
     rewrite updatePC_incrementPC.
-    iApply (wp_opt2_bind (φ1 := incrementLPC (<[ r1 := lwa]> lregs)) (k1 := (fun x => Some x))).
+    iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
     iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
     { rewrite dom_insert. apply elem_of_union_r. now rewrite elem_of_dom HPC. }
@@ -353,9 +269,9 @@ Section cap_lang_rules.
       eapply Load_spec_success; try eassumption; split; eauto.
   Qed.
 
-  Lemma wp_load
+  Lemma wp_load Ep
     pc_p pc_b pc_e pc_a pc_v
-    r1 r2 lw lmem lregs dq Ep :
+    r1 r2 lw lmem lregs dq :
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
