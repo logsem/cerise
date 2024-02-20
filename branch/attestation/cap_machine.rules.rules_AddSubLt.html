@@ -155,6 +155,14 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp2_z_of_argument"><span class="id" title="axiom">wp2_z_of_argument</span></a> <span class="id" title="notation">with</span> "[Hφ Hpc_a Hcred $Hσ]"<span class="id" title="notation">)</span>. { <span class="id" title="var">set_solver</span>. }<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;wp2_z_of_argument&nbsp;introduces&nbsp;an&nbsp;existential&nbsp;(see&nbsp;shelved&nbsp;goals)&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;and&nbsp;get&nbsp;back&nbsp;a&nbsp;new&nbsp;Hσ&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> "Hσ %Heqn1 %Heqn2".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_elim_abort"><span class="id" title="axiom">state_interp_transient_elim_abort</span></a> <span class="id" title="notation">with</span> "Hσ"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "($ &amp; Hregs &amp; _)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span>"Hφ" <span class="id" title="notation">with</span> "[$Hpc_a $Hregs]"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.rules.rules_AddSubLt.html#AddSubLt_spec_failure"><span class="id" title="constructor">AddSubLt_spec_failure</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="tactic">constructor</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> ( <span class="id" title="var">z1</span> ) "Hσ %Harg1L %Harg1".<br/>
 
 <br/>
@@ -162,6 +170,16 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_bind"><span class="id" title="axiom">wp_opt2_bind</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_eqn_both"><span class="id" title="axiom">wp_opt2_eqn_both</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp2_z_of_argument"><span class="id" title="axiom">wp2_z_of_argument</span></a> <span class="id" title="notation">with</span> "[Hφ Hpc_a Hcred $Hσ]"<span class="id" title="notation">)</span>. { <span class="id" title="var">set_solver</span>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> "Hσ %Heqn1 %Heqn2".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_elim_abort"><span class="id" title="axiom">state_interp_transient_elim_abort</span></a> <span class="id" title="notation">with</span> "Hσ"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "($ &amp; Hregs &amp; _)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span>"Hφ" <span class="id" title="notation">with</span> "[$Hpc_a $Hregs]"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.rules.rules_AddSubLt.html#AddSubLt_spec_failure"><span class="id" title="constructor">AddSubLt_spec_failure</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="tactic">constructor</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> ( <span class="id" title="var">z2</span> ) "Hσ %Harg2L %Harg2".<br/>
 
 <br/>
@@ -184,8 +202,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iPureIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">eapply</span> <a class="idref" href="cap_machine.rules.rules_AddSubLt.html#AddSubLt_spec_failure"><span class="id" title="constructor">AddSubLt_spec_failure</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="tactic">constructor</span> 3 <span class="id" title="keyword">with</span> <span class="id" title="var">z1</span> <span class="id" title="var">z2</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Interestingly,&nbsp;failure&nbsp;constructors&nbsp;1&nbsp;and&nbsp;2&nbsp;do&nbsp;not&nbsp;appear&nbsp;to&nbsp;be&nbsp;reachable&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Suggesting&nbsp;we&nbsp;can&nbsp;simplify&nbsp;some&nbsp;cases?&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iIntros</span> (<span class="id" title="var">lrt'</span> <span class="id" title="var">rs'</span>) "Hσ %Hlis %His".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_elim_commit"><span class="id" title="axiom">state_interp_transient_elim_commit</span></a> <span class="id" title="notation">with</span> "Hσ"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "($ &amp; Hregs &amp; _)".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span>"Hφ" <span class="id" title="notation">with</span> "[$Hpc_a $Hregs]"<span class="id" title="notation">)</span>.<br/>
