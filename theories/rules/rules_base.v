@@ -1577,10 +1577,26 @@ Section cap_lang_rules_opt.
   Lemma wp2_z_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
     state_interp_transient φ φt lr lrt lm  lmt df dft ∗
-      (∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z)
+      (state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φf) ∧
+      ((∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z))
       ⊢ wp_opt2 Ep (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
   Proof.
-  Admitted.
+    iIntros (Hregs) "(Hφ & Hk)".
+    destruct src; cbn.
+    - rewrite bi.and_elim_r. by iApply "Hk".
+    - change (wp_opt2 _ _ _ _ _) with
+        (wp_opt2 Ep (lrt !! r ≫= fun y => match y with | LInt z => Some z | _ => None end)
+           (reg φt !! r ≫= fun y => match y with | WInt z => Some z | _ => None end)
+           Φf Φs).
+      rewrite <-wp_opt2_bind.
+      iApply (wp2_reg_lookup with "[$Hφ Hk]").
+      { set_solver. }
+      iIntros (lwr) "Hφ".
+      destruct lwr; cbn.
+      + rewrite bi.and_elim_r. by iApply "Hk".
+      + rewrite bi.and_elim_l. by iApply "Hk".
+      + rewrite bi.and_elim_l. by iApply "Hk".
+  Qed.
 
   Lemma update_state_interp_from_regs_mod {σ dst lw2 Ep lregs}:
     dst ∈ dom lregs ->

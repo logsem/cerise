@@ -115,12 +115,30 @@ Section cap_lang_rules.
     iApply (wp2_z_of_argument with "[Hφ Hpc_a Hcred $Hσ]"). { set_solver. }
     (* wp2_z_of_argument introduces an existential (see shelved goals) *)
     (* and get back a new Hσ *)
+    iSplit.
+    { iIntros "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      eapply AddSubLt_spec_failure.
+      by constructor.
+    }
     iIntros ( z1 ) "Hσ %Harg1L %Harg1".
 
     (* Same trick again *)
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
     iApply (wp2_z_of_argument with "[Hφ Hpc_a Hcred $Hσ]"). { set_solver. }
+
+    iSplit.
+    { iIntros "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      eapply AddSubLt_spec_failure.
+      by constructor.
+    }
+
     iIntros ( z2 ) "Hσ %Harg2L %Harg2".
 
     rewrite updatePC_incrementPC.
@@ -141,8 +159,6 @@ Section cap_lang_rules.
       iPureIntro.
       eapply AddSubLt_spec_failure.
       by constructor 3 with z1 z2.
-      (* Interestingly, failure constructors 1 and 2 do not appear to be reachable *)
-      (* Suggesting we can simplify some cases? *)
     - iIntros (lrt' rs') "Hσ %Hlis %His".
       iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
