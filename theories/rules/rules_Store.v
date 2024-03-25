@@ -148,89 +148,61 @@ Section cap_lang_rules.
             ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore φ) "(>Hmem & >Hmap) Hφ".
-    (* iApply wp_lift_atomic_head_step_no_fork; auto. *)
-    (* iIntros (σ1 ns l1 l2 nt) "[Hr Hm] /=". destruct σ1; simpl. *)
-    (* iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore φ) "(>Hmem & >Hregs) Hφ".
 
-    (*  (* Derive necessary register values in r *) *)
-    (*  pose proof (lookup_weaken _ _ _ _ HPC Hregs). *)
-    (*  specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri. *)
-    (*  odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
-    (*  iDestruct (gen_mem_valid_inSepM mem mem0 with "Hm Hmem") as %Hma; eauto. *)
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs Hmem Hφ]").
+    iSplit. admit.
+    iModIntro.
+    iIntros (σ) "(Hσ & Hregs & ?)". (* ??? *)
+    iModIntro.
+    iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    (*  iModIntro. *)
-    (*  iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-    (*  iNext. iIntros (e2 σ2 efs Hpstep). *)
-    (*  apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-    (*  iIntros "_". *)
-    (*  iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
+    iApply wp_wp2.
 
-    (*  rewrite /exec /= Hr1 /= in Hstep. *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iMod (state_interp_transient_intro (lm := lmem) with "[$Hregs $Hσ Hmem]") as "Hσ".
+    { admit. }
+    iApply (wp2_word_of_argument with "[Hφ Hcred $Hσ]"). { set_solver. }
+    iIntros (r2v) "Hσ %Hlr2v %Hr2v".
 
-    (*  (* Now we start splitting on the different cases in the Store spec, and prove them one at a time *) *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
+    iIntros (r1v) "Hσ %Hlr1v %Hr1v".
 
-    (*  destruct (word_of_argument regs r2) as [ storev | ] eqn:HSV. *)
-    (*  2: { *)
-    (*    destruct r2 as [z | r2]. *)
-    (*    - cbn in HSV; inversion HSV. *)
-    (*    - destruct (Hri r2) as [r0v [Hr0 _] ]. by set_solver+. *)
-    (*      cbn in HSV. rewrite Hr0 in HSV. inversion HSV. *)
-    (*  } *)
-    (*  apply (word_of_arg_mono _ reg) in HSV as HSV'; auto. rewrite HSV' in Hstep. cbn in Hstep. *)
+    (* I can do the same trick as in Load *)
 
-    (*  destruct (is_cap r1v) eqn:Hr1v. *)
-    (*  2: { (* Failure: r1 is not a capability *) *)
-    (*    assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem0 ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-    (*    { *)
-    (*      unfold is_cap in Hr1v. *)
-    (*      destruct_word r1v; by simplify_pair_eq. *)
-    (*    } *)
-    (*    iFailWP "Hφ" Store_fail_const. *)
-    (*  } *)
-    (*  destruct r1v as [ | [p b e a | ] | ]; try inversion Hr1v. clear Hr1v. *)
+    destruct (is_log_cap r1v) eqn:Hlw2; cycle 1.
 
-    (*  destruct (writeAllowed p && withinBounds b e a) eqn:HWA. *)
-    (*  2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *) *)
-    (*    inversion Hstep. *)
-    (*    apply andb_false_iff in HWA. *)
-    (*    iFailWP "Hφ" Store_fail_bounds. *)
-    (*  } *)
-    (*  apply andb_true_iff in HWA; destruct HWA as (Hwa & Hwb). *)
+    {
+      destruct_lword r1v ; cbn in * ; simplify_eq.
+      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hregs & Hmem)".
+      (* fractional stuff, need to figure this out *)
+      all: admit.
+      (* all: iApply ("Hφ" with "[$Hmem $Hregs]"). *)
+      (* all: iPureIntro; constructor; by eapply Load_fail_const. *)
+    }
 
-    (*  (* Prove that a is in the memory map now, otherwise we cannot continue *) *)
-    (*  pose proof (allow_store_implies_storev r1 r2 mem regs p b e a storev) as (oldv & Hmema); auto. *)
+    destruct_lword r1v ; cbn in * ; simplify_eq.
 
-    (*  (* Given this, prove that a is also present in the memory itself *) *)
-    (*  iDestruct (gen_mem_valid_inSepM mem mem0 a oldv with "Hm Hmem" ) as %Hma' ; auto. *)
+    destruct (decide (writeAllowed p && withinBounds b e a = true)) as [Hwrite|Hwrite]
+    ; [|apply not_true_is_false in Hwrite] ; rewrite Hwrite ;cycle 1;cbn.
 
-    (*   destruct (incrementPC regs ) as [ regs' |] eqn:Hregs'. *)
-    (*   2: { (* Failure: the PC could not be incremented correctly *) *)
-    (*     assert (incrementPC reg = None). *)
-    (*     { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. } *)
-    (*     rewrite incrementPC_fail_updatePC /= in Hstep; auto. *)
-    (*     inversion Hstep. *)
-    (*     cbn; iFrame; iApply "Hφ"; iFrame. *)
-    (*     iPureIntro. eapply Store_spec_failure_store;eauto. by constructor. *)
-    (*   } *)
+    {
+      apply andb_false_iff in Hwrite.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hregs & Hmem)".
+      (* fractional stuff, need to figure this out *)
+      all: admit.
+      (* iApply ("Hφ" with "[$Hmem $Hregs]"). *)
+      (* iPureIntro; constructor; by eapply Load_fail_bounds. *)
+    }
 
-    (*   iMod ((gen_mem_update_inSepM _ _ a) with "Hm Hmem") as "[Hm Hmem]"; eauto. *)
+    apply andb_true_iff in Hwrite; destruct Hwrite as [ Hwrite Hinbounds ].
 
-    (*  (* Success *) *)
-    (*   rewrite /update_mem /= in Hstep. *)
-    (*   eapply (incrementPC_success_updatePC _ (<[a:=storev]> mem0)) in Hregs' *)
-    (*     as (p1 & g1 & b1 & e1 & a1 & a_pc1 & HPC'' & HuPC & ->). *)
-    (*   eapply (updatePC_success_incl _ (<[a:=storev]> mem0)) in HuPC. 2: by eauto. *)
-    (*   rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn. *)
-
-    (*   iFrame. *)
-    (*   iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-    (*   iFrame. iModIntro. iApply "Hφ". iFrame. *)
-    (*   iPureIntro. eapply Store_spec_success; eauto. *)
-    (*     * split; auto. exact Hr'1. all: auto. *)
-    (*     * unfold incrementPC. rewrite a_pc1 HPC''.  *)
-    (*   Unshelve. all: auto. *)
-   (* Qed. *)
+    (* Problem is I cannot apply incrementPC lemma here... *)
+    rewrite updatePC_incrementPC. cbn.
+    Fail iApply (wp2_opt_incrementPC with "[]").
   Admitted.
 
   Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pc_a' lw z :
