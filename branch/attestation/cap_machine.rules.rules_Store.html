@@ -188,102 +188,71 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">(</span><span class="id" title="notation">[∗</span> <span class="id" title="notation">map</span><span class="id" title="notation">]</span> <a id="la:114" class="idref" href="#la:114"><span class="id" title="binder"><span id="la:115" class="id">la</span></span></a><span class="id" title="notation">↦</span><a id="lw:116" class="idref" href="#lw:116"><span class="id" title="binder"><span id="lw:117" class="id">lw</span></span></a> <span class="id" title="notation">∈</span> <a class="idref" href="cap_machine.rules.rules_Store.html#lmem':112"><span class="id" title="variable">lmem'</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.rules.rules_Store.html#la:114"><span class="id" title="variable">la</span></a> <a class="idref" href="cap_machine.logical_mapsto.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.rules.rules_Store.html#lw:116"><span class="id" title="variable">lw</span></a><span class="id" title="notation">)</span> <span class="id" title="notation">∗</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">[∗</span> <span class="id" title="notation">map</span><span class="id" title="notation">]</span> <a id="k:118" class="idref" href="#k:118"><span class="id" title="binder"><span id="k:119" class="id">k</span></span></a><span class="id" title="notation">↦</span><a id="y:120" class="idref" href="#y:120"><span class="id" title="binder"><span id="y:121" class="id">y</span></span></a> <span class="id" title="notation">∈</span> <a class="idref" href="cap_machine.rules.rules_Store.html#lregs':111"><span class="id" title="variable">lregs'</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.rules.rules_Store.html#k:118"><span class="id" title="variable">k</span></a> <a class="idref" href="cap_machine.logical_mapsto.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.rules.rules_Store.html#y:120"><span class="id" title="variable">y</span></a> <span class="id" title="notation">}}}</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">Hinstr</span> <span class="id" title="var">Hvpc</span> <span class="id" title="var">HPC</span> <span class="id" title="var">Dregs</span> <span class="id" title="var">Hmem_pc</span> <span class="id" title="var">HaStore</span> φ) "(&gt;Hmem &amp; &gt;Hmap) Hφ".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;wp_lift_atomic_head_step_no_fork;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iIntros&nbsp;(σ1&nbsp;ns&nbsp;l1&nbsp;l2&nbsp;nt)&nbsp;"<span class="inlinecode"><span class="id" title="var">Hr</span></span> <span class="inlinecode"><span class="id" title="var">Hm</span></span>&nbsp;/=".&nbsp;destruct&nbsp;σ1;&nbsp;simpl.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iDestruct&nbsp;(gen_heap_valid_inclSepM&nbsp;with&nbsp;"Hr&nbsp;Hmap")&nbsp;as&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">Hinstr</span> <span class="id" title="var">Hvpc</span> <span class="id" title="var">HPC</span> <span class="id" title="var">Dregs</span> <span class="id" title="var">Hmem_pc</span> <span class="id" title="var">HaStore</span> φ) "(&gt;Hmem &amp; &gt;Hregs) Hφ".<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;<span class="comment">(*&nbsp;Derive&nbsp;necessary&nbsp;register&nbsp;values&nbsp;in&nbsp;r&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;pose&nbsp;proof&nbsp;(lookup_weaken&nbsp;_&nbsp;_&nbsp;_&nbsp;_&nbsp;HPC&nbsp;Hregs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;specialize&nbsp;(indom_regs_incl&nbsp;_&nbsp;_&nbsp;_&nbsp;Dregs&nbsp;Hregs)&nbsp;as&nbsp;Hri.&nbsp;unfold&nbsp;regs_of&nbsp;in&nbsp;Hri.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;odestruct&nbsp;(Hri&nbsp;r1)&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">r1v</span></span> <span class="inlinecode">[<span class="id" title="var">Hr'1</span></span> <span class="inlinecode"><span class="id" title="var">Hr1</span>]</span>.&nbsp;by&nbsp;set_solver+.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iDestruct&nbsp;(gen_mem_valid_inSepM&nbsp;mem&nbsp;mem0&nbsp;with&nbsp;"Hm&nbsp;Hmem")&nbsp;as&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp_instr_exec_opt"><span class="id" title="axiom">wp_instr_exec_opt</span></a> <span class="id" title="var">Hvpc</span> <span class="id" title="var">HPC</span> <span class="id" title="var">Hinstr</span> <span class="id" title="var">Dregs</span> <span class="id" title="notation">with</span> "[$Hregs Hmem Hφ]"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>. <span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (σ) "(Hσ &amp; Hregs &amp; ?)". <span class="comment">(*&nbsp;???&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">wa</span>) "(%Hppc &amp; %Hpmema &amp; %Hcorrpc &amp; %Hdinstr) Hcred".<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iSplitR.&nbsp;by&nbsp;iPureIntro;&nbsp;apply&nbsp;normal_always_head_reducible.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iNext.&nbsp;iIntros&nbsp;(e2&nbsp;σ2&nbsp;efs&nbsp;Hpstep).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;apply&nbsp;prim_step_exec_inv&nbsp;in&nbsp;Hpstep&nbsp;as&nbsp;(-&gt;&nbsp;&amp;&nbsp;-&gt;&nbsp;&amp;&nbsp;(c&nbsp;&amp;&nbsp;-&gt;&nbsp;&amp;&nbsp;Hstep)).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iSplitR;&nbsp;auto.&nbsp;eapply&nbsp;step_exec_inv&nbsp;in&nbsp;Hstep;&nbsp;eauto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_wp2"><span class="id" title="axiom">wp_wp2</span></a>.<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;rewrite&nbsp;/exec&nbsp;/=&nbsp;Hr1&nbsp;/=&nbsp;in&nbsp;Hstep.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_bind"><span class="id" title="axiom">wp_opt2_bind</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_eqn_both"><span class="id" title="axiom">wp_opt2_eqn_both</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_intro"><span class="id" title="axiom">state_interp_transient_intro</span></a> (<span class="id" title="var">lm</span> := <span class="id" title="var">lmem</span>) <span class="id" title="notation">with</span> "[$Hregs $Hσ Hmem]"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "Hσ".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">admit</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp2_word_of_argument"><span class="id" title="axiom">wp2_word_of_argument</span></a> <span class="id" title="notation">with</span> "[Hφ Hcred $Hσ]"<span class="id" title="notation">)</span>. { <span class="id" title="var">set_solver</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">r2v</span>) "Hσ %Hlr2v %Hr2v".<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;<span class="comment">(*&nbsp;Now&nbsp;we&nbsp;start&nbsp;splitting&nbsp;on&nbsp;the&nbsp;different&nbsp;cases&nbsp;in&nbsp;the&nbsp;Store&nbsp;spec,&nbsp;and&nbsp;prove&nbsp;them&nbsp;one&nbsp;at&nbsp;a&nbsp;time&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_bind"><span class="id" title="axiom">wp_opt2_bind</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.rules.rules_base.html#wp_opt2_eqn_both"><span class="id" title="axiom">wp_opt2_eqn_both</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp2_reg_lookup"><span class="id" title="axiom">wp2_reg_lookup</span></a> <span class="id" title="notation">with</span> "[$Hσ Hφ Hcred]"<span class="id" title="notation">)</span> ; <span class="id" title="tactic">first</span> <span class="id" title="tactic">by</span> <span class="id" title="var">set_solver</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">r1v</span>) "Hσ %Hlr1v %Hr1v".<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;destruct&nbsp;(word_of_argument&nbsp;regs&nbsp;r2)&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="var">storev</span></span> <span class="inlinecode">|</span> <span class="inlinecode"></span>&nbsp;eqn:HSV.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;2:&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;r2&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">z</span></span> <span class="inlinecode">|</span> <span class="inlinecode"><span class="id" title="var">r2</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;cbn&nbsp;in&nbsp;HSV;&nbsp;inversion&nbsp;HSV.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;destruct&nbsp;(Hri&nbsp;r2)&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">r0v</span></span> <span class="inlinecode">[<span class="id" title="var">Hr0</span></span> <span class="inlinecode"><span class="id" title="var">_</span>]</span> <span class="inlinecode"></span>.&nbsp;by&nbsp;set_solver+.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn&nbsp;in&nbsp;HSV.&nbsp;rewrite&nbsp;Hr0&nbsp;in&nbsp;HSV.&nbsp;inversion&nbsp;HSV.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;apply&nbsp;(word_of_arg_mono&nbsp;_&nbsp;reg)&nbsp;in&nbsp;HSV&nbsp;as&nbsp;HSV';&nbsp;auto.&nbsp;rewrite&nbsp;HSV'&nbsp;in&nbsp;Hstep.&nbsp;cbn&nbsp;in&nbsp;Hstep.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;I&nbsp;can&nbsp;do&nbsp;the&nbsp;same&nbsp;trick&nbsp;as&nbsp;in&nbsp;Load&nbsp;*)</span><br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;destruct&nbsp;(is_cap&nbsp;r1v)&nbsp;eqn:Hr1v.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;2:&nbsp;{&nbsp;<span class="comment">(*&nbsp;Failure:&nbsp;r1&nbsp;is&nbsp;not&nbsp;a&nbsp;capability&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(c&nbsp;=&nbsp;Failed&nbsp;∧&nbsp;σ2&nbsp;=&nbsp;{|&nbsp;reg&nbsp;:=&nbsp;reg&nbsp;;&nbsp;mem&nbsp;:=&nbsp;mem0&nbsp;;&nbsp;etable&nbsp;:=&nbsp;etable&nbsp;;&nbsp;enumcur&nbsp;:=&nbsp;enumcur&nbsp;|})&nbsp;as&nbsp;(-&gt;&nbsp;&amp;&nbsp;-&gt;).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unfold&nbsp;is_cap&nbsp;in&nbsp;Hr1v.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct_word&nbsp;r1v;&nbsp;by&nbsp;simplify_pair_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iFailWP&nbsp;"Hφ"&nbsp;Store_fail_const.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;destruct&nbsp;r1v&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|</span> <span class="inlinecode">[<span class="id" title="var">p</span></span> <span class="inlinecode"><span class="id" title="var">b</span></span> <span class="inlinecode"><span class="id" title="var">e</span></span> <span class="inlinecode"><span class="id" title="var">a</span></span> <span class="inlinecode">|</span> <span class="inlinecode">]</span> <span class="inlinecode">|</span> <span class="inlinecode"></span>;&nbsp;try&nbsp;inversion&nbsp;Hr1v.&nbsp;clear&nbsp;Hr1v.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<a class="idref" href="cap_machine.logical_mapsto.html#is_log_cap"><span class="id" title="definition">is_log_cap</span></a> <span class="id" title="var">r1v</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Hlw2</span>; <span class="id" title="var">cycle</span> 1.<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;destruct&nbsp;(writeAllowed&nbsp;p&nbsp;&amp;&amp;&nbsp;withinBounds&nbsp;b&nbsp;e&nbsp;a)&nbsp;eqn:HWA.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;2&nbsp;:&nbsp;{&nbsp;<span class="comment">(*&nbsp;Failure:&nbsp;r2&nbsp;is&nbsp;either&nbsp;not&nbsp;within&nbsp;bounds&nbsp;or&nbsp;doesnt&nbsp;allow&nbsp;reading&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;inversion&nbsp;Hstep.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;andb_false_iff&nbsp;in&nbsp;HWA.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iFailWP&nbsp;"Hφ"&nbsp;Store_fail_bounds.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;apply&nbsp;andb_true_iff&nbsp;in&nbsp;HWA;&nbsp;destruct&nbsp;HWA&nbsp;as&nbsp;(Hwa&nbsp;&amp;&nbsp;Hwb).&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">destruct_lword</span> <span class="id" title="var">r1v</span> ; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> * ; <span class="id" title="var">simplify_eq</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">all</span>: <span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_elim_abort"><span class="id" title="axiom">state_interp_transient_elim_abort</span></a> <span class="id" title="notation">with</span> "Hσ"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "(Hregs &amp; Hmem)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;fractional&nbsp;stuff,&nbsp;need&nbsp;to&nbsp;figure&nbsp;this&nbsp;out&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">all</span>: <span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;all:&nbsp;iApply&nbsp;("Hφ"&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmem</span></span> <span class="inlinecode">$<span class="id" title="var">Hregs</span></span>").&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;all:&nbsp;iPureIntro;&nbsp;constructor;&nbsp;by&nbsp;eapply&nbsp;Load_fail_const.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">destruct_lword</span> <span class="id" title="var">r1v</span> ; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> * ; <span class="id" title="var">simplify_eq</span>.<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;<span class="comment">(*&nbsp;Prove&nbsp;that&nbsp;a&nbsp;is&nbsp;in&nbsp;the&nbsp;memory&nbsp;map&nbsp;now,&nbsp;otherwise&nbsp;we&nbsp;cannot&nbsp;continue&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;pose&nbsp;proof&nbsp;(allow_store_implies_storev&nbsp;r1&nbsp;r2&nbsp;mem&nbsp;regs&nbsp;p&nbsp;b&nbsp;e&nbsp;a&nbsp;storev)&nbsp;as&nbsp;(oldv&nbsp;&amp;&nbsp;Hmema);&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="definition">decide</span> (<a class="idref" href="cap_machine.machine_base.html#writeAllowed"><span class="id" title="definition">writeAllowed</span></a> <span class="id" title="var">p</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#::bool_scope:x_'&amp;&amp;'_x"><span class="id" title="notation">&amp;&amp;</span></a> <a class="idref" href="cap_machine.machine_base.html#withinBounds"><span class="id" title="definition">withinBounds</span></a> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a>)) <span class="id" title="keyword">as</span> [<span class="id" title="var">Hwrite</span>|<span class="id" title="var">Hwrite</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;; [|<span class="id" title="tactic">apply</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Bool.Bool.html#not_true_is_false"><span class="id" title="lemma">not_true_is_false</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwrite</span>] ; <span class="id" title="tactic">rewrite</span> <span class="id" title="var">Hwrite</span> ;<span class="id" title="var">cycle</span> 1;<span class="id" title="var">cbn</span>.<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;<span class="comment">(*&nbsp;Given&nbsp;this,&nbsp;prove&nbsp;that&nbsp;a&nbsp;is&nbsp;also&nbsp;present&nbsp;in&nbsp;the&nbsp;memory&nbsp;itself&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;iDestruct&nbsp;(gen_mem_valid_inSepM&nbsp;mem&nbsp;mem0&nbsp;a&nbsp;oldv&nbsp;with&nbsp;"Hm&nbsp;Hmem"&nbsp;)&nbsp;as&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Bool.Bool.html#andb_false_iff"><span class="id" title="lemma">andb_false_iff</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwrite</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#state_interp_transient_elim_abort"><span class="id" title="axiom">state_interp_transient_elim_abort</span></a> <span class="id" title="notation">with</span> "Hσ"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "(Hregs &amp; Hmem)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;fractional&nbsp;stuff,&nbsp;need&nbsp;to&nbsp;figure&nbsp;this&nbsp;out&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">all</span>: <span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;("Hφ"&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmem</span></span> <span class="inlinecode">$<span class="id" title="var">Hregs</span></span>").&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iPureIntro;&nbsp;constructor;&nbsp;by&nbsp;eapply&nbsp;Load_fail_bounds.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Bool.Bool.html#andb_true_iff"><span class="id" title="lemma">andb_true_iff</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwrite</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">Hwrite</span> <span class="id" title="keyword">as</span> [ <span class="id" title="var">Hwrite</span> <span class="id" title="var">Hinbounds</span> ].<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(incrementPC&nbsp;regs&nbsp;)&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="var">regs'</span></span> <span class="inlinecode">|</span>&nbsp;eqn:Hregs'.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;2:&nbsp;{&nbsp;<span class="comment">(*&nbsp;Failure:&nbsp;the&nbsp;PC&nbsp;could&nbsp;not&nbsp;be&nbsp;incremented&nbsp;correctly&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(incrementPC&nbsp;reg&nbsp;=&nbsp;None).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;eapply&nbsp;incrementPC_overflow_mono;&nbsp;first&nbsp;eapply&nbsp;Hregs';&nbsp;eauto.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;incrementPC_fail_updatePC&nbsp;/=&nbsp;in&nbsp;Hstep;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inversion&nbsp;Hstep.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn;&nbsp;iFrame;&nbsp;iApply&nbsp;"Hφ";&nbsp;iFrame.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iPureIntro.&nbsp;eapply&nbsp;Store_spec_failure_store;eauto.&nbsp;by&nbsp;constructor.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iMod&nbsp;((gen_mem_update_inSepM&nbsp;_&nbsp;_&nbsp;a)&nbsp;with&nbsp;"Hm&nbsp;Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hm</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>";&nbsp;eauto.&nbsp;*)</span><br/>
-
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;<span class="comment">(*&nbsp;Success&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;rewrite&nbsp;/update_mem&nbsp;/=&nbsp;in&nbsp;Hstep.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;eapply&nbsp;(incrementPC_success_updatePC&nbsp;_&nbsp;(&lt;<span class="inlinecode"><span class="id" title="var">a</span>:=<span class="id" title="var">storev</span></span>&gt;&nbsp;mem0))&nbsp;in&nbsp;Hregs'&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;(p1&nbsp;&amp;&nbsp;g1&nbsp;&amp;&nbsp;b1&nbsp;&amp;&nbsp;e1&nbsp;&amp;&nbsp;a1&nbsp;&amp;&nbsp;a_pc1&nbsp;&amp;&nbsp;HPC''&nbsp;&amp;&nbsp;HuPC&nbsp;&amp;&nbsp;-&gt;).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;eapply&nbsp;(updatePC_success_incl&nbsp;_&nbsp;(&lt;<span class="inlinecode"><span class="id" title="var">a</span>:=<span class="id" title="var">storev</span></span>&gt;&nbsp;mem0))&nbsp;in&nbsp;HuPC.&nbsp;2:&nbsp;by&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;rewrite&nbsp;HuPC&nbsp;in&nbsp;Hstep;&nbsp;clear&nbsp;HuPC;&nbsp;inversion&nbsp;Hstep;&nbsp;clear&nbsp;Hstep;&nbsp;subst&nbsp;c&nbsp;σ2.&nbsp;cbn.&nbsp;*)</span><br/>
-
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iFrame.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iMod&nbsp;((gen_heap_update_inSepM&nbsp;_&nbsp;_&nbsp;PC)&nbsp;with&nbsp;"Hr&nbsp;Hmap")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hr</span></span> <span class="inlinecode"><span class="id" title="var">Hmap</span></span>";&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iFrame.&nbsp;iModIntro.&nbsp;iApply&nbsp;"Hφ".&nbsp;iFrame.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iPureIntro.&nbsp;eapply&nbsp;Store_spec_success;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;split;&nbsp;auto.&nbsp;exact&nbsp;Hr'1.&nbsp;all:&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;unfold&nbsp;incrementPC.&nbsp;rewrite&nbsp;a_pc1&nbsp;HPC''.&nbsp;&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;Unshelve.&nbsp;all:&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Qed.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Problem&nbsp;is&nbsp;I&nbsp;cannot&nbsp;apply&nbsp;incrementPC&nbsp;lemma&nbsp;here...&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.rules.rules_base.html#updatePC_incrementPC"><span class="id" title="axiom">updatePC_incrementPC</span></a>. <span class="id" title="var">cbn</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Fail</span> <span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_base.html#wp2_opt_incrementPC"><span class="id" title="axiom">wp2_opt_incrementPC</span></a> <span class="id" title="notation">with</span> "[]"<span class="id" title="notation">)</span>.<br/>
 &nbsp;&nbsp;<span class="id" title="var">Admitted</span>.<br/>
 
 <br/>
