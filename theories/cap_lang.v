@@ -9,8 +9,8 @@ Ltac inv H := inversion H; clear H; subst.
 Record ExecConf := MkExecConf {
       reg : Reg;
       mem : Mem;
-      etable : ETable;
-      enumcur : ENum;
+      etable : ETable; (* representation of enclave table as part of the machine configuration *)
+      enumcur : ENum; (* EC register, keeps track of num. enclaves registered *)
   }.
 
 Inductive ConfFlag : Type :=
