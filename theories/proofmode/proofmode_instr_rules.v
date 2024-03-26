@@ -81,19 +81,21 @@ Ltac dispatch_instr_rule instr cont :=
   (* Jnz *)
   | Jnz PC PC => cont (@wp_jnz_success_jmpPC)
   | Jnz ?r PC =>
-      (cont (@wp_jnz_success_jmpPC2) || cont (@wp_jnz_success_jmpPC2_IE))
+      (cont (@wp_jnz_success_jmpPC2))
   | Jnz _ _ =>
     (cont (@wp_jnz_success_next) ||
     (lazymatch instr with
      | Jnz PC _ => cont (@wp_jnz_success_jmpPC1)
-     | Jnz ?r ?r => cont (@wp_jnz_success_jmp_same)
+     | Jnz ?r ?r => cont (@wp_jnz_success_jmp2)
      | Jnz ?r _ =>
          lazymatch goal with
          | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
              lazymatch w with
              (* TODO would also need more rules to differentiate all kind of equalities
              between addresses *)
-             | WCap IE _ _ _ => cont (wp_jnz_success_jmp_IE)
+             | WCap IE _ _ _ =>
+              fail "No handled yet"
+                 (* cont (wp_jnz_success_jmp_IE) *)
              | _ => cont (@wp_jnz_success_jmp)
              end
          | _ => fail "No points-to register predicate" r "available for instruction" instr
@@ -101,11 +103,26 @@ Ltac dispatch_instr_rule instr cont :=
      end))
   (* Jmp *)
   | Jmp PC => cont (@wp_jmp_successPC)
+  | JmpIEpair ?r =>
+      lazymatch goal with
+        | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+          lazymatch w with
+          | WCap IE _ _ _ =>
+              fail "No handled yet"
+              (* cont (@wp_jmp_success_IE) *)
+          (* TODO would also need more rules to differentiate all kind of equalities
+             between addresses *)
+          | _ =>
+              fail "No handled yet"
+              (* cont (@wp_jmpIEpair_success) *)
+          end
+      | _ => fail "No points-to register predicate" r "available for instruction" instr
+      end
   | Jmp ?r =>
       lazymatch goal with
         | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
           lazymatch w with
-          | WCap IE _ _ _ => cont (@wp_jmp_success_IE)
+          | WCap IE _ _ _ => cont (@wp_jmp_success_IEpair)
           (* TODO would also need more rules to differentiate all kind of equalities
              between addresses *)
           | _ => cont (@wp_jmp_success)

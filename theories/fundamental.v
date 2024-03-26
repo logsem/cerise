@@ -1,4 +1,4 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt
+From cap_machine.ftlr Require Export Jmp JmpIEpair Jnz Mov Load Store AddSubLt
   Lea Restrict Subseg Get Seal UnSeal.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
@@ -64,6 +64,9 @@ Section fundamental.
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
+      + (* JmpIEpair *)
+        iApply (jmpiepair_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
       + (* Jnz *)
         iApply (jnz_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
@@ -213,163 +216,163 @@ Section fundamental.
   Qed.
 
   (* Jmp to an unknown word: need specific resources in case the target is an IE-cap *)
-  Definition continuation_resources (cont wpc widc : Word) : iProp Σ :=
-    match cont with
-    | WCap IE b_cont e_cont a_cont =>
-        a_cont ↦ₐ wpc ∗ (a_cont ^+ 1)%a ↦ₐ widc
-    | _ => emp
-    end.
+  (* Definition continuation_resources (cont wpc widc : Word) : iProp Σ := *)
+  (*   match cont with *)
+  (*   | WCap IE b_cont e_cont a_cont => *)
+  (*       a_cont ↦ₐ wpc ∗ (a_cont ^+ 1)%a ↦ₐ widc *)
+  (*   | _ => emp *)
+  (*   end. *)
 
-  Definition updatePcCont (cont wpc : Word) :=
-    match cont with
-    | WCap IE _ _ _ => wpc
-    | _ => updatePcPerm cont
-    end.
+  (* Definition updatePcCont (cont wpc : Word) := *)
+  (*   match cont with *)
+  (*   | WCap IE _ _ _ => wpc *)
+  (*   | _ => updatePcPerm cont *)
+  (*   end. *)
 
-  Definition updateIdcCont (cont widc widc' : Word) :=
-    match cont with
-    | WCap IE _ _ _ => widc'
-    | _ => widc
-    end.
+  (* Definition updateIdcCont (cont widc widc' : Word) := *)
+  (*   match cont with *)
+  (*   | WCap IE _ _ _ => widc' *)
+  (*   | _ => widc *)
+  (*   end. *)
 
-  Lemma updatePcCont_cap_non_IE p b e a w :
-    p ≠ IE →
-    updatePcCont (WCap p b e a) w = updatePcPerm (WCap p b e a).
-  Proof.
-    intros HnE. cbn. destruct p; auto. contradiction.
-  Qed.
+  (* Lemma updatePcCont_cap_non_IE p b e a w : *)
+  (*   p ≠ IE → *)
+  (*   updatePcCont (WCap p b e a) w = updatePcPerm (WCap p b e a). *)
+  (* Proof. *)
+  (*   intros HnE. cbn. destruct p; auto. contradiction. *)
+  (* Qed. *)
 
-  Lemma updateIdcCont_cap_non_IE p b e a w w' :
-    p ≠ IE →
-    updateIdcCont (WCap p b e a) w w' = w.
-  Proof.
-    intros HnE. cbn. destruct p; auto. contradiction.
-  Qed.
+  (* Lemma updateIdcCont_cap_non_IE p b e a w w' : *)
+  (*   p ≠ IE → *)
+  (*   updateIdcCont (WCap p b e a) w w' = w. *)
+  (* Proof. *)
+  (*   intros HnE. cbn. destruct p; auto. contradiction. *)
+  (* Qed. *)
 
-  Lemma continuation_resources_cap_non_IE p b e a w w' :
-    p ≠ IE →
-    continuation_resources (WCap p b e a) w w' = emp%I.
-  Proof.
-    intros HnE. cbn. destruct p; auto. contradiction.
-  Qed.
+  (* Lemma continuation_resources_cap_non_IE p b e a w w' : *)
+  (*   p ≠ IE → *)
+  (*   continuation_resources (WCap p b e a) w w' = emp%I. *)
+  (* Proof. *)
+  (*   intros HnE. cbn. destruct p; auto. contradiction. *)
+  (* Qed. *)
 
-  Lemma wp_jmp_general pc_p pc_b pc_e pc_a w cont r w' wpc widc φ :
-    decodeInstrW w = Jmp r →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+  (* Lemma wp_jmp_general pc_p pc_b pc_e pc_a w cont r w' wpc widc φ : *)
+  (*   decodeInstrW w = Jmp r → *)
+  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
 
-    ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-        ∗ idc ↦ᵣ w'
-        ∗ r ↦ᵣ cont
-        ∗ continuation_resources cont wpc widc
-        ∗ pc_a ↦ₐ w
-        ∗ ▷ (
-          PC ↦ᵣ updatePcCont cont wpc
-            ∗ idc ↦ᵣ updateIdcCont cont w' widc
-            ∗ r ↦ᵣ cont
-            ∗ continuation_resources cont wpc widc
-            ∗ pc_a ↦ₐ w
-          -∗ WP Seq (Instr Executable) {{ φ }}))
-      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+  (*   ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
+  (*       ∗ idc ↦ᵣ w' *)
+  (*       ∗ r ↦ᵣ cont *)
+  (*       ∗ continuation_resources cont wpc widc *)
+  (*       ∗ pc_a ↦ₐ w *)
+  (*       ∗ ▷ ( *)
+  (*         PC ↦ᵣ updatePcCont cont wpc *)
+  (*           ∗ idc ↦ᵣ updateIdcCont cont w' widc *)
+  (*           ∗ r ↦ᵣ cont *)
+  (*           ∗ continuation_resources cont wpc widc *)
+  (*           ∗ pc_a ↦ₐ w *)
+  (*         -∗ WP Seq (Instr Executable) {{ φ }})) *)
+  (*     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I. *)
 
-  Proof.
-    iIntros (Hinstr Hvpc)
-      "(HPC & Hidc & Hr & Hcont_res & Hpc_a & Hφ)".
+  (* Proof. *)
+  (*   iIntros (Hinstr Hvpc) *)
+  (*     "(HPC & Hidc & Hr & Hcont_res & Hpc_a & Hφ)". *)
 
-    destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont].
-    { (* case is IE *)
-      destruct_word cont ; cbn in Hcont ; try congruence.
-      destruct c ; try congruence; clear Hcont.
-      rewrite /continuation_resources.
-      iDestruct "Hcont_res" as "[Hf1 Hf2]".
+  (*   destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont]. *)
+  (*   { (* case is IE *) *)
+  (*     destruct_word cont ; cbn in Hcont ; try congruence. *)
+  (*     destruct c ; try congruence; clear Hcont. *)
+  (*     rewrite /continuation_resources. *)
+  (*     iDestruct "Hcont_res" as "[Hf1 Hf2]". *)
 
-      destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a))
-        as [ [Hwb Hwb'] | Hwb ].
+  (*     destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a)) *)
+  (*       as [ [Hwb Hwb'] | Hwb ]. *)
 
-      { (* case in bounds *)
-        wp_instr.
-        iApply (@wp_jmp_success_IE with "[-Hφ]")
-        ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame.
-        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
-        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
-        iApply "Hφ"; iFrame.
-      }
-      { (* case not in bounds *)
-        wp_instr.
-        iApply (@wp_jmp_fail_IE with "[-Hφ]")
-        ; [| | eapply Hwb | | ]; eauto; iFrame.
-        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
-        wp_end ; by iRight.
-      }
-    }
-    { (* case is not IE *)
-      assert (is_ie_cap cont = false) as Hcont'.
-      { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. }
-      wp_instr.
-      iApply (@wp_jmp_success with "[-Hφ Hidc]") ; eauto; iFrame.
-      iNext; iIntros "(HPC & Hr & Hpc_a)"; wp_pure.
-      iApply (wp_wand _ _ _ φ with "[-]"); last auto.
-      iApply "Hφ".
-      destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence ; iFrame.
-    }
-  Qed.
+  (*     { (* case in bounds *) *)
+  (*       wp_instr. *)
+  (*       iApply (@wp_jmp_success_IE with "[-Hφ]") *)
+  (*       ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame. *)
+  (*       iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure. *)
+  (*       iApply (wp_wand _ _ _ φ with "[-]"); last auto. *)
+  (*       iApply "Hφ"; iFrame. *)
+  (*     } *)
+  (*     { (* case not in bounds *) *)
+  (*       wp_instr. *)
+  (*       iApply (@wp_jmp_fail_IE with "[-Hφ]") *)
+  (*       ; [| | eapply Hwb | | ]; eauto; iFrame. *)
+  (*       iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure. *)
+  (*       wp_end ; by iRight. *)
+  (*     } *)
+  (*   } *)
+  (*   { (* case is not IE *) *)
+  (*     assert (is_ie_cap cont = false) as Hcont'. *)
+  (*     { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. } *)
+  (*     wp_instr. *)
+  (*     iApply (@wp_jmp_success with "[-Hφ Hidc]") ; eauto; iFrame. *)
+  (*     iNext; iIntros "(HPC & Hr & Hpc_a)"; wp_pure. *)
+  (*     iApply (wp_wand _ _ _ φ with "[-]"); last auto. *)
+  (*     iApply "Hφ". *)
+  (*     destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence ; iFrame. *)
+  (*   } *)
+  (* Qed. *)
 
-  Lemma wp_jmp_general_idc pc_p pc_b pc_e pc_a w cont wpc widc φ :
-    decodeInstrW w = Jmp idc →
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
+  (* Lemma wp_jmp_general_idc pc_p pc_b pc_e pc_a w cont wpc widc φ : *)
+  (*   decodeInstrW w = Jmp idc → *)
+  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) → *)
 
-    ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-        ∗ idc ↦ᵣ cont
-        ∗ continuation_resources cont wpc widc
-        ∗ pc_a ↦ₐ w
-        ∗ ▷ (
-          PC ↦ᵣ updatePcCont cont wpc
-            ∗ idc ↦ᵣ updateIdcCont cont cont widc
-            ∗ continuation_resources cont wpc widc
-            ∗ pc_a ↦ₐ w
-          -∗ WP Seq (Instr Executable) {{ φ }}))
-      ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
+  (*   ( PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
+  (*       ∗ idc ↦ᵣ cont *)
+  (*       ∗ continuation_resources cont wpc widc *)
+  (*       ∗ pc_a ↦ₐ w *)
+  (*       ∗ ▷ ( *)
+  (*         PC ↦ᵣ updatePcCont cont wpc *)
+  (*           ∗ idc ↦ᵣ updateIdcCont cont cont widc *)
+  (*           ∗ continuation_resources cont wpc widc *)
+  (*           ∗ pc_a ↦ₐ w *)
+  (*         -∗ WP Seq (Instr Executable) {{ φ }})) *)
+  (*     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I. *)
 
-  Proof.
-    iIntros (Hinstr Hvpc)
-      "(HPC & Hidc & Hcont_res & Hpc_a & Hφ)".
+  (* Proof. *)
+  (*   iIntros (Hinstr Hvpc) *)
+  (*     "(HPC & Hidc & Hcont_res & Hpc_a & Hφ)". *)
 
-    destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont].
-    { (* case is IE *)
-      destruct_word cont ; cbn in Hcont ; try congruence.
-      destruct c ; try congruence; clear Hcont.
-      rewrite /continuation_resources.
-      iDestruct "Hcont_res" as "[Hf1 Hf2]".
+  (*   destruct (decide (is_ie_cap cont = true)) as [Hcont|Hcont]. *)
+  (*   { (* case is IE *) *)
+  (*     destruct_word cont ; cbn in Hcont ; try congruence. *)
+  (*     destruct c ; try congruence; clear Hcont. *)
+  (*     rewrite /continuation_resources. *)
+  (*     iDestruct "Hcont_res" as "[Hf1 Hf2]". *)
 
-      destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a))
-        as [ [Hwb Hwb'] | Hwb ].
+  (*     destruct (decide (withinBounds f f0 f1 /\ withinBounds f f0 (f1^+1)%a)) *)
+  (*       as [ [Hwb Hwb'] | Hwb ]. *)
 
-      { (* case in bounds *)
-        wp_instr.
-        iApply (@wp_jmp_success_IE_same_idc with "[-Hφ]")
-        ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame.
-        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
-        iApply (wp_wand _ _ _ φ with "[-]"); last auto.
-        iApply "Hφ"; iFrame.
-      }
-      { (* case not in bounds *)
-        wp_instr.
-        iApply (@wp_jmp_fail_IE_same_idc with "[-Hφ]")
-        ; [| | eapply Hwb | | ]; eauto; iFrame.
-        iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure.
-        wp_end ; by iRight.
-      }
-    }
-    { (* case is not IE *)
-      assert (is_ie_cap cont = false) as Hcont'.
-      { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. }
-      wp_instr.
-      iApply (@wp_jmp_success with "[-Hφ]") ; eauto; iFrame.
-      iNext; iIntros "(HPC & Hidc & Hpc_a)"; wp_pure.
-      iApply (wp_wand _ _ _ φ with "[-]"); last auto.
-      iApply "Hφ".
-      destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence; iFrame.
-    }
-  Qed.
+  (*     { (* case in bounds *) *)
+  (*       wp_instr. *)
+  (*       iApply (@wp_jmp_success_IE_same_idc with "[-Hφ]") *)
+  (*       ; [| | eapply Hwb | eapply Hwb' | | ]; eauto; iFrame. *)
+  (*       iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure. *)
+  (*       iApply (wp_wand _ _ _ φ with "[-]"); last auto. *)
+  (*       iApply "Hφ"; iFrame. *)
+  (*     } *)
+  (*     { (* case not in bounds *) *)
+  (*       wp_instr. *)
+  (*       iApply (@wp_jmp_fail_IE_same_idc with "[-Hφ]") *)
+  (*       ; [| | eapply Hwb | | ]; eauto; iFrame. *)
+  (*       iNext; iIntros "(HPC & Hidc & Hpc_a & Hf1 & Hf2)"; wp_pure. *)
+  (*       wp_end ; by iRight. *)
+  (*     } *)
+  (*   } *)
+  (*   { (* case is not IE *) *)
+  (*     assert (is_ie_cap cont = false) as Hcont'. *)
+  (*     { destruct_word cont ; [| destruct c | |] ; cbn in * ; congruence. } *)
+  (*     wp_instr. *)
+  (*     iApply (@wp_jmp_success with "[-Hφ]") ; eauto; iFrame. *)
+  (*     iNext; iIntros "(HPC & Hidc & Hpc_a)"; wp_pure. *)
+  (*     iApply (wp_wand _ _ _ φ with "[-]"); last auto. *)
+  (*     iApply "Hφ". *)
+  (*     destruct_word cont ; [| destruct c | |] ; cbn in Hcont ; try congruence; iFrame. *)
+  (*   } *)
+  (* Qed. *)
 
   (* Jmp to unknown code is always safe *)
   Lemma jmp_to_unknown w :
@@ -414,214 +417,214 @@ Section fundamental.
     iFrame.
   Qed.
 
-  Lemma jmp_to_unknown' w w' wpc widc:
-    ⊢ interp w
-    -∗ interp w'
-    -∗ ienter_cond wpc widc interp
-    -∗ ▷ (∀ rmap,
-          ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ →
-            PC ↦ᵣ updatePcCont w wpc
-              ∗ idc ↦ᵣ updateIdcCont w w' widc
-              ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
-              ∗ na_own logrel_nais ⊤
-            -∗ WP Seq (Instr Executable)
-               {{ λ v, ⌜v = HaltedV⌝ →
-                       ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
-  Proof.
-    iIntros "#Hw #Hwidc #Hcont_ie".
-    iDestruct (interp_updatePcPerm with "Hw") as "Hw'".
-    iNext; iIntros (rmap Hrmap).
-    destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont].
-    { (* case IE*)
-      iClear "Hw'".
-      destruct_word w ; [| destruct c | | ]; cbn in Hcont ; try congruence
-      ; clear Hcont.
-      rewrite fixpoint_interp1_eq //=.
-      set rmap' := <[ idc := widc ]> (<[ PC := wpc ]> rmap) : gmap RegName Word.
-      iIntros "(HPC & HIDC & Hmap & Hna)".
-      iApply ("Hcont_ie" $! rmap').
-      iDestruct (big_sepM_sep with "Hmap") as "(Hr & HrV)".
-      iSplit.
-      iSplit.
-      { unfold full_map. iIntros (r).
-        destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. }
-        destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. }
-        do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
-      { iIntros (ri v Hri Hri' Hvs).
-        do 2 rewrite lookup_insert_ne // in Hvs.
-        iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
-      { iInsertList "Hr" [PC;idc]. subst rmap'.
-        rewrite (insert_commute _ PC) //= !insert_insert.
-        iFrame.
-      }
-    }
-    { (* case not IE *)
-      set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word.
-      iSpecialize ("Hw'" $! rmap').
-      iIntros "(HPC & Hidc & [Hr Hna])". unfold interp_expression, interp_expr, interp_conf. cbn.
+  (* Lemma jmp_to_unknown' w w' wpc widc: *)
+  (*   ⊢ interp w *)
+  (*   -∗ interp w' *)
+  (*   -∗ ienter_cond wpc widc interp *)
+  (*   -∗ ▷ (∀ rmap, *)
+  (*         ⌜dom rmap = all_registers_s ∖ {[ PC ; idc ]}⌝ → *)
+  (*           PC ↦ᵣ updatePcCont w wpc *)
+  (*             ∗ idc ↦ᵣ updateIdcCont w w' widc *)
+  (*             ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w) *)
+  (*             ∗ na_own logrel_nais ⊤ *)
+  (*           -∗ WP Seq (Instr Executable) *)
+  (*              {{ λ v, ⌜v = HaltedV⌝ → *)
+  (*                      ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}). *)
+  (* Proof. *)
+  (*   iIntros "#Hw #Hwidc #Hcont_ie". *)
+  (*   iDestruct (interp_updatePcPerm with "Hw") as "Hw'". *)
+  (*   iNext; iIntros (rmap Hrmap). *)
+  (*   destruct (decide (is_ie_cap w = true)) as [Hcont | Hcont]. *)
+  (*   { (* case IE*) *)
+  (*     iClear "Hw'". *)
+  (*     destruct_word w ; [| destruct c | | ]; cbn in Hcont ; try congruence *)
+  (*     ; clear Hcont. *)
+  (*     rewrite fixpoint_interp1_eq //=. *)
+  (*     set rmap' := <[ idc := widc ]> (<[ PC := wpc ]> rmap) : gmap RegName Word. *)
+  (*     iIntros "(HPC & HIDC & Hmap & Hna)". *)
+  (*     iApply ("Hcont_ie" $! rmap'). *)
+  (*     iDestruct (big_sepM_sep with "Hmap") as "(Hr & HrV)". *)
+  (*     iSplit. *)
+  (*     iSplit. *)
+  (*     { unfold full_map. iIntros (r). *)
+  (*       destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. } *)
+  (*       destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. } *)
+  (*       do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. } *)
+  (*     { iIntros (ri v Hri Hri' Hvs). *)
+  (*       do 2 rewrite lookup_insert_ne // in Hvs. *)
+  (*       iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. } *)
+  (*     { iInsertList "Hr" [PC;idc]. subst rmap'. *)
+  (*       rewrite (insert_commute _ PC) //= !insert_insert. *)
+  (*       iFrame. *)
+  (*     } *)
+  (*   } *)
+  (*   { (* case not IE *) *)
+  (*     set rmap' := <[ idc := (WInt 0%Z: Word) ]> (<[ PC := (WInt 0%Z: Word) ]> rmap) : gmap RegName Word. *)
+  (*     iSpecialize ("Hw'" $! rmap'). *)
+  (*     iIntros "(HPC & Hidc & [Hr Hna])". unfold interp_expression, interp_expr, interp_conf. cbn. *)
 
-      iApply "Hw'". iClear "Hw'". iFrame "#". rewrite /registers_mapsto.
-      iAssert (PC ↦ᵣ updatePcPerm w)%I with "[HPC]" as "HPC".
-      { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. }
-      iAssert (idc ↦ᵣ w')%I with "[Hidc]" as "Hidc".
-      { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. }
-      iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
-      iSplitL "HrV"; [iSplit|].
-      { unfold full_map. iIntros (r).
-        destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. }
-        destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. }
-        do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
-      { iIntros (ri v Hri Hri' Hvs).
-        do 2 rewrite lookup_insert_ne // in Hvs.
-        iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
-      rewrite (insert_commute _ PC idc) //= !insert_insert //. iFrame.
-      iApply big_sepM_insert.
-      { rewrite lookup_insert_ne //=. apply not_elem_of_dom. rewrite Hrmap. set_solver. }
-      iFrame.
-      iApply big_sepM_insert.
-      { apply not_elem_of_dom. rewrite Hrmap. set_solver. }
-      iFrame.
-    }
-  Qed.
+  (*     iApply "Hw'". iClear "Hw'". iFrame "#". rewrite /registers_mapsto. *)
+  (*     iAssert (PC ↦ᵣ updatePcPerm w)%I with "[HPC]" as "HPC". *)
+  (*     { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. } *)
+  (*     iAssert (idc ↦ᵣ w')%I with "[Hidc]" as "Hidc". *)
+  (*     { destruct_word w ; [ | destruct c | | ] ; cbn in * ; try congruence; iFrame. } *)
+  (*     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)". *)
+  (*     iSplitL "HrV"; [iSplit|]. *)
+  (*     { unfold full_map. iIntros (r). *)
+  (*       destruct (decide (r = PC)). { subst r. rewrite lookup_insert_ne //= lookup_insert //. } *)
+  (*       destruct (decide (r = idc)). { subst r. rewrite lookup_insert //. } *)
+  (*       do 2 rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. } *)
+  (*     { iIntros (ri v Hri Hri' Hvs). *)
+  (*       do 2 rewrite lookup_insert_ne // in Hvs. *)
+  (*       iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. } *)
+  (*     rewrite (insert_commute _ PC idc) //= !insert_insert //. iFrame. *)
+  (*     iApply big_sepM_insert. *)
+  (*     { rewrite lookup_insert_ne //=. apply not_elem_of_dom. rewrite Hrmap. set_solver. } *)
+  (*     iFrame. *)
+  (*     iApply big_sepM_insert. *)
+  (*     { apply not_elem_of_dom. rewrite Hrmap. set_solver. } *)
+  (*     iFrame. *)
+  (*   } *)
+  (* Qed. *)
 
-  Lemma jmp_unknown_safe
-    (pc_p : Perm) (pc_b pc_e pc_a : Addr)
-    (widc: Word) (r : RegName) :
-    isCorrectPC (WCap pc_p pc_b pc_e pc_a) ->
-    r <> PC ->
-    ⊢ ∀ rmap,
-         ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
-         PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
-           ∗ pc_a ↦ₐ jmp r
-           ∗ na_own logrel_nais ⊤
-         -∗ interp_conf.
-  Proof.
-    iIntros "%Hpcv %Hr".
-    iIntros (rmap) "%Hdom".
-    iIntros "(HPC & Hrmap & Hpc_a & Hna)".
+  (* Lemma jmp_unknown_safe *)
+  (*   (pc_p : Perm) (pc_b pc_e pc_a : Addr) *)
+  (*   (widc: Word) (r : RegName) : *)
+  (*   isCorrectPC (WCap pc_p pc_b pc_e pc_a) -> *)
+  (*   r <> PC -> *)
+  (*   ⊢ ∀ rmap, *)
+  (*        ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ → *)
+  (*        PC ↦ᵣ WCap pc_p pc_b pc_e pc_a *)
+  (*          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w) *)
+  (*          ∗ pc_a ↦ₐ jmp r *)
+  (*          ∗ na_own logrel_nais ⊤ *)
+  (*        -∗ interp_conf. *)
+  (* Proof. *)
+  (*   iIntros "%Hpcv %Hr". *)
+  (*   iIntros (rmap) "%Hdom". *)
+  (*   iIntros "(HPC & Hrmap & Hpc_a & Hna)". *)
 
-    assert (is_Some (rmap !! r)) as [wadv Hwadv].
-    {  clear -Hdom Hr. apply elem_of_dom; set_solver. }
-    (* iExtract "Hrmap" idc as "[Hidc #Hinterp_widc]". *)
-    iExtract "Hrmap" r as "[Hr #Hinterp_wadv]".
+  (*   assert (is_Some (rmap !! r)) as [wadv Hwadv]. *)
+  (*   {  clear -Hdom Hr. apply elem_of_dom; set_solver. } *)
+  (*   (* iExtract "Hrmap" idc as "[Hidc #Hinterp_widc]". *) *)
+  (*   iExtract "Hrmap" r as "[Hr #Hinterp_wadv]". *)
 
-    wp_instr.
-    destruct ( decide (is_ie_cap wadv = true ) ) as [Hadv|Hadv].
-    - (* JMP TO IE-CAP  *)
+  (*   wp_instr. *)
+  (*   destruct ( decide (is_ie_cap wadv = true ) ) as [Hadv|Hadv]. *)
+  (*   - (* JMP TO IE-CAP  *) *)
 
-      destruct_word wadv ; [| destruct c | |] ; cbn in Hadv ; try congruence ; clear Hadv.
+  (*     destruct_word wadv ; [| destruct c | |] ; cbn in Hadv ; try congruence ; clear Hadv. *)
 
-      iAssert (interp (WCap IE f f0 f1)) as "Hinterp_wadv'"; first done.
-      rewrite {1}(fixpoint_interp1_eq (WCap IE _ _ _)) //=.
-      destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a))
-        as [ Hbounds | Hbounds] ; cycle 1.
-      { (* ill-formed IE, the jump fails *)
-        iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hpc_a]")
-        ; try solve_pure.
-        iNext ; iIntros "(HPC & Hr & Hpc_a)".
-        wp_pure; wp_end. by iIntros "%".
-      }
-      set (Hbounds' := Hbounds).
-      destruct Hbounds' as [Hwb Hwb'].
-      iDestruct ("Hinterp_wadv" $! Hbounds)
-        as (P1 P2) "(%Hpers1 & %Hpers2 & Hinv_f0 & Hinv_f1 & Hcont)".
+  (*     iAssert (interp (WCap IE f f0 f1)) as "Hinterp_wadv'"; first done. *)
+  (*     rewrite {1}(fixpoint_interp1_eq (WCap IE _ _ _)) //=. *)
+  (*     destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a)) *)
+  (*       as [ Hbounds | Hbounds] ; cycle 1. *)
+  (*     { (* ill-formed IE, the jump fails *) *)
+  (*       iApply (wp_jmp_fail_IE with "[$HPC $Hr $Hpc_a]") *)
+  (*       ; try solve_pure. *)
+  (*       iNext ; iIntros "(HPC & Hr & Hpc_a)". *)
+  (*       wp_pure; wp_end. by iIntros "%". *)
+  (*     } *)
+  (*     set (Hbounds' := Hbounds). *)
+  (*     destruct Hbounds' as [Hwb Hwb']. *)
+  (*     iDestruct ("Hinterp_wadv" $! Hbounds) *)
+  (*       as (P1 P2) "(%Hpers1 & %Hpers2 & Hinv_f0 & Hinv_f1 & Hcont)". *)
 
-      assert (Hf1: f1 <> (f1 ^+ 1)%a)
-        by (apply Is_true_true_1, withinBounds_true_iff in Hwb; solve_addr).
-      iInv (logN.@f1) as (w1) "[>Hf1 #HP1]" "Hcls1".
-      iInv (logN.@(f1 ^+1)%a) as (w2) "[>Hf1' #HP2]" "Hcls2".
+  (*     assert (Hf1: f1 <> (f1 ^+ 1)%a) *)
+  (*       by (apply Is_true_true_1, withinBounds_true_iff in Hwb; solve_addr). *)
+  (*     iInv (logN.@f1) as (w1) "[>Hf1 #HP1]" "Hcls1". *)
+  (*     iInv (logN.@(f1 ^+1)%a) as (w2) "[>Hf1' #HP2]" "Hcls2". *)
 
-      destruct (decide (r = idc)) ; simplify_map_eq.
-      + iApply (wp_jmp_success_IE_idc with "[$HPC $Hr $Hpc_a $Hf1 $Hf1']")
-        ; try solve_pure.
-        iNext; iIntros "(HPC& Hr & Hpc_a& Hf0& Hf1) //=".
-        iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-        iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-        iApply wp_pure_step_later; auto.
-        iNext ; iIntros "_".
+  (*     destruct (decide (r = idc)) ; simplify_map_eq. *)
+  (*     + iApply (wp_jmp_success_IE_idc with "[$HPC $Hr $Hpc_a $Hf1 $Hf1']") *)
+  (*       ; try solve_pure. *)
+  (*       iNext; iIntros "(HPC& Hr & Hpc_a& Hf0& Hf1) //=". *)
+  (*       iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro]. *)
+  (*       iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro]. *)
+  (*       iApply wp_pure_step_later; auto. *)
+  (*       iNext ; iIntros "_". *)
 
-        iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
-        iInsertList "Hrmap" [idc;PC].
+  (*       iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]". *)
+  (*       iInsertList "Hrmap" [idc;PC]. *)
 
-        iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
-        iSplit; cycle 1.
-        { rewrite insert_insert.
-          rewrite (insert_commute _ idc PC); [|auto].
-          rewrite insert_insert.
-          iFrame.
-        }
-        iSplit.
-        { rewrite /full_map.
-          iIntros (r') ; iPureIntro.
-          apply elem_of_dom.
-          rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
-        }
-        {
-          iIntros (r0 w Hr0 Hr0' Hregs).
-          iClear "Hinterp_wadv Hcont".
-          do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
-          iExtract "Hrmap_interp" r0 as "Hr"; done.
-        }
+  (*       iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#". *)
+  (*       iSplit; cycle 1. *)
+  (*       { rewrite insert_insert. *)
+  (*         rewrite (insert_commute _ idc PC); [|auto]. *)
+  (*         rewrite insert_insert. *)
+  (*         iFrame. *)
+  (*       } *)
+  (*       iSplit. *)
+  (*       { rewrite /full_map. *)
+  (*         iIntros (r') ; iPureIntro. *)
+  (*         apply elem_of_dom. *)
+  (*         rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+. *)
+  (*       } *)
+  (*       { *)
+  (*         iIntros (r0 w Hr0 Hr0' Hregs). *)
+  (*         iClear "Hinterp_wadv Hcont". *)
+  (*         do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]). *)
+  (*         iExtract "Hrmap_interp" r0 as "Hr"; done. *)
+  (*       } *)
 
-      +
-        (* extract idc *)
-        assert (∃ widc, ( (delete r rmap) !! idc ) = Some widc) as [widc0 Hidc].
-        {  clear -Hdom Hr n. apply elem_of_dom; set_solver. }
-        iDestruct (big_sepM_delete _ _ idc with "Hrmap") as "[[Hidc #HVidc] Hrmap]"; eauto.
+  (*     + *)
+  (*       (* extract idc *) *)
+  (*       assert (∃ widc, ( (delete r rmap) !! idc ) = Some widc) as [widc0 Hidc]. *)
+  (*       {  clear -Hdom Hr n. apply elem_of_dom; set_solver. } *)
+  (*       iDestruct (big_sepM_delete _ _ idc with "Hrmap") as "[[Hidc #HVidc] Hrmap]"; eauto. *)
 
-        iApply (wp_jmp_success_IE with "[$HPC $Hr $Hidc $Hpc_a $Hf1 $Hf1']")
-        ; try solve_pure.
-        iNext; iIntros "(HPC& Hr & Hidc& Hpc_a& Hf0& Hf1) //=".
-        iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-        iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-        iApply wp_pure_step_later; auto.
-        iNext ; iIntros "_".
-        iCombine "Hr" "Hinterp_wadv'"  as "Hr".
+  (*       iApply (wp_jmp_success_IE with "[$HPC $Hr $Hidc $Hpc_a $Hf1 $Hf1']") *)
+  (*       ; try solve_pure. *)
+  (*       iNext; iIntros "(HPC& Hr & Hidc& Hpc_a& Hf0& Hf1) //=". *)
+  (*       iMod ("Hcls2" with "[Hf1 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro]. *)
+  (*       iMod ("Hcls1" with "[Hf0 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro]. *)
+  (*       iApply wp_pure_step_later; auto. *)
+  (*       iNext ; iIntros "_". *)
+  (*       iCombine "Hr" "Hinterp_wadv'"  as "Hr". *)
 
-        iInsert "Hrmap" r.
-        replace (<[r:=WCap IE f f0 f1]> (delete idc rmap)) with (delete idc rmap)
-          by (rewrite -delete_insert_ne //= insert_id //=).
-        iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]".
-        iInsertList "Hrmap" [idc;PC].
+  (*       iInsert "Hrmap" r. *)
+  (*       replace (<[r:=WCap IE f f0 f1]> (delete idc rmap)) with (delete idc rmap) *)
+  (*         by (rewrite -delete_insert_ne //= insert_id //=). *)
+  (*       iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrmap_interp]". *)
+  (*       iInsertList "Hrmap" [idc;PC]. *)
 
-        iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#".
-        iSplit; cycle 1.
-        { rewrite insert_insert.
-          rewrite (insert_commute _ idc PC); [|auto].
-          rewrite insert_insert.
-          iFrame.
-        }
-        iSplit.
-        { rewrite /full_map.
-          iIntros (r') ; iPureIntro.
-          apply elem_of_dom.
-          rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+.
-        }
-        {
-          iIntros (r0 w Hr0 Hr0' Hregs).
-          iClear "Hinterp_wadv Hcont".
-          do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]).
-          destruct (decide (r = r0)); simplify_eq; iExtract "Hrmap_interp" r0 as "Hr"; done.
-        }
+  (*       iApply ("Hcont" $! w1 w2 (<[PC:=w1]> (<[idc:=w2]> rmap))); iFrame "#". *)
+  (*       iSplit; cycle 1. *)
+  (*       { rewrite insert_insert. *)
+  (*         rewrite (insert_commute _ idc PC); [|auto]. *)
+  (*         rewrite insert_insert. *)
+  (*         iFrame. *)
+  (*       } *)
+  (*       iSplit. *)
+  (*       { rewrite /full_map. *)
+  (*         iIntros (r') ; iPureIntro. *)
+  (*         apply elem_of_dom. *)
+  (*         rewrite !dom_insert_L Hdom !singleton_union_difference_L; set_solver+. *)
+  (*       } *)
+  (*       { *)
+  (*         iIntros (r0 w Hr0 Hr0' Hregs). *)
+  (*         iClear "Hinterp_wadv Hcont". *)
+  (*         do 2 (rewrite lookup_insert_ne in Hregs ; [|auto]). *)
+  (*         destruct (decide (r = r0)); simplify_eq; iExtract "Hrmap_interp" r0 as "Hr"; done. *)
+  (*       } *)
 
-    - (* JMP TO NON IE *)
-      apply not_true_is_false in Hadv.
-      iDestruct (jmp_to_unknown with "Hinterp_wadv") as "cont".
+  (*   - (* JMP TO NON IE *) *)
+  (*     apply not_true_is_false in Hadv. *)
+  (*     iDestruct (jmp_to_unknown with "Hinterp_wadv") as "cont". *)
 
-      (* Jmp adv *)
-      iApply (wp_jmp_success with "[$HPC $Hr $Hpc_a]")
-      ; [apply decode_encode_instrW_inv| |auto|..]
-      ; auto.
-      iNext ; iIntros "(HPC & Hi & Hr)".
-      wp_pure.
+  (*     (* Jmp adv *) *)
+  (*     iApply (wp_jmp_success with "[$HPC $Hr $Hpc_a]") *)
+  (*     ; [apply decode_encode_instrW_inv| |auto|..] *)
+  (*     ; auto. *)
+  (*     iNext ; iIntros "(HPC & Hi & Hr)". *)
+  (*     wp_pure. *)
 
-      iCombine "Hr" "Hinterp_wadv"  as "Hr".
-      iInsert "Hrmap" r.
-      replace (<[r:=wadv]> rmap) with rmap by (rewrite insert_id //=).
+  (*     iCombine "Hr" "Hinterp_wadv"  as "Hr". *)
+  (*     iInsert "Hrmap" r. *)
+  (*     replace (<[r:=wadv]> rmap) with rmap by (rewrite insert_id //=). *)
 
-      iApply ("cont" $! rmap); auto ; iFrame.
-  Qed.
+  (*     iApply ("cont" $! rmap); auto ; iFrame. *)
+  (* Qed. *)
 
 
   Lemma region_integers_alloc' E (b e a: Addr) l p :

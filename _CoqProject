@@ -22,6 +22,7 @@ theories/stdpp_extra.v
 theories/proofmode/map_simpl.v
 theories/addr_reg.v
 theories/proofmode/solve_addr.v
+theories/proofmode/register_tactics.v
 
 # Capability Machine Model
 theories/machine_base.v
@@ -46,6 +47,7 @@ theories/rules/rules_Mov.v
 theories/rules/rules_Restrict.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
+theories/rules/rules_JmpIEpair.v
 theories/rules/rules_Subseg.v
 theories/rules/rules_Seal.v
 theories/rules/rules_UnSeal.v
@@ -73,7 +75,6 @@ theories/proofmode/solve_pure.v
 theories/proofmode/NamedProp.v
 theories/proofmode/proofmode_instr_rules.v
 theories/proofmode/proofmode.v
-theories/proofmode/register_tactics.v
 
 # Unary Logical Relation
 theories/seal_store.v
@@ -88,6 +89,7 @@ theories/ftlr/Lea.v
 theories/ftlr/Mov.v
 theories/ftlr/Restrict.v
 theories/ftlr/Jmp.v
+theories/ftlr/JmpIEpair.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/ftlr/Seal.v

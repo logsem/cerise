@@ -40,6 +40,7 @@ Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
 
 Inductive instr: Type :=
 | Jmp (r: RegName)
+| JmpIEpair (r: RegName)
 | Jnz (r1 r2: RegName)
 | Mov (dst: RegName) (src: Z + RegName)
 | Load (dst src: RegName)
@@ -778,6 +779,8 @@ Proof.
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | Fail => GenNode 19 []
       | Halt => GenNode 20 []
+
+      | JmpIEpair r => GenNode 21 [GenLeaf (inl r)]
       end).
   set (dec := fun e =>
       match e with
@@ -803,7 +806,8 @@ Proof.
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
       | GenNode 19 [] => Fail
-      |  GenNode 20 [] => Halt
+      | GenNode 20 [] => Halt
+      | GenNode 21 [GenLeaf (inl r)] => JmpIEpair r
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).
