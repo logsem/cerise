@@ -251,7 +251,7 @@ Section call.
   Qed.
 
   (* stops just before the jmp *)
-  Lemma call_spec_main
+  Lemma call_spec
         (* call *) r1 mlocals mparams wadv
         (* remaining registers *) (rmap rmap' : gmap RegName Word)
         (* pc *) a p b e a_first a_last
@@ -288,7 +288,7 @@ Section call.
     ∗ ▷ ((∃ b_c e_c b_l e_l a_end,
              ⌜(a_end + 1)%a = Some a_last⌝
             ∗ ⌜(b_c + 2)%a = Some e_c⌝
-            ∗ PC ↦ᵣ WCap p b e a_end
+            ∗ PC ↦ᵣ updatePcPerm wadv
             ∗ ([∗ map] r_i↦_ ∈ rmap', r_i ↦ᵣ WInt 0%Z)
             ∗ ([∗ map] r_i↦w_i ∈ mparams, r_i ↦ᵣ w_i)
             ∗ b ↦ₐ WCap RO b_link e_link a_link
@@ -634,9 +634,6 @@ Section call.
     rewrite decode_encode_perm_inv.
     iEpilogue "(HPC & Hi & Hr_t31)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
-
-    (* rclear all_registers \ { PC; r_t0; r1 } \ params *)
-
     (* rebuild register map *)
     (* we begin by clearning up the current register map *)
     iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
@@ -731,6 +728,12 @@ Section call.
       apply contiguous_between_middle_bounds with (i:=8) (ai:=f7) in Hcont6 as [Hle _];[|auto].
       clear -Hcont3 Hcont5 Hnext Hcont1 Hlink2 Hle Hcont7. solve_addr. }
 
+    (* jmp r1 *)
+    iPrologue "Hprog".
+    iApply (wp_jmp_success with "[$HPC $Hi $Hradv]");
+      [apply decode_encode_instrW_inv|iCorrectPC link4 a_last|].
+    iEpilogue "(HPC & Hi & Hradv)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
+
     (* continuation *)
     iApply "Hcont".
     iExists b_l',e_l',b_l,e_l,a_end.
@@ -765,118 +768,9 @@ Section call.
     { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }
     rewrite Heqapp1 Heqapp2 Heqapp3 Heqapp4.
     rewrite /call.
-    iDestruct "Hprog_done" as "(?&?&?&?&?&?&?&?&malloc&?&locals&malloc')".
+    iDestruct "Hprog_done" as "(?&?&?&?&?&?&?&?&?&malloc&?&locals&malloc')".
     iApply (big_sepL2_app with "malloc'").
     iApply (big_sepL2_app with "locals").
-    iFrame.
-  Qed.
-
-  (** Helpful lemmas and definition to get the last `Jmp` instruction of the call subroutine to split the program *)
-  Definition call_instrs_main f_m offset_to_cont r1 (locals params : list RegName) :=
-    (* allocate and store locals *)
-    malloc_instrs f_m (strings.length locals) ++
-    store_locals_instrs r_t1 locals ++
-    (* allocate the space for the indirection of the IE-cap *)
-    [move_r r_t6 r_t1] ++
-    malloc_instrs f_m 2 ++
-
-    (* prepare and store continuation *)
-    [move_r r_t31 r_t1;
-    move_r r_t1 PC;
-
-    lea_z r_t1 offset_to_cont;
-    store_r r_t31 r_t1;
-    lea_z r_t31 1;
-    (* store locals cap *)
-    store_r r_t31 r_t6;
-    (* setup return capability *)
-    lea_z r_t31 (-1);
-    restrict_z r_t31 ie] ++
-    (* clear all registers except params, PC, r_t31 and r1 *)
-    rclear_instrs (list_difference all_registers ([PC;r_t31;r1]++params)).
-
-  Lemma call_instrs_main_jmp f_m offset_to_cont r1 (locals params : list RegName)
-    : call_instrs f_m offset_to_cont r1 locals params =
-         call_instrs_main f_m offset_to_cont r1 locals params ++ [jmp r1].
-  Proof.
-    rewrite /call_instrs_main /call_instrs.
-    by rewrite -!app_assoc !app_inv_head_iff.
-  Qed.
-
-  Lemma call_main_jmp al f_m r1 locals params :
-    length al = length (call_instrs f_m (offset_to_cont_call params) r1 locals params) ->
-    (call al f_m r1 locals params ⊢
-    ∃ a' al',
-         ⌜ al = al' ++ [a']⌝ ∧
-         [∗ list] a_i;w ∈ (al' ++ [a']);(call_instrs_main f_m (offset_to_cont_call params) r1 locals params ++ [jmp r1]), a_i ↦ₐ w)%I.
-  Proof.
-    iIntros (Hlen) "Hcall".
-    rewrite /call.
-    rewrite call_instrs_main_jmp.
-    rewrite call_instrs_main_jmp in Hlen.
-    rewrite app_length in Hlen.
-    assert (exists a_end, last al = Some a_end) as [a_end Ha_end].
-    { apply last_is_Some. intro. subst al.
-      rewrite cons_length nil_length in Hlen; lia. }
-    iExists a_end, (removelast al).
-    assert (Hal : al = removelast al ++ [a_end]).
-    apply last_Some in Ha_end.
-    destruct Ha_end as [l' ->].
-    by rewrite removelast_last.
-    rewrite {1}Hal.
-    iFrame. auto.
-  Qed.
-
-  Lemma call_main_aux al f_m r1 locals params :
-    length al = length (call_instrs f_m (offset_to_cont_call params) r1 locals params) ->
-    (call al f_m r1 locals params ⊢
-    ∃ a' al',
-         ⌜ al = al' ++ [a']⌝
-                  ∗ a' ↦ₐ jmp r1
-                  ∗ [∗ list] a_i;w ∈ al';(call_instrs_main f_m (offset_to_cont_call params) r1 locals params), a_i ↦ₐ w
-    )%I.
-  Proof.
-    iIntros (Hlen) "Hcall".
-    iDestruct (call_main_jmp with "Hcall") as (a_end_call call_addrs') "[-> Hcall]"; auto.
-    iExists a_end_call, call_addrs'.
-    iDestruct (big_sepL2_app' with "Hcall") as "[Hcall' Hi]".
-    rewrite call_instrs_main_jmp in Hlen.
-    rewrite 2!app_length in Hlen.
-    rewrite 2!cons_length 2!nil_length in Hlen; lia.
-    iSplit; first eauto.
-    iDestruct (big_sepL2_cons with "Hi") as "[Hi _]".
-    iFrame.
-  Qed.
-
-  (* Separate the points-to predicate of the last instructions of the call sub-routine *)
-  Lemma call_main al f_m r1 locals params a_call a_end_call a_restore :
-    (a_end_call + 1)%a = Some a_restore ->
-    contiguous_between al a_call a_restore ->
-    (a_call + length al)%a = Some a_restore ->
-
-    length al = length (call_instrs f_m (offset_to_cont_call params) r1 locals params) ->
-    (call al f_m r1 locals params ⊢
-       ∃ al',
-         ⌜ al = al' ++ [a_end_call]⌝
-                  ∗ a_end_call ↦ₐ jmp r1
-                  ∗ [∗ list] a_i;w ∈ al';(call_instrs_main f_m (offset_to_cont_call params) r1 locals params), a_i ↦ₐ w
-    )%I.
-  Proof.
-    iIntros (Hnext Hcont_call Ha_restore Hlen) "Hcall".
-    iDestruct (call_main_aux with "Hcall") as (a_end_call' call_addrs') "[-> Hcall]"; auto.
-    iExists call_addrs'.
-
-    assert (a_end_call' = a_end_call) as ->.
-    { clear -Hcont_call Hnext Ha_restore.
-      eapply (contiguous_between_app _ call_addrs' [a_end_call'] _ _ a_end_call) in Hcont_call.
-      destruct Hcont_call as [Hcall_main Hcall_jmp].
-      by apply contiguous_between_cons_inv_first in Hcall_jmp.
-      auto.
-      rewrite -Hnext in Ha_restore.
-      rewrite app_length cons_length nil_length in Ha_restore.
-      solve_addr.
-    }
-    iSplit; first eauto.
     iFrame.
   Qed.
 

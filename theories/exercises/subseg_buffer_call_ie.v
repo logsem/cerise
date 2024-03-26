@@ -516,7 +516,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
     set (w7 := (WCap RWX _ e_mem _ )).
     set (w8 := (WCap RWX b_mem _ _ )).
     (* Call_spec *)
-    iApply (call_spec_main
+    iApply (call_spec
               r_t30 ({[r_t8 := w8]}) ({[r_t7 := w7]})
               wadv _ rmap_call'
               _ _ _ _ _ a_restore
@@ -838,15 +838,11 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
       apply lookup_delete_is_Some ; split ; auto.
     }
 
-    (* Prepare to apply jmp_unknown_safe to end the proof *)
-    iDestruct (call_main with "Hcall") as (call_addrs') "[-> [Hi Hcall]]" ; eauto.
-
     iAssert ([∗ map] r↦w ∈ rmap2, r ↦ᵣ w ∗ interp w)%I
       with "[Hrmap]" as "Hrmap".
     {
       (* -- It remains to prove that all the registers are safe to share -- *)
       iApply big_sepM_sep. iFrame.
-      subst rmap2.
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r7 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r30 *)
       iApply big_sepM_insert_2 ; first iFrame "#". (* interp r31 *)
@@ -858,15 +854,14 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
       all: simplify_eq; by rewrite !fixpoint_interp1_eq.
     }
 
-    (* Apply the continuation *)
-    iApply jmp_unknown_safe; try iFrame; auto.
-    { subst rmap2.
-      iPureIntro.
-      rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
-      rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
-      rewrite !singleton_union_difference_L.
-      set_solver.
-    }
+    subst cont0 Cont.
+    iApply ("Cont"$! rmap2); eauto ; iFrame.
+    subst rmap2.
+    iPureIntro.
+    rewrite !dom_insert_L create_gmap_default_dom list_to_set_map_to_list.
+    rewrite !dom_delete_L !dom_insert_L !dom_delete_L Hdom.
+    rewrite !singleton_union_difference_L.
+    set_solver.
   Qed.
 
   (* The post-condition actually does not matter *)

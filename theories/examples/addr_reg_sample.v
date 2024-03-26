@@ -47,6 +47,7 @@ Section instr_encodings.
   Definition lt_z_r r1 z r2 := encodeInstrW (Lt r1 (inl z) (inr r2)).
   Definition lt_r_z r1 r2 z := encodeInstrW (Lt r1 (inr r2) (inl z)).
   Definition jmp r := encodeInstrW (Jmp r).
+  Definition jmp_ie_pair r := encodeInstrW (JmpIEpair r).
   Definition get_otype r1 r2 := encodeInstrW (GetOType r1 r2).
   Definition get_wtype r1 r2 := encodeInstrW (GetWType r1 r2).
   Definition halt := encodeInstrW Halt.

@@ -147,7 +147,7 @@ Section base_program.
     { solve_addr +Hlen_mem. }
 
     (* jmp *)
-    iInstr "Hprog". { by cbn. }
+    iInstr "Hprog".
 
     (* halts in the adversary code *)
     rewrite /adv_code.
@@ -324,14 +324,13 @@ Section base_program_CPS.
     iInstr "Hprog".
 
     (* 3 - Post condition *)
-    admit.
     iApply "Post".
 
     subst secret.
     replace ((b_mem ^+ secret_off) ^+ 1)%a with (b_mem ^+ (secret_off + 1))%a by solve_addr.
     replace  (b_mem + secret_off + 1)%Z with (b_mem + (secret_off + 1))%Z by lia.
     iFrame.
-  Admitted.
+  Qed.
 
   Context {nainv: logrel_na_invs Σ}.
 

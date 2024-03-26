@@ -67,25 +67,24 @@ Section SimpleMalloc.
   Lemma simple_malloc_subroutine_spec (wsize: Word) (cont: Word) b e rmap N E φ :
     dom rmap = all_registers_s ∖ {[ PC; r_t31; r_t1 ]} →
     ↑N ⊆ E →
-    (  na_inv logrel_nais N (malloc_inv b e)
-     ∗ na_own logrel_nais E
-     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
-     ∗ r_t31 ↦ᵣ cont
-     ∗ PC ↦ᵣ WCap RX b e b
-     ∗ r_t1 ↦ᵣ wsize
-     ∗ ▷ ((na_own logrel_nais E
-          ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
-                         (<[r_t3 := WInt 0%Z]>
-                         (<[r_t4 := WInt 0%Z]>
-                          rmap)), r ↦ᵣ w)
+    na_inv logrel_nais N (malloc_inv b e)
+    ∗ na_own logrel_nais E
+    ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
+    ∗ r_t31 ↦ᵣ cont
+    ∗ PC ↦ᵣ WCap RX b e b
+    ∗ r_t1 ↦ᵣ wsize
+    ∗ ▷ ((na_own logrel_nais E
+          ∗ ([∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
+                          (<[r_t3 := WInt 0%Z]>
+                          (<[r_t4 := WInt 0%Z]> rmap)), r ↦ᵣ w)
           ∗ r_t31 ↦ᵣ cont
           ∗ PC ↦ᵣ updatePcPerm cont
           ∗ (∃ (ba ea : Addr) size,
-            ⌜wsize = WInt size⌝
-            ∗ ⌜(ba + size)%a = Some ea⌝
-            ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
-            ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
-          -∗ WP Seq (Instr Executable) {{ φ }}))
+                ⌜wsize = WInt size⌝
+                ∗ ⌜(ba + size)%a = Some ea⌝
+                ∗ r_t1 ↦ᵣ WCap RWX ba ea ba
+                ∗ [[ba, ea]] ↦ₐ [[region_addrs_zeroes ba ea]])
+            -∗ WP Seq (Instr Executable) {{ φ }}))
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
     iIntros (Hrmap_dom HN) "(#Hinv & Hna & Hrmap & Hr31 & HPC & Hr1 & Hφ)".
@@ -228,11 +227,15 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     iApply (simple_malloc_subroutine_spec with "[- $Hown $Hmalloc $Hregs $HPC $Hr1 $Hr31]");[|solve_ndisj|].
     3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
-    { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in Hsome as <-.
-      admit. (* set_solver.  *)}
+    { rewrite !dom_delete_L dom_insert_L.
+      destruct Hsome with idc as [widc' ?].
+      apply regmap_full_dom in Hsome as <-.
+      rewrite -{2}(insert_id r idc widc') //.
+      set_solver. }
     iDestruct ("Hregs_valid" $! r_t31 _ _ _ H0) as "Hr31_valid";auto.
+    Unshelve. 2,3: (intro ; simplify_eq).
     iDestruct (jmp_to_unknown with "Hr31_valid") as "Hcont".
-    iNext. iIntros "((Hown & Hregs) & Hr31 & HPC & Hres)".
+    iNext. iIntros "(Hown & Hregs & Hr31 & HPC & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize) "[Hr1 Hbe]".
 
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
@@ -247,29 +250,19 @@ Section SimpleMalloc.
 
     iApply ("Hcont" $! regs).
     { iPureIntro. subst regs. rewrite !dom_insert_L dom_delete_L.
-      rewrite regmap_full_dom; eauto. admit.
+      rewrite regmap_full_dom; eauto.
+      intro; by repeat (rewrite lookup_insert_is_Some'; right).
     }
     iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
-    destruct (decide (r' = r_t1)).
-    { subst r'. rewrite lookup_insert in Hr'. simplify_eq. iApply "Hbe". }
-    destruct (decide (r' = r_t2)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = r_t3)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = r_t4)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-    destruct (decide (r' = r_t31)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
-
-    repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr'].
-    (* iSpecialize ("Hregs_valid" $! r' _ _ _ _ Hr'). done. done. *)
-    (* TODO *)
-    Admitted.
-  (* Qed. *)
+    destruct (decide (r' = r_t1)) ; simplify_map_eq ; first done.
+    destruct (decide (r' = r_t31)) ; simplify_map_eq ; first done.
+    destruct (decide (r' = r_t2)) ; simplify_map_eq; first (rewrite /interp !fixpoint_interp1_eq //).
+    destruct (decide (r' = r_t3)) ; simplify_map_eq; first (rewrite /interp !fixpoint_interp1_eq //).
+    destruct (decide (r' = r_t4)) ; simplify_map_eq; first (rewrite /interp !fixpoint_interp1_eq //).
+    destruct (decide (r' = idc)) ; simplify_map_eq ; first done.
+    apply lookup_delete_Some in Hr' as [? Hr'] ; simplify_map_eq.
+    iApply "Hregs_valid" ; eauto.
+    Qed.
 
 End SimpleMalloc.
