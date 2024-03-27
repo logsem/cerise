@@ -75,7 +75,7 @@ Section counter.
     repeat match goal with x := _ |- _ => subst x end;
     unfold code_off, secret_off, end_off, data_end_off in *; solve_addr.
 
-  Lemma counter_init_spec (a_init a_data: Addr) wadv w1 wdat0 wdat1 φ :
+  Lemma counter_init_spec (a_init a_data: Addr) (wadv w1 wdat0 wdat1 : Word) φ :
     let a_code := (a_init ^+ code_off)%a in
     let a_end := (a_init ^+ (code_off + end_off))%a in
     let a_secret := (a_data ^+ secret_off)%a in
@@ -90,15 +90,13 @@ Section counter.
       ∗ r_t31 ↦ᵣ wadv
       ∗ a_data ↦ₐ wdat0
       ∗ (a_data ^+1)%a ↦ₐ wdat1
-      (* ∗ (a_data ^+2)%a ↦ₐ wdat2 *)
       ∗ codefrag a_init (counter_init a_init a_data)
-      ∗ ▷ (  PC ↦ᵣ WCap RX a_init a_end (a_code ^+ (-1))%a
+      ∗ ▷ (  PC ↦ᵣ updatePcPerm wadv
            ∗ idc ↦ᵣ WCap IE a_data a_data_end a_data
            ∗ r_t1 ↦ᵣ WInt 0
            ∗ r_t31 ↦ᵣ wadv
            ∗ a_data ↦ₐ WCap RX a_init a_end a_code
            ∗ (a_data ^+1)%a ↦ₐ WCap RW a_data a_data_end a_secret
-           (* ∗ (a_data ^+2)%a ↦ₐ WCap RWX a_init a_end (a_data ^+ 1)%a *)
            ∗ codefrag a_init (counter_init a_init a_data)
            -∗ WP Seq (Instr Executable) {{ φ }}))
       -∗ WP Seq (Instr Executable) {{ φ }})%I.
@@ -113,14 +111,10 @@ Section counter.
     iGo "Hprog".
     { transitivity (Some a_data); auto. solve_addr'. }
     iGo "Hprog"; rewrite decode_encode_perm_inv //.
-    iInstr "Hprog". (* stop before the jump *)
+    iGo "Hprog".
     iApply "Hφ". iFrame.
-    replace (a_init ^+ 10)%a with (a_code ^+ -1)%a; solve_addr'.
   Qed.
 
-  (* TODO
-     - spec after jump
-   *)
   Lemma counter_code_spec (a_init a_data: Addr) wcont w1 φ :
     let a_code := (a_init ^+ code_off)%a in
     let a_end := (a_init ^+ (code_off + end_off))%a in
@@ -130,21 +124,21 @@ Section counter.
     ContiguousRegion a_init (code_off + end_off) →
     ContiguousRegion a_data (data_end_off) →
 
-  ⊢ (( inv with_adv.invN (∃ n, a_secret ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
-     ∗ na_inv logrel_nais (N.@"code") (codefrag a_code counter_code)
-     ∗ PC ↦ᵣ WCap RX a_init a_end a_code
-     ∗ idc ↦ᵣ WCap RW a_data a_data_end a_secret
-     ∗ r_t1 ↦ᵣ w1
-     ∗ r_t31 ↦ᵣ wcont
-     ∗ na_own logrel_nais ⊤
-     ∗ ▷ (∀ (n: Z),
-         PC ↦ᵣ WCap RX a_init a_end (a_end ^+ (-1))%a
-           ∗ idc ↦ᵣ WInt 0
-           ∗ r_t1 ↦ᵣ WInt n
-           ∗ r_t31 ↦ᵣ wcont
-           ∗ na_own logrel_nais ⊤
-          -∗ WP Seq (Instr Executable) {{ φ }}))
-     -∗ WP Seq (Instr Executable) {{ φ }})%I.
+    ⊢ (( inv with_adv.invN (∃ n, a_secret ↦ₐ WInt n ∗ ⌜0 ≤ n⌝)
+         ∗ na_inv logrel_nais (N.@"code") (codefrag a_code counter_code)
+         ∗ PC ↦ᵣ WCap RX a_init a_end a_code
+         ∗ idc ↦ᵣ WCap RW a_data a_data_end a_secret
+         ∗ r_t1 ↦ᵣ w1
+         ∗ r_t31 ↦ᵣ wcont
+         ∗ na_own logrel_nais ⊤
+         ∗ ▷ (∀ (n: Z),
+                PC ↦ᵣ(updatePcPerm wcont)
+                ∗ idc ↦ᵣ WInt 0
+                ∗ r_t1 ↦ᵣ WInt n
+                ∗ r_t31 ↦ᵣ wcont
+                ∗ na_own logrel_nais ⊤
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+       -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     intros a_code a_end a_secret a_data_end.
     iIntros (Hcont_code Hcont_data)
@@ -178,18 +172,21 @@ Section counter.
     iMod ("Hclose" with "[Hn']") as "_".
     { iNext. iExists _. iFrame. iPureIntro. lia. }
     iModIntro. wp_pure.
-    (* cont *)
+
+    (* move idc 0  *)
+    iInstr "Hcode".
+    { split; try solve_addr'. }
+
+    (* jmp to cont *)
     iInstr "Hcode".
     { split; try solve_addr'. }
 
     (* close the invariant with the code *)
     iMod ("Hclose_code" with "[$Hcode $Hna]") as "Hna".
-    iApply "Hφ".
-    replace (a_code ^+ 4)%a with (a_end ^+ -1)%a by solve_addr'.
-    iFrame.
+    iApply "Hφ"; iFrame.
   Qed.
 
-  Lemma counter_code_spec_full (a_init a_data: Addr) wcont w1 rmap :
+  Lemma counter_code_spec_full (a_init a_data: Addr) (wcont w1 : Word) (rmap : Reg) :
     let a_code := (a_init ^+ code_off)%a in
     let a_end := (a_init ^+ (code_off + end_off))%a in
     let a_secret := (a_data ^+ secret_off)%a in
@@ -214,111 +211,27 @@ Section counter.
     intros a_code a_end a_secret a_data_end.
     iIntros (Hcont_code Hcont_data Hrmap)
       "(#Hinterp_wcont & #HIv & #HIcode & HPC & Hidc & Hr1 & Hr31 & Hrmap & Hna)".
+    (* Prepare the continuation before the spec, because of the later *)
+    iDestruct (jmp_to_unknown with "Hinterp_wcont") as "Hcont".
+
     iApply (counter_code_spec with "[-]"); eauto; iFrame "∗ #".
     iNext; iIntros (n) "(HPC & Hidc & Hr1 & Hr31 & Hna)".
-    iMod (na_inv_acc logrel_nais with "HIcode Hna") as
-      "(>Hcode & Hna & Hclose_code)"; [done | done |].
-    rewrite (_: a_init ^+ (_ + _) = a_end)%a; [|solve_addr'].
-    rewrite (_: (a_end ^+ -1)%a = (a_code ^+ 4)%a); [|solve_addr'].
 
+    (* Show that all the registers are safe to share *)
+    iAssert (idc ↦ᵣ WInt 0 ∗ interp (WInt 0))%I with "[Hidc]" as "Hidc"
+    ; first (iSplit ; rewrite !fixpoint_interp1_eq //=).
+    iAssert (r_t1 ↦ᵣ WInt n ∗ interp (WInt n))%I with "[Hr1]" as "Hr1"
+    ; first (iSplit ; rewrite !fixpoint_interp1_eq //=).
+    iAssert (r_t31 ↦ᵣ wcont ∗ interp wcont)%I with "[Hr31]" as "Hr31"
+    ; first (iFrame "∗ #").
+    iInsertList "Hrmap" [r_t1;r_t31;idc].
 
-    {
-      destruct (decide (is_ie_cap wcont = true)) as [Hcont | Hcont].
-      - (* IE-cap *)
-        destruct_word wcont ; [ | destruct c | | ] ; cbn in Hcont ; try congruence
-        ; clear Hcont.
-
-        rewrite (fixpoint_interp1_eq (WCap IE _ _ _)) //=.
-        destruct (decide (withinBounds f f0 f1 ∧ withinBounds f f0 (f1 ^+ 1)%a)) as [Hwb | Hwb].
-        { (* in bounds *)
-          iDestruct ("Hinterp_wcont" $! Hwb)
-            as (P1 P2) "(%Hpers1 & %Hpers2 & Hinv_f1 & Hinv_f2 & Hcont)".
-          destruct Hwb as [Hwb Hwb'].
-
-          assert (Hf1: f1 <> (f1 ^+ 1)%a)
-            by (apply Is_true_true_1, withinBounds_true_iff in Hwb; solve_addr).
-          wp_instr.
-          iInv (logN.@f1) as (w1') "[>Hf1 #HP1]" "Hcls1".
-          iInv (logN.@(f1 ^+1)%a) as (w2') "[>Hf2 #HP2]" "Hcls2".
-          iInstr "Hcode". split ; solve_addr'.
-          iMod ("Hcls2" with "[Hf2 HP2]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-          iMod ("Hcls1" with "[Hf1 HP1]") as "_"; [iNext ; iExists _ ; iFrame "∗ #"| iModIntro].
-          iApply wp_pure_step_later; auto.
-          iNext ; iIntros "_".
-
-          iDestruct ("Hclose_code" with "[Hcode $Hna]") as ">Hna".
-          { iNext ; iFrame. }
-
-          iSpecialize ("Hcont" $! w1' w2').
-          iDestruct (big_sepM_sep with "Hrmap") as "[Hrmap Hrinterp]".
-
-          iInsertList "Hrmap" [r_t1;r_t31;PC; idc].
-          set (regs := <[_:= _]> _).
-          iApply ("Hcont" $! regs); iFrame "∗ #".
-          iSplit.
-          { iSplit.
-            rewrite /full_map.
-            iIntros (r'). iPureIntro.
-            subst regs.
-            destruct (decide (r' = idc)) ; try by simplify_map_eq.
-            destruct (decide (r' = PC)) ; try by simplify_map_eq.
-            destruct (decide (r' = r_t31)) ; try by simplify_map_eq.
-            destruct (decide (r' = r_t1)) ; try by simplify_map_eq.
-            repeat (rewrite lookup_insert_is_Some'; right).
-            apply elem_of_dom; set_solver.
-
-
-            iIntros (r' w') "%Hr %Hr' %Hsome".
-            subst regs.
-            rewrite
-              lookup_insert_ne //=
-              lookup_insert_ne //=
-              in Hsome.
-            destruct (decide (r' = r_t31)); simplify_map_eq.
-            { rewrite !fixpoint_interp1_eq //. }
-            destruct (decide (r' = r_t1)); simplify_map_eq.
-            { rewrite !fixpoint_interp1_eq //. }
-            iApply (big_sepM_lookup with "Hrinterp"); eauto.
-          }
-          subst regs.
-          rewrite
-            (insert_commute _ PC idc) //=
-              !insert_insert.
-          iFrame.
-        }
-        { (* not in bounds -- the jump fails *)
-          iInstr "Hcode" with wp_jmp_fail_IE. split ; solve_addr'.
-          wp_end; iIntros (Hcontra) ; congruence.
-        }
-
-      - (* not IE-cap *)
-        apply not_true_is_false in Hcont.
-        iDestruct (jmp_to_unknown with "Hinterp_wcont") as "Hcont".
-
-        iInstr "Hcode". split ; solve_addr'.
-
-        iDestruct ("Hclose_code" with "[Hcode $Hna]") as ">Hna".
-        { by iNext. }
-
-        iAssert (idc ↦ᵣ WInt 0 ∗ interp (WInt 0))%I with "[Hidc]" as "Hidc".
-        iSplit ; rewrite !fixpoint_interp1_eq //=.
-        iAssert (r_t1 ↦ᵣ WInt n ∗ interp (WInt n))%I with "[Hr1]" as "Hr1".
-        iSplit ; rewrite !fixpoint_interp1_eq //=.
-
-        iAssert (r_t31 ↦ᵣ wcont ∗ interp wcont)%I with "[Hr31]" as "Hr31".
-        iFrame "∗ #".
-
-        iInsertList "Hrmap" [r_t1;r_t31;idc].
-
-        set (regs := <[ _ := _]> _).
-        iApply ("Hcont" $! regs); iFrame "∗ #".
-        { rewrite /full_map.
-          subst regs.
-          iPureIntro.
-          rewrite !dom_insert_L Hrmap.
-          set_solver.
-        }
-    }
+    (* Use continuation *)
+    set (regs := <[ _ := _]> _).
+    iApply ("Hcont" $! regs); iFrame "∗ #".
+    rewrite /full_map; subst regs.
+    iPureIntro.
+    rewrite !dom_insert_L Hrmap; set_solver.
   Qed.
 
   Lemma counter_code_spec_int (a_init: Addr) w1 z :
@@ -350,9 +263,6 @@ Section counter.
     iNext; iIntros (_).
     by wp_pure; wp_end.
   Qed.
-
-  (* TODO ----------------------- *)
-  (* TODO I think that it would be great to have an HOCAP style solution *)
 
   Lemma counter_full_run_spec (a_init a_data: Addr) b_adv e_adv w1 wdat0 wdat1 rmap adv :
     let a_code := (a_init ^+ code_off)%a in
@@ -394,11 +304,8 @@ Section counter.
     { apply Forall_forall. intros. set_solver. }
     iDestruct (jmp_to_unknown with "Hadv") as "#Hcont".
 
-    iApply (counter_init_spec a_init with "[-]"); eauto. iFrame.
+    iApply (counter_init_spec a_init with "[-]"); eauto; iFrame.
     iNext. iIntros "(HPC & Hidc & Hr1 & Hr31 & Hdat & Hdat' & Hinit)".
-    replace ((a_init ^+ code_off) ^+ -1)%a
-      with (a_init ^+ (code_off -1))%a by solve_addr'.
-    iInstr "Hinit" ; [ auto|].
 
     rewrite (_: a_init ^+ (_ + _) = a_end)%a; [|solve_addr'].
     rewrite (_: a_init ^+ _ = a_code)%a; [|solve_addr'].
