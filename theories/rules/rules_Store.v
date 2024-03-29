@@ -149,11 +149,11 @@ Section cap_lang_rules.
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaStore φ) "(>Hmem & >Hregs) Hφ".
-
-    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs Hmem Hφ]").
-    iSplit. admit.
+    (*  extract the pc  *)
+    rewrite (big_sepM_delete). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ]").
     iModIntro.
-    iIntros (σ) "(Hσ & Hregs & ?)". (* ??? *)
+    iIntros (σ) "(Hσ & Hregs & ?)".
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
@@ -171,39 +171,10 @@ Section cap_lang_rules.
     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
     iIntros (r1v) "Hσ %Hlr1v %Hr1v".
 
-    (* I can do the same trick as in Load *)
+    (* need a way to decide the match, then rules for wp2 update_mem *)
 
-    destruct (is_log_cap r1v) eqn:Hlw2; cycle 1.
-
-    {
-      destruct_lword r1v ; cbn in * ; simplify_eq.
-      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hregs & Hmem)".
-      (* fractional stuff, need to figure this out *)
-      all: admit.
-      (* all: iApply ("Hφ" with "[$Hmem $Hregs]"). *)
-      (* all: iPureIntro; constructor; by eapply Load_fail_const. *)
-    }
-
-    destruct_lword r1v ; cbn in * ; simplify_eq.
-
-    destruct (decide (writeAllowed p && withinBounds b e a = true)) as [Hwrite|Hwrite]
-    ; [|apply not_true_is_false in Hwrite] ; rewrite Hwrite ;cycle 1;cbn.
-
-    {
-      apply andb_false_iff in Hwrite.
-      iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hregs & Hmem)".
-      (* fractional stuff, need to figure this out *)
-      all: admit.
-      (* iApply ("Hφ" with "[$Hmem $Hregs]"). *)
-      (* iPureIntro; constructor; by eapply Load_fail_bounds. *)
-    }
-
-    apply andb_true_iff in Hwrite; destruct Hwrite as [ Hwrite Hinbounds ].
-
-    (* Problem is I cannot apply incrementPC lemma here... *)
-    rewrite updatePC_incrementPC. cbn.
-    Fail iApply (wp2_opt_incrementPC with "[]").
-  Admitted.
+    admit.
+ Admitted.
 
   Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pc_a' lw z :
      decodeInstrWL lw = Store PC (inl z) →
