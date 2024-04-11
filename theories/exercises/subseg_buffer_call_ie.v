@@ -661,7 +661,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hadv)".
     iAssert (interp (WCap RWX (b_mem ^+ (secret_off + 1))%a e_mem (b_mem ^+ secret_off)%a))%I as
       "#Hbuffer_valid"; first iFrame "#"; iClear "Hbuffer_valid".
     (* The return pointer is safe to share *)
-    iAssert (interp (WCap IE b_act e_act b_act))%I as "Hact_valid".
+    iAssert (interp (WCap IEpair b_act e_act b_act))%I as "Hact_valid".
     { cbn beta. rewrite !fixpoint_interp1_eq.
       iIntros (r).
       iExists (cap_eq pc_p pc_b pc_e a_restore), (cap_eq RWX b_local e_locals e_locals).

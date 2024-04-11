@@ -46,7 +46,7 @@ Section Assert.
 
   Lemma assert_subroutine_spec b a_flag e cont n1 n2 flag N E φ :
     ↑N ⊆ E →
-    is_ie_cap cont = false ->
+    is_iepair_cap cont = false ->
     (  na_inv logrel_nais N (assert_inv b a_flag e)
      ∗ na_own logrel_nais E
      ∗ PC ↦ᵣ WCap RX b e b
@@ -63,7 +63,7 @@ Section Assert.
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (HNE Hie) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hflag & Hφ)".
+    iIntros (HNE Hiepair) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hflag & Hφ)".
     iMod (na_inv_acc with "Hinv Hna") as "(>Hassert & Hna & Hinv_close)"; auto.
     iDestruct "Hassert" as (cap_addr) "(Hprog & %Hcap & %Hflag & %He & Hcap)".
     rewrite /assert_subroutine_instrs. codefrag_facts "Hprog".
@@ -92,7 +92,7 @@ Section Assert.
   Lemma assert_success_spec b a_flag e cont n1 n2 N E φ :
     ↑N ⊆ E →
     n1 = n2 →
-    is_ie_cap cont = false ->
+    is_iepair_cap cont = false ->
     (  na_inv logrel_nais N (assert_inv b a_flag e)
      ∗ na_own logrel_nais E
      ∗ PC ↦ᵣ WCap RX b e b
@@ -107,7 +107,7 @@ Section Assert.
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
-    iIntros (HNE Heq Hie) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
+    iIntros (HNE Heq Hiepair) "(#Hinv & Hna & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
     iMod (na_inv_acc with "Hinv Hna") as "(>Hassert & Hna & Hinv_close)"; auto.
     iDestruct "Hassert" as (cap_addr) "(Hprog & %Hcap & %Hflag & %He & Hcap)".
     rewrite /assert_subroutine_instrs. codefrag_facts "Hprog".

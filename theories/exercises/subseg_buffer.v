@@ -102,7 +102,7 @@ Section base_program.
       simpl in Hp_mem.
       discriminate.
     }
-    assert (Hp_mem'': p_mem ≠ IE). {
+    assert (Hp_mem'': p_mem ≠ IEpair). {
       intros ->.
       simpl in Hp_mem.
       discriminate.

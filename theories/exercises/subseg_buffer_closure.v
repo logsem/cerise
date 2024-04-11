@@ -173,13 +173,13 @@ Section closure_program.
     simpl in *.
     rewrite /prog_code.
     assert (Hp_mem': ~ p_mem = E) by (intros -> ; simpl in Hp_mem ; discriminate).
-    assert (Hp_mem'': ~ p_mem = IE) by (intros -> ; simpl in Hp_mem ; discriminate).
+    assert (Hp_mem'': ~ p_mem = IEpair) by (intros -> ; simpl in Hp_mem ; discriminate).
     (* Lea r_t1 secret_off *)
     iInstr "Hprog".
     { transitivity (Some (b_mem ^+secret_off)%a) ; auto. solve_addr. }
     (* Store r_t1 42 , where r_t1 = (RWX, b, e, secret) *)
     (* Regarding the invariant, the secret can be either 0 or 42 *)
-    assert (is_ie_cap wadv = false) by admit.
+    assert (is_iepair_cap wadv = false) by admit.
     iDestruct "Hsecret" as "[Hsecret | Hsecret]".
     all: iInstr "Hprog" ; [solve_addr|].
     (* getB getE add subseg *)

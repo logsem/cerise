@@ -18,12 +18,12 @@ Section cap_lang_rules.
   Implicit Types ms : gmap Addr Word.
 
   Inductive Jmp_failure (regs: Reg) (r: RegName) (mem : gmap Addr Word) :=
-  | Jmp_fail_not_IE w :
+  | Jmp_fail_not_IEpair w :
       regs !! r = Some w ->
-      is_ie_cap w = false ->
+      is_iepair_cap w = false ->
       Jmp_failure regs r mem
   | Jmp_fail_bounds b e a:
-      regs !! r = Some (WCap IE b e a) ->
+      regs !! r = Some (WCap IEpair b e a) ->
       not (withinBounds b e a /\ withinBounds b e (a^+1)%a) →
       Jmp_failure regs r mem
   .
@@ -32,8 +32,8 @@ Section cap_lang_rules.
     (regs: Reg) (r: RegName)
     (regs': Reg) (mem : gmap Addr Word) : cap_lang.val → Prop
   :=
-  | Jmp_spec_success_IE b e a wpc widc :
-    regs !! r = Some (WCap IE b e a) ->
+  | Jmp_spec_success_IEpair b e a wpc widc :
+    regs !! r = Some (WCap IEpair b e a) ->
     withinBounds b e a ->
     withinBounds b e (a^+1)%a ->
     mem !! a = Some wpc ->
@@ -47,17 +47,17 @@ Section cap_lang_rules.
     Jmp_spec regs r regs' mem FailedV.
 
 
-  Definition reg_allows_IE_jmp (regs : Reg) (r : RegName) p b e a :=
+  Definition reg_allows_IEpair_jmp (regs : Reg) (r : RegName) p b e a :=
     regs !! r = Some (WCap p b e a)
-    /\ p = IE
+    /\ p = IEpair
     ∧ withinBounds b e a
     ∧ withinBounds b e (a^+1)%a.
 
-  Lemma contra_reg_allows_IE_jmp r regs b e a :
-    regs !! r = Some (WCap IE b e a) ->
+  Lemma contra_reg_allows_IEpair_jmp r regs b e a :
+    regs !! r = Some (WCap IEpair b e a) ->
     withinBounds b e a ->
     withinBounds b e (a ^+ 1)%a ->
-    ¬ reg_allows_IE_jmp regs r IE b e a ->
+    ¬ reg_allows_IEpair_jmp regs r IEpair b e a ->
     False.
   Proof.
     intros Hreg Hwb Hwb' Hdec1.
@@ -65,10 +65,10 @@ Section cap_lang_rules.
     apply Hcontra ; repeat (split ; auto).
   Qed.
 
-  Lemma reg_allows_IE_jmp_same
+  Lemma reg_allows_IEpair_jmp_same
     (regs : Reg) (r : RegName)
     (p p' : Perm) (b b' e e' a a' : Addr):
-    reg_allows_IE_jmp regs r p b e a ->
+    reg_allows_IEpair_jmp regs r p b e a ->
     regs !! r = Some (WCap p' b' e' a') ->
     (p = p' /\ b = b' /\ e = e' /\ a = a').
   Proof.
@@ -80,7 +80,7 @@ Section cap_lang_rules.
   (* NOTE: cond is a condition to re-use the setup with rules_Jnz.v *)
   Definition allow_jmp_mmap_or_true (cond : Prop) `{Decision cond} (r : RegName) (regs : Reg) (mem : Mem) :=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
-                 if decide (reg_allows_IE_jmp regs r p b e a /\ cond) then
+                 if decide (reg_allows_IEpair_jmp regs r p b e a /\ cond) then
                    ∃ w1 w2,
                      mem !! a = Some w1
                      /\ mem !! (a^+1)%a = Some w2
@@ -88,19 +88,19 @@ Section cap_lang_rules.
 
   Definition allow_jmp_rmap_or_true (cond : Prop) `{Decision cond}  (r : RegName) (regs : Reg) :=
     ∃ p b e a, read_reg_inr regs r p b e a ∧
-                 if decide (reg_allows_IE_jmp regs r p b e a /\ cond) then
+                 if decide (reg_allows_IEpair_jmp regs r p b e a /\ cond) then
                    ∃ widc, regs !! idc = Some widc
                  else True.
 
   Lemma allow_jmp_mmap_or_true_not_ie (cond : Prop) `{Decision cond}  (r : RegName) (regs : Reg) (mem : Mem) (w : Word) :
-    is_ie_cap w = false ->
+    is_iepair_cap w = false ->
     regs !! r = Some w ->
     allow_jmp_mmap_or_true cond r regs mem.
   Proof.
     intros Hvpc.
     destruct_word w; eauto; eexists _,_,_,_; split
     ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+    rewrite /reg_allows_IEpair_jmp ; simplify_map_eq ; auto.
     all: case_decide as Heq ; simplify_eq ; auto.
     all: try destruct Heq as [(? & -> & ? & ?) ?] ; simplify_map_eq.
     all: try destruct Heq as [(? & _) ?] ; simplify_map_eq.
@@ -108,14 +108,14 @@ Section cap_lang_rules.
   Qed.
 
   Lemma allow_jmp_rmap_or_true_not_ie (cond : Prop) `{Decision cond}  (r : RegName) (regs : Reg) (w : Word) :
-    is_ie_cap w = false ->
+    is_iepair_cap w = false ->
     regs !! r = Some w ->
     allow_jmp_rmap_or_true cond r regs.
   Proof.
     intros Hvpc.
     destruct_word w; eauto; eexists _,_,_,_; split
     ;try (rewrite /read_reg_inr ; simplify_map_eq; auto).
-    rewrite /reg_allows_IE_jmp ; simplify_map_eq ; auto.
+    rewrite /reg_allows_IEpair_jmp ; simplify_map_eq ; auto.
     all: case_decide as Heq ; simplify_eq ; auto.
     all: try destruct Heq as [(? & -> & ? & ?) ?] ; simplify_map_eq.
     all: try destruct Heq as [(? & _) ?] ; simplify_map_eq.
@@ -126,13 +126,13 @@ Section cap_lang_rules.
   Lemma allow_jmp_mmap_or_true_ie (cond : Prop) `{Decision cond}
     (r : RegName) (regs : Reg) (mem : Mem)
     (b e a : Addr) (widc wa wa' : Word) :
-    regs !! r = Some (WCap IE b e a) ->
+    regs !! r = Some (WCap IEpair b e a) ->
     regs !! idc = Some widc ->
     mem !! a = Some wa ->
     mem !! (a ^+1)%a = Some wa' ->
     allow_jmp_mmap_or_true cond r regs mem.
   Proof.
-    eexists IE,b,e,a.
+    eexists IEpair,b,e,a.
     split ; auto.
     unfold read_reg_inr; by simplify_map_eq.
     case_decide; auto.
@@ -143,11 +143,11 @@ Section cap_lang_rules.
   Lemma allow_jmp_rmap_or_true_ie (cond : Prop) `{Decision cond}
     (r : RegName) (regs : Reg)
     (b e a : Addr) (widc : Word) :
-    regs !! r = Some (WCap IE b e a) ->
+    regs !! r = Some (WCap IEpair b e a) ->
     regs !! idc = Some widc ->
     allow_jmp_rmap_or_true cond r regs.
   Proof.
-    eexists IE,b,e,a.
+    eexists IEpair,b,e,a.
     split ; auto.
     unfold read_reg_inr; by simplify_map_eq.
     case_decide; auto.
@@ -158,14 +158,14 @@ Section cap_lang_rules.
     (r : RegName) (regs : Reg) (mem : Mem)
     (b e a : Addr) (widc wa wa' : Word) :
     not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
-    regs !! r = Some (WCap IE b e a) ->
+    regs !! r = Some (WCap IEpair b e a) ->
     allow_jmp_mmap_or_true cond r regs mem.
   Proof.
-    eexists IE,b,e,a.
+    eexists IEpair,b,e,a.
     split ; auto.
     unfold read_reg_inr; by simplify_map_eq.
     case_decide as Hajmp; auto.
-    rewrite /reg_allows_IE_jmp in Hajmp.
+    rewrite /reg_allows_IEpair_jmp in Hajmp.
     by destruct Hajmp as [( _ & _ & Hcontra ) _].
   Qed.
 
@@ -173,14 +173,14 @@ Section cap_lang_rules.
     (r : RegName) (regs : Reg)
     (b e a : Addr) (widc wa wa' : Word) :
     not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
-    regs !! r = Some (WCap IE b e a) ->
+    regs !! r = Some (WCap IEpair b e a) ->
     allow_jmp_rmap_or_true cond r regs.
   Proof.
-    eexists IE,b,e,a.
+    eexists IEpair,b,e,a.
     split ; auto.
     unfold read_reg_inr; by simplify_map_eq.
     case_decide as Hajmp; auto.
-    rewrite /reg_allows_IE_jmp in Hajmp.
+    rewrite /reg_allows_IEpair_jmp in Hajmp.
     by destruct Hajmp as [( _ & _ & Hcontra ) _].
   Qed.
 
@@ -257,8 +257,8 @@ Section cap_lang_rules.
     (* Now we start splitting on the different cases in the Jmp spec, and prove them one at a time *)
     assert (Hr0 : r0 !! r = Some rv).
     { eapply (lookup_weaken regs r0) ;auto. }
-    destruct (is_ie_cap rv) eqn:Hrv.
-    - (* rv is an IE-capability *)
+    destruct (is_iepair_cap rv) eqn:Hrv.
+    - (* rv is an IEpair-capability *)
       destruct rv; simpl in Hrv; try discriminate.
       destruct sb as [ p b e a |]; simpl in Hrv; try discriminate.
       destruct p; try discriminate ; clear Hrv.
@@ -294,7 +294,7 @@ Section cap_lang_rules.
           "[Hr Hmp]" ; eauto.
         { apply lookup_insert_is_Some'; right; auto. }
         iFrame; try iApply "Hφ"; iFrame.
-        iPureIntro; eapply Jmp_spec_success_IE; eauto.
+        iPureIntro; eapply Jmp_spec_success_IEpair; eauto.
 
       + (* in bounds, failure *)
         simplify_pair_eq; iFrame; iApply "Hφ"; iFrame.
@@ -303,7 +303,7 @@ Section cap_lang_rules.
         destruct Hcontra as [Hcontra1%Is_true_true_1 Hcontra2%Is_true_true_1].
         destruct Hbounds; congruence.
 
-    - (* rv is not an IE-capability, always fails *)
+    - (* rv is not an IEpair-capability, always fails *)
       rewrite Hr0 /= in Hstep; simplify_pair_eq.
       destruct rv; simpl in Hrv; try discriminate.
       2: destruct sb as [ p b e a |]; simpl in Hrv; try discriminate.
@@ -400,7 +400,7 @@ Section cap_lang_rules.
      withinBounds b e (a^+1)%a ->
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-         ∗ ▷ r ↦ᵣ WCap IE b e a
+         ∗ ▷ r ↦ᵣ WCap IEpair b e a
          ∗ ▷ idc ↦ᵣ w'
          ∗ ▷ pc_a ↦ₐ w
          ∗ ▷ a ↦ₐ wpc
@@ -409,7 +409,7 @@ Section cap_lang_rules.
        Instr Executable @ E
        {{{ RET NextIV;
            PC ↦ᵣ wpc
-         ∗ r ↦ᵣ WCap IE b e a
+         ∗ r ↦ᵣ WCap IEpair b e a
          ∗ idc ↦ᵣ widc
          ∗ pc_a ↦ₐ w
          ∗ a ↦ₐ wpc
@@ -433,7 +433,7 @@ Section cap_lang_rules.
     iNext.
     iIntros (regs retv) "(%Hspec& Hmem & Hreg)".
     inversion Hspec as [| Hfail]; simplify_map_eq.
-    - (* Success IE *)
+    - (* Success IEpair *)
       iApply "Hφ".
       iExtractList "Hreg" [PC;idc;r] as ["HPC"; "Hidc" ; "Hr"].
       iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
@@ -453,7 +453,7 @@ Section cap_lang_rules.
      withinBounds b e (a^+1)%a ->
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-         ∗ ▷ idc ↦ᵣ WCap IE b e a
+         ∗ ▷ idc ↦ᵣ WCap IEpair b e a
          ∗ ▷ pc_a ↦ₐ w
          ∗ ▷ a ↦ₐ wpc
          ∗ ▷ (a^+1)%a ↦ₐ widc
@@ -483,7 +483,7 @@ Section cap_lang_rules.
     iNext.
     iIntros (regs retv) "(%Hspec& Hmem & Hreg)".
     inversion Hspec as [| Hfail ]; simplify_map_eq.
-    - (* Success IE *)
+    - (* Success IEpair *)
       iApply "Hφ".
       iExtractList "Hreg" [PC;idc] as ["HPC"; "Hidc"].
       iDestruct (big_sepM_insert with "Hmem") as "[Ha' Hmem]"; auto ; [ by simplify_map_eq|].
@@ -502,13 +502,13 @@ Section cap_lang_rules.
     not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ r ↦ᵣ WCap IE b e a
+          ∗ ▷ r ↦ᵣ WCap IEpair b e a
           ∗ ▷ pc_a ↦ₐ w
     }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ r ↦ᵣ WCap IE b e a
+          ∗ r ↦ᵣ WCap IEpair b e a
           ∗ pc_a ↦ₐ w
       }}}.
   Proof.
@@ -541,7 +541,7 @@ Section cap_lang_rules.
     withinBounds b e (a^+1)%a ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ idc ↦ᵣ WCap IE b e a
+          ∗ ▷ idc ↦ᵣ WCap IEpair b e a
           ∗ ▷ pc_a ↦ₐ w
           ∗ ▷ a ↦ₐ wpc
           ∗ ▷ (a^+1)%a ↦ₐ widc
@@ -590,13 +590,13 @@ Section cap_lang_rules.
     not (withinBounds b e a /\ withinBounds b e (a^+1)%a) ->
 
     {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-          ∗ ▷ idc ↦ᵣ WCap IE b e a
+          ∗ ▷ idc ↦ᵣ WCap IEpair b e a
           ∗ ▷ pc_a ↦ₐ w
     }}}
       Instr Executable @ E
       {{{ RET FailedV;
           PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
-            ∗ idc ↦ᵣ WCap IE b e a
+            ∗ idc ↦ᵣ WCap IEpair b e a
             ∗ pc_a ↦ₐ w
       }}}.
   Proof.

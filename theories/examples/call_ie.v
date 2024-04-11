@@ -16,7 +16,7 @@ Section call.
      1. It allocates heap space to store the current r_env and the continuation
      2. It creates a copy of the PC and moves it to point to the continuing instruction
      3. It stores r_env, and continuation
-     4. It restricts the allocated capability to be an IE capability, containing the return pointer
+     4. It restricts the allocated capability to be an IEpair capability, containing the return pointer
         and the env (a closure)
      5. It clears all registers except r1, rt_0 and the parameters
    *)
@@ -214,7 +214,7 @@ Section call.
     (* allocate and store locals *)
     malloc_instrs f_m (strings.length locals) ++
     store_locals_instrs r_t1 locals ++
-    (* allocate the space for the indirection of the IE-cap *)
+    (* allocate the space for the indirection of the IEpair-cap *)
     [move_r r_t6 r_t1] ++
     malloc_instrs f_m 2 ++
 
@@ -229,7 +229,7 @@ Section call.
     store_r r_t31 r_t6;
     (* setup return capability *)
     lea_z r_t31 (-1);
-    restrict_z r_t31 ie] ++
+    restrict_z r_t31 ie_pair] ++
     (* clear all registers except params, PC, r_t31 and r1 *)
     rclear_instrs (list_difference all_registers ([PC;r_t31;r1]++params)) ++
     (* jmp to r1 *)
@@ -294,7 +294,7 @@ Section call.
             ∗ b ↦ₐ WCap RO b_link e_link a_link
             ∗ a_entry ↦ₐ WCap E b_m e_m b_m
             ∗ r1 ↦ᵣ wadv
-            ∗ r_t31 ↦ᵣ WCap IE b_c e_c b_c
+            ∗ r_t31 ↦ᵣ WCap IEpair b_c e_c b_c
             ∗ [[b_c,e_c]]↦ₐ[[ [WCap p b e a_last;WCap RWX b_l e_l e_l] ]]
             ∗ [[b_l,e_l]]↦ₐ[[ (map_to_list mlocals).*2 ]]
             ∗ call a f_m r1 (map_to_list mlocals).*1 (map_to_list mparams).*1
@@ -575,7 +575,7 @@ Section call.
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 2|apply Hlea|..].
     { eapply isCorrectPC_range_perm_non_E;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
-    { eapply isCorrectPC_range_perm_non_IE;[apply Hvpc2|].
+    { eapply isCorrectPC_range_perm_non_IEpair;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
@@ -619,7 +619,7 @@ Section call.
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t31]");
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 6|apply Hlea''|auto|auto|..].
     iEpilogue "(HPC & Hi & Hr_t31)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
-    (* restrict r_t0 IE *)
+    (* restrict r_t0 IEpair *)
     destruct rest3 as [|? rest3].
     { exfalso. revert Hlength_rest3. rewrite Permutation_app_comm.
       assert (strings.length [f1; f2; f3; f4; f5; f6] = 6) as ->;[auto|].

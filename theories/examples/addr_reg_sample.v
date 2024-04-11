@@ -55,7 +55,7 @@ Section instr_encodings.
 
   (* encodings of return pointer permission pair *)
   Definition e := encodePerm E.
-  Definition ie := encodePerm IE.
+  Definition ie_pair := encodePerm IEpair.
 End instr_encodings.
 
 (* Some additional helper lemmas about region_addrs *)

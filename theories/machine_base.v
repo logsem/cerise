@@ -16,7 +16,8 @@ Inductive Perm: Type :=
 | RW
 | RX
 | E
-| IE
+| IEpair
+(* | IEpcc *)
 | RWX.
 
 Definition SealPerms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
@@ -114,9 +115,9 @@ Definition is_cap (w : Word) : bool :=
   |  _ => false
   end.
 
-Definition is_ie_cap (w : Word) : bool :=
+Definition is_iepair_cap (w : Word) : bool :=
   match w with
-  | WCap IE _ _ _ => true
+  | WCap IEpair _ _ _ => true
   | _ => false
   end.
 
@@ -143,7 +144,7 @@ Definition is_sealed_with_o (w : Word) (o : OType) : bool :=
 (* non-E and non-IE capability or range of seals *)
 Definition is_mutable_range (w : Word) : bool:=
   match w with
-  | WCap p _ _ _ => match p with | E | IE  => false | _ => true end
+  | WCap p _ _ _ => match p with | E | IEpair  => false | _ => true end
   | WSealRange _ _ _ _ => true
   | _ => false end.
 
@@ -209,8 +210,8 @@ Proof. right; auto. Qed.
 Definition PermFlowsTo (p1 p2: Perm): bool :=
   match p1 with
   | O => true
-  | IE => match p2 with
-        | IE | RO | RX | RW | RWX => true
+  | IEpair => match p2 with
+        | IEpair | RO | RX | RW | RWX => true
         | _ => false
         end
   | E => match p2 with
@@ -317,7 +318,7 @@ Qed.
 
 Lemma ExecPCPerm_not_IE p :
   ExecPCPerm p →
-  p ≠ E.
+  p ≠ IEpair.
 Proof.
   intros [H|H] ->; inversion H.
 Qed.
@@ -646,16 +647,16 @@ Proof.
   intros Hfl HcPC. inversion HcPC. by apply (PCPerm_nonO p p').
 Qed.
 
-Lemma isCorrectPC_nonIE p b e a :
-  isCorrectPC (WCap p b e a) → p ≠ IE.
+Lemma isCorrectPC_nonIEpair p b e a :
+  isCorrectPC (WCap p b e a) → p ≠ IEpair.
 Proof.
   intros HcPC ->. inversion HcPC as [ ? ? ? ? ? [|]] ; congruence.
 Qed.
 
-Lemma isCorrectPC_not_ie_cap p b e a:
-  isCorrectPC (WCap p b e a) -> is_ie_cap (WCap p b e a) = false.
+Lemma isCorrectPC_not_iepair_cap p b e a:
+  isCorrectPC (WCap p b e a) -> is_iepair_cap (WCap p b e a) = false.
 Proof.
-  intros; apply isCorrectPC_nonIE in H.
+  intros; apply isCorrectPC_nonIEpair in H.
   destruct p ; cbn in *; congruence.
 Qed.
 
@@ -696,7 +697,7 @@ Proof.
     | RX => 4
     | E => 5
     | RWX => 6
-    | IE => 7
+    | IEpair => 7
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
@@ -705,7 +706,7 @@ Proof.
     | 4 => Some RX
     | 5 => Some E
     | 6 => Some RWX
-    | 7 => Some IE
+    | 7 => Some IEpair
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).

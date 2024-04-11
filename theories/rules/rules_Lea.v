@@ -54,7 +54,7 @@ Section cap_lang_rules.
   :=
   | Lea_spec_success_cap: forall p b e a z a',
     regs !! r1 = Some (WCap p b e a) ->
-    p ≠ E -> p ≠ IE ->
+    p ≠ E -> p ≠ IEpair ->
     z_of_argument regs rv = Some z ->
     (a + z)%a = Some a' ->
     incrementPC
@@ -132,7 +132,7 @@ Section cap_lang_rules.
      (* First, the case where r1v is a capability *)
      + destruct (perm_eq_dec p E); [ subst p |].
        { rewrite /is_mutable_range in Hr1v; congruence. }
-       destruct (perm_eq_dec p IE); [ subst p |].
+       destruct (perm_eq_dec p IEpair); [ subst p |].
        { rewrite /is_mutable_range in Hr1v; congruence. }
 
        destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1.
@@ -211,7 +211,7 @@ Section cap_lang_rules.
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
      pc_p ≠ E →
-     pc_p ≠ IE →
+     pc_p ≠ IEpair →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
@@ -250,7 +250,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
-     p ≠ IE →
+     p ≠ IEpair →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w
@@ -293,7 +293,7 @@ Section cap_lang_rules.
      (a' + 1)%a = Some pc_a' →
      (pc_a + z)%a = Some a' →
      pc_p ≠ E →
-     pc_p ≠ IE →
+     pc_p ≠ IEpair →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w }}}
@@ -328,7 +328,7 @@ Section cap_lang_rules.
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%a = Some a' →
      p ≠ E →
-     p ≠ IE →
+     p ≠ IEpair →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
            ∗ ▷ pc_a ↦ₐ w

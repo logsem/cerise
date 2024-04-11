@@ -33,9 +33,9 @@ Section counter.
         Lea idc 1;
         Store idc r_t1;
 
-        (* ; 3. prepare the IE *)
+        (* ; 3. prepare the IEpair *)
         Lea idc (-1)%Z;
-        Restrict idc (encodePerm IE);
+        Restrict idc (encodePerm IEpair);
 
         (* ; 4. jump to unknown code *)
         Mov r_t1 0;
@@ -92,7 +92,7 @@ Section counter.
       ∗ (a_data ^+1)%a ↦ₐ wdat1
       ∗ codefrag a_init (counter_init a_init a_data)
       ∗ ▷ (  PC ↦ᵣ updatePcPerm wadv
-           ∗ idc ↦ᵣ WCap IE a_data a_data_end a_data
+           ∗ idc ↦ᵣ WCap IEpair a_data a_data_end a_data
            ∗ r_t1 ↦ᵣ WInt 0
            ∗ r_t31 ↦ᵣ wadv
            ∗ a_data ↦ₐ WCap RX a_init a_end a_code
@@ -321,9 +321,9 @@ Section counter.
     iMod (na_inv_alloc logrel_nais _ (N.@"code") (codefrag a_code counter_code)
            with "Hcode") as "#HIcode".
 
-    (* Show that the IE-capability to the code: routine is safe *)
-    iAssert (interp (WCap IE a_data a_data_end a_data)) as "#Hcode_safe".
-    { rewrite /interp /= (fixpoint_interp1_eq (WCap IE _ _ _)) /=.
+    (* Show that the IEpair-capability to the code: routine is safe *)
+    iAssert (interp (WCap IEpair a_data a_data_end a_data)) as "#Hcode_safe".
+    { rewrite /interp /= (fixpoint_interp1_eq (WCap IEpair _ _ _)) /=.
       iIntros (Hinbounds).
       iExists (cap_eq RX a_init a_end a_code).
       iExists (cap_eq RW a_data a_data_end a_secret).

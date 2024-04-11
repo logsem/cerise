@@ -32,7 +32,7 @@ Section fundamental.
 
   Lemma interp_weakening p p' b b' e e' a a' widc:
       p <> E ->
-      p <> IE ->
+      p <> IEpair ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
@@ -41,7 +41,7 @@ Section fundamental.
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros HpnotE HpnotIE Hb He Hp. iIntros "#IH #Hidc #HA".
+    intros HpnotE HpnotIEpair Hb He Hp. iIntros "#IH #Hidc #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
@@ -51,7 +51,7 @@ Section fundamental.
            iIntros "([Hfull Hreg] & Hregs & Hna)".
            iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
-         + (* IE-cap *)
+         + (* IEpair-cap *)
            iIntros "[%Hwb _]".
            exfalso; apply n.
            apply Is_true_true_1 in Hwb.
@@ -89,7 +89,7 @@ Section fundamental.
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
         iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
-    - rewrite !(fixpoint_interp1_eq (WCap IE _ _ _)).
+    - rewrite !(fixpoint_interp1_eq (WCap IEpair _ _ _)).
       iIntros "[%Hwb %Hwb']".
       apply Is_true_true_1 in Hwb, Hwb'.
       rewrite withinBounds_true_iff in Hwb; rewrite withinBounds_true_iff in Hwb'.

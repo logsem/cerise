@@ -83,8 +83,8 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext; iIntros "_".
 
-      (* If PC=dst and perm of unsealed cap = E or IE -> error! *)
-      destruct (decide (PC = dst ∧ (p'' = E ∨ p'' = IE))) as [ [Herr1 Herr2] | HNoError].
+      (* If PC=dst and perm of unsealed cap = E or IEpair -> error! *)
+      destruct (decide (PC = dst ∧ (p'' = E ∨ p'' = IEpair))) as [ [Herr1 Herr2] | HNoError].
       { (* Error case *)
         simplify_map_eq.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
@@ -127,7 +127,7 @@ Section fundamental.
         destruct (decide (PC = dst)) as [Heq | Hne]; simplify_map_eq.
         - apply not_and_r in HNoError.
           destruct HNoError as [|Hp'']; first congruence.
-          apply Decidable.not_or in Hp''. destruct Hp'' as [HpE'' HpIE''].
+          apply Decidable.not_or in Hp''. destruct Hp'' as [HpE'' HpIEpair''].
           destruct p''; try congruence; rewrite !fixpoint_interp1_eq //=; iFrame "HVsb".
         - rewrite !fixpoint_interp1_eq //=; destruct Hp as [-> | ->] ;iFrame "Hinv_pc".
       }

@@ -176,7 +176,7 @@ Section fundamental.
     (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (WCap p b e a))%I.
 
   Lemma interp_exec_cond p b e a :
-    p ≠ IE -> p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
+    p ≠ IEpair -> p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
   Proof.
     iIntros (Hnp Hnp') "#Hw".
     iIntros (a0 r Hin). iNext. iModIntro.
@@ -638,7 +638,7 @@ Section fundamental.
          iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
-    4: { (* IE *) rewrite fixpoint_interp1_eq /=.
+    4: { (* IEpair *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
          iModIntro.
          iIntros "%Hbounds".
@@ -675,7 +675,7 @@ Section fundamental.
          iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
-    4: { (* IE *) rewrite fixpoint_interp1_eq /=.
+    4: { (* IEpair *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
          iModIntro.
          iIntros "%Hbounds".
@@ -712,7 +712,7 @@ Section fundamental.
          iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
-    4: { (* IE *) rewrite fixpoint_interp1_eq /=.
+    4: { (* IEpair *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
          iModIntro.
          iIntros "%Hbounds".
@@ -738,7 +738,7 @@ Section fundamental.
     all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 
-  (* Commonly used property for V(IE, -, -, -) *)
+  (* Commonly used property for V(IEpair, -, -, -) *)
   Program Definition cap_eq p b e a : leibnizO Word -n> iPropO Σ :=
     λne w , ⌜w = WCap p b e a⌝%I.
 

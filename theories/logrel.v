@@ -147,9 +147,9 @@ Section logrel.
               end)%I.
   Solve All Obligations with solve_proper.
 
-  Program Definition interp_cap_IE (interp : D) : D :=
+  Program Definition interp_cap_IEpair (interp : D) : D :=
     λne w, (match w with
-              | WCap IE b e a =>
+              | WCap IEpair b e a =>
                   ⌜ withinBounds b e a /\ withinBounds b e (a^+1)%a ⌝
                    -∗
                    ( ∃ (P1 P2 : D),
@@ -201,7 +201,7 @@ Section logrel.
     | WCap RW b e a => interp_cap_RW interp w
     | WCap RX b e a => interp_cap_RX interp w
     | WCap E b e a => interp_cap_E interp w
-    | WCap IE b e a => interp_cap_IE interp w
+    | WCap IEpair b e a => interp_cap_IEpair interp w
     | WCap RWX b e a => interp_cap_RWX interp w
     | WSealRange p b e a => interp_sr interp w
     | WSealed o sb => interp_sb o (WSealable sb)
@@ -251,8 +251,8 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
-  Global Instance interp_cap_IE_contractive :
-    Contractive (interp_cap_IE).
+  Global Instance interp_cap_IEpair_contractive :
+    Contractive (interp_cap_IEpair).
   Proof.
     solve_proper_prepare.
     destruct_word x0; auto. destruct c; auto.
@@ -286,7 +286,7 @@ Section logrel.
       - by apply interp_cap_RW_contractive.
       - by apply interp_cap_RX_contractive.
       - by apply interp_cap_E_contractive.
-      - by apply interp_cap_IE_contractive.
+      - by apply interp_cap_IEpair_contractive.
       - by apply interp_cap_RWX_contractive.
    + by apply interp_sr_contractive.
    + rewrite /interp_sb. solve_contractive.

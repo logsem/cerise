@@ -224,11 +224,11 @@ Section opsem.
         let φ' := (update_reg φ PC (updatePcPerm wr1)) in
         Some (NextI, φ')
       else updatePC φ
-    (* NOTE: jmp fails if not an IE *)
+    (* NOTE: jmp fails if not an IEpair *)
     | JmpIEpair r =>
       wr ← (reg φ) !! r;
       match wr with
-      | WCap IE b e a =>
+      | WCap IEpair b e a =>
         if withinBounds b e a && withinBounds b e (a^+1)%a
         then
           wpc ← (mem φ) !! a;
@@ -268,7 +268,7 @@ Section opsem.
       match wdst with
       | WCap p b e a =>
         match p with
-        | E | IE => None
+        | E | IEpair => None
         | _ => match (a + n)%a with
                | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
                | None => None
@@ -287,7 +287,7 @@ Section opsem.
       match wdst with
       | WCap permPair b e a =>
         match permPair with
-        | E | IE => None
+        | E | IEpair => None
         | _ => if PermFlowsTo (decodePerm n) permPair then
                 updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else None
@@ -317,7 +317,7 @@ Section opsem.
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
       match p with
-      | E | IE => None
+      | E | IEpair => None
       | _ =>
         if isWithin a1 a2 b e then
           updatePC (update_reg φ dst (WCap p a1 a2 a))

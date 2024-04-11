@@ -671,7 +671,7 @@ Section call.
       [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 14|apply Hlea'|..].
     { eapply isCorrectPC_range_perm_non_E;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
-    { eapply isCorrectPC_range_perm_non_IE;[apply Hvpc2|].
+    { eapply isCorrectPC_range_perm_non_IEpair;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
