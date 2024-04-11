@@ -164,6 +164,22 @@ Section logrel.
             end)%I.
   Solve All Obligations with solve_proper.
 
+  Program Definition interp_cap_IEpcc (interp : D) : D :=
+    λne w, (match w with
+              | WCap IEpcc b e a =>
+                  ⌜ (b < e)%a ⌝
+                   -∗
+                   ( ∃ (P1 (* P2 *): D),
+                      persistent_cond P1
+                      (* ∗ persistent_cond P2 *)
+                      ∗ inv (logN .@ b) (∃ w1, b ↦ₐ w1 ∗ P1 w1)
+                      (* ∗ (∀ a, P2 (WCap RW b e a)) *)
+                      ∗ ∀ wpc regs,
+                       ▷ □ (P1 wpc -∗ (interp_expr_gen interp regs wpc (WCap RW b e a))))
+            | _ => False
+            end)%I.
+  Solve All Obligations with solve_proper.
+
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne w, (match w with WCap RWX b e a =>
                            [∗ list] a ∈ (finz.seq_between b e), ∃ P : D,
@@ -202,6 +218,7 @@ Section logrel.
     | WCap RX b e a => interp_cap_RX interp w
     | WCap E b e a => interp_cap_E interp w
     | WCap IEpair b e a => interp_cap_IEpair interp w
+    | WCap IEpcc b e a => interp_cap_IEpcc interp w
     | WCap RWX b e a => interp_cap_RWX interp w
     | WSealRange p b e a => interp_sr interp w
     | WSealed o sb => interp_sb o (WSealable sb)
@@ -258,6 +275,13 @@ Section logrel.
     destruct_word x0; auto. destruct c; auto.
     solve_contractive.
   Qed.
+  Global Instance interp_cap_IEpcc_contractive :
+    Contractive (interp_cap_IEpcc).
+  Proof.
+    solve_proper_prepare.
+    destruct_word x0; auto. destruct c; auto.
+    solve_contractive.
+  Qed.
   Global Instance interp_cap_RWX_contractive :
     Contractive (interp_cap_RWX).
   Proof.
@@ -287,6 +311,7 @@ Section logrel.
       - by apply interp_cap_RX_contractive.
       - by apply interp_cap_E_contractive.
       - by apply interp_cap_IEpair_contractive.
+      - by apply interp_cap_IEpcc_contractive.
       - by apply interp_cap_RWX_contractive.
    + by apply interp_sr_contractive.
    + rewrite /interp_sb. solve_contractive.

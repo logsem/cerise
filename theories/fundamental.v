@@ -1,4 +1,4 @@
-From cap_machine.ftlr Require Export Jmp JmpIEpair Jnz Mov Load Store AddSubLt
+From cap_machine.ftlr Require Export Jmp JmpIEpair JmpIEpcc Jnz Mov Load Store AddSubLt
   Lea Restrict Subseg Get Seal UnSeal.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.

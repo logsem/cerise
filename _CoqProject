@@ -48,6 +48,7 @@ theories/rules/rules_Restrict.v
 theories/rules/rules_Jmp.v
 theories/rules/rules_Jnz.v
 theories/rules/rules_JmpIEpair.v
+theories/rules/rules_JmpIEpcc.v
 theories/rules/rules_Subseg.v
 theories/rules/rules_Seal.v
 theories/rules/rules_UnSeal.v
@@ -90,6 +91,7 @@ theories/ftlr/Mov.v
 theories/ftlr/Restrict.v
 theories/ftlr/Jmp.v
 theories/ftlr/JmpIEpair.v
+theories/ftlr/JmpIEpcc.v
 theories/ftlr/Jnz.v
 theories/ftlr/Subseg.v
 theories/ftlr/Seal.v

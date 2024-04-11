@@ -238,7 +238,20 @@ Section opsem.
         else None
       | _ => None
       end
-    (*   else updatePC φ *)
+    (* NOTE: jmp fails if not an IEpcc *)
+    | JmpIEpcc r =>
+      wr ← (reg φ) !! r;
+      match wr with
+      | WCap IEpcc b e a =>
+          if (b <? e)%a
+          then
+            wpc ← (mem φ) !! b;
+            let widc := (WCap RW b e a) in
+            let φ' := (update_reg (update_reg φ PC wpc) idc widc) in
+            Some (NextI, φ')
+          else None
+      | _ => None
+      end
     | Load dst src =>
       wsrc ← (reg φ) !! src;
       match wsrc with
@@ -268,7 +281,7 @@ Section opsem.
       match wdst with
       | WCap p b e a =>
         match p with
-        | E | IEpair => None
+        | E | IEpair | IEpcc => None
         | _ => match (a + n)%a with
                | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
                | None => None
@@ -287,7 +300,7 @@ Section opsem.
       match wdst with
       | WCap permPair b e a =>
         match permPair with
-        | E | IEpair => None
+        | E | IEpair | IEpcc  => None
         | _ => if PermFlowsTo (decodePerm n) permPair then
                 updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
               else None
@@ -317,7 +330,7 @@ Section opsem.
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
       match p with
-      | E | IEpair => None
+      | E | IEpair | IEpcc  => None
       | _ =>
         if isWithin a1 a2 b e then
           updatePC (update_reg φ dst (WCap p a1 a2 a))

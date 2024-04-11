@@ -33,6 +33,7 @@ Section fundamental.
   Lemma interp_weakening p p' b b' e e' a a' widc:
       p <> E ->
       p <> IEpair ->
+      p <> IEpcc ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
@@ -41,8 +42,8 @@ Section fundamental.
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros HpnotE HpnotIEpair Hb He Hp. iIntros "#IH #Hidc #HA".
-    destruct (decide (b' <= e')%a).
+    intros HpnotE HpnotIEpair HpnotIEpcc Hb He Hp. iIntros "#IH #Hidc #HA".
+    destruct (decide (b' <= e')%a) as [Hbounds'|Hbounds'].
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
          + (* E-cap *)
@@ -53,11 +54,14 @@ Section fundamental.
            iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
          + (* IEpair-cap *)
            iIntros "[%Hwb _]".
-           exfalso; apply n.
+           exfalso; apply Hbounds'.
            apply Is_true_true_1 in Hwb.
            rewrite withinBounds_true_iff in Hwb.
            solve_addr.
+         + (* IEpcc-cap *)
+           iIntros "%Hwb"; solve_addr.
     }
+
     destruct p'.
     - rewrite !fixpoint_interp1_eq; done.
     - rewrite !fixpoint_interp1_eq.
@@ -99,7 +103,6 @@ Section fundamental.
         as (Pa) "[Hinv_a [Hpers_Pa [Hconds_a _]] ]"; auto ; first solve_addr.
       iDestruct (read_allowed_inv (a'^+1)%a with "HA")
         as (Pa') "[Hinv_a' [Hpers_Pa' [Hconds_a' _]] ]"; auto ; first solve_addr.
-
       iExists Pa, Pa'; iFrame "#".
       iIntros (w1 w2 regs). iNext; iModIntro.
       iIntros "[HPw1 HPw2]".
@@ -109,9 +112,42 @@ Section fundamental.
                [by iApply "Hconds_a'"
                | destruct w2 ; try inversion HPw2; by iApply interp_int]).
       iIntros "([Hfull Hreg] & Hregs & Hna)".
+      (* Needed because IH disallows non-capability values *)
+      destruct w1 as [ | [p1 b1 e1 a1 | ] | ]; cycle 1.
+      iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
+      all: rewrite /registers_mapsto; iExtract "Hregs" PC as "HPC".
+      all: iApply (wp_bind (fill [SeqCtx]));
+        iApply (wp_notCorrectPC with "HPC")
+      ; [intros HFalse; inversion HFalse| ].
+      all: repeat iNext; iIntros "HPC /=".
+      all: iApply wp_pure_step_later; auto.
+      all: iNext; iIntros "_".
+      all: iApply wp_value.
+      all: iIntros; discriminate.
+
+    - rewrite !(fixpoint_interp1_eq (WCap IEpcc _ _ _)).
+      iIntros "%Hwb".
+      assert (readAllowed p).
+      { destruct p; inversion Hp; try contradiction; auto. }
+      iDestruct (read_allowed_inv b' with "HA")
+        as (Pa) "[Hinv_a [Hpers_Pa [Hconds_a _]] ]"; auto ; first solve_addr.
+
+      iExists Pa; iFrame "#".
+      iIntros (w1 regs). iNext; iModIntro.
+      iIntros "HPw1".
+      iAssert (interp w1)%I as "#Hw1"; first (by iApply "Hconds_a").
+      iIntros "([Hfull Hreg] & Hregs & Hna)".
 
       (* Needed because IH disallows non-capability values *)
       destruct w1 as [ | [p1 b1 e1 a1 | ] | ]; cycle 1.
+      iAssert (fixpoint interp1 (WCap RW b' e' a')) as "Hinterp_idc".
+      {
+        destruct p;inversion Hp; try contradiction.
+        all: iEval (rewrite fixpoint_interp1_eq /=) in "HA".
+        all: iEval (rewrite fixpoint_interp1_eq /=).
+        all: rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e) ; [|solve_addr].
+        all: rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
+      }
       iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
 
       all: rewrite /registers_mapsto; iExtract "Hregs" PC as "HPC".

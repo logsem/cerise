@@ -17,7 +17,7 @@ Inductive Perm: Type :=
 | RX
 | E
 | IEpair
-(* | IEpcc *)
+| IEpcc
 | RWX.
 
 Definition SealPerms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
@@ -42,6 +42,7 @@ Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
 Inductive instr: Type :=
 | Jmp (r: RegName)
 | JmpIEpair (r: RegName)
+| JmpIEpcc (r: RegName)
 | Jnz (r1 r2: RegName)
 | Mov (dst: RegName) (src: Z + RegName)
 | Load (dst src: RegName)
@@ -121,6 +122,24 @@ Definition is_iepair_cap (w : Word) : bool :=
   | _ => false
   end.
 
+Definition is_iepcc_cap (w : Word) : bool :=
+  match w with
+  | WCap IEpcc _ _ _ => true
+  | _ => false
+  end.
+
+Definition is_ie_cap (w : Word) : bool :=
+  match w with
+  | WCap IEpcc _ _ _  | WCap IEpair _ _ _ => true
+  | _ => false
+  end.
+
+Definition is_entry_cap (w : Word) : bool :=
+  match w with
+  | WCap E _ _ _ | WCap IEpcc _ _ _  | WCap IEpair _ _ _ => true
+  | _ => false
+  end.
+
 (* SealRange <-> Word *)
 Definition is_sealr (w : Word) : bool :=
   match w with
@@ -144,7 +163,7 @@ Definition is_sealed_with_o (w : Word) (o : OType) : bool :=
 (* non-E and non-IE capability or range of seals *)
 Definition is_mutable_range (w : Word) : bool:=
   match w with
-  | WCap p _ _ _ => match p with | E | IEpair  => false | _ => true end
+  | WCap p _ _ _ => match p with | E | IEpair | IEpcc => false | _ => true end
   | WSealRange _ _ _ _ => true
   | _ => false end.
 
@@ -210,6 +229,10 @@ Proof. right; auto. Qed.
 Definition PermFlowsTo (p1 p2: Perm): bool :=
   match p1 with
   | O => true
+  | IEpcc => match p2 with
+        | IEpcc | RW | RWX => true
+        | _ => false
+        end
   | IEpair => match p2 with
         | IEpair | RO | RX | RW | RWX => true
         | _ => false
@@ -316,13 +339,19 @@ Proof.
   intros [H|H] ->; inversion H.
 Qed.
 
-Lemma ExecPCPerm_not_IE p :
+Lemma ExecPCPerm_not_IEpair p :
   ExecPCPerm p →
   p ≠ IEpair.
 Proof.
   intros [H|H] ->; inversion H.
 Qed.
 
+Lemma ExecPCPerm_not_IEpcc p :
+  ExecPCPerm p →
+  p ≠ IEpcc.
+Proof.
+  intros [H|H] ->; inversion H.
+Qed.
 
 Lemma ExecPCPerm_readAllowed p :
   ExecPCPerm p →
@@ -660,6 +689,19 @@ Proof.
   destruct p ; cbn in *; congruence.
 Qed.
 
+Lemma isCorrectPC_nonIEpcc p b e a :
+  isCorrectPC (WCap p b e a) → p ≠ IEpcc.
+Proof.
+  intros HcPC ->. inversion HcPC as [ ? ? ? ? ? [|]] ; congruence.
+Qed.
+
+Lemma isCorrectPC_not_iepcc_cap p b e a:
+  isCorrectPC (WCap p b e a) -> is_iepcc_cap (WCap p b e a) = false.
+Proof.
+  intros; apply isCorrectPC_nonIEpcc in H.
+  destruct p ; cbn in *; congruence.
+Qed.
+
 Lemma in_range_is_correctPC p b e a b' e' :
   isCorrectPC (WCap p b e a) →
   (b' <= b)%a ∧ (e <= e')%a →
@@ -698,6 +740,7 @@ Proof.
     | E => 5
     | RWX => 6
     | IEpair => 7
+    | IEpcc => 8
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
@@ -707,6 +750,7 @@ Proof.
     | 5 => Some E
     | 6 => Some RWX
     | 7 => Some IEpair
+    | 8 => Some IEpcc
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).
@@ -782,6 +826,7 @@ Proof.
       | Halt => GenNode 20 []
 
       | JmpIEpair r => GenNode 21 [GenLeaf (inl r)]
+      | JmpIEpcc r => GenNode 22 [GenLeaf (inl r)]
       end).
   set (dec := fun e =>
       match e with
@@ -809,6 +854,7 @@ Proof.
       | GenNode 19 [] => Fail
       | GenNode 20 [] => Halt
       | GenNode 21 [GenLeaf (inl r)] => JmpIEpair r
+      | GenNode 22 [GenLeaf (inl r)] => JmpIEpcc r
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

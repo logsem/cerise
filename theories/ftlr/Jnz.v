@@ -58,6 +58,7 @@ Section fundamental.
       iApply (interp_weakening with "IH"); eauto.
       by destruct Hp as [-> | ->].
       by destruct Hp as [-> | ->].
+      by destruct Hp as [-> | ->].
       solve_addr.
       solve_addr.
       by rewrite PermFlowsToReflexive.

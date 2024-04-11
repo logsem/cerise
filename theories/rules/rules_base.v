@@ -736,6 +736,7 @@ Definition regs_of (i: instr): gset RegName :=
   | Jmp r => {[ r ]}
   | Jnz r1 r2 => {[ r1; r2 ]}
   | JmpIEpair r => {[ r ]}
+  | JmpIEpcc r => {[ r ]}
   | Seal dst r1 r2 => {[dst; r1; r2]}
   | UnSeal dst r1 r2 => {[dst; r1; r2]}
   | _ => ∅
