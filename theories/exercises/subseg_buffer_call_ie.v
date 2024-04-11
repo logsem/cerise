@@ -182,6 +182,7 @@ Section program_call.
     { transitivity (Some (b_mem ^+ (secret_off+1))%a) ; auto ; solve_addr'. }
     { intros -> ; simpl in Hp_mem ; discriminate. }
     { intros -> ; simpl in Hp_mem ; discriminate. }
+    { intros -> ; simpl in Hp_mem ; discriminate. }
     { solve_addr'. }
     unfocus_block "Hprog_secret" "Hcont" as "Hprog".
 

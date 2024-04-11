@@ -95,8 +95,10 @@ Section call.
       { rewrite /finz.dist /= in Hsize. revert Hsize;clear;solve_addr. }
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast
-        |apply Hnext |destruct p_l;auto;inversion Hwa |destruct p_l;auto;inversion Hwa| ..].
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|apply Hlast |apply Hnext
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa| ..].
       iEpilogue "(HPC & Hi & Hr_t1)".
       (* φ *)
       iApply "Hcont".
@@ -133,7 +135,10 @@ Section call.
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 1
-        |apply Ha_l' |destruct p_l;auto;inversion Hwa |destruct p_l;auto;inversion Hwa|].
+        |apply Ha_l'
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa|].
       iEpilogue "(HPC & Hi & Hr_t1)".
       iApply ("IH" $! a_l' (delete r mlocals) (w0 :: wsr) with "[] [] [] [] [] [] [] Hprog HPC Hr_t1 Hlocals [Hbl]").
       + iPureIntro. eapply isCorrectPC_range_restrict;[eauto|].
@@ -577,6 +582,8 @@ Section call.
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     { eapply isCorrectPC_range_perm_non_IEpair;[apply Hvpc2|].
       apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
+    { eapply isCorrectPC_range_perm_non_IEpcc;[apply Hvpc2|].
+      apply contiguous_between_middle_bounds with (i:=0) (ai:=link3) in Hcont6 as [? ?];auto. }
     iEpilogue "(HPC & Hi & Hr_t1)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
 
     (* destruct the buffer of the indirection *)
@@ -617,7 +624,7 @@ Section call.
     destruct rest3 as [|? rest3];[inversion Hlength_prog'|].
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t31]");
-      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 6|apply Hlea''|auto|auto|..].
+      [apply decode_encode_instrW_inv|iCorrectPC link3 a_last|iContiguous_next Hcont6 6|apply Hlea''|auto|auto|auto|..].
     iEpilogue "(HPC & Hi & Hr_t31)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* restrict r_t0 IEpair *)
     destruct rest3 as [|? rest3].

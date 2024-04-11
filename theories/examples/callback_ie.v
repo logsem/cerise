@@ -80,7 +80,10 @@ Section callback.
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
         [apply decode_encode_instrW_inv|iCorrectPC a_first a_last
-        |iContiguous_next Hcont 0|apply Hnext|destruct p_l;auto;inversion Hwa|destruct p_l;auto;inversion Hwa|].
+        |iContiguous_next Hcont 0|apply Hnext
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa|].
       iEpilogue "(HPC & Hprog_done & Hr_t1)".
       (* load r r_t1 *)
       pose proof (contiguous_between_last _ _ _ a Hcont eq_refl) as Hlast.
@@ -148,7 +151,10 @@ Section callback.
       pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
       iPrologue "Hprog".
       iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t1]");
-        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0|apply Ha_l'|destruct p_l;auto;inversion Hwa|destruct p_l;auto;inversion Hwa|].
+        [apply decode_encode_instrW_inv|iCorrectPC a_first a_last|iContiguous_next Hcont 0 |apply Ha_l'
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa
+        |destruct p_l;auto;inversion Hwa|].
       iEpilogue "(HPC & Hprog_done & Hr_t1)".
       (* load r r_t1 *) simpl in Hlength_prog.
       destruct a;[inversion Hlength_prog|].

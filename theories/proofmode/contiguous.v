@@ -340,6 +340,15 @@ Proof.
   naive_solver.
 Qed.
 
+Lemma isCorrectPC_range_perm_non_IEpcc p b e a0 an :
+  isCorrectPC_range p b e a0 an →
+  (a0 < an)%a →
+  p ≠ IEpcc.
+Proof.
+  intros HH1 HH2. pose proof (isCorrectPC_range_perm _ _ _ _ _ HH1 HH2).
+  naive_solver.
+Qed.
+
 Lemma isCorrectPC_range_restrict p b e a0 an a0' an' :
   isCorrectPC_range p b e a0 an →
   (a0 <= a0')%a ∧ (an' <= an)%a →

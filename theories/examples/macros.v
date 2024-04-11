@@ -95,6 +95,9 @@ Section macros.
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | ->]; auto. }
+    { apply contiguous_between_length in Hcont.
+      apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
+      destruct Hvpc as [-> | ->]; auto. }
     iEpilogue "(HPC & Hi & Hr_t2 & Hr_t1) /="; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* load r_t1 r_t1 *)
     destruct l;[inversion Hlength|].
@@ -239,7 +242,7 @@ Section macros.
     destruct l';[inversion Hlength_rest|].
     destruct l';[inversion Hlength_rest|].
     iPrologue "Hprog".
-    assert (pc_p ≠ E /\ pc_p <> IEpair) as [? Hie].
+    assert (pc_p ≠ E /\ pc_p <> IEpair /\ pc_p <> IEpcc) as (? & Hiepair &Hiepcc).
     { assert (isCorrectPC (WCap pc_p pc_b pc_e a_first)) as HH.
       { apply Hvpc. split. solve_addr.
         apply contiguous_between_length in Hcont.
@@ -357,7 +360,7 @@ Section macros.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
 
-    assert (pc_p <> E /\ pc_p <> IEpair) as [He Hie].
+    assert (pc_p ≠ E /\ pc_p <> IEpair /\ pc_p <> IEpcc) as (He & Hiepair &Hiepcc).
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | -> ]; auto. }
@@ -519,7 +522,7 @@ Section macros.
     destruct a as [|a l];[inversion Hlength|].
     apply contiguous_between_cons_inv_first in Hcont as Heq. subst.
 
-    assert (pc_p <> E /\ pc_p <> IEpair) as [He Hie].
+    assert (pc_p ≠ E /\ pc_p <> IEpair /\ pc_p <> IEpcc) as (He & Hiepair &Hiepcc).
     { apply contiguous_between_length in Hcont.
       apply isCorrectPC_range_perm in Hvpc; [|revert Hcont; clear; solve_addr].
       destruct Hvpc as [-> | -> ]; auto. }
@@ -859,6 +862,7 @@ Section macros.
       iApply (wp_lea_success_z _ _ _ _ a4 a5 _ rt p_r _ _ a_r 1 a_r' with "[HPC Hi Hrt]"); first apply decode_encode_instrW_inv; eauto.
       { destruct p_r; auto. }
       { destruct p_r; auto. }
+      { destruct p_r; auto. }
       iFrame. iEpilogue "(HPC & Ha4 & Hrt)".
       (* add rt1 rt1 1 *)
       iDestruct "Hprog" as "[Hi Hprog]".
@@ -993,6 +997,7 @@ Section macros.
     { iContiguous_next Hnext 4. }
     { destruct p_r; inversion Hwa; auto. }
     { destruct p_r; inversion Hwa; auto. }
+    { destruct p_r; inversion Hwa; auto. }
     by iFrame. iEpilogue "(HPC & Ha3 & Hr_t2 & Hr_t4)".
     iCombine "Ha3 Hprog_done" as "Hprog_done".
     (* gete r_t2 r_t4 *)
@@ -1020,7 +1025,7 @@ Section macros.
     iCombine "Ha6 Hprog_done" as "Hprog_done".
     (* lea r_t2 mclear_off_end *)
     iPrologue "Hprog".
-    assert (p ≠ E /\ p <> IEpair) as [Hpne Hpnie].
+    assert (p ≠ E /\ p <> IEpair /\ p <> IEpcc) as (Hpne & Hpniepair &Hpniepcc).
     { have: (isCorrectPC (WCap p b e a_first)).
       { apply Hvpc. eapply contiguous_between_middle_bounds'; eauto. constructor. }
       inversion 1; subst.
@@ -1214,7 +1219,7 @@ Section macros.
     do 12 (destruct l;[done|]).
     assert ((f + 11)%a = Some f10) as Hlea.
     { apply (contiguous_between_incr_addr_middle _ _ _ 2 11 f f10) in Hcont; auto. }
-    assert (pc_p ≠ E /\ pc_p <> IEpair) as [Hpne Hpnie].
+    assert (pc_p ≠ E /\ pc_p <> IEpair /\ pc_p <> IEpcc) as (Hpne & Hpniepair &Hpniepcc).
     { apply isCorrectPC_range_perm in Hvpc as [Heq | Heq ]; subst; auto.
       apply (contiguous_between_middle_bounds _ 0 a_first) in Hcont as [_ Hlt]; auto. }
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t2]");
@@ -1397,7 +1402,7 @@ Section macros.
     { iIntros (->). iApply (regname_dupl_false with "HPC Hr"). }
     destruct a as [| a l];[done|].
     pose proof (contiguous_between_cons_inv_first _ _ _ _ Hcont) as ->.
-    assert (pc_p ≠ E /\ pc_p ≠ IEpair) as [Hne' Hnie].
+    assert (pc_p ≠ E /\ pc_p <> IEpair /\ pc_p <> IEpcc) as (Hne' & Hniepair &Hniepcc).
     { apply isCorrectPC_range_perm in Hvpc as [Heq | Heq ]; subst; auto.
       apply (contiguous_between_middle_bounds _ 0 a_first) in Hcont as [_ Hlt]; auto. }
     (* getb r_t1 r *)
@@ -1867,6 +1872,7 @@ Section macros.
     isCorrectPC_range pc_p b_cls e_cls b_cls e_cls →
     pc_p ≠ E →
     pc_p ≠ IEpair →
+    pc_p ≠ IEpcc →
     is_iepair_cap wcode = false ->
     PC ↦ᵣ WCap pc_p b_cls e_cls b_cls
     ∗ r_t1 ↦ᵣ r1v
@@ -1880,7 +1886,7 @@ Section macros.
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
-    iIntros (Hrpc Hvpc HnpcE HnpcIEpair Hcode) "(HPC & Hr1 & Hrenv & Hcls & Hcont)".
+    iIntros (Hrpc Hvpc HnpcE HnpcIEpair HnpcIEpcc Hcode) "(HPC & Hr1 & Hrenv & Hcls & Hcont)".
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
@@ -1906,7 +1912,7 @@ Section macros.
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
       [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
-       iContiguous_next Hcont_cls 1 | | done | done | ..].
+       iContiguous_next Hcont_cls 1 | | done | done | done | ..].
     { eapply contiguous_between_incr_addr_middle' with (i:=0); eauto.
       cbn. clear. lia. }
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".
@@ -1928,7 +1934,7 @@ Section macros.
     iPrologue "Hprog".
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr1]");
       [apply decode_encode_instrW_inv | iCorrectPC b_cls e_cls |
-       iContiguous_next Hcont_cls 3 | | done | done | ..].
+       iContiguous_next Hcont_cls 3 | | done | done | done | ..].
     { assert ((f4 + 1)%a = Some f5) as HH. by iContiguous_next Hcont_cls 6.
       instantiate (1 := f4). revert HH. clear; solve_addr. }
     iEpilogue "(HPC & Hi & Hr1)". iCombine "Hi Hprog_done" as "Hprog_done".

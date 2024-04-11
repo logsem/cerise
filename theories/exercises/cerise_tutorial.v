@@ -368,6 +368,7 @@ Section base_program.
       transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
     { auto. }
     { auto. }
+    { auto. }
 
     (* Introduce the postconditions of the rule and re-focus the expression. *)
     iNext; iIntros "(HPC & Hdone & Hr1)"; iSimpl.

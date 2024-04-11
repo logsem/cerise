@@ -107,6 +107,11 @@ Section base_program.
       simpl in Hp_mem.
       discriminate.
     }
+    assert (Hp_mem''': p_mem ≠ IEpcc). {
+      intros ->.
+      simpl in Hp_mem.
+      discriminate.
+    }
 
     (* 2 - Use the WP rules for each instructions *)
     (* Lea idc 3 *)
@@ -229,6 +234,7 @@ Section base_program_CPS.
     { transitivity (Some (b_mem ^+ secret_off)%a)... }
     { intros ->; simpl in Hp_mem; discriminate. }
     { intros ->; simpl in Hp_mem; discriminate. }
+    { intros ->; simpl in Hp_mem; discriminate. }
 
     rewrite (region_addrs_zeroes_split b_mem a_secret e_mem)...
     iDestruct (region_mapsto_split
@@ -250,6 +256,7 @@ Section base_program_CPS.
     (* getB getE add subseg *)
     iGo' "Hprog".
     { transitivity (Some (b_mem ^+ (secret_off + 1))%a)... }
+    { intros ->; simpl in Hp_mem; discriminate. }
     { intros ->; simpl in Hp_mem; discriminate. }
     { intros ->; simpl in Hp_mem; discriminate. }
     { solve_addr'. }

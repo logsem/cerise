@@ -142,6 +142,7 @@ Section base_program.
     { transitivity (Some (b_mem ^+ 1 )%a) ; auto ; solve_addr. }
     { auto. }
     { auto. }
+    { auto. }
     (* Introduce the postconditions of the rule and re-focus the expression. *)
     iNext; iIntros "(HPC& Hdone& Hr1)"; iSimpl.
     iApply wp_pure_step_later;auto;iNext;iIntros "_".

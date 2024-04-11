@@ -43,7 +43,7 @@ Section fundamental.
     }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst HnE HnIE Hao1 Hao2 Hwi HincrPC | * Hdst Hoo1 Hoo2 Hwi HincrPC | ].
+    destruct HSpec as [ * Hdst HnE HnIEpair HnIEpcc Hao1 Hao2 Hwi HincrPC | * Hdst Hoo1 Hoo2 Hwi HincrPC | ].
     - (* Subseg_spec_success_cap *)
       apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& x & HPC & Z & Hregs') .
 
@@ -81,7 +81,7 @@ Section fundamental.
       {
         iModIntro.
         iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
-        1,2: destruct Hp; by subst p.
+        1,2,3: destruct Hp; by subst p.
         { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
           1,2: rewrite /isWithin in Hwi; solve_addr. }
         { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
@@ -135,7 +135,7 @@ Section fundamental.
       {
         iModIntro.
         iApply (interp_weakening with "IH Hinv_pc"); auto; try solve_addr.
-        1,2: destruct Hp; by subst p.
+        1,2,3: destruct Hp; by subst p.
         by rewrite PermFlowsToReflexive.
       }
       { iClear "Hwrite".

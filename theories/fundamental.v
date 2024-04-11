@@ -68,6 +68,9 @@ Section fundamental.
       + (* JmpIEpair *)
         iApply (jmpiepair_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
+      + (* JmpIEpcc *)
+        iApply (jmpiepcc_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
+          try iAssumption; eauto.
       + (* Jnz *)
         iApply (jnz_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hidc] [Hmreg]");
           try iAssumption; eauto.
@@ -176,9 +179,9 @@ Section fundamental.
     (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (WCap p b e a))%I.
 
   Lemma interp_exec_cond p b e a :
-    p ≠ IEpair -> p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
+    p ≠ IEpcc -> p ≠ IEpair -> p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
   Proof.
-    iIntros (Hnp Hnp') "#Hw".
+    iIntros (Hnp Hnp' Hnp'') "#Hw".
     iIntros (a0 r Hin). iNext. iModIntro.
     iApply fundamental.
     rewrite !fixpoint_interp1_eq /=.
@@ -661,6 +664,20 @@ Section fundamental.
          iDestruct (fundamental _ r with "Hinterp1") as "H'".
          iApply "H'"; iFrame "#".
     }
+    4: { (* IEpcc *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_integers_alloc _ _ _ a _ RW with "H") as ">#H"; auto.
+         iModIntro. iIntros (Hbounds).
+         iDestruct (read_allowed_inv b a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { solve_addr. }
+         iExists P.
+         iFrame "#".
+         iIntros (w1 r).
+         iNext ; iModIntro.
+         iIntros "Hw1".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
+         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
     all: iApply region_integers_alloc; eauto.
   Qed.
 
@@ -695,6 +712,20 @@ Section fundamental.
            destruct_word w2 ; cbn; try done.
            rewrite !fixpoint_interp1_eq //=.
          }         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
+    4: { (* IEpcc *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_alloc _ _ _ a _ RW with "Hl H") as ">#H"; auto.
+         iModIntro. iIntros (Hbounds).
+         iDestruct (read_allowed_inv b a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { solve_addr. }
+         iExists P.
+         iFrame "#".
+         iIntros (w1 r).
+         iNext ; iModIntro.
+         iIntros "Hw1".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
+         iDestruct (fundamental _ r with "Hinterp1") as "H'".
          iApply "H'"; iFrame "#".
     }
     all: iApply (region_valid_alloc with "Hl"); eauto.
@@ -732,6 +763,20 @@ Section fundamental.
            destruct_word w2 ; cbn; try done.
            rewrite !fixpoint_interp1_eq //=.
          }
+         iDestruct (fundamental _ r with "Hinterp1") as "H'".
+         iApply "H'"; iFrame "#".
+    }
+    4: { (* IEpcc *) rewrite fixpoint_interp1_eq /=.
+         iDestruct (region_valid_in_region _ _ _ a _ RW with "H") as ">#H"; auto.
+         iModIntro. iIntros (Hbounds).
+         iDestruct (read_allowed_inv b a with "H") as (P) "[Hinv [Hpers [Hconds _]] ]"; auto.
+         { solve_addr. }
+         iExists P.
+         iFrame "#".
+         iIntros (w1 r).
+         iNext ; iModIntro.
+         iIntros "Hw1".
+         iDestruct ("Hconds" with "Hw1") as "#Hinterp1".
          iDestruct (fundamental _ r with "Hinterp1") as "H'".
          iApply "H'"; iFrame "#".
     }

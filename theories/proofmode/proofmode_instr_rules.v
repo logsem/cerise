@@ -103,6 +103,17 @@ Ltac dispatch_instr_rule instr cont :=
      end))
   (* Jmp *)
   | Jmp PC => cont (@wp_jmp_successPC)
+  | Jmp ?r =>
+      lazymatch goal with
+        | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
+          lazymatch w with
+          | WCap IEpair _ _ _ => cont (@wp_jmp_success_IEpair)
+          (* TODO would also need more rules to differentiate all kind of equalities
+             between addresses *)
+          | _ => cont (@wp_jmp_success)
+          end
+      | _ => fail "No points-to register predicate" r "available for instruction" instr
+      end
   | JmpIEpair ?r =>
       lazymatch goal with
         | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
@@ -118,14 +129,18 @@ Ltac dispatch_instr_rule instr cont :=
           end
       | _ => fail "No points-to register predicate" r "available for instruction" instr
       end
-  | Jmp ?r =>
+  | JmpIEpcc ?r =>
       lazymatch goal with
         | |- context [ environments.Esnoc _ _ (r ↦ᵣ ?w)%I ] =>
           lazymatch w with
-          | WCap IEpair _ _ _ => cont (@wp_jmp_success_IEpair)
+          | WCap IEpcc _ _ _ =>
+              fail "No handled yet"
+              (* cont (@wp_jmp_success_IE) *)
           (* TODO would also need more rules to differentiate all kind of equalities
              between addresses *)
-          | _ => cont (@wp_jmp_success)
+          | _ =>
+              fail "No handled yet"
+              (* cont (@wp_jmpIEpair_success) *)
           end
       | _ => fail "No points-to register predicate" r "available for instruction" instr
       end
