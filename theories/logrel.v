@@ -164,6 +164,8 @@ Section logrel.
             end)%I.
   Solve All Obligations with solve_proper.
 
+  (* TODO: unclear yet whether we also want P2 for the data part...
+     Not required for minimal_counter, but what about CC *)
   Program Definition interp_cap_IEpcc (interp : D) : D :=
     λne w, (match w with
               | WCap IEpcc b e a =>
