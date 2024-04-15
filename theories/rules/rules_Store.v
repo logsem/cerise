@@ -206,17 +206,15 @@ Section cap_lang_rules.
       + (* pc incr success *)
         iIntros (lregs' regs') "Hσ".
         iModIntro.
-        Search lword_get_word. erewrite <- lreg_lookup in Hr1v.
-      admit.
+        Search lword_get_word. erewrite <- lreg_lookup in Hr1v. admit.
+        admit.
     - iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iModIntro. iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR.
       { iPureIntro.
         constructor 2 with (lmem' := lmem); try easy.
-        Print  Store_failure_store.
         constructor 2 with (p := p) (b := b) (e := e) (a := a) (v := v). unfold get_wcap in Heqgwr1v. unfold lword_get_word in Heqgwr1v.
         admit.
-        rewrite andb_false_iff in Heqb0. eauto. }.
-      { admit. }
+        rewrite andb_false_iff in Heqb0. eauto. }
 
  Admitted.
 
