@@ -346,34 +346,33 @@ Section cap_lang_rules.
     now induction 1.
   Qed.
 
-  Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMem) (df dft
-      : LDFrac) : iProp Σ :=
+  Definition LMemF := gmap LAddr (dfrac * LWord).
+
+  Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMemF) : iProp Σ :=
     state_interp_logical φ
       ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
       (* ∗ ⌜ lreg_strip lrt ⊆ reg φt ⌝ *)
-      ∗ ([∗ map] k↦y ∈ (prod_merge df lm), k ↦ₐ{y.1} y.2)
+      ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2)
       ∗ (∃ lreg_t lmem_t cur_map,
-        ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ lmt ⊆ lmem_t ⌝ ∗
-        ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝)
-      ∗ ⌜dom df = dom lm /\ dom dft = dom lmt ⌝
+        ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗
+          ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝)
 
       ∗ (∀ Ep, state_interp_logical φ
                  ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
-                 ∗ ([∗ map] k↦y ∈ (prod_merge df lm), k ↦ₐ{y.1} y.2)
+                 ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2)
                ={Ep}=∗ state_interp_logical φt
                        ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y)
-                       ∗ ([∗ map] k↦y ∈ (prod_merge dft lmt), k ↦ₐ{y.1} y.2)).
+                       ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2)).
 
-  Lemma state_interp_corr {σ lregs lmem df Ep} :
-    dom df = dom lmem ->
-    state_interp_logical σ ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ (prod_merge df lmem), k ↦ₐ{y.1} y.2) ⊢
-      |={Ep}=> state_interp_logical σ ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ (prod_merge df lmem), k ↦ₐ{y.1} y.2)
+  Lemma state_interp_corr {σ lregs Ep} {lmem : LMemF} :
+    state_interp_logical σ ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lmem, k ↦ₐ{y.1} y.2) ⊢
+      |={Ep}=> state_interp_logical σ ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lmem, k ↦ₐ{y.1} y.2)
       ∗ ∃ lreg_t lmem_t cur_map,
-        ⌜ lregs ⊆ lreg_t ⌝ ∗ ⌜ lmem ⊆ lmem_t ⌝ ∗
+        ⌜ lregs ⊆ lreg_t ⌝ ∗ ⌜ (snd <$> lmem) ⊆ lmem_t ⌝ ∗
         ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lreg_t lmem_t cur_map⌝.
                                                               (* ∗ ⌜ lreg_strip regs ⊆ reg σ ⌝. *)
   Proof.
-    iIntros (Hdom) "(Hσ & Hregs & Hmem)".
+    iIntros "(Hσ & Hregs & Hmem)".
     iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
     iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
@@ -384,41 +383,47 @@ Section cap_lang_rules.
     iPureIntro; cbn.
     exists lr, lm, cur_map.
     do 2 (split ; auto).
-    apply snd_prod_merge_subseteq in Hlmem_incl; done.
   Qed.
 
-  Lemma state_interp_transient_intro {Ep} {φ : ExecConf} {lr : LReg} {lm : LMem} {df : LDFrac} :
-    ⌜dom df = dom lm ⌝ ∗
-    state_interp_logical φ ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ (prod_merge df lm), k ↦ₐ{y.1} y.2)
-      ⊢ |={Ep}=> state_interp_transient φ φ lr lr lm lm df df.
+  Lemma state_interp_transient_intro {Ep} {φ : ExecConf} {lr : LReg} {lm : LMemF} :
+    state_interp_logical φ ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2)
+                ⊢ |={Ep}=> state_interp_transient φ φ lr lr lm lm.
   Proof.
-    iIntros "(%Hdom & Hφ & Hregs & Hmem)".
+    iIntros "(Hφ & Hregs & Hmem)".
     iMod (state_interp_corr with "[$Hφ $Hregs $Hmem]") as "(Hφ & Hregs & Hmem & Hcorr)"; auto.
     iDestruct "Hcorr" as (lr' lm' cur_map) "(%Hlr_incl & %Hlm_incl & %Hcorr)".
     iModIntro. iFrame.
-    iSplit ; [|iSplit ; [iPureIntro ; split ; assumption | now iIntros]].
-    iExists lr', lm', cur_map.
-    iFrame "%".
+    iSplit.
+    now iExists lr', lm', cur_map.
+    now iIntros.
   Qed.
 
-  Lemma state_interp_transient_elim_abort {φ φt: ExecConf} {lr lrt : LReg} {lm lmt : LMem} {df dft} :
-    state_interp_transient φ φt lr lrt lm lmt df dft
+  Lemma state_interp_transient_intro_nodfracs {Ep} {φ : ExecConf} {lr : LReg} {lm : LMem} :
+    state_interp_logical φ ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ y)
+      ⊢ |={Ep}=> state_interp_transient φ φ lr lr ((fun y => (DfracOwn 1 , y)) <$> lm) ((fun y => (DfracOwn 1 , y)) <$> lm).
+  Proof.
+    rewrite <-state_interp_transient_intro.
+    now rewrite big_sepM_fmap.
+  Qed.
+
+  Lemma state_interp_transient_elim_abort {φ φt: ExecConf} {lr lrt : LReg} {lm lmt : LMemF} :
+    state_interp_transient φ φt lr lrt lm lmt
       ⊢ state_interp_logical φ
       ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
-      ∗ ([∗ map] k↦y ∈ (prod_merge df lm), k ↦ₐ{y.1} y.2).
+      ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2).
   Proof.
     iIntros "(Hφ & Hregs & Hmem & _)".
     now iFrame.
   Qed.
 
   Lemma state_interp_transient_elim_commit
-    {Ep} {φ φt: ExecConf} {lr lrt : LReg} {lm lmt : LMem} {df dft : LDFrac}:
-    state_interp_transient φ φt lr lrt lm lmt df dft ⊢
+    {Ep} {φ φt: ExecConf} {lr lrt : LReg} {lm lmt : LMemF}:
+    state_interp_transient φ φt lr lrt lm lmt ⊢
       |={Ep}=> state_interp_logical φt
                 ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y)
-                ∗ ([∗ map] k↦y ∈ (prod_merge dft lmt), k ↦ₐ{y.1} y.2).
+                ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2).
   Proof.
-    iIntros "(Hφ & Hregs & Hmem & _ & _ & Hupd)".
+    iIntros "(Hφ & Hregs & Hmem & _ & Hupd)".
     iMod ("Hupd" with "[$Hφ $Hregs $Hmem]") as "(Hφ & Hregs & Hmem)".
     now iFrame.
   Qed.
@@ -1488,10 +1493,10 @@ Section cap_lang_rules_opt.
     - now rewrite lookup_insert_ne.
   Qed.
 
-  Lemma state_interp_transient_corr {φ φt lr lrt lm lmt df dft} :
-    state_interp_transient φ φt lr lrt lm lmt df dft ⊢
+  Lemma state_interp_transient_corr {φ φt lr lrt lm lmt} :
+    state_interp_transient φ φt lr lrt lm lmt ⊢
       ∃ lreg_t lmem_t cur_map,
-        ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ lmt ⊆ lmem_t ⌝ ∗
+        ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗
           ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝.
   Proof.
     now iIntros "(Hσ & Hregs & Hmem & %Hres & Hcommit)".
@@ -1513,8 +1518,8 @@ Section cap_lang_rules_opt.
   
   Lemma wp2_reg_lookup {Ep} {lrt lmt dft r φ φt lr lm df Φs Φf} :
     r ∈ dom lrt ->
-    state_interp_transient φ φt lr lrt lm lmt df dft ∗
-      (∀ lwr, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lwr (lword_get_word lwr)) ⊢
+    state_interp_transient φ φt lr lrt lm lmt ∗
+      (∀ lwr, state_interp_transient φ φt lr lrt lm lmt -∗ Φs lwr (lword_get_word lwr)) ⊢
       wp_opt2 Ep (lrt !! r) (reg φt !! r) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hσr & Hk)".

@@ -177,8 +177,11 @@ Section cap_lang_rules.
 
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
-    iMod (state_interp_transient_intro (lm := lmem) with "[$Hregs $Hσ Hmem]") as "Hσ".
-    { admit. }
+    iMod (state_interp_transient_intro (lm := lmem) (df := (fmap (fun _ => DfracOwn 1%Qp) lmem)) with "[$Hregs $Hσ Hmem]") as "Hσ".
+    { rewrite dom_fmap_L.
+      iSplitR; first by iPureIntro.
+      Search prod_merge.
+      admit. }
     iApply (wp2_word_of_argument with "[Hφ Hcred $Hσ]"). { set_solver. }
     iIntros (r2v) "Hσ %Hlr2v %Hr2v".
 
@@ -191,7 +194,8 @@ Section cap_lang_rules.
     iApply wp_opt2_eqn_both.
     iApply wp2_word_get_cap.
     iSplit.
-    { iIntros "%Hcr1v %Hgcr1v". iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+    { iIntros "%Hcr1v %Hgcr1v".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR. iPureIntro.
       constructor 2 with (lmem' := lmem); try easy.
       now constructor 1 with (lw := r1v). admit. }
