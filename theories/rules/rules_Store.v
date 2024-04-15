@@ -177,7 +177,7 @@ Section cap_lang_rules.
 
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
-    iMod (state_interp_transient_intro (lm := lmem) (df := (fmap (fun _ => DfracOwn 1%Qp) lmem)) with "[$Hregs $Hσ Hmem]") as "Hσ".
+    iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem]") as "Hσ".
     { rewrite dom_fmap_L.
       iSplitR; first by iPureIntro.
       Search prod_merge.
