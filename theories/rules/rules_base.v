@@ -1770,11 +1770,11 @@ Section cap_lang_rules_opt.
 
   (* denis says: will fix later *)
   (* Probably missing some assumptions. *)
-  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt lm lmt df dft a la w lw}:
-    (forall cur_map, is_cur_addr la cur_map -> is_cur_word lw cur_map) ->
+  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt lm lmt df dft a la lw}:
+    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
     state_interp_transient σ σt lr lrt lm lmt df dft ⊢
       state_interp_transient
-      σ (update_mem σt a w)
+      σ (update_mem σt a (lword_get_word lw))
       lr lrt lm (<[ la := lw ]> lmt) df dft.
   Proof. Admitted.
 
