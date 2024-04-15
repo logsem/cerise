@@ -130,6 +130,22 @@ Section cap_lang_rules.
         left ; solve_addr.
   Qed.
 
+
+  Definition exec_optL_Store
+    (lregs : LReg) (lmem : LMem)
+    (dst : RegName) (ρ : Z + RegName) : option (LReg * LMem).
+    refine (
+    tostore ← word_of_argumentL lregs ρ;
+    lwsrc ← lregs !! dst ;
+    lcap ← lword_get_cap lwsrc;
+    match lcap with (p, b, e, a, v) =>
+      if writeAllowed p && withinBounds b e a
+      then lregs' ← incrementLPC lregs;
+           Some (lregs' , <[ (a , v) := tostore ]> lmem)
+      else None
+    end).
+  Defined.
+
   Lemma wp_store Ep
     pc_p pc_b pc_e pc_a pc_v
     r1 (r2 : Z + RegName) lw lmem lregs :
@@ -157,7 +173,7 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    iApply wp_wp2.
+    iApply (wp_wp2 (φ1 := exec_optL_Store lregs lmem r1 r2)).
 
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
@@ -185,6 +201,12 @@ Section cap_lang_rules.
     - rewrite updatePC_incrementPC.
       iApply wp_opt2_bind.
       iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). { now rewrite elem_of_dom. }
+      iSplit; cbn.
+      + (* pc incr failed *) admit.
+      + (* pc incr success *)
+        iIntros (lregs' regs') "Hσ".
+        iModIntro.
+        Search lword_get_word. erewrite <- lreg_lookup in Hr1v.
       admit.
     - iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iModIntro. iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR.
