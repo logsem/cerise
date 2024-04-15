@@ -150,7 +150,7 @@ Section cap_lang_rules.
 
   Definition exec_optL_Load
     (lregs : LReg) (lmem : LMem)
-    (dst src : RegName) :=
+    (dst src : RegName) : option LReg :=
     lwsrc ← lregs !! src ;
     match lwsrc with
     | LCap p b e a v =>

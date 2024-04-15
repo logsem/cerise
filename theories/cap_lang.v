@@ -329,6 +329,10 @@ Qed.
 Section opsem.
   Context `{MachineParameters}.
 
+  Definition get_wcap : Word -> option (Perm * Addr * Addr * Addr) :=
+    fun w => match  w with WCap p b e a => Some (p, b, e, a)
+                         | _ => None end.
+
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
     | Fail => Some (Failed, φ)
@@ -355,13 +359,10 @@ Section opsem.
     | Store dst ρ =>
       tostore ← word_of_argument (reg φ) ρ;
       wdst ← (reg φ) !! dst;
-      match wdst with
-      | WCap p b e a =>
-        if writeAllowed p && withinBounds b e a then
-          updatePC (update_mem φ a tostore)
+      '(p, b, e, a) ← get_wcap wdst;
+        if writeAllowed p && withinBounds b e a
+        then updatePC (update_mem φ a tostore)
         else None
-      | _ => None
-      end
     | Mov dst ρ =>
       tomov ← word_of_argument (reg φ) ρ;
       updatePC (update_reg φ dst tomov)
@@ -730,7 +731,7 @@ Section opsem.
     ∃ φ', (exec i φ = (Failed, φ') ) ∨ (exec i φ = (NextI, φ')) ∨
           (exec i φ = (Halted, φ')).
   Proof.
-    unfold exec, exec_opt.
+    unfold exec, exec_opt, get_wcap;
     repeat case_match; simplify_eq; eauto;rename H0 into Heqo.
     (* Create more goals through *_of_argument, now that some have been pruned *)
     all: repeat destruct (addr_of_argument (reg φ) _)

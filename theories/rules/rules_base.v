@@ -1555,6 +1555,19 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
+
+  Lemma wp2_word_get_cap {Ep} {w Φf Φs} :
+         Φf ∧ (∀ p b e a v, Φs (p , b , e , a , v) (p , b , e , a))
+      ⊢ wp_opt2 Ep (lword_get_cap w) (get_wcap (lword_get_word w)) Φf Φs.
+  Proof.
+    iIntros "HΦ".
+    destruct w as [z | [p b e a v | x] | w]; cbn.
+    - now rewrite bi.and_elim_l.
+    - now rewrite bi.and_elim_r.
+    - now rewrite bi.and_elim_l.
+    - now rewrite bi.and_elim_l.
+  Qed.
+
   Lemma wp2_mem_lookup {Ep} {lrt lmt dft φ φt lr lm df Φs Φf r p b e a v lwa} :
     withinBounds b e a = true ->
     lrt !! r = Some (LCap p b e a v) ->
@@ -1598,6 +1611,10 @@ Section cap_lang_rules_opt.
       + rewrite bi.and_elim_l. by iApply "Hk".
   Qed.
 
+  (* More expressive version of update_state_interp_from_reg_nomod.
+     This is needed for operations that edit a current (in terms of version) word,
+     requiring us to re-prove "currentness" of the edited word.
+     Think e.g. shrinking the bounds of a capability read from a register. *)
   Lemma update_state_interp_from_regs_mod {σ dst lw2 Ep lregs}:
     dst ∈ dom lregs ->
     (forall cur_map, is_cur_regs lregs cur_map -> is_cur_word lw2 cur_map) ->
@@ -1649,6 +1666,9 @@ Section cap_lang_rules_opt.
       iApply (update_state_interp_from_regs_mod Hdom Hcur with "[$Hσ $Hregs]").
   Qed.
 
+  (* This lemma updates the state for operations where a current word is
+     immediately moved (to another register). Since the word was not edited,
+     and it was read from a register, it is obviously already "current" *)
   Lemma update_state_interp_from_reg_nomod {σ src dst lw Ep regs}:
     dst ∈ dom regs ->
     regs !! src = Some lw ->
@@ -1747,6 +1767,16 @@ Section cap_lang_rules_opt.
       destruct Hdom_eq as [_ Hdom_eq].
       iApply (update_state_interp_from_cap_mod Hdom Hdom_eq Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
+
+  (* denis says: will fix later *)
+  (* Probably missing some assumptions. *)
+  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt lm lmt df dft a la w lw}:
+    (forall cur_map, is_cur_addr la cur_map -> is_cur_word lw cur_map) ->
+    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
+      state_interp_transient
+      σ (update_mem σt a w)
+      lr lrt lm (<[ la := lw ]> lmt) df dft.
+  Proof. Admitted.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
     word_of_argumentL lregs src = Some lw2 ->

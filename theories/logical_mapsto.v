@@ -2286,6 +2286,13 @@ Definition z_of_argumentL (lregs: LReg) (a: Z + RegName) : option Z :=
     end
   end.
 
+Definition lword_get_cap (lword : LWord) : option (Perm * Addr * Addr * Addr * Version) :=
+  match lword with
+  | LCap p b e a v => Some (p, b, e, a, v)
+  | _ => None
+  end.
+
+
 Definition word_of_argumentL (lregs: LReg) (a: Z + RegName): option LWord :=
   match a with
   | inl n => Some (LInt n)
