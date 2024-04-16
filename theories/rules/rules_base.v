@@ -1515,8 +1515,8 @@ Section cap_lang_rules_opt.
   (*   - now iApply "Hk". *)
   (*   - now rewrite lookup_fmap Heqr. *)
   (* Qed. *)
-  
-  Lemma wp2_reg_lookup {Ep} {lrt lmt dft r φ φt lr lm df Φs Φf} :
+
+  Lemma wp2_reg_lookup {Ep} {lrt lmt r φ φt lr lm Φs Φf} :
     r ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt ∗
       (∀ lwr, state_interp_transient φ φt lr lrt lm lmt -∗ Φs lwr (lword_get_word lwr)) ⊢
@@ -1549,8 +1549,8 @@ Section cap_lang_rules_opt.
 
   Lemma wp2_word_of_argument {Ep} {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
     regs_of_argument src ⊆ dom lrt ->
-    state_interp_transient φ φt lr lrt lm lmt df dft ∗
-      (∀ lw, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lw (lword_get_word lw))
+    state_interp_transient φ φt lr lrt lm lmt ∗
+      (∀ lw, state_interp_transient φ φt lr lrt lm lmt -∗ Φs lw (lword_get_word lw))
       ⊢ wp_opt2 Ep (word_of_argumentL lrt src) (word_of_argument (reg φt) src) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hσr & HΦs)".
@@ -1567,19 +1567,16 @@ Section cap_lang_rules_opt.
   Proof.
     iIntros "HΦ".
     destruct w as [z | [p b e a v | x] | w]; cbn.
-    - now rewrite bi.and_elim_l.
-    - now rewrite bi.and_elim_r.
-    - now rewrite bi.and_elim_l.
-    - now rewrite bi.and_elim_l.
+    all: try now rewrite bi.and_elim_l. all: try now rewrite bi.and_elim_r.
   Qed.
 
-  Lemma wp2_mem_lookup {Ep} {lrt lmt dft φ φt lr lm df Φs Φf r p b e a v lwa} :
+  Lemma wp2_mem_lookup {Ep} {lrt lmt φ φt lr lm Φs Φf r p b e a v lwa} :
     withinBounds b e a = true ->
     lrt !! r = Some (LCap p b e a v) ->
-    lmt !! (a,v) = Some lwa ->
-    state_interp_transient φ φt lr lrt lm lmt df dft ∗
-    (state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs lwa (lword_get_word lwa)) ⊢
-    wp_opt2 Ep (lmt !! (a,v)) (mem φt !! a) Φf Φs.
+    (snd <$> lmt) !! (a,v) = Some lwa ->
+    state_interp_transient φ φt lr lrt lm lmt ∗
+    (state_interp_transient φ φt lr lrt lm lmt -∗ Φs lwa (lword_get_word lwa)) ⊢
+    wp_opt2 Ep ((snd <$> lmt) !! (a,v)) (mem φt !! a) Φf Φs.
   Proof.
     iIntros (Hin_bounds Hlrt_r Hlmt_a) "(Hσr & Hk)".
     iPoseProof (state_interp_transient_corr with "Hσr") as "%Hcor".
@@ -1592,11 +1589,11 @@ Section cap_lang_rules_opt.
     iApply wp2_val. now iApply "Hk".
   Qed.
 
-  Lemma wp2_z_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt df dft} :
+  Lemma wp2_z_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt} :
     regs_of_argument src ⊆ dom lrt ->
-    state_interp_transient φ φt lr lrt lm  lmt df dft ∗
-      (state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φf) ∧
-      ((∀ z, state_interp_transient φ φt lr lrt lm lmt df dft -∗ Φs z z))
+    state_interp_transient φ φt lr lrt lm  lmt ∗
+      (state_interp_transient φ φt lr lrt lm lmt -∗ Φf) ∧
+      ((∀ z, state_interp_transient φ φt lr lrt lm lmt -∗ Φs z z))
       ⊢ wp_opt2 Ep (z_of_argumentL lrt src) (z_of_argument (reg φt) src) Φf Φs.
   Proof.
     iIntros (Hregs) "(Hφ & Hk)".
@@ -1641,17 +1638,17 @@ Section cap_lang_rules_opt.
     now eapply (proj2 (proj1 HLinv)).
   Qed.
 
-  Lemma update_state_interp_transient_from_regs_mod {σ σt lr lrt lm lmt df dft dst lw2}:
+  Lemma update_state_interp_transient_from_regs_mod {σ σt lr lrt lm lmt dst lw2}:
     dst ∈ dom lrt ->
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw2 cur_map) ->
-    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
+    state_interp_transient σ σt lr lrt lm lmt ⊢
       state_interp_transient
       σ (update_reg σt dst (lword_get_word lw2))
-      lr (<[ dst := lw2 ]> lrt) lm lmt df dft.
+      lr (<[ dst := lw2 ]> lrt) lm lmt .
   Proof.
-    iIntros (Hdom Hcur) "(Hσ & Hregs & Hmem & %Hcor & %Hdom_eq & Hcommit)"; cbn in *.
+    iIntros (Hdom Hcur). iIntros "(Hσ & Hregs & Hmem & %Hcor & Hcommit)"; cbn in *.
     iFrame "Hσ Hregs Hmem".
-    iSplitR.
+    iSplit.
     - iPureIntro; cbn.
       destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
       exists (<[dst:=lw2]> lr'), lm', cur_map.
@@ -1664,8 +1661,7 @@ Section cap_lang_rules_opt.
       specialize (Hcur cur_map Hcur_lr').
       destruct Hinv as [Hregs ?] ; split ; auto.
       by apply lreg_corresponds_insert_respects.
-    - iSplit ; first done.
-      iIntros (Ep) "H".
+    - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
       iFrame.
       iApply (update_state_interp_from_regs_mod Hdom Hcur with "[$Hσ $Hregs]").
@@ -1694,34 +1690,33 @@ Section cap_lang_rules_opt.
     eapply (update_state_interp_from_regs_mod (lw2 := LWInt z)); now eauto.
   Qed.
 
-  Lemma update_state_interp_transient_int {σ σt lr lrt lm lmt df dft dst z}:
+  Lemma update_state_interp_transient_int {σ σt lr lrt lm lmt dst z}:
     dst ∈ dom lrt ->
-    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
+    state_interp_transient σ σt lr lrt lm lmt ⊢
       state_interp_transient σ (update_reg σt dst (WInt z))
-      lr (<[ dst := LWInt z ]> lrt) lm lmt df dft.
+      lr (<[ dst := LWInt z ]> lrt) lm lmt.
   Proof.
     intros Hdom.
     now apply (update_state_interp_transient_from_regs_mod (lw2 := LWInt z) Hdom).
   Qed.
 
-  Lemma update_state_interp_from_cap_mod {σ dst lw2 Ep lregs lmem df p b e a v r}:
+  Lemma update_state_interp_from_cap_mod {σ dst lw2 Ep lregs} {lmem : LMemF} {p b e a v r}:
     dst ∈ dom lregs ->
-    dom df = dom lmem ->
 
     lregs !! r = Some (LCap p b e a v) ->
     withinBounds b e a = true ->
-    lmem !! (a, v) = Some lw2 ->
+    (snd <$> lmem) !! (a, v) = Some lw2 ->
 
     state_interp_logical σ
       ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
-      ∗ ([∗ map] la↦dw ∈ prod_merge df lmem, la ↦ₐ{dw.1} dw.2)
+      ∗ ([∗ map] la↦dw ∈ lmem, la ↦ₐ{dw.1} dw.2)
       ⊢ |={Ep}=>
           state_interp_logical (update_reg σ dst (lword_get_word lw2))
             ∗ ([∗ map] k↦y ∈ <[ dst := lw2 ]> lregs, k ↦ᵣ y)
-            ∗ ([∗ map] la↦dw ∈ prod_merge df lmem, la ↦ₐ{dw.1} dw.2)
+            ∗ ([∗ map] la↦dw ∈ lmem, la ↦ₐ{dw.1} dw.2)
   .
   Proof.
-    iIntros (Hdst Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem)".
+    iIntros (Hdst Hr Hinbounds Ha) "(Hσ & Hregs & Hmem)".
     iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
     iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
@@ -1730,7 +1725,6 @@ Section cap_lang_rules_opt.
     iModIntro. iFrame.
     iExists _,_,cur_map; iFrame.
     iPureIntro.
-    apply snd_prod_merge_subseteq in Hlmem_incl; last done.
     eapply lookup_weaken in Ha ; eauto.
     apply state_phys_log_corresponds_update_reg; try easy.
     destruct HLinv as [Hinv_reg Hinv_mem].
@@ -1740,17 +1734,17 @@ Section cap_lang_rules_opt.
   Qed.
 
   Lemma update_state_interp_transient_from_cap_mod
-    {σ σt lr lrt lm lmt df dft dst lw2 r p b e a v}:
+    {σ σt lr lrt lm lmt dst lw2 r p b e a v}:
     dst ∈ dom lrt ->
     lrt !! r = Some (LCap p b e a v) ->
     withinBounds b e a = true ->
-    lmt !! (a, v) = Some lw2 ->
-    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
+    (snd <$> lmt) !! (a, v) = Some lw2 ->
+    state_interp_transient σ σt lr lrt lm lmt ⊢
       state_interp_transient
       σ (update_reg σt dst (lword_get_word lw2))
-      lr (<[ dst := lw2 ]> lrt) lm lmt df dft.
+      lr (<[ dst := lw2 ]> lrt) lm lmt.
   Proof.
-    iIntros (Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem & %Hcor & %Hdom_eq & Hcommit)"; cbn in *.
+    iIntros (Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)"; cbn in *.
     iFrame "Hσ Hregs Hmem".
     iSplitR.
     - iPureIntro; cbn.
@@ -1767,21 +1761,20 @@ Section cap_lang_rules_opt.
       eapply lmem_corresponds_read_iscur in Ha; eauto.
       by apply lreg_corresponds_insert_respects.
       eapply state_corresponds_cap_cur_word; eauto ; by cbn.
-    - iSplit ; first done. iIntros (Ep) "H".
+    - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      destruct Hdom_eq as [_ Hdom_eq].
-      iApply (update_state_interp_from_cap_mod Hdom Hdom_eq Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
+      iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
   (* denis says: will fix later *)
   (* Probably missing some assumptions. *)
-  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt lm lmt df dft a la lw}:
-    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
-    state_interp_transient σ σt lr lrt lm lmt df dft ⊢
-      state_interp_transient
-      σ (update_mem σt a (lword_get_word lw))
-      lr lrt lm (<[ la := lw ]> lmt) df dft.
-  Proof. Admitted.
+  (* Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt lm lmt a la lw}: *)
+  (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) -> *)
+  (*   state_interp_transient σ σt lr lrt lm lmt ⊢ *)
+  (*     state_interp_transient *)
+  (*     σ (update_mem σt a (lword_get_word lw)) *)
+  (*     lr lrt lm (<[ la := lw ]> lmt). *)
+  (* Proof. Admitted. *)
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
     word_of_argumentL lregs src = Some lw2 ->
@@ -1841,12 +1834,12 @@ Section cap_lang_rules_opt.
   (*   by eapply is_cur_word_cap_change, (map_Forall_lookup_1 _ _ _ _ Hcurregs). *)
   (* Qed. *)
 
-  Lemma wp2_opt_incrementPC {Ep} {φ φt lr lrt lm lmt df dft Φs Φf} :
+  Lemma wp2_opt_incrementPC {Ep} {φ φt lr lrt lm lmt Φs Φf} :
     PC ∈ dom lrt ->
-    state_interp_transient φ φt lr lrt lm lmt df dft ∗
-    ((∀ φt' lrt', state_interp_transient φ φt' lr lrt' lm lmt df dft -∗ Φf) ∧
+    state_interp_transient φ φt lr lrt lm lmt ∗
+    ((∀ φt' lrt', state_interp_transient φ φt' lr lrt' lm lmt -∗ Φf) ∧
        (∀ lrt' rs',
-           state_interp_transient φ (update_regs φt rs') lr lrt' lm lmt df dft -∗ Φs lrt' rs'))
+           state_interp_transient φ (update_regs φt rs') lr lrt' lm lmt -∗ Φs lrt' rs'))
     ⊢ wp_opt2 Ep (incrementLPC lrt) (incrementPC (reg φt)) Φf Φs.
   Proof.
     iIntros (Hdom) "(Hφr & Hk)".
