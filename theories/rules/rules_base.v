@@ -1547,7 +1547,7 @@ Section cap_lang_rules_opt.
     iApply wp2_val. now iApply "Hk".
   Qed.
 
-  Lemma wp2_word_of_argument {Ep} {src lw Φf Φs φ φt lr lrt lm lmt df dft} :
+  Lemma wp2_word_of_argument {Ep} {src lw Φf Φs φ φt lr lrt lm lmt} :
     regs_of_argument src ⊆ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt ∗
       (∀ lw, state_interp_transient φ φt lr lrt lm lmt -∗ Φs lw (lword_get_word lw))
