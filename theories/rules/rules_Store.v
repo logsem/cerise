@@ -169,7 +169,7 @@ Section cap_lang_rules.
     rewrite (big_sepM_delete). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
     iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ]").
     iModIntro.
-    iIntros (σ) "(Hσ & Hregs & ?)".
+    iIntros (σ) "(Hσ & Hregs & Hpca)".
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
@@ -177,11 +177,9 @@ Section cap_lang_rules.
 
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
-    iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem]") as "Hσ".
-    { rewrite dom_fmap_L.
-      iSplitR; first by iPureIntro.
-      Search prod_merge.
-      admit. }
+    iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
+    { iCombine "Hpca Hmem" as "Hmem". Unset Printing Notations. Search "big_sepM_insert".
+      rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)). Set Printing Notations. iFrame. rewrite insert_delete. iFrame. auto. Search (delete ?x ?y !! ?x = None). rewrite lookup_delete. done. }
     iApply (wp2_word_of_argument with "[Hφ Hcred $Hσ]"). { set_solver. }
     iIntros (r2v) "Hσ %Hlr2v %Hr2v".
 
@@ -206,20 +204,28 @@ Section cap_lang_rules.
       iApply wp_opt2_bind.
       iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). { now rewrite elem_of_dom. }
       iSplit; cbn.
-      + (* pc incr failed *) admit.
+      + (* pc incr fail *)
+        iIntros (ec lregs') "Hσ".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+        iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR. iPureIntro.
+        constructor 2 with (lmem' := lmem). easy. econstructor 3 with (lmem := lmem).
+        unfold lword_get_cap, get_wcap in *.
+        destruct r1v; cbn in *; try destruct sb; cbn; inversion Heqgwr1v; inversion Heqlwr1v; subst.
+        admit. admit.
       + (* pc incr success *)
         iIntros (lregs' regs') "Hσ".
         iModIntro.
         Search lword_get_word. erewrite <- lreg_lookup in Hr1v.
-      admit.
+        admit. apply Hlr1v.
     - iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iModIntro. iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR.
       { iPureIntro.
         constructor 2 with (lmem' := lmem); try easy.
         Print  Store_failure_store.
         constructor 2 with (p := p) (b := b) (e := e) (a := a) (v := v). unfold get_wcap in Heqgwr1v. unfold lword_get_word in Heqgwr1v.
-        admit.
-        rewrite andb_false_iff in Heqb0. eauto. }.
+        destruct r1v; cbn in *; try destruct sb; cbn; inversion Heqgwr1v; inversion Heqlwr1v; subst.
+        apply Hlr1v.
+        rewrite andb_false_iff in Heqb0. destruct Heqb0; auto. }
       { admit. }
 
  Admitted.

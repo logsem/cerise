@@ -169,10 +169,8 @@ Section cap_lang_rules.
     iApply wp_wp2.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
-    iMod (state_interp_transient_intro (lm:= ∅) (df:= ∅) with "[$Hregs $Hσ]") as "Hσ";
-      [ rewrite prod_merge_empty_r ; iSplit ; [set_solver|done]|].
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hregs $Hσ]") as "Hσ". set_solver.
     iApply (wp2_reg_lookup (lrt := regs)); first by set_solver.
-
     iModIntro.
     iFrame "Hσ".
     iIntros (lwr) "Hσ %Hlrs %Hrs".
