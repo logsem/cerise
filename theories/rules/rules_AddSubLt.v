@@ -105,8 +105,8 @@ Section cap_lang_rules.
     (* Starting the transaction *)
     iApply wp_wp2.
     (* Copying the initial state as the transient state *)
-    iMod (state_interp_transient_intro (lm:= ∅) (df:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
-    { by rewrite prod_merge_empty_r big_sepM_empty. }
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
 
     (* both executions use a bind *)
     iApply wp_opt2_bind.

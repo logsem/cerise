@@ -55,8 +55,8 @@ Section cap_lang_rules.
     iApply wp_wp2.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
-    iMod (state_interp_transient_intro (lm:= ∅) (df:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
-    { by rewrite prod_merge_empty_r big_sepM_empty. }
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
     iApply (wp2_word_of_argument (lrt := lregs) (lw := lw) with "[$Hσ Hφ Hpc_a Hcred]"); first by set_solver.
     iIntros (lw2) "Hσ %Heqlw2 %Heqw2".
 
