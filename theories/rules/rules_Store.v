@@ -178,7 +178,7 @@ Section cap_lang_rules.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
     iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
-    { iCombine "Hpca Hmem" as "Hmem". Unset Printing Notations. Search "big_sepM_insert".
+    { iCombine "Hpca Hmem" as "Hmem".
       rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)). Set Printing Notations. iFrame. rewrite insert_delete. iFrame. auto. Search (delete ?x ?y !! ?x = None). rewrite lookup_delete. done. }
     iApply (wp2_word_of_argument with "[Hφ Hcred $Hσ]"). { set_solver. }
     iIntros (r2v) "Hσ %Hlr2v %Hr2v".

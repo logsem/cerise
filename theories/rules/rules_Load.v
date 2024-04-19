@@ -183,15 +183,15 @@ Section cap_lang_rules.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HaLoad φ) "(>Hmem & >Hregs) Hφ".
     (* extract pc_a *)
-    (* assert (is_Some (dfracs !! (pc_a, pc_v))) as [dq Hdq]. *)
-    (* { apply elem_of_dom. rewrite -Hdomeq. apply elem_of_dom;eauto. } *)
-    (* assert (lmem !! (pc_a, pc_v) = Some (dq,lw)) as Hmem_dpc. *)
-    (* { rewrite lookup_merge Hmem_pc Hdq //. } *)
-    (* rewrite -(insert_id (prod_merge dfracs lmem) _ _ Hmem_dpc). *)
-    (* iDestruct (big_sepM_insert_delete with "Hmem") as "[Hpc_a Hmem]"; cbn. *)
+    assert (is_Some ((fst <$> lmem) !! (pc_a, pc_v))) as [dq Hdq].
+    { apply elem_of_dom. rewrite dom_fmap. apply mk_is_Some in Hmem_pc. rewrite -elem_of_dom in Hmem_pc. now rewrite dom_fmap in Hmem_pc. }
+    assert (lmem !! (pc_a, pc_v) = Some (dq,lw)) as Hmem_dpc.
 
-   iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs Hmem Hφ]").
-    iSplit. admit. (*??? *)
+    {  admit. }
+    rewrite -(insert_id lmem _ _ Hmem_dpc).
+    iDestruct (big_sepM_insert_delete with "Hmem") as "[Hpc_a Hmem]"; cbn.
+
+   iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hregs Hmem Hφ]").
 
     iModIntro.
     iIntros (σ) "(Hσ & Hregs &Hpc_a)".
@@ -202,8 +202,8 @@ Section cap_lang_rules.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
 
-    (* iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame. *)
-    (* rewrite insert_id; auto. *)
+    iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame.
+    rewrite insert_id; auto.
     iMod (state_interp_transient_intro with "[$Hregs $Hσ $Hmem]") as "Hσ".
 
     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
@@ -263,27 +263,33 @@ Section cap_lang_rules.
 
   Lemma wp_load Ep
     pc_p pc_b pc_e pc_a pc_v
-    r1 r2 lw (lmem : LMemF) lregs dq :
+    r1 r2 lw (lmem : LMem) lregs dq :
     decodeInstrWL lw = Load r1 r2 →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (Load r1 r2) ⊆ dom lregs →
-    (snd <$> lmem) !! (pc_a, pc_v) = Some lw →
-    allow_load_map_or_true r2 lregs (snd <$> lmem) →
-    {{{ (▷ [∗ map] la↦w ∈ snd <$> lmem, la ↦ₐ{dq} w) ∗
+    lmem !! (pc_a, pc_v) = Some lw →
+    allow_load_map_or_true r2 lregs lmem →
+    {{{ (▷ [∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
       {{{ lregs' retv, RET retv;
-          ⌜ Load_spec lregs r1 r2 lregs' (snd <$> lmem) retv⌝ ∗
-            ([∗ map] la↦w ∈ snd <$> lmem, la ↦ₐ{dq} w) ∗
+          ⌜ Load_spec lregs r1 r2 lregs' lmem retv⌝ ∗
+            ([∗ map] la↦w ∈ lmem, la ↦ₐ{dq} w) ∗
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
     intros. iIntros "[Hmem Hreg] Hφ".
-    (* iDestruct (mem_remove_dq with "Hmem") as "Hmem". *)
-    iApply (wp_load_general with "[Hmem $Hreg]");eauto. admit.
-    (* { rewrite create_gmap_default_dom list_to_set_elements_L. auto. } *)
-    iNext. iIntros (? ?) "(?&Hmem&?)". iApply "Hφ". iFrame. admit.
-    (* iDestruct (mem_remove_dq with "Hmem") as "Hmem". iFrame. *)
+    iApply (wp_load_general with "[Hmem $Hreg]").
+    apply H2. apply H3. apply H4. apply H5.
+    Focus 3.
+    iModIntro. rewrite -(big_opM_fmap (fun w => (dq, w)) (fun la dw => la ↦ₐ{dw.1} dw.2)%I).     iFrame.
+    Search fmap.
+    by rewrite -map_fmap_compose map_fmap_id.
+    by rewrite -map_fmap_compose map_fmap_id.
+    iModIntro.
+    iIntros (lregs' retv) "(HLoad & Hmem & Hregs)". iApply "Hφ".
+    rewrite -map_fmap_compose map_fmap_id. iFrame.
+    admit.
   Admitted.
 
   Lemma wp_load_success Ep
