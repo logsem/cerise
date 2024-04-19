@@ -162,6 +162,10 @@ Section cap_lang_rules.
         else None
     | _ => None
     end.
+  Lemma big_sepM2_pair {K : Type} {EqDecision0 : EqDecision K} {R : Countable K} {A B : Type}
+    (m : gmap K (A * B)) : forall (k : K) (a : A) (b : B),
+    m !! k = Some (a, b) ↔ (fst <$> m) !! k = Some a ∧ (snd <$> m) !! k = Some b.
+  Proof. Admitted.
 
   Lemma wp_load_general Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -186,8 +190,7 @@ Section cap_lang_rules.
     assert (is_Some ((fst <$> lmem) !! (pc_a, pc_v))) as [dq Hdq].
     { apply elem_of_dom. rewrite dom_fmap. apply mk_is_Some in Hmem_pc. rewrite -elem_of_dom in Hmem_pc. now rewrite dom_fmap in Hmem_pc. }
     assert (lmem !! (pc_a, pc_v) = Some (dq,lw)) as Hmem_dpc.
-
-    {  admit. }
+    { by rewrite big_sepM2_pair. }
     rewrite -(insert_id lmem _ _ Hmem_dpc).
     iDestruct (big_sepM_insert_delete with "Hmem") as "[Hpc_a Hmem]"; cbn.
 
@@ -259,7 +262,7 @@ Section cap_lang_rules.
       iApply ("Hφ" with "[$Hmem $Hregs]").
       iPureIntro.
       by eapply Load_spec_success.
-  Admitted.
+  Qed.
 
   Lemma wp_load Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -289,8 +292,8 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (lregs' retv) "(HLoad & Hmem & Hregs)". iApply "Hφ".
     rewrite -map_fmap_compose map_fmap_id. iFrame.
-    admit.
-  Admitted.
+    by rewrite big_opM_fmap.
+  Qed.
 
   Lemma wp_load_success Ep
     r1 r2 pc_p pc_b pc_e pc_a pc_v
