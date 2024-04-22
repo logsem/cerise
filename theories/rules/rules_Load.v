@@ -162,10 +162,6 @@ Section cap_lang_rules.
         else None
     | _ => None
     end.
-  Lemma big_sepM2_pair {K : Type} {EqDecision0 : EqDecision K} {R : Countable K} {A B : Type}
-    (m : gmap K (A * B)) : forall (k : K) (a : A) (b : B),
-    m !! k = Some (a, b) ↔ (fst <$> m) !! k = Some a ∧ (snd <$> m) !! k = Some b.
-  Proof. Admitted.
 
   Lemma wp_load_general Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -190,7 +186,16 @@ Section cap_lang_rules.
     assert (is_Some ((fst <$> lmem) !! (pc_a, pc_v))) as [dq Hdq].
     { apply elem_of_dom. rewrite dom_fmap. apply mk_is_Some in Hmem_pc. rewrite -elem_of_dom in Hmem_pc. now rewrite dom_fmap in Hmem_pc. }
     assert (lmem !! (pc_a, pc_v) = Some (dq,lw)) as Hmem_dpc.
-    { by rewrite big_sepM2_pair. }
+    { rewrite !lookup_fmap in Hdq, Hmem_pc.
+
+      (* LOL! *)
+      Unset Printing Notations. Set Printing Implicit.
+      unfold LMemF in *. (* necessary... *)
+      Unset Printing Implicit. Set Printing Notations.
+
+      destruct (lmem !! (pc_a, pc_v)) as [[a' b']|];
+      inversion Hdq; inversion Hmem_pc; easy. }
+
     rewrite -(insert_id lmem _ _ Hmem_dpc).
     iDestruct (big_sepM_insert_delete with "Hmem") as "[Hpc_a Hmem]"; cbn.
 
@@ -283,12 +288,9 @@ Section cap_lang_rules.
   Proof.
     intros. iIntros "[Hmem Hreg] Hφ".
     iApply (wp_load_general with "[Hmem $Hreg]").
-    apply H2. apply H3. apply H4. apply H5.
-    Focus 3.
-    iModIntro. rewrite -(big_opM_fmap (fun w => (dq, w)) (fun la dw => la ↦ₐ{dw.1} dw.2)%I).     iFrame.
-    Search fmap.
-    by rewrite -map_fmap_compose map_fmap_id.
-    by rewrite -map_fmap_compose map_fmap_id.
+    7: { iModIntro. rewrite -(big_opM_fmap (fun w => (dq, w)) (fun la dw => la ↦ₐ{dw.1} dw.2)%I). iFrame. }
+    all: eauto.
+    1,2: by rewrite -map_fmap_compose map_fmap_id.
     iModIntro.
     iIntros (lregs' retv) "(HLoad & Hmem & Hregs)". iApply "Hφ".
     rewrite -map_fmap_compose map_fmap_id. iFrame.
