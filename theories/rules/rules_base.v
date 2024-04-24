@@ -1768,14 +1768,13 @@ Section cap_lang_rules_opt.
 
   (* denis says: will fix later *)
   (* Probably missing some assumptions. *)
-  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} {a la lw}:
+  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} a la lw lw' :
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
-    (snd <$> lmt) !! la = Some lw ->
+    lmt !! la = Some (DfracOwn 1, lw') ->
     state_interp_transient σ σt lr lrt lm lmt ⊢
     state_interp_transient σ (update_mem σt a (lword_get_word lw))
                           lr lrt (* registers remain unchanged *)
-                          lm ((λ t : dfrac * LWord, (DfracOwn 1, snd t)) <$> lmt).
-                          (* missing an update on lmt, should now have an updated lmt where la points to lw *)
+                          lm (<[ la := (DfracOwn 1, lw)]> lmt).
   Proof. Admitted.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
