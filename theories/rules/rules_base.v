@@ -1775,7 +1775,27 @@ Section cap_lang_rules_opt.
     state_interp_transient σ (update_mem σt a (lword_get_word lw))
                           lr lrt (* registers remain unchanged *)
                           lm (<[ la := (DfracOwn 1, lw)]> lmt).
-  Proof. Admitted.
+  Proof.
+    iIntros (Hdst Hcur) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)". cbn in *.
+    iFrame "Hσ Hregs Hmem".
+    iSplit.
+    - iPureIntro; cbn.
+      destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
+      exists lrt, (<[la:=lw]> lm'), cur_map.
+      split; auto. split.
+      rewrite fmap_insert. cbn.
+      apply insert_mono. auto.
+      assert (is_cur_regs lr' cur_map) as Hcur_lr'
+          by (by destruct Hinv as [[_ Hcur'] _]).
+      destruct Hinv as [Hregs ?] ; split ; auto.
+      eapply is_cur_regs_mono in Hcur_lr'; eauto.
+      admit.
+      admit.
+    - iIntros (Ep) "H".
+      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
+      iFrame.
+      admit.
+  Admitted.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
     word_of_argumentL lregs src = Some lw2 ->
