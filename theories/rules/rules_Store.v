@@ -133,17 +133,16 @@ Section cap_lang_rules.
 
   Definition exec_optL_Store
     (lregs : LReg) (lmem : LMem)
-    (dst : RegName) (ρ : Z + RegName) : option (LReg * LMem).
+    (dst : RegName) (ρ : Z + RegName) {k : option LReg} : option LReg.
     refine (
-    tostore ← word_of_argumentL lregs ρ;
-    lwsrc ← lregs !! dst ;
-    lcap ← lword_get_cap lwsrc;
-    match lcap with (p, b, e, a, v) =>
-      if writeAllowed p && withinBounds b e a
-      then lregs' ← incrementLPC lregs;
-           Some (lregs' , <[ (a , v) := tostore ]> lmem)
-      else None
-    end).
+    tostore          ← word_of_argumentL lregs ρ;
+    lwdst            ← lregs !! dst ;
+    '(p, b, e, a, v) ← lword_get_cap lwdst;
+    if writeAllowed p && withinBounds b e a then
+      k
+      (* Some (lregs' , <[ (a , v) := tostore ]> lmem) *)
+    else None
+    ).
   Defined.
 
   Lemma wp_store Ep
@@ -174,6 +173,8 @@ Section cap_lang_rules.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
     iApply (wp_wp2 (φ1 := exec_optL_Store lregs lmem r1 r2)).
+    unfold exec_optL_Store.
+    unfold exec_opt.
 
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
@@ -192,43 +193,72 @@ Section cap_lang_rules.
     iApply wp_opt2_eqn_both.
     iApply wp2_word_get_cap.
     iSplit.
-    { iIntros "%Hcr1v %Hgcr1v".
+
+    { (* failure case: r1v contains something, but it is not a capability. *)
+      iIntros "%Hcr1v %Hgcr1v".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
-      iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR. iPureIntro.
-      constructor 2 with (lmem' := lmem); try easy.
-      now constructor 1 with (lw := r1v). admit. }
+      rewrite big_sepM_fmap.
+      iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
+      constructor 2 with (lmem' := lmem); try easy. now constructor 1 with (lw := r1v). }
+
     iIntros (p b e a v) "%Heqlwr1v %Heqgwr1v".
-    destruct (writeAllowed p && withinBounds b e a)  eqn:?; cbn.
-    (* valid capability for writing to memory *)
-    - rewrite updatePC_incrementPC.
-      iApply wp_opt2_bind.
-      iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). { now rewrite elem_of_dom. }
-      iSplit; cbn.
-      + (* pc incr fail *)
-        iIntros (ec lregs') "Hσ".
-        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
-        iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR. iPureIntro.
-        constructor 2 with (lmem' := lmem). easy. econstructor 3 with (lmem := lmem).
-        unfold lword_get_cap, get_wcap in *.
-        destruct r1v; cbn in *; try destruct sb; cbn; inversion Heqgwr1v; inversion Heqlwr1v; subst.
-        admit. admit.
-      + (* pc incr success *)
-        iIntros (lregs' regs') "Hσ".
-        iModIntro.
-        Search lword_get_word. erewrite <- lreg_lookup in Hr1v.
-        admit. apply Hlr1v.
-    - iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+    destruct (writeAllowed p && withinBounds b e a)  eqn:?; cbn. all: revgoals.
+    { (* failure case: no valid capability for writing to memory *)
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iModIntro. iApply ("Hφ" with "[$Hregs Hmem]"). iSplitR.
       { iPureIntro.
         constructor 2 with (lmem' := lmem); try easy.
-        Print  Store_failure_store.
-        constructor 2 with (p := p) (b := b) (e := e) (a := a) (v := v). unfold get_wcap in Heqgwr1v. unfold lword_get_word in Heqgwr1v.
+        constructor 2 with (p := p) (b := b) (e := e) (a := a) (v := v).
         destruct r1v; cbn in *; try destruct sb; cbn; inversion Heqgwr1v; inversion Heqlwr1v; subst.
         apply Hlr1v.
         rewrite andb_false_iff in Heqb0. destruct Heqb0; auto. }
-      { admit. }
+      { by rewrite big_sepM_fmap. } }
 
- Admitted.
+    (* valid capability for writing to memory *)
+    rewrite updatePC_incrementPC. cbn.
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    rewrite update_state_interp_transient_from_mem_mod.
+    iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). { now rewrite elem_of_dom. }
+    iSplit.
+    { (* failure case: incrementing the pc failed *)
+      iIntros (ec lregs') "Hσ %Hlincr %Hincr".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap.
+      iApply ("Hφ" with "[$Hregs $Hmem]").
+      iPureIntro. constructor 2; auto.
+      now constructor 3. }
+
+    (* pc incr success *)
+    iIntros (lregs' regs') "Hσ %Hlincr Hincr".
+    iApply wp2_val. cbn.
+    iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
+    rewrite !big_sepM_fmap. iApply ("Hφ" with "[$Hmem $Hregs]").
+    rewrite andb_true_iff in Heqb0. destruct Heqb0 as [Hwrite Hinbounds].
+    destruct HaStore as [p' [b' [e' [a' [v' [Hreadreg Hlmem]]]]]].
+    rewrite decide_True in Hlmem. destruct Hlmem as [oldlw Hlmem].
+    unfold read_reg_inr in *.
+    rewrite Hlr1v in Hreadreg.
+    unfold lword_get_cap, lword_get_word, lsealable_get_sealable in *.
+    destruct r1v; inversion Heqlwr1v.
+    destruct sb; inversion Heqlwr1v.
+    inversion Hreadreg.
+    subst.
+    iPureIntro.
+    apply (Store_spec_success _ _ _ _ _ _ p' b' e' a' v' r2v oldlw); auto;
+    unfold reg_allows_store. auto. admit.
+    unfold reg_allows_store. auto.
+    unfold read_reg_inr in *.
+    rewrite Hlr1v in Hreadreg.
+    destruct r1v; inversion Heqlwr1v.
+    destruct sb; inversion Heqlwr1v.
+    unfold read_reg_inr in *.
+    inversion Hreadreg. subst. auto.
+    Search is_cur_word.
+    intros.
+    eapply word_of_argumentL_cur. eauto. auto.
+    admit.
+  Admitted.
 
   Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pc_a' lw z :
      decodeInstrWL lw = Store PC (inl z) →

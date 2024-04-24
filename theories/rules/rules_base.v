@@ -1531,7 +1531,7 @@ Section cap_lang_rules_opt.
     specialize (Hregs_incl r lrw Hlrt).
     eapply state_corresponds_reg_get_word in Hregs_incl; eauto.
     erewrite Hregs_incl.
-  
+
   (* Lemma wp_word_of_argument {src lw Φf Φs φ φt lr lrt} : *)
   (*   regs_of_argument src ⊆ dom lrt -> *)
   (*   state_interp_regs_transient φ φt lr lrt ∗ *)
@@ -1770,8 +1770,12 @@ Section cap_lang_rules_opt.
   (* Probably missing some assumptions. *)
   Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} {a la lw}:
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
+    (snd <$> lmt) !! la = Some lw ->
     state_interp_transient σ σt lr lrt lm lmt ⊢
-    state_interp_transient σ (update_mem σt a (lword_get_word lw)) lr lrt lm ((λ t : dfrac * LWord, (DfracOwn 1, snd t)) <$> lmt).
+    state_interp_transient σ (update_mem σt a (lword_get_word lw))
+                          lr lrt (* registers remain unchanged *)
+                          lm ((λ t : dfrac * LWord, (DfracOwn 1, snd t)) <$> lmt).
+                          (* missing an update on lmt, should now have an updated lmt where la points to lw *)
   Proof. Admitted.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
