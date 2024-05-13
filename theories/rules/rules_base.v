@@ -1478,6 +1478,18 @@ Section cap_lang_rules_opt.
     - now apply map_Forall_insert_2.
   Qed.
 
+  Lemma state_phys_log_corresponds_update_mem {reg mem lr lm cur_map a la w lw}:
+    lword_get_word lw = w ->
+    laddr_get_addr la = a ->
+    is_cur_word lw cur_map ->
+    state_phys_log_corresponds reg mem lr lm cur_map ->
+    state_phys_log_corresponds reg (<[a := w]> mem) lr (<[la:=lw]> lm) cur_map.
+  Proof.
+    intros Hlw Hla Hcurr (Hreg & Hmemcurr & Hmem).
+    split; first easy.
+    admit.
+  Admitted.
+
   Lemma lookup_insert_dec:
     forall {K : Type} {M : forall _ : Type, Type} {H : FMap M} {H0 : forall A : Type, Lookup K A (M A)}
       {H1 : forall A : Type, Empty (M A)} {H2 : forall A : Type, PartialAlter K A (M A)} {H3 : OMap M}
@@ -1766,13 +1778,11 @@ Section cap_lang_rules_opt.
       iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
-  (* denis says: will fix later *)
-  (* Probably missing some assumptions. *)
-  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} a la lw lw' :
+  Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} la lw lw' :
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
     lmt !! la = Some (DfracOwn 1, lw') ->
     state_interp_transient σ σt lr lrt lm lmt ⊢
-    state_interp_transient σ (update_mem σt a (lword_get_word lw))
+    state_interp_transient σ (update_mem σt (laddr_get_addr la) (lword_get_word lw))
                           lr lrt (* registers remain unchanged *)
                           lm (<[ la := (DfracOwn 1, lw)]> lmt).
   Proof.
@@ -1781,16 +1791,14 @@ Section cap_lang_rules_opt.
     iSplit.
     - iPureIntro; cbn.
       destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
-      exists lrt, (<[la:=lw]> lm'), cur_map.
+      exists lr', (<[la:=lw]> lm'), cur_map.
       split; auto. split.
       rewrite fmap_insert. cbn.
       apply insert_mono. auto.
+      apply state_phys_log_corresponds_update_mem; auto. apply Hdst.
       assert (is_cur_regs lr' cur_map) as Hcur_lr'
           by (by destruct Hinv as [[_ Hcur'] _]).
-      destruct Hinv as [Hregs ?] ; split ; auto.
       eapply is_cur_regs_mono in Hcur_lr'; eauto.
-      admit.
-      admit.
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
       iFrame.
