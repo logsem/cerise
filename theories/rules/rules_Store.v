@@ -223,8 +223,9 @@ Section cap_lang_rules.
     inversion Heqlwr1v; inversion Hreadreg; subst.
 
     (* update the transient logical memory to have a' point to the value in r2 *)
-    rewrite (update_state_interp_transient_from_mem_mod _ (a', v') r2v _).
+    rewrite (update_state_interp_transient_from_mem_mod (a', v') r2v _).
     2: { intros cur_map Hcurr. apply (word_of_argumentL_cur Hlr2v Hcurr). }
+    2: { intros cur_map. apply (word_of_argumentL_cur Hlr2v Hcurr). }
     2: {  rewrite lookup_fmap. unfold LMem, LAddr in *. rewrite option_fmap_compose.
           destruct (lmem !! (a', v')); cbn; by inversion Hlmem. }
 

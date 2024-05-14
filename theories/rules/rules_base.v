@@ -1478,17 +1478,17 @@ Section cap_lang_rules_opt.
     - now apply map_Forall_insert_2.
   Qed.
 
-  Lemma state_phys_log_corresponds_update_mem {reg mem lr lm cur_map a la w lw}:
-    lword_get_word lw = w ->
-    laddr_get_addr la = a ->
+  Lemma state_phys_log_corresponds_update_mem {reg mem lr lm cur_map la lw}:
+    is_cur_addr la cur_map ->
     is_cur_word lw cur_map ->
     state_phys_log_corresponds reg mem lr lm cur_map ->
-    state_phys_log_corresponds reg (<[a := w]> mem) lr (<[la:=lw]> lm) cur_map.
+    state_phys_log_corresponds reg (<[(laddr_get_addr la) := (lword_get_word lw)]> mem) lr (<[la:=lw]> lm) cur_map.
   Proof.
-    intros Hlw Hla Hcurr (Hreg & Hmemcurr & Hmem).
+    intros Hcurra Hcurrw (Hreg & Hmemcurr & Hmem).
     split; first easy.
-    admit.
-  Admitted.
+    apply lmem_corresponds_insert_respects; auto.
+    unfold mem_phys_log_corresponds; auto.
+  Qed.
 
   Lemma lookup_insert_dec:
     forall {K : Type} {M : forall _ : Type, Type} {H : FMap M} {H0 : forall A : Type, Lookup K A (M A)}
@@ -1778,15 +1778,30 @@ Section cap_lang_rules_opt.
       iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
+  Lemma update_state_interp_from_mem_mod {σ lw Ep lregs lrt} {lmt lmem : LMemF} la' lw' :
+    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
+    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la' cur_map) ->
+    lmt !! la' = Some (DfracOwn 1, lw') ->
+
+    state_interp_logical σ
+      ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
+      ∗ ([∗ map] la↦dw ∈ lmem, la ↦ₐ{dw.1} dw.2)
+      ⊢ |={Ep}=>
+          state_interp_logical (update_mem σ (laddr_get_addr la') (lword_get_word lw))
+            ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
+            ∗ ([∗ map] la↦dw ∈ <[la' := (DfracOwn 1, lw) ]> lmem, la ↦ₐ{dw.1} dw.2).
+  Proof. Admitted.
+
   Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} la lw lw' :
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
+    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la cur_map) ->
     lmt !! la = Some (DfracOwn 1, lw') ->
     state_interp_transient σ σt lr lrt lm lmt ⊢
     state_interp_transient σ (update_mem σt (laddr_get_addr la) (lword_get_word lw))
                           lr lrt (* registers remain unchanged *)
                           lm (<[ la := (DfracOwn 1, lw)]> lmt).
   Proof.
-    iIntros (Hdst Hcur) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)". cbn in *.
+    iIntros (Hcurw Hcura Hla) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)". cbn in *.
     iFrame "Hσ Hregs Hmem".
     iSplit.
     - iPureIntro; cbn.
@@ -1795,15 +1810,14 @@ Section cap_lang_rules_opt.
       split; auto. split.
       rewrite fmap_insert. cbn.
       apply insert_mono. auto.
-      apply state_phys_log_corresponds_update_mem; auto. apply Hdst.
       assert (is_cur_regs lr' cur_map) as Hcur_lr'
           by (by destruct Hinv as [[_ Hcur'] _]).
       eapply is_cur_regs_mono in Hcur_lr'; eauto.
+      apply state_phys_log_corresponds_update_mem; auto.
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iFrame.
-      admit.
-  Admitted.
+      iApply (update_state_interp_from_mem_mod la lw' Hcurw Hcura Hla). iFrame.
+  Qed.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
     word_of_argumentL lregs src = Some lw2 ->
