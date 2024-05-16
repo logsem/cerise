@@ -279,20 +279,6 @@ Proof.
   by destruct_lword lw; cbn.
 Qed.
 
-
-
-
-
-
-
-
-
-
-
-
-
-(* state_phys_log_corresponds definition *)
-
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds
     to the the logical register file `lr`, according to the view map `vmap` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
@@ -302,21 +288,21 @@ Qed.
 Definition reg_phys_log_corresponds (phr : Reg) (lr : LReg) (vmap : VMap) :=
     lreg_strip lr = phr ∧ is_cur_regs lr vmap.
 
-(** for each logical addresses in the logical memory,
-    - the version is less or equal the current version of the address
-    - the current version of the address also exists in the logical memory *)
-Definition mem_current_version (lm : LMem) (vmap : VMap) : Prop :=
-  map_Forall
-    (λ la _ ,
-      ∃ cur_v,
+Definition is_legal_address (lm : LMem) vmap la : Prop :=
+  ∃ cur_v,
         is_cur_addr (laddr_get_addr la, cur_v) vmap
         ∧ laddr_get_version la <= cur_v
-        /\ is_Some ( lm !! (laddr_get_addr la, cur_v))
-    ) lm.
+        /\ is_Some ( lm !! (laddr_get_addr la, cur_v)).
 
-(** for all entries in the view map,
-    - it exists is a logical word `lw` in the logical memory `lm`
-      ( i.e. dom(vmap) ⊆ dom(lm) )
+(** for each logical address in the logical memory,
+    - the version is less than or equal to the current version of the address
+    - the current version of the address also exists in the logical memory *)
+Definition mem_current_version (lm : LMem) (vmap : VMap) : Prop :=
+  map_Forall (λ la _ , is_legal_address lm vmap la) lm.
+
+(** for all entries in the view/curr map,
+    - there exists a logical word `lw` in the logical memory `lm`
+      ( i.e. dom(vmap) ⊆ dom(lm) ) s.t.
     - the logical word `lw` corresponds to the actual word in the physical memory `phm`
       for the same address
     - the logical word `lw` is the current view of the word *)
@@ -335,10 +321,6 @@ Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (vmap : VMap) :=
 Definition state_phys_log_corresponds
   (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap):=
   reg_phys_log_corresponds phr lr vmap ∧ mem_phys_log_corresponds phm lm vmap.
-
-
-
-
 
 (* Lemmas about lreg_corresponds *)
 
