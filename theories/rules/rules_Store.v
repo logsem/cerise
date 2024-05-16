@@ -225,7 +225,7 @@ Section cap_lang_rules.
     (* update the transient logical memory to have a' point to the value in r2 *)
     rewrite (update_state_interp_transient_from_mem_mod (a', v') r2v _).
     2: { intros cur_map Hcurr. apply (word_of_argumentL_cur Hlr2v Hcurr). }
-    2: { intros cur_map. apply (word_of_argumentL_cur Hlr2v Hcurr). }
+    2: { intros cur_map Hcurr. apply Is_true_true_2 in Heqb0. rewrite andb_True in Heqb0. destruct Heqb0. apply (@cap_of_argumentL_cur lregs r1 p' b' e'); eauto. }
     2: {  rewrite lookup_fmap. unfold LMem, LAddr in *. rewrite option_fmap_compose.
           destruct (lmem !! (a', v')); cbn; by inversion Hlmem. }
 

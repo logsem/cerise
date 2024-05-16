@@ -267,6 +267,27 @@ Section cap_lang_rules.
     { unfold option_equiv. constructor. apply REV. } constructor.
   Qed.
 
+  Lemma gen_heap_update_inSepM_general :
+    ∀ {L V : Type} {EqDecision0 : EqDecision L}
+      {H : Countable L} {Σ : gFunctors}
+      {gen_heapG0 : gen_heapGS L V Σ}
+      (σ : gmap L V) (σ' : gmap L (dfrac * V)) (l : L) (v : V),
+      (exists w, (σ' !! l = Some (DfracOwn 1, w))) →
+      gen_heap_interp σ
+      -∗ ([∗ map] k↦y ∈ σ', mapsto k y.1 y.2)
+      ==∗ gen_heap_interp (<[l:=v]> σ)
+          ∗ [∗ map] k↦y ∈ (<[l:=(DfracOwn 1, v)]> σ'), mapsto k y.1 y.2.
+  Proof.
+    intros * Hw. destruct Hw.
+    rewrite (big_sepM_delete _ σ' l) //. iIntros "Hh [Hl Hmap]".
+    iMod (gen_heap_update with "Hh Hl") as "[Hh Hl]". iModIntro.
+    iSplitL "Hh"; eauto.
+    rewrite (big_sepM_delete _ (<[l:=(DfracOwn 1, v)]> σ') l (DfracOwn 1, v)).
+    { rewrite delete_insert_delete. iFrame. }
+    rewrite lookup_insert //.
+  Qed.
+
+
   Lemma gen_heap_update_inSepM :
     ∀ {L V : Type} {EqDecision0 : EqDecision L}
       {H : Countable L} {Σ : gFunctors}
@@ -1778,19 +1799,34 @@ Section cap_lang_rules_opt.
       iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
-  Lemma update_state_interp_from_mem_mod {σ lw Ep lregs lrt} {lmt lmem : LMemF} la' lw' :
-    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
-    (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la' cur_map) ->
-    lmt !! la' = Some (DfracOwn 1, lw') ->
+  Lemma update_state_interp_from_mem_mod {σ Ep lregs} {lmem : LMemF} laddr lwold lwnew :
+    (forall cur_map, is_cur_regs lregs cur_map -> is_cur_word lwnew cur_map) ->
+    (forall cur_map, is_cur_regs lregs cur_map -> is_cur_addr laddr cur_map) ->
+    lmem !! laddr = Some (DfracOwn 1, lwold) ->
 
     state_interp_logical σ
       ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
       ∗ ([∗ map] la↦dw ∈ lmem, la ↦ₐ{dw.1} dw.2)
       ⊢ |={Ep}=>
-          state_interp_logical (update_mem σ (laddr_get_addr la') (lword_get_word lw))
+          state_interp_logical (update_mem σ (laddr_get_addr laddr) (lword_get_word lwnew))
             ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
-            ∗ ([∗ map] la↦dw ∈ <[la' := (DfracOwn 1, lw) ]> lmem, la ↦ₐ{dw.1} dw.2).
-  Proof. Admitted.
+            ∗ ([∗ map] la↦dw ∈ <[laddr := (DfracOwn 1, lwnew) ]> lmem, la ↦ₐ{dw.1} dw.2).
+  Proof.
+    iIntros (Hcurw Hcura Hladdr) "(Hσ & Hregs & Hmem)".
+    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
+    iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
+    iFrame.
+    iMod ((@gen_heap_update_inSepM_general LAddr _ _ _ _ _ _ _ laddr lwnew) with "Hm Hmem") as "[Hm Hmem]"; eauto.
+    iModIntro. iFrame.
+    iExists _,_,cur_map; iFrame.
+    iPureIntro.
+    destruct HLinv as [[? Hregscur] Hinv_mem].
+    apply state_phys_log_corresponds_update_mem; try easy.
+    1: apply Hcura.
+    2: apply Hcurw.
+    all: apply (is_cur_regs_mono Hlregs_incl); auto.
+Qed.
 
   Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} la lw lw' :
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
@@ -1816,7 +1852,7 @@ Section cap_lang_rules_opt.
       apply state_phys_log_corresponds_update_mem; auto.
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iApply (update_state_interp_from_mem_mod la lw' Hcurw Hcura Hla). iFrame.
+      iApply (update_state_interp_from_mem_mod la lw' lw Hcurw Hcura Hla). iFrame.
   Qed.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :
@@ -1827,6 +1863,15 @@ Section cap_lang_rules_opt.
     - now inversion 1.
     - cbn. intros Hreg Hcurregs.
       apply (map_Forall_lookup_1 _ _ _ _ Hcurregs Hreg).
+  Qed.
+
+  Lemma cap_of_argumentL_cur {lregs rsrc p b e a v cur_map} :
+    word_of_argumentL lregs rsrc = Some (LCap p b e a v) ->
+    withinBounds b e a ->
+    is_cur_regs lregs cur_map → is_cur_addr (a, v) cur_map.
+  Proof.
+    intros. apply (cur_lword_cur_addr (LCap p b e a v) p b e). unfold is_lword_version. all: auto.
+    eapply word_of_argumentL_cur. eauto. all: auto. now apply Is_true_true_1.
   Qed.
 
   (* Lemma updatePC_impl {φ} : *)
