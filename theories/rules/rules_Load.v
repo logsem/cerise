@@ -187,11 +187,7 @@ Section cap_lang_rules.
     { apply elem_of_dom. rewrite dom_fmap. apply mk_is_Some in Hmem_pc. rewrite -elem_of_dom in Hmem_pc. now rewrite dom_fmap in Hmem_pc. }
     assert (lmem !! (pc_a, pc_v) = Some (dq,lw)) as Hmem_dpc.
     { rewrite !lookup_fmap in Hdq, Hmem_pc.
-
-      (* LOL! *)
-      Unset Printing Notations. Set Printing Implicit.
       unfold LMemF in *. (* necessary... *)
-      Unset Printing Implicit. Set Printing Notations.
 
       destruct (lmem !! (pc_a, pc_v)) as [[a' b']|];
       inversion Hdq; inversion Hmem_pc; easy. }
