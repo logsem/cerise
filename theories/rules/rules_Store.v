@@ -133,17 +133,13 @@ Section cap_lang_rules.
 
   Definition exec_optL_Store
     (lregs : LReg) (lmem : LMem)
-    (dst : RegName) (ρ : Z + RegName) {k : option LReg} : option LReg.
-    refine (
+    (dst : RegName) (ρ : Z + RegName) : option LReg :=
     tostore          ← word_of_argumentL lregs ρ;
     lwdst            ← lregs !! dst ;
     '(p, b, e, a, v) ← lword_get_cap lwdst;
     if writeAllowed p && withinBounds b e a then
-      k
-      (* Some (lregs' , <[ (a , v) := tostore ]> lmem) *)
-    else None
-    ).
-  Defined.
+      lregs' ← incrementLPC lregs ; Some lregs'
+    else None.
 
   Lemma wp_store Ep
     pc_p pc_b pc_e pc_a pc_v
@@ -172,8 +168,7 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    iApply (wp_wp2 (φ1 := exec_optL_Store lregs lmem r1 r2) (φ2 := _)).
-    (* unsolved existential, see bottom of proof... :( *)
+    iApply (wp_wp2 (φ1 := exec_optL_Store lregs lmem r1 r2 ) (φ2 := _)).
 
     iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
     iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
@@ -251,8 +246,6 @@ Section cap_lang_rules.
     unfold reg_allows_store.
     rewrite andb_true_iff in Heqb0; destruct Heqb0 as [Hwrite Hinbounds].
     auto.
-
-    Unshelve. exact lregs'. (* awkward... *)
   Qed.
 
   Lemma wp_store_success_z_PC E pc_p pc_b pc_e pc_a pc_v pc_a' lw z :
