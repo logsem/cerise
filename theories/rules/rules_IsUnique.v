@@ -237,18 +237,46 @@ Section cap_lang_rules.
     by destruct_and? Hsweep.
   Qed.
 
-  Lemma update_state_interp_transient_next_version {σ σt lr lrt lm lmt src lwsrc b e v}:
+  Lemma update_state_interp_transient_next_version {σ σt lreg lrt lmem lmt src lwsrc b e v}:
     sweep (mem σ) (reg σ) src = true ->
-    lrt !! src = Some lwsrc ->
-    state_interp_transient σ σt lr lrt lm lmt ⊢
-    ∃ (lmt' : LMemF),
-      ⌜ is_valid_updated_lmemory (snd <$> lmt) (finz.seq_between b e) v (snd <$> lmt')⌝ ∗
-      ⌜ map_Forall (fun _ a => fst a = DfracOwn 1) lmt'⌝ ∗
+    lrt !! src = Some lwsrc -> (* lreg, lrt ? *)
+    state_interp_transient σ σt lreg lrt ((λ y : LWord, (DfracOwn 1, y)) <$> lmem) ((λ y : LWord, (DfracOwn 1, y)) <$> lmt) ⊢
+    ∃ (lmt' : LMem),
+      ⌜ is_valid_updated_lmemory lmem (finz.seq_between b e) v lmt'⌝ ∗
       state_interp_transient
-        σ  σ (* the physical does not change *)
-        lr (<[ src := next_version_lword lwsrc ]> lrt) (* the version of the word is updated *)
-        lm lmt'. (* the version of the memory region is updated *)
+        σ σ (* the physical state does not change *)
+        lreg (<[ src := next_version_lword lwsrc ]> lrt) (* the version of the word is updated *)
+        ((λ y : LWord, (DfracOwn 1, y)) <$> lmem) ((λ y : LWord, (DfracOwn 1, y)) <$> lmt'). (* the version of the memory region is updated *)
   Proof.
+    iIntros (Hsweep Hsrc) "(Hσ & Hregs & Hmem & _ & Hcommit)".
+    iDestruct "Hσ" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
+    iDestruct (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hmem_incl".
+    destruct
+      (update_cur_version_region lmem lm vmap ((finz.seq_between b e)))
+      as ((lmem' & lm') & vmap') eqn:Hupd_lmem.
+    iExists lmem'.
+    iAssert (
+        ⌜ Forall (λ a0 : Addr, vmap !! a0 = Some v) (finz.seq_between b e) ⌝
+      )%I as "%Hforall_vmap".
+    admit.
+    iAssert (
+        ⌜ Forall (λ a0 : Addr, is_Some (lm !! (a0, v))) (finz.seq_between b e) ⌝
+      )%I as "%Hforall_lm".
+    admit.
+    iAssert (
+        ⌜ Forall (λ a0 : Addr, lm !! (a0, (v + 1)%nat) = None) (finz.seq_between b e) ⌝
+      )%I as "%Hforall_lm_max".
+    admit.
+
+    iSplit.
+    iPureIntro.
+    rewrite snd_fmap_pair_inv in Hmem_incl.
+    eapply update_cur_version_region_valid; eauto.
+    admit.
+    (* TODO
+       lemma à la update_state_interp_from_mem_mod,
+       i.e. that updates the actual state *)
   Admitted.
 
   (* TODO the proof uses wp_opt,
@@ -353,7 +381,7 @@ Section cap_lang_rules.
         all: eapply IsUnique_success_true_is_sealed; eauto.
       + iDestruct (update_state_interp_transient_next_version
                      (b := b) (e := e) with "Hσ")
-          as (lmt') "(%Hvalid_lmt' & %Hown_lmt' & Hσ)"; eauto.
+          as (lmt') "(%Hvalid_lmt' & Hσ)"; eauto.
         rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
         ; last by set_solver.
         iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
@@ -379,8 +407,6 @@ Section cap_lang_rules.
         iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
         iApply wp2_val. cbn.
         iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
-        apply fmap_forall_inv in Hown_lmt'.
-        destruct Hown_lmt' as (lmem' & ->).
         rewrite big_sepM_fmap; cbn.
         iApply ("Hφ" with "[$Hmem $Hregs]").
         iPureIntro.
@@ -390,10 +416,6 @@ Section cap_lang_rules.
         ; inversion Hget_lsrcv; subst.
         eapply IsUnique_success_true_cap; eauto.
         { by intro ; subst. }
-        {
-          rewrite !snd_fmap_pair_inv in Hvalid_lmt'.
-          eapply Hvalid_lmt'.
-        }
     - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
       { iCombine "Hpca Hmem" as "Hmem".
         rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
