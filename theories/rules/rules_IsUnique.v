@@ -19,83 +19,22 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  (* TODO @Bastien: keep the lemma around,
-     until doing the proof in a `wp_opt2` style
-   *)
-  Lemma incrementLPC_incrementPC_some regs regs' :
-    incrementLPC regs = Some regs' ->
-    incrementPC (lreg_strip regs) = Some (lreg_strip regs').
-  Proof.
-    rewrite /incrementPC /incrementLPC.
-    intros Hlpc.
-    rewrite /lreg_strip lookup_fmap; cbn.
-    destruct (regs !! PC) as [lw|] eqn:Heq ; rewrite Heq; cbn in *; last done.
-    destruct_lword lw; cbn in *; try done.
-    destruct (a + 1)%a; last done.
-    simplify_eq.
-    by rewrite fmap_insert.
-  Qed.
-
-  Lemma incrementLPC_incrementPC_none regs :
-    incrementLPC regs = None <-> incrementPC (lreg_strip regs) = None.
-  Proof.
-    intros.
-    rewrite /incrementPC /incrementLPC.
-    rewrite /lreg_strip lookup_fmap; cbn.
-    destruct (regs !! PC) as [LX|] eqn:Heq ; rewrite Heq; cbn; last done.
-    destruct LX ; cbn ; [(clear; firstorder) | | (clear; firstorder)].
-    destruct sb as [? ? ? a' | ] ; eauto; cbn; last done.
-    destruct (a' + 1)%a eqn:Heq'; done.
-  Qed.
-
-  Lemma incrementLPC_fail_updatePC regs m etbl ecur:
-    incrementLPC regs = None ->
-    updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} = None.
-  Proof.
-    intro Hincr. apply incrementLPC_incrementPC_none in Hincr.
-    by apply incrementPC_fail_updatePC.
-  Qed.
-
-
-  Lemma incrementLPC_success_updatePC regs m etbl ecur regs' :
-    incrementLPC regs = Some regs' ->
-    ∃ p b e a a' (v : Version),
-      regs !! PC = Some (LCap p b e a v) ∧
-        (a + 1)%a = Some a' ∧
-        updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} =
-          Some (NextI,
-              {| reg := (<[PC:=WCap p b e a']> (lreg_strip regs));
-                mem := m;
-                etable := etbl ;
-                enumcur := ecur |})
-      ∧ regs' = <[ PC := (LCap p b e a' v) ]> regs.
-  Proof.
-    intro Hincr.
-    opose proof (incrementLPC_incrementPC_some _ _ Hincr) as HincrPC.
-    eapply (incrementPC_success_updatePC _ m etbl ecur) in HincrPC.
-    destruct HincrPC as (p'&b'&e'&a''&a'''&Hregs&Heq&Hupd&Hregseq).
-    rewrite /incrementLPC in Hincr.
-    destruct (regs !! PC) as [wpc |]; last done.
-    destruct_lword wpc; try done.
-    destruct (a + 1)%a as [a'|] eqn:Heq'; last done; simplify_eq.
-    rewrite /lreg_strip fmap_insert //= -/(lreg_strip regs)  in Hregseq.
-    exists p, b, e, a, a', v.
-    repeat (split; try done).
-    by rewrite Hupd Hregseq.
-  Qed.
-
-
-
   Definition is_sealed (lw : LWord) :=
     match lw with
     | LCap E _ _ _ _ | LSealedCap _ _ _ _ _ _ => true
     | _ => false
     end.
 
+  Definition is_log_cap_or_scap (lw : LWord) : bool :=
+    match lw with
+    | LCap _ _ _ _ _ | LWSealed _ (LSCap _ _ _ _ _)  => true
+    | _ => false
+    end.
+
   Inductive IsUnique_fail (lregs : LReg) (lmem : LMem) (dst src : RegName): Prop :=
   | IsUnique_fail_cap (lwsrc: LWord) :
     lregs !! src = Some lwsrc ->
-    is_log_cap lwsrc = false →
+    is_log_cap_or_scap lwsrc = false →
     IsUnique_fail lregs lmem dst src
 
   | IsUnique_fail_invalid_PC_upd (lwsrc: LWord) p b e a v:
@@ -222,6 +161,81 @@ Section cap_lang_rules.
 
    *)
 
+  Definition exec_optL_IsUnique
+    (lregs : LReg) (lmem : LMem)
+    (dst : RegName) (src : RegName)
+    (bsweep : bool) : option LReg :=
+    lwsrc        ← lregs !! src ;
+    _            ← match (is_lcap lwsrc) with | true => Some () | false => None end;
+    lregs' ← incrementLPC
+      (if bsweep
+       then
+         (if is_sealed lwsrc
+          then (<[dst:=LWInt 1%Z]> lregs)
+          else (<[dst:=LWInt 1%Z]> (<[ src := next_version_lword lwsrc ]> lregs)))
+       else (<[dst:=LWInt 0%Z]> lregs)
+      )
+    ; Some lregs'.
+
+  (* TODO move stdpp_extra *)
+  Lemma snd_fmap_pair_inv {K V1 V2} `{Countable K} (m : gmap K V1) (v2 : V2) :
+    (snd <$> ((λ v : V1, (v2, v)) <$> m)) = m.
+  Proof.
+    induction m using map_ind.
+    - by rewrite !fmap_empty.
+    - by rewrite !fmap_insert /= IHm.
+  Qed.
+
+  (* TODO generalise and move *)
+  Lemma fmap_forall_inv (lmt : LMemF) :
+    map_Forall (λ (_ : LAddr) (a : dfrac * LWord), a.1 = DfracOwn 1) lmt ->
+    exists lm, lmt = ((λ y : LWord, (DfracOwn 1, y)) <$> lm).
+  Proof.
+    induction lmt using map_ind; intro Hall.
+    - exists ∅. by rewrite fmap_empty.
+    - assert (x.1 = DfracOwn 1) as Hx
+                                     by (apply map_Forall_insert_1_1 in Hall; auto).
+      apply map_Forall_insert_1_2 in Hall; auto.
+      apply IHlmt in Hall.
+      destruct Hall as (lm' & Hall).
+      exists (<[i := (snd x)]> lm').
+      rewrite fmap_insert /=.
+      by destruct x ; cbn in * ; subst.
+  Qed.
+
+  (* TODO move *)
+  Lemma wp2_word_is_lcap {Ep} {w Φf Φs} :
+         Φf ∧ (Φs () ())
+      ⊢ wp_opt2 Ep (if is_lcap w then Some () else None) (word_is_cap_or_scap (lword_get_word w)) Φf Φs.
+  Proof.
+    iIntros "HΦ".
+    destruct w as [ | [ | ] | [] [ | ] ]; cbn.
+    all: try now rewrite bi.and_elim_l.
+    all: try now rewrite bi.and_elim_r.
+  Qed.
+
+  Lemma state_interp_transient_unique_in_lregs
+    {σ σt lr lrt lm lmt src lwsrc}:
+    sweep (mem σ) (reg σ) src = true ->
+    lrt !! src = Some lwsrc ->
+    state_interp_transient σ σt lr lrt lm lmt ⊢
+    ⌜ unique_in_registersL lr src lwsrc ⌝.
+  Proof.
+  Admitted.
+
+  Lemma update_state_interp_transient_next_version {σ σt lr lrt lm lmt src lwsrc b e v}:
+    sweep (mem σ) (reg σ) src = true ->
+    lrt !! src = Some lwsrc ->
+    state_interp_transient σ σt lr lrt lm lmt ⊢
+    ∃ (lmt' : LMemF),
+      ⌜ is_valid_updated_lmemory (snd <$> lmt) (finz.seq_between b e) v (snd <$> lmt')⌝ ∗
+      ⌜ map_Forall (fun _ a => fst a = DfracOwn 1) lmt'⌝ ∗
+      state_interp_transient
+        σ  σ (* the physical does not change *)
+        lr (<[ src := next_version_lword lwsrc ]> lrt) (* the version of the word is updated *)
+        lm lmt'. (* the version of the memory region is updated *)
+  Admitted.
+
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v
     (dst src : RegName) lw lmem lregs :
@@ -239,314 +253,505 @@ Section cap_lang_rules.
             ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc φ) "(>Hmem & >Hmap) Hφ".
-    apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
-    iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
-
-    (* Derive necessary register values in r *)
-    iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
-    have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs.
-    specialize (indom_lregs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri.
-    odestruct (Hri dst) as [ldstv [Hldst' Hldst] ]; first by set_solver+.
-    odestruct (Hri src) as [lsrcv [Hlsrc' Hlsrc] ]; first by set_solver+.
-
-    (* Derive necessary memory *)
-    iDestruct (gen_heap_valid_inclSepM with "Hm Hmem") as %Hmem.
-    iDestruct (gen_mem_valid_inSepM lmem lm with "Hm Hmem") as %Hma; eauto.
-
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc φ) "(>Hmem & >Hregs) Hφ".
+    (*  extract the pc  *)
+    rewrite (big_sepM_delete). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ]").
     iModIntro.
-    iSplitR.
-    by iPureIntro; apply normal_always_head_reducible.
-    iNext. iIntros (e2 σ2 efs Hpstep).
-    apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
-    iIntros "_".
-    iSplitR; auto; eapply step_exec_inv in Hstep; eauto.
-    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
-    ; eapply state_corresponds_reg_get_word ; eauto.
-    2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto.
+    iIntros (σ) "(Hσ & Hregs & Hpca)".
+    iModIntro.
+    iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
 
-    set (srcv := lword_get_word lsrcv).
-    assert ( reg !! src = Some srcv ) as Hsrc
-        by (eapply state_corresponds_reg_get_word ; eauto).
-    rewrite /exec /= Hsrc /= in Hstep.
+    destruct (sweep (mem σ) (reg σ) src) eqn:Hsweep
+    ; cbn ; rewrite Hsweep
+    ; unshelve iApply (wp_wp2 (φ1 := exec_optL_IsUnique lregs lmem dst src _) (φ2 := _))
+    ; [exact true|exact false| |].
+    all: iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
+      { iCombine "Hpca Hmem" as "Hmem".
+        rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
+        rewrite insert_delete. iFrame. auto. by rewrite lookup_delete. }
+      iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
+      iIntros (srcv) "Hσ %Hlsrcv %Hsrcv".
 
-    (* src contains a capability *)
-    destruct (is_lcap lsrcv) eqn:Hlsrcv; cycle 1; subst srcv; cbn in *.
-    { (* Fail : not a capability *)
-      destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv.
-      all: simplify_map_eq.
-      all: (iSplitR "Hφ Hmap Hmem"
-            ; [ iExists lr, lm, vmap; iFrame; auto
-              | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_cap
-           ]).
-    }
-    destruct (get_is_lcap_inv lsrcv Hlsrcv) as (p & b & e & a & v & Hget_lsrcv).
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      iApply wp2_word_is_lcap. iSplit.
 
-    set (lregs' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]>
-                      (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) )
-                       then (<[ src := next_version_lword lsrcv]> lregs)
-                       else lregs))).
-    set (lr' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]>
-                   (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) )
-                    then (<[ src := next_version_lword lsrcv]> lr)
-                    else lr))).
-    assert (lreg_strip lregs' ⊆ lreg_strip lr') as Hlregs'_in_lr'.
-    { subst lregs' lr'.
-      apply map_fmap_mono, insert_mono.
-      destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto.
-      apply insert_mono; auto.
-    }
+      { (* failure case: r1v contains something, but it is not a capability. *)
+        iIntros "%Hcsrcv %Hgcsrcv".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+        rewrite big_sepM_fmap.
+        iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
+        constructor 4; try easy.
+        eapply IsUnique_fail_cap; first eassumption.
+        rewrite /is_log_cap_or_scap.
+        destruct srcv; auto.
+        destruct sb; cbn in *; done.
+        destruct l; cbn in *; done.
+      }
 
-    assert ( (lreg_strip lr') =
-               (<[ dst := WInt (if (sweep mem reg src) then 1 else 0) ]> reg))
-      as Hstrip_lr'.
-    { subst lr'.
-      destruct HLinv as [ [Hstrips Hcurreg] _].
-      destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto.
-      all: rewrite -Hstrips /lreg_strip !fmap_insert -/(lreg_strip lr) //=.
-      rewrite lword_get_word_next_version insert_lcap_lreg_strip; cycle 1 ; eauto.
-    }
+      iIntros "%Heqlwsrcv %Heqgwsrcv".
+      rewrite updatePC_incrementPC; cbn.
 
-    destruct (incrementLPC lregs') as  [?|] eqn:Hlregs'
-    ; pose proof Hlregs' as H'lregs'
-    ; cycle 1.
-    {
-      apply incrementLPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hlregs'.
-      eapply updatePC_fail_incl with
-        (regs' := lreg_strip lr') (m':=mem)
-        (etbl':=etable) (ecur':=enumcur) in Hlregs'
+
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      destruct (is_lcap srcv) eqn:Hsrcv_lcap ; last done; clear Heqlwsrcv.
+      destruct (get_is_lcap_inv srcv Hsrcv_lcap) as (p & b & e & a & v & Hget_lsrcv).
+      Set Nested Proofs Allowed.
+      iDestruct (state_interp_transient_unique_in_lregs with "Hσ") as "%Hunique_in_lreg"; eauto.
+      destruct (is_sealed srcv) eqn:His_sealed.
+      + (* case is sealed: the version is not updated *)
+        rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
+        ; last by set_solver.
+        iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
+        { rewrite elem_of_dom.
+          destruct (decide (PC = dst)); try by simplify_map_eq.
+        }
+        iSplit.
+        { (* failure case: incrementing the pc failed *)
+          iIntros (ec lregs') "Hσ %Hlincr %Hincr".
+          iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+          rewrite big_sepM_fmap.
+          iApply ("Hφ" with "[$Hregs $Hmem]").
+          iPureIntro.
+          constructor 4; auto.
+          destruct srcv as [ | [|] | ? [|] ]
+          ; cbn in *
+          ; try done
+          ; by econstructor 3.
+        }
+
+        (* pc incr success *)
+        iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
+        iApply wp2_val. cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
+        rewrite big_sepM_fmap; cbn.
+        iApply ("Hφ" with "[$Hmem $Hregs]").
+        iPureIntro.
+        destruct srcv as [ | [|] | ? [|] ] ; cbn in *
+        ; auto
+        ; try done
+        ; inversion Hget_lsrcv; subst.
+        all: eapply IsUnique_success_true_is_sealed; eauto.
+      + iDestruct (update_state_interp_transient_next_version
+                     (b := b) (e := e) with "Hσ")
+          as (lmt') "(%Hvalid_lmt' & %Hown_lmt' & Hσ)"; eauto.
+        rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
+        ; last by set_solver.
+        iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
+        { rewrite elem_of_dom.
+          destruct (decide (PC = dst)); try by simplify_map_eq.
+          destruct (decide (PC = src)); by simplify_map_eq.
+        }
+        iSplit.
+        { (* failure case: incrementing the pc failed *)
+          iIntros (ec lregs') "Hσ %Hlincr %Hincr".
+          iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+          rewrite big_sepM_fmap.
+          iApply ("Hφ" with "[$Hregs $Hmem]").
+          iPureIntro.
+          constructor 4; auto.
+          destruct srcv as [ | [|] | ? [|] ]
+          ; cbn in *
+          ; try done
+          ; by econstructor 2.
+        }
+
+        (* pc incr success *)
+        iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
+        iApply wp2_val. cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
+        apply fmap_forall_inv in Hown_lmt'.
+        destruct Hown_lmt' as (lmem' & ->).
+        rewrite big_sepM_fmap; cbn.
+        iApply ("Hφ" with "[$Hmem $Hregs]").
+        iPureIntro.
+        destruct srcv as [ | [|] | ? [|] ] ; cbn in *
+        ; auto
+        ; try done
+        ; inversion Hget_lsrcv; subst.
+        eapply IsUnique_success_true_cap; eauto.
+        { by intro ; subst. }
+        {
+          rewrite !snd_fmap_pair_inv in Hvalid_lmt'.
+          eapply Hvalid_lmt'.
+        }
+    - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
+      { iCombine "Hpca Hmem" as "Hmem".
+        rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
+        rewrite insert_delete. iFrame. auto. by rewrite lookup_delete. }
+      iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
+      iIntros (srcv) "Hσ %Hlsrcv %Hsrcv".
+
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      iApply wp2_word_is_lcap. iSplit.
+
+      { (* failure case: r1v contains something, but it is not a capability. *)
+        iIntros "%Hcsrcv %Hgcsrcv".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+        rewrite big_sepM_fmap.
+        iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
+        constructor 4; try easy.
+        eapply IsUnique_fail_cap; first eassumption.
+        rewrite /is_log_cap_or_scap.
+        destruct srcv; auto.
+        destruct sb; cbn in *; done.
+        destruct l; cbn in *; done.
+      }
+
+      iIntros "%Heqlwdstv %Heqgwdstv".
+      rewrite updatePC_incrementPC; cbn.
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      rewrite (update_state_interp_transient_int (dst := dst) (z := 0%Z))
+      ; last by set_solver.
+      iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
+      { rewrite elem_of_dom.
+        destruct (decide (PC = dst)) ; subst; now simplify_map_eq.
+      }
+      iSplit.
+      { (* failure case: incrementing the pc failed *)
+        iIntros (ec lregs') "Hσ %Hlincr %Hincr".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+        rewrite big_sepM_fmap.
+        iApply ("Hφ" with "[$Hregs $Hmem]").
+        iPureIntro.
+        constructor 4; auto. econstructor 3; eauto. }
+
+      (* pc incr success *)
+      iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
+      iApply wp2_val. cbn.
+      iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap; cbn.
+      iApply ("Hφ" with "[$Hmem $Hregs]").
+      iPureIntro.
+      destruct srcv as [ | [|] | ? [|] ] ; cbn in *
       ; auto
-      ; cycle 1.
-      {
-        rewrite /lreg_strip lookup_fmap.
-        subst lregs' lr'.
-        apply fmap_is_Some.
-        destruct (decide (dst = PC)); simplify_map_eq ; auto.
-        destruct (sweep mem reg src) ; simplify_map_eq ; auto.
-        destruct (is_sealed lsrcv) ; simplify_map_eq ; auto.
-        destruct (decide (src = PC)) ; simplify_map_eq ; auto.
-      }
-      rewrite Hstrip_lr' in Hlregs'.
-      match goal with
-      | Hstep :
-        match ?x with _ => _ end = (_,_) |- _ =>
-          replace x with (None : option Conf) in Hstep
-            by (destruct_lword lsrcv ; eauto)
-      end
-      ; simplify_eq.
-      subst lr'.
+      ; try done
+      ; eapply IsUnique_success_false; eauto.
+  Admitted.
 
-      iSplitR "Hφ Hmap Hmem"
-      ; [ iExists lr, lm, vmap; iFrame; auto
-        | iApply "Hφ" ; iFrame].
-      destruct (sweep mem reg src)
-      ; destruct (is_sealed lsrcv)
-      ; subst lregs'
-      ; cbn in *
-      ; try (by iFailCore IsUnique_fail_invalid_PC_nupd)
-      ; try (by iFailCore IsUnique_fail_invalid_PC_upd).
-    }
+  (* Lemma update_state_interp_transient_next_version {σ σt lr lrt} {lm lmt : LMemF} la lw lw' : *)
+  (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) -> *)
+  (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la cur_map) -> *)
+  (*   lmt !! la = Some (DfracOwn 1, lw') -> *)
+  (*   state_interp_transient σ σt lr lrt lm lmt ⊢ *)
+  (*   state_interp_transient σ (update_mem σt (laddr_get_addr la) (lword_get_word lw)) *)
+  (*                         lr lrt (* registers remain unchanged *) *)
+  (*                         lm (<[ la := (DfracOwn 1, lw)]> lmt). *)
 
-    (* PC has been incremented correctly *)
-    rewrite /update_reg /= in Hstep.
-    eapply (incrementLPC_success_updatePC _ mem etable enumcur) in Hlregs'
-        as (p1 & b1 & e1 & a1 & a_pc1 & v1 & HPC'' & Ha_pc' & HuPC & ->)
-    ; simplify_map_eq.
-    assert (dst <> PC) as Hdst by (subst lregs' ; intro ; simplify_map_eq).
-    eapply updatePC_success_incl with
-      (regs' := lreg_strip lr') (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC
-    ; auto.
-    rewrite Hstrip_lr' in HuPC.
-    rewrite HuPC in Hstep; clear HuPC.
-    match goal with
-    | Hstep : match ?x with _ => _ end = (_,_) |- _ =>
-        match goal with
-        | Hstep' : context f [ Some (?a,?b) ] |- _ =>
-            replace x with (Some (a,b)) in Hstep
-              by (destruct_lword lsrcv ; cbn in * ; try congruence)
-        end
-    end
-    ; subst lregs' lr' ; simplify_eq ; simplify_map_eq.
-
-    (* Start the different cases now *)
-    (* sweep success or sweep fail *)
-    destruct (sweep mem reg src) as [|] eqn:Hsweep; cycle 1.
-    { (* sweep is false *)
-      iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-      iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
-      ; first by simplify_map_eq.
-
-      iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
-      ; [| iApply "Hφ" ; iFrame; iPureIntro; eapply IsUnique_success_false ; eauto].
-
-      iExists _, lm, vmap; iFrame; auto
-      ; iPureIntro; econstructor; eauto
-      ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
-      ; cbn in *
-      ; last (split;eauto)
-      .
-      assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
-      { eapply lookup_weaken in HPC'' ; eauto.
-        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto.
-      }
-      eapply lreg_corresponds_insert_respects; eauto.
-      eapply lreg_corresponds_insert_respects; done.
-    }
-
-    (* sweep is true *)
-    eapply sweep_true_specL in Hsweep; eauto.
-
-    destruct ( is_sealed lsrcv ) eqn:His_sealed; cbn in *; simplify_eq.
-    {
-      iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap")
-        as "[Hr Hmap]"; eauto.
-      iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
-        as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
-
-      iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
-      ; [| iApply "Hφ" ; iFrame; iPureIntro ; eapply IsUnique_success_true_is_sealed; eauto]
-      ; last (by destruct Hsweep as [ ? _ ]; eauto ; eapply unique_in_registersL_mono).
-
-      iExists _, lm, vmap; iFrame; auto
-      ; iPureIntro; econstructor; eauto
-      ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
-      ; cbn in *
-      ; last (split;eauto).
-
-      assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
-      { eapply lookup_weaken in HPC'' ; eauto.
-        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto.
-      }
-      eapply lreg_corresponds_insert_respects; eauto.
-      eapply lreg_corresponds_insert_respects; done.
-    }
+    (* unfold read_reg_inr in *. rewrite Hlr1v in Hreadreg. *)
+    (* inversion Heqlwr1v; inversion Hreadreg; subst. *)
 
 
-    (* case is_not_sealed *)
-    destruct_lword lsrcv ; cbn in His_sealed, Hget_lsrcv ; simplify_eq.
-    assert (p ≠ E) as Hp0_neq_E by (by intro ; simplify_eq; cbn in His_sealed)
-    ; clear His_sealed.
-    set (lsrcv := LCap p b e a v).
-    (* update version number of memory points-to *)
-    assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
-    opose proof
-      (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hlsrc)
-      as HcurMap; first (by cbn).
-    opose proof
-      (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hlsrc)
-      as HmemMap_maxv; first (by cbn).
-    opose proof
-      (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hlsrc)
-      as HmemMap; first (by cbn).
-    destruct (update_cur_version_word_region lmem lm vmap (LCap p b e a v))
-      as [ [lmem' lm'] vmap'] eqn:Hupd
-    ; rewrite /update_cur_version_word_region /= in Hupd.
-    iMod ((gen_heap_lmem_version_update lmem lm lmem' lm' ) with "Hm Hmem")
-      as "[Hm Hmem]"; eauto.
-    (* we destruct the cases when the registers are equals *)
-    destruct (decide (src = PC)); simplify_map_eq ; cycle 1.
-    - (* src <> PC *)
-      destruct (decide (src = dst)) ; simplify_map_eq ; cycle 1.
-      + (* src <> dst *)
-        iMod ((gen_heap_update_inSepM _ _ src (next_version_lword lsrcv)) with "Hr Hmap")
-          as "[Hr Hmap]"; eauto.
-        iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap")
-          as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
-        iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
-          as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
 
 
-        iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
-        ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-        ; [| eapply update_cur_version_region_valid; eauto
-          | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
-          ].
+  (*   apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc. *)
+  (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
+  (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
+  (*   iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv. *)
 
-        iExists _, lm', vmap'; iFrame; auto
-        ; iPureIntro; econstructor; eauto ; cbn in *
-        ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
-        ; destruct HLinv as [Hreg_inv Hmem_inv]
-        ; last done.
-        assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
-        { eapply lookup_weaken in HPC'' ; eauto.
-          eapply lreg_corresponds_insert_respects_updated_vmap
-            with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto; done.
-        }
-        eapply lreg_corresponds_insert_respects ; last done.
-        eapply lreg_corresponds_insert_respects ; last done.
-        replace reg with (<[ src := lword_get_word (next_version_lword lsrcv) ]> reg)
-          by (rewrite insert_id //= lword_get_word_next_version //=).
-        eapply update_cur_version_region_lreg_corresponds_src with
-          (phm := mem); eauto; try done.
-        rewrite -/(next_version_lword (LCap _ _ _ _ v)).
-        eapply update_cur_version_region_lcap_update_lword ; eauto.
-        eapply lreg_corresponds_read_iscur; eauto.
+  (*   (* Derive necessary register values in r *) *)
+  (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
+  (*   have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs. *)
+  (*   specialize (indom_lregs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri. *)
+  (*   odestruct (Hri dst) as [ldstv [Hldst' Hldst] ]; first by set_solver+. *)
+  (*   odestruct (Hri src) as [lsrcv [Hlsrc' Hlsrc] ]; first by set_solver+. *)
 
-      + (* src = dst *)
-        iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap")
-          as "[Hr Hmap]"; eauto.
-        iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
-          as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
-        iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
-        ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-        ; cycle 1.
-        { eapply update_cur_version_region_valid; eauto. }
-        { by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono. }
-        { by rewrite insert_insert in H'lregs' |- *. }
-        iExists _, lm', vmap'; iFrame; auto
-        ; iPureIntro; econstructor; eauto
-        ; cbn in *
-        ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
-        ; destruct HLinv as [Hreg_inv Hmem_inv]
-        ; last done.
-        assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
-        { eapply lookup_weaken in HPC'' ; eauto.
-          eapply lreg_corresponds_insert_respects_updated_vmap
-            with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto; last done.
-        }
-        eapply lreg_corresponds_insert_respects ; last done.
-        eapply update_cur_version_region_lreg_corresponds_src
-          with (phm := mem) ; eauto; done.
+  (*   (* Derive necessary memory *) *)
+  (*   iDestruct (gen_heap_valid_inclSepM with "Hm Hmem") as %Hmem. *)
+  (*   iDestruct (gen_mem_valid_inSepM lmem lm with "Hm Hmem") as %Hma; eauto. *)
 
-    - (* src = PC *)
-      rewrite (insert_commute _ dst PC) //= insert_insert insert_commute //= in H'lregs'.
-      (* we update the registers with their new value *)
-      destruct (decide (dst = PC)) ; simplify_map_eq.
-      (* dst ≠ PC *)
-      iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-      iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
-      ; first by simplify_map_eq.
-      iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
-      ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
-      ; [| eapply update_cur_version_region_valid; eauto
-        | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
-        ].
-      iExists _, lm', vmap'; iFrame; auto
-      ; iPureIntro; econstructor; eauto ; cbn in *
-      ; last (eapply update_cur_version_region_lmem_corresponds
-            with (src := PC) ; eauto ; done)
-      ; destruct HLinv as [Hreg_inv Hmem_inv].
-      eapply update_cur_version_region_lreg_corresponds_src with
-        (phm := mem) (lwsrc := (LCap p1 b1 e1 a1 pc_v) ); eauto; cycle 1.
-      rewrite -/((next_version_lword (LCap p1 b1 e1 a_pc1 pc_v))).
-      eapply update_cur_version_region_lcap_update_lword ; eauto.
-      eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 pc_v)); eauto.
-      eapply lreg_corresponds_read_iscur; eauto.
-      by rewrite lookup_insert_ne // lookup_insert_ne //.
-      eapply unique_in_machineL_insert_reg; eauto ; try by simplify_map_eq.
-      split; eauto.
-      eapply lreg_corresponds_insert_respects; eauto; done.
-  Qed.
+  (*   iModIntro. *)
+  (*   iSplitR. *)
+  (*   by iPureIntro; apply normal_always_head_reducible. *)
+  (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
+  (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
+  (*   iIntros "_". *)
+  (*   iSplitR; auto; eapply step_exec_inv in Hstep; eauto. *)
+  (*   2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v))) *)
+  (*   ; eapply state_corresponds_reg_get_word ; eauto. *)
+  (*   2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto. *)
 
-  (* Because I don't know the whole content of the memory (only a local view),
-     any sucessful IsUnique wp-rule can have 2 outcomes:
-     either the sweep success or the sweep fails.
+  (*   set (srcv := lword_get_word lsrcv). *)
+  (*   assert ( reg !! src = Some srcv ) as Hsrc *)
+  (*       by (eapply state_corresponds_reg_get_word ; eauto). *)
+  (*   rewrite /exec /= Hsrc /= in Hstep. *)
 
-    Importantly, we cannot derive any sweep success rule, because we would need
-    the entire footprint of the registers/memory.
-   *)
+  (*   (* src contains a capability *) *)
+  (*   destruct (is_lcap lsrcv) eqn:Hlsrcv; cycle 1; subst srcv; cbn in *. *)
+  (*   { (* Fail : not a capability *) *)
+  (*     destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv. *)
+  (*     all: simplify_map_eq. *)
+  (*     all: (iSplitR "Hφ Hmap Hmem" *)
+  (*           ; [ iExists lr, lm, vmap; iFrame; auto *)
+  (*             | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_cap *)
+  (*          ]). *)
+  (*   } *)
+  (*   destruct (get_is_lcap_inv lsrcv Hlsrcv) as (p & b & e & a & v & Hget_lsrcv). *)
+
+  (*   set (lregs' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]> *)
+  (*                     (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) ) *)
+  (*                      then (<[ src := next_version_lword lsrcv]> lregs) *)
+  (*                      else lregs))). *)
+  (*   set (lr' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]> *)
+  (*                  (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) ) *)
+  (*                   then (<[ src := next_version_lword lsrcv]> lr) *)
+  (*                   else lr))). *)
+  (*   assert (lreg_strip lregs' ⊆ lreg_strip lr') as Hlregs'_in_lr'. *)
+  (*   { subst lregs' lr'. *)
+  (*     apply map_fmap_mono, insert_mono. *)
+  (*     destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto. *)
+  (*     apply insert_mono; auto. *)
+  (*   } *)
+
+  (*   assert ( (lreg_strip lr') = *)
+  (*              (<[ dst := WInt (if (sweep mem reg src) then 1 else 0) ]> reg)) *)
+  (*     as Hstrip_lr'. *)
+  (*   { subst lr'. *)
+  (*     destruct HLinv as [ [Hstrips Hcurreg] _]. *)
+  (*     destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto. *)
+  (*     all: rewrite -Hstrips /lreg_strip !fmap_insert -/(lreg_strip lr) //=. *)
+  (*     rewrite lword_get_word_next_version insert_lcap_lreg_strip; cycle 1 ; eauto. *)
+  (*   } *)
+
+  (*   destruct (incrementLPC lregs') as  [?|] eqn:Hlregs' *)
+  (*   ; pose proof Hlregs' as H'lregs' *)
+  (*   ; cycle 1. *)
+  (*   { *)
+  (*     apply incrementLPC_fail_updatePC with (m:=mem) (etbl:=etable) (ecur:=enumcur) in Hlregs'. *)
+  (*     eapply updatePC_fail_incl with *)
+  (*       (regs' := lreg_strip lr') (m':=mem) *)
+  (*       (etbl':=etable) (ecur':=enumcur) in Hlregs' *)
+  (*     ; auto *)
+  (*     ; cycle 1. *)
+  (*     { *)
+  (*       rewrite /lreg_strip lookup_fmap. *)
+  (*       subst lregs' lr'. *)
+  (*       apply fmap_is_Some. *)
+  (*       destruct (decide (dst = PC)); simplify_map_eq ; auto. *)
+  (*       destruct (sweep mem reg src) ; simplify_map_eq ; auto. *)
+  (*       destruct (is_sealed lsrcv) ; simplify_map_eq ; auto. *)
+  (*       destruct (decide (src = PC)) ; simplify_map_eq ; auto. *)
+  (*     } *)
+  (*     rewrite Hstrip_lr' in Hlregs'. *)
+  (*     match goal with *)
+  (*     | Hstep : *)
+  (*       match ?x with _ => _ end = (_,_) |- _ => *)
+  (*         replace x with (None : option Conf) in Hstep *)
+  (*           by (destruct_lword lsrcv ; eauto) *)
+  (*     end *)
+  (*     ; simplify_eq. *)
+  (*     subst lr'. *)
+
+  (*     iSplitR "Hφ Hmap Hmem" *)
+  (*     ; [ iExists lr, lm, vmap; iFrame; auto *)
+  (*       | iApply "Hφ" ; iFrame]. *)
+  (*     destruct (sweep mem reg src) *)
+  (*     ; destruct (is_sealed lsrcv) *)
+  (*     ; subst lregs' *)
+  (*     ; cbn in * *)
+  (*     ; try (by iFailCore IsUnique_fail_invalid_PC_nupd) *)
+  (*     ; try (by iFailCore IsUnique_fail_invalid_PC_upd). *)
+  (*   } *)
+
+  (*   (* PC has been incremented correctly *) *)
+  (*   rewrite /update_reg /= in Hstep. *)
+  (*   eapply (incrementLPC_success_updatePC _ mem etable enumcur) in Hlregs' *)
+  (*       as (p1 & b1 & e1 & a1 & a_pc1 & v1 & HPC'' & Ha_pc' & HuPC & ->) *)
+  (*   ; simplify_map_eq. *)
+  (*   assert (dst <> PC) as Hdst by (subst lregs' ; intro ; simplify_map_eq). *)
+  (*   eapply updatePC_success_incl with *)
+  (*     (regs' := lreg_strip lr') (m':=mem) (etbl':=etable) (ecur':=enumcur) in HuPC *)
+  (*   ; auto. *)
+  (*   rewrite Hstrip_lr' in HuPC. *)
+  (*   rewrite HuPC in Hstep; clear HuPC. *)
+  (*   match goal with *)
+  (*   | Hstep : match ?x with _ => _ end = (_,_) |- _ => *)
+  (*       match goal with *)
+  (*       | Hstep' : context f [ Some (?a,?b) ] |- _ => *)
+  (*           replace x with (Some (a,b)) in Hstep *)
+  (*             by (destruct_lword lsrcv ; cbn in * ; try congruence) *)
+  (*       end *)
+  (*   end *)
+  (*   ; subst lregs' lr' ; simplify_eq ; simplify_map_eq. *)
+
+  (*   (* Start the different cases now *) *)
+  (*   (* sweep success or sweep fail *) *)
+  (*   destruct (sweep mem reg src) as [|] eqn:Hsweep; cycle 1. *)
+  (*   { (* sweep is false *) *)
+  (*     iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
+  (*     iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto *)
+  (*     ; first by simplify_map_eq. *)
+
+  (*     iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+  (*     ; [| iApply "Hφ" ; iFrame; iPureIntro; eapply IsUnique_success_false ; eauto]. *)
+
+  (*     iExists _, lm, vmap; iFrame; auto *)
+  (*     ; iPureIntro; econstructor; eauto *)
+  (*     ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ] *)
+  (*     ; cbn in * *)
+  (*     ; last (split;eauto) *)
+  (*     . *)
+  (*     assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC. *)
+  (*     { eapply lookup_weaken in HPC'' ; eauto. *)
+  (*       eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto. *)
+  (*     } *)
+  (*     eapply lreg_corresponds_insert_respects; eauto. *)
+  (*     eapply lreg_corresponds_insert_respects; done. *)
+  (*   } *)
+
+  (*   (* sweep is true *) *)
+  (*   eapply sweep_true_specL in Hsweep; eauto. *)
+
+  (*   destruct ( is_sealed lsrcv ) eqn:His_sealed; cbn in *; simplify_eq. *)
+  (*   { *)
+  (*     iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap") *)
+  (*       as "[Hr Hmap]"; eauto. *)
+  (*     iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap") *)
+  (*       as "[Hr Hmap]"; eauto ; first by simplify_map_eq. *)
+
+  (*     iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+  (*     ; [| iApply "Hφ" ; iFrame; iPureIntro ; eapply IsUnique_success_true_is_sealed; eauto] *)
+  (*     ; last (by destruct Hsweep as [ ? _ ]; eauto ; eapply unique_in_registersL_mono). *)
+
+  (*     iExists _, lm, vmap; iFrame; auto *)
+  (*     ; iPureIntro; econstructor; eauto *)
+  (*     ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ] *)
+  (*     ; cbn in * *)
+  (*     ; last (split;eauto). *)
+
+  (*     assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC. *)
+  (*     { eapply lookup_weaken in HPC'' ; eauto. *)
+  (*       eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto. *)
+  (*     } *)
+  (*     eapply lreg_corresponds_insert_respects; eauto. *)
+  (*     eapply lreg_corresponds_insert_respects; done. *)
+  (*   } *)
+
+
+  (*   (* case is_not_sealed *) *)
+  (*   destruct_lword lsrcv ; cbn in His_sealed, Hget_lsrcv ; simplify_eq. *)
+  (*   assert (p ≠ E) as Hp0_neq_E by (by intro ; simplify_eq; cbn in His_sealed) *)
+  (*   ; clear His_sealed. *)
+  (*   set (lsrcv := LCap p b e a v). *)
+  (*   (* update version number of memory points-to *) *)
+  (*   assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup). *)
+  (*   opose proof *)
+  (*     (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hlsrc) *)
+  (*     as HcurMap; first (by cbn). *)
+  (*   opose proof *)
+  (*     (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hlsrc) *)
+  (*     as HmemMap_maxv; first (by cbn). *)
+  (*   opose proof *)
+  (*     (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hlsrc) *)
+  (*     as HmemMap; first (by cbn). *)
+  (*   destruct (update_cur_version_word_region lmem lm vmap (LCap p b e a v)) *)
+  (*     as [ [lmem' lm'] vmap'] eqn:Hupd *)
+  (*   ; rewrite /update_cur_version_word_region /= in Hupd. *)
+  (*   iMod ((gen_heap_lmem_version_update lmem lm lmem' lm' ) with "Hm Hmem") *)
+  (*     as "[Hm Hmem]"; eauto. *)
+  (*   (* we destruct the cases when the registers are equals *) *)
+  (*   destruct (decide (src = PC)); simplify_map_eq ; cycle 1. *)
+  (*   - (* src <> PC *) *)
+  (*     destruct (decide (src = dst)) ; simplify_map_eq ; cycle 1. *)
+  (*     + (* src <> dst *) *)
+  (*       iMod ((gen_heap_update_inSepM _ _ src (next_version_lword lsrcv)) with "Hr Hmap") *)
+  (*         as "[Hr Hmap]"; eauto. *)
+  (*       iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap") *)
+  (*         as "[Hr Hmap]"; eauto ; first by simplify_map_eq. *)
+  (*       iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap") *)
+  (*         as "[Hr Hmap]"; eauto ; first by simplify_map_eq. *)
+
+
+  (*       iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+  (*       ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto] *)
+  (*       ; [| eapply update_cur_version_region_valid; eauto *)
+  (*         | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono *)
+  (*         ]. *)
+
+  (*       iExists _, lm', vmap'; iFrame; auto *)
+  (*       ; iPureIntro; econstructor; eauto ; cbn in * *)
+  (*       ; last (eapply update_cur_version_region_lmem_corresponds ; eauto) *)
+  (*       ; destruct HLinv as [Hreg_inv Hmem_inv] *)
+  (*       ; last done. *)
+  (*       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ). *)
+  (*       { eapply lookup_weaken in HPC'' ; eauto. *)
+  (*         eapply lreg_corresponds_insert_respects_updated_vmap *)
+  (*           with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto; done. *)
+  (*       } *)
+  (*       eapply lreg_corresponds_insert_respects ; last done. *)
+  (*       eapply lreg_corresponds_insert_respects ; last done. *)
+  (*       replace reg with (<[ src := lword_get_word (next_version_lword lsrcv) ]> reg) *)
+  (*         by (rewrite insert_id //= lword_get_word_next_version //=). *)
+  (*       eapply update_cur_version_region_lreg_corresponds_src with *)
+  (*         (phm := mem); eauto; try done. *)
+  (*       rewrite -/(next_version_lword (LCap _ _ _ _ v)). *)
+  (*       eapply update_cur_version_region_lcap_update_lword ; eauto. *)
+  (*       eapply lreg_corresponds_read_iscur; eauto. *)
+
+  (*     + (* src = dst *) *)
+  (*       iMod ((gen_heap_update_inSepM _ _ dst (LInt 1)) with "Hr Hmap") *)
+  (*         as "[Hr Hmap]"; eauto. *)
+  (*       iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap") *)
+  (*         as "[Hr Hmap]"; eauto ; first by simplify_map_eq. *)
+  (*       iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+  (*       ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto] *)
+  (*       ; cycle 1. *)
+  (*       { eapply update_cur_version_region_valid; eauto. } *)
+  (*       { by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono. } *)
+  (*       { by rewrite insert_insert in H'lregs' |- *. } *)
+  (*       iExists _, lm', vmap'; iFrame; auto *)
+  (*       ; iPureIntro; econstructor; eauto *)
+  (*       ; cbn in * *)
+  (*       ; last (eapply update_cur_version_region_lmem_corresponds ; eauto) *)
+  (*       ; destruct HLinv as [Hreg_inv Hmem_inv] *)
+  (*       ; last done. *)
+  (*       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ). *)
+  (*       { eapply lookup_weaken in HPC'' ; eauto. *)
+  (*         eapply lreg_corresponds_insert_respects_updated_vmap *)
+  (*           with (r := PC) (lw := (LCap p1 b1 e1 a1 v1)) ; eauto; last done. *)
+  (*       } *)
+  (*       eapply lreg_corresponds_insert_respects ; last done. *)
+  (*       eapply update_cur_version_region_lreg_corresponds_src *)
+  (*         with (phm := mem) ; eauto; done. *)
+
+  (*   - (* src = PC *) *)
+  (*     rewrite (insert_commute _ dst PC) //= insert_insert insert_commute //= in H'lregs'. *)
+  (*     (* we update the registers with their new value *) *)
+  (*     destruct (decide (dst = PC)) ; simplify_map_eq. *)
+  (*     (* dst ≠ PC *) *)
+  (*     iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
+  (*     iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto *)
+  (*     ; first by simplify_map_eq. *)
+  (*     iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem" *)
+  (*     ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto] *)
+  (*     ; [| eapply update_cur_version_region_valid; eauto *)
+  (*       | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono *)
+  (*       ]. *)
+  (*     iExists _, lm', vmap'; iFrame; auto *)
+  (*     ; iPureIntro; econstructor; eauto ; cbn in * *)
+  (*     ; last (eapply update_cur_version_region_lmem_corresponds *)
+  (*           with (src := PC) ; eauto ; done) *)
+  (*     ; destruct HLinv as [Hreg_inv Hmem_inv]. *)
+  (*     eapply update_cur_version_region_lreg_corresponds_src with *)
+  (*       (phm := mem) (lwsrc := (LCap p1 b1 e1 a1 pc_v) ); eauto; cycle 1. *)
+  (*     rewrite -/((next_version_lword (LCap p1 b1 e1 a_pc1 pc_v))). *)
+  (*     eapply update_cur_version_region_lcap_update_lword ; eauto. *)
+  (*     eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 pc_v)); eauto. *)
+  (*     eapply lreg_corresponds_read_iscur; eauto. *)
+  (*     by rewrite lookup_insert_ne // lookup_insert_ne //. *)
+  (*     eapply unique_in_machineL_insert_reg; eauto ; try by simplify_map_eq. *)
+  (*     split; eauto. *)
+  (*     eapply lreg_corresponds_insert_respects; eauto; done. *)
+  (* Qed. *)
+
+  (* Because I don't know the whole content of the memory (only a local view), *)
+  (*    any sucessful IsUnique wp-rule can have 2 outcomes: *)
+  (*    either the sweep success or the sweep fails. *)
+
+  (*   Importantly, we cannot derive any sweep success rule, because we would need *)
+  (*   the entire footprint of the registers/memory. *)
+  (*  *)
   Hint Resolve finz_seq_between_NoDup NoDup_logical_region : core.
   Lemma wp_isunique_success
     (Ep : coPset)

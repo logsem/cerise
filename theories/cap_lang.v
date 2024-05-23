@@ -333,6 +333,16 @@ Section opsem.
     fun w => match  w with WCap p b e a => Some (p, b, e, a)
                          | _ => None end.
 
+  Definition word_is_cap_or_scap (w : Word) : option unit :=
+    match w with
+    | WCap _ _ _ _
+    | WSealed _ (SCap _ _ _ _)
+      => Some tt
+    (* TODO ask: does IsUnique also work with sealed cap ? *)
+    (*      cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428 *)
+    | _ => None
+    end.
+
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
     | Fail => Some (Failed, φ)
@@ -498,17 +508,9 @@ Section opsem.
   | EStoreId _ _ _ => None (* TODO @Denis *)
   | IsUnique dst src =>
       wsrc ← (reg φ) !! src;
-      match wsrc with
-      | WCap p b e a
-      | WSealed _ (SCap p b e a)
-        (* TODO ask: does IsUnique also work with sealed cap ?
-           cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
-         *)
-        =>
-          let uniqueb := sweep (mem φ) (reg φ) src in
-          updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
-      | _ => None
-      end
+      _ ← word_is_cap_or_scap wsrc;
+      let uniqueb := sweep (mem φ) (reg φ) src in
+      updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=
@@ -739,9 +741,11 @@ Section opsem.
     ; repeat destruct (word_of_argument (reg φ) _)
     ; repeat destruct (z_of_argument (reg φ) _)
     ; try destruct (sweep src (reg φ) (mem φ))
+    ; try destruct (word_is_cap_or_scap _)
     ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
+    all: try destruct (word_is_cap_or_scap _).
     all: simplify_eq; try by exfalso.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
   Qed.
