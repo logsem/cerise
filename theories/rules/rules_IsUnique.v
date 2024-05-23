@@ -4,6 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 From cap_machine.proofmode Require Export region register_tactics.
+From stdpp Require Import tactics.
 
 Section cap_lang_rules.
   Context `{HmemG : memG Σ, HregG : regG Σ}.
@@ -17,7 +18,7 @@ Section cap_lang_rules.
   Implicit Types reg : Reg.
   Implicit Types lregs : LReg.
   Implicit Types mem : Mem.
-  Implicit Types lmem : LMem.
+  (* Implicit Types lmem : LMem. *)
 
   Definition is_sealed (lw : LWord) :=
     match lw with
@@ -215,13 +216,27 @@ Section cap_lang_rules.
   Qed.
 
   Lemma state_interp_transient_unique_in_lregs
-    {σ σt lr lrt lm lmt src lwsrc}:
+    {σ σt lreg lrt lmem lmt src lwsrc}:
     sweep (mem σ) (reg σ) src = true ->
-    lrt !! src = Some lwsrc ->
-    state_interp_transient σ σt lr lrt lm lmt ⊢
-    ⌜ unique_in_registersL lr src lwsrc ⌝.
+    lreg !! src = Some lwsrc ->
+    state_interp_transient σ σt lreg lrt lmem lmt ⊢
+    ⌜ unique_in_registersL lreg src lwsrc ⌝.
   Proof.
-  Admitted.
+    iIntros (Hsweep Hsrc) "(Hσ & Hregs & Hmem & _ & Hcommit)".
+    iDestruct "Hσ" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
+    iPureIntro.
+    eapply unique_in_registersL_mono; first done.
+    eapply lookup_weaken in Hsrc; eauto.
+    eapply state_corresponds_unique_in_registers; eauto.
+    eapply sweep_registers_spec ; cbn.
+    2: eapply state_corresponds_reg_get_word; eauto.
+    clear -Hsweep.
+    apply Is_true_true in Hsweep.
+    apply Is_true_true.
+    rewrite /sweep in Hsweep.
+    by destruct_and? Hsweep.
+  Qed.
 
   Lemma update_state_interp_transient_next_version {σ σt lr lrt lm lmt src lwsrc b e v}:
     sweep (mem σ) (reg σ) src = true ->
@@ -234,8 +249,13 @@ Section cap_lang_rules.
         σ  σ (* the physical does not change *)
         lr (<[ src := next_version_lword lwsrc ]> lrt) (* the version of the word is updated *)
         lm lmt'. (* the version of the memory region is updated *)
+  Proof.
   Admitted.
 
+  (* TODO the proof uses wp_opt,
+     but requires some early destructs,
+     which therefore require some proof duplication
+   *)
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v
     (dst src : RegName) lw lmem lregs :
@@ -297,7 +317,6 @@ Section cap_lang_rules.
       iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
       destruct (is_lcap srcv) eqn:Hsrcv_lcap ; last done; clear Heqlwsrcv.
       destruct (get_is_lcap_inv srcv Hsrcv_lcap) as (p & b & e & a & v & Hget_lsrcv).
-      Set Nested Proofs Allowed.
       iDestruct (state_interp_transient_unique_in_lregs with "Hσ") as "%Hunique_in_lreg"; eauto.
       destruct (is_sealed srcv) eqn:His_sealed.
       + (* case is sealed: the version is not updated *)
