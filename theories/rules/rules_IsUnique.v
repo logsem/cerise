@@ -4,7 +4,6 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 From cap_machine.proofmode Require Export region register_tactics.
-From stdpp Require Import tactics.
 
 Section cap_lang_rules.
   Context `{HmemG : memG Σ, HregG : regG Σ}.
