@@ -1487,16 +1487,16 @@ Qed.
 
 Lemma update_cur_version_region_lreg_corresponds_src
   (phr : Reg) (phm : Mem) (lr : LReg) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
-  (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lw lwsrc: LWord) :
+  (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lwsrc: LWord) :
   state_phys_log_corresponds phr phm lr lm vmap ->
   get_lcap lwsrc = Some (LSCap p b e a v) ->
-  is_cur_word lw vmap' ->
+  is_cur_word (next_version_lword lwsrc) vmap' ->
   lr !! src = Some lwsrc ->
   unique_in_machineL lr lm vmap src lwsrc ->
   update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   reg_phys_log_corresponds
-    (<[src:= (lword_get_word lw)]> phr)
-    (<[src:= lw]> lr) vmap'.
+    (<[src:= (lword_get_word (next_version_lword lwsrc))]> phr)
+    (<[src:= (next_version_lword lwsrc)]> lr) vmap'.
 Proof.
   move=>  [Hreg_inv Hmem_inv] Hget Hcur_lw Hlr_src Hunique Hupd.
   split.
@@ -1519,6 +1519,25 @@ Proof.
       rewrite decide_False in Hunique_reg; auto.
       eapply map_Forall_lookup_1 in Hcur_reg ; eauto.
       eapply update_cur_version_notin_is_cur_word ; eauto.
+Qed.
+
+Lemma update_cur_version_region_lreg_corresponds_src'
+  (phr : Reg) (phm : Mem) (lr : LReg) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
+  (src : RegName) (p : Perm) (b e a : Addr) ( v : Version ) (lwsrc: LWord) :
+  state_phys_log_corresponds phr phm lr lm vmap ->
+  get_lcap lwsrc = Some (LSCap p b e a v) ->
+  is_cur_word (next_version_lword lwsrc) vmap' ->
+  lr !! src = Some lwsrc ->
+  unique_in_machineL lr lm vmap src lwsrc ->
+  update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
+  reg_phys_log_corresponds phr (<[src:= next_version_lword lwsrc]> lr) vmap'.
+Proof.
+  move=> HLinv Hget Hcur_lw Hlr_src Hunique Hupd.
+  rewrite (_: phr = (<[src:=(lword_get_word (next_version_lword lwsrc))]> phr)).
+  * eapply update_cur_version_region_lreg_corresponds_src; eauto.
+  * rewrite insert_id; first done.
+    rewrite lword_get_word_next_version.
+    eapply state_corresponds_reg_get_word; eauto.
 Qed.
 
 Lemma update_cur_version_region_lreg_corresponds_notin
