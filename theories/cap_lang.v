@@ -493,9 +493,51 @@ Section opsem.
         else None
     | _,_ => None
     end
-  | EInit _ _ => None      (* TODO @Denis *)
-  | EDeInit _ _ => None    (* TODO @Denis *)
-  | EStoreId _ _ _ => None (* TODO @Denis *)
+
+    (* enclave initialization *)
+  | EInit rd rs =>
+    ccap          ← (reg φ) !! rs; (* get code capability *)
+    '(p, b, e, a) ← get_wcap ccap;
+    if (* p = RX_  ... *) true
+    then dcap              ← (mem φ) !! b;
+         '(p', b', e', a') ← get_wcap dcap;
+         if (* p' = RW *)
+         then _                 ← (* isUnique for ccap and dcap - both at once somehow *)
+                                ← (* check: ccap does not contain capabilities *)
+              scap              ← (* allocate fresh otypes for the enclave *)
+              _                 ← (* store scap (the cap with seals for the registered otype) at address b' *)
+              sccap             ← (* seal ccap with o_entry *)
+              sdcap             ← (* seal dcap with o_entry *)
+              identity          ← (* calculate hash of ccap *)
+              eid               ← enumcur φ; (* read value of EC register *)
+                                ← (* store in etable: eid := identity, if table full: fail *)
+              _                 ← (* increment enumcur in φ by 2 *)
+              let r' := update_reg φ rd (WCap E b e a) in
+              let m' := update_mem r' b' (* seals... *) in
+              let t' := update_etable m' (* TIndex? *) eid identity in
+              updatePC t' (* we should flip argument order so we can just compose these intermediate ExecConfs *)
+         else (* no RW access for data cap *) None
+    else (* no RX access for code cap *) None
+
+    (* enclave deinitialization *)
+  | EDeInit rd rs =>
+      σ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
+      eid ← has_seal σ;
+      i   ← index_of (etable φ) eid (* made up fn: find the index in the etable with `eid` as enclave id *)
+      updatePC (update_etable (update_reg φ rd (WInt 1)) (* etable should remove the `i`th entry *)
+    (* enclave local attestation *)
+  | EStoreId rd rs1 rs2 =>
+      σ             ← (reg φ) !! rs1;
+      wrs2          ← (reg φ) !! rs2;
+      '(p, b, e, a) ← wrs2;
+      eid           ← has_seal σ; (* defined as σ = 2 * eid ∨ σ = 2 * eid + 1 *)
+      i             ← index_of (etable φ) eid (* made up fn: find the index in the etable with `eid` as enclave id *)
+      identity      ← (etable φ) !! i; (* apparently this gives back a pair of an identity and an eid, matching
+                                           the one above... *)
+      if writeAllowed p && withinBounds b e a
+      then updatePC (update_reg (update_mem φ a identity) rd (WInt 1))
+      else (* capability is invalid *) None
+    (* memory sweep *)
   | IsUnique dst src =>
       wsrc ← (reg φ) !! src;
       match wsrc with
