@@ -148,7 +148,25 @@ Section cap_lang_rules.
         ∗ (b+1, v+1) ↦ₐ lwb'
     }}}
 
+
     --- ownership over part of the region  ---
+    {{{ (pc_a, pc_v) ↦ₐ IsUnique dst src
+        ∗ src        ↦ᵣ (p,b,b+2,_,v)
+        ∗ dst        ↦ᵣ _
+        ∗ (b, v)     ↦ₐ lwb
+    }}}
+    ->
+    {{{ (pc_a, pc_v) ↦ₐ IsUnique dst src
+        ∗ src        ↦ᵣ (p,b,b+2,_,v+1)
+        ∗ dst        ↦ᵣ LInt 1
+        ∗ (b, v)     ↦ₐ lwb
+
+        ∗         (b, v+1)   ↦ₐ lwb
+        ∗ ∃ lwb', (b+1, v+1) ↦ₐ lwb'
+    }}}
+
+
+    --- E-cap, no ownership over part of the region  ---
     {{{ (pc_a, pc_v) ↦ₐ IsUnique dst src
         ∗ src        ↦ᵣ (E,b,b+2,_,v)
         ∗ dst        ↦ᵣ _
@@ -287,20 +305,24 @@ Section cap_lang_rules.
     iMod ((gen_heap_update_inSepM _ _ src (next_version_lword lwsrc)) with "Hr Hregs") as
       "[Hr Hregs]"; eauto.
     iFrame.
+    assert (lr !! src = Some lwsrc) as Hsrc by (eapply lookup_weaken in Hlsrc ; eauto).
+    assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
+    opose proof
+      (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
+      as HcurMap ; first (by cbn).
+    opose proof
+      (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hsrc)
+      as HmemMap_maxv; first (by cbn).
+    opose proof
+      (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
+      as HmemMap; first (by cbn).
     destruct
       (update_cur_version_region lmem lm vmap ((finz.seq_between b e)))
       as ((lmem' & lm') & vmap') eqn:Hupd_lmem.
     iMod ((gen_heap_lmem_version_update lmem lm lmem' _ vmap _ (finz.seq_between b e) v)
            with "Hm Hmem") as "[Hm Hmem]"; eauto.
-    by apply finz_seq_between_NoDup.
-    admit. (* easy (?) *)
-    admit. (* easy (?) *)
     iModIntro; iExists lmem'.
     iSplit; first (iPureIntro; eapply update_cur_version_region_valid; eauto).
-    by apply finz_seq_between_NoDup.
-    admit. (* easy (?) *)
-    admit. (* easy (?) *)
-    admit. (* easy (?) *)
     iSplitR "Hmem".
     rewrite /state_interp_logical.
     iExists (<[src:=next_version_lword lwsrc]> lr),lm',vmap'.
@@ -314,7 +336,6 @@ Section cap_lang_rules.
       + rewrite (_: (reg σ) = (<[src:=(lword_get_word (next_version_lword lwsrc))]> (reg σ))).
         * eapply update_cur_version_region_lreg_corresponds_src; eauto.
           eapply update_cur_version_region_lcap_update_lword; eauto.
-          admit. (* easy (?) *)
           eapply lreg_corresponds_read_iscur; eauto.
           by destruct HLinv.
         * rewrite lword_get_word_next_version.
@@ -323,7 +344,7 @@ Section cap_lang_rules.
       + eapply update_cur_version_region_lmem_corresponds; eauto.
     }
     by iDestruct (map_full_own with "Hmem") as "Hmem".
-  Admitted.
+  Qed.
 
   Lemma update_state_interp_transient_next_version {σ σt lreg lregt lmem lmemt src lwsrc p b e a v}:
     sweep (mem σt) (reg σt) src = true ->
@@ -360,7 +381,7 @@ Section cap_lang_rules.
     iExists lmemt'.
     iSplit; first (iPureIntro; eapply update_cur_version_region_valid; eauto).
     iFrame "Hσ Hregs Hmem".
-    eapply sweep_true_specL in Hsweep; eauto.
+    opose proof (sweep_true_specL _ _ _ _ _ _ _ _ _ Hsweep) as Hsweep'; eauto.
 
     iSplit.
     - iPureIntro; cbn.
@@ -382,9 +403,9 @@ Section cap_lang_rules.
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
       iDestruct (update_state_interp_next_version with "[$Hσ $Hregs $Hmem]") as "H"; eauto.
-      admit.
-      iMod "H".
-      iDestruct "H" as (lmemt0) "(%Hvalid & Hσ & Hreg & Hmem)"; iFrame.
+      iMod "H" as (lmemt0) "(%Hvalid & Hσ & Hreg & Hmem)".
+      iFrame.
+      eapply update_cur_version_region_valid in Hupd_lmemt; eauto.
       (* TODO well, it is problematic because the
          lmemt0 that I get from the update of the commit
          might not be the same as the one obtained before. *)
