@@ -291,8 +291,7 @@ Section cap_lang_rules.
     ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
     ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem), la ↦ₐ{dw.1} dw.2)
     ⊢ |={Ep}=>
-          ∃ lmem',
-    ⌜ is_valid_updated_lmemory lmem (finz.seq_between b e) v lmem'⌝ ∗
+          let lmem' := update_version_region lmem (finz.seq_between b e) v in
           state_interp_logical σ
           ∗ ([∗ map] k↦y ∈ (<[src:=next_version_lword lwsrc]> lregs), k ↦ᵣ y)
           ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem'), la ↦ₐ{dw.1} dw.2).
@@ -316,13 +315,12 @@ Section cap_lang_rules.
     opose proof
       (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
       as HmemMap; first (by cbn).
-    destruct
-      (update_cur_version_region lmem lm vmap ((finz.seq_between b e)))
-      as ((lmem' & lm') & vmap') eqn:Hupd_lmem.
+    set (lmem' := update_version_region lmem (finz.seq_between b e) v).
+    set (lm' := update_version_region lm (finz.seq_between b e) v).
+    set (vmap' := update_version_region_vmap (finz.seq_between b e) v vmap).
     iMod ((gen_heap_lmem_version_update lmem lm lmem' _ vmap _ (finz.seq_between b e) v)
            with "Hm Hmem") as "[Hm Hmem]"; eauto.
-    iModIntro; iExists lmem'.
-    iSplit; first (iPureIntro; eapply update_cur_version_region_valid; eauto).
+    iModIntro.
     iSplitR "Hmem".
     rewrite /state_interp_logical.
     iExists (<[src:=next_version_lword lwsrc]> lr),lm',vmap'.
@@ -334,14 +332,18 @@ Section cap_lang_rules.
       eapply sweep_true_specL in Hsweep; eauto.
       split.
       + rewrite (_: (reg σ) = (<[src:=(lword_get_word (next_version_lword lwsrc))]> (reg σ))).
-        * eapply update_cur_version_region_lreg_corresponds_src; eauto.
-          eapply update_cur_version_region_lcap_update_lword; eauto.
+        * eapply update_version_region_lreg_corresponds_src; eauto.
+          eapply update_version_word_region_update_lword; eauto.
           eapply lreg_corresponds_read_iscur; eauto.
           by destruct HLinv.
         * rewrite lword_get_word_next_version.
           rewrite insert_id; first done.
           eapply state_corresponds_reg_get_word; eauto.
-      + eapply update_cur_version_region_lmem_corresponds; eauto.
+      + destruct (id HLinv).
+        eapply update_version_region_preserves_mem_corresponds; eauto.
+        destruct (Hsweep Hsrc').
+        eapply unique_in_machine_no_accessL; eauto.
+        eapply lreg_corresponds_read_iscur; eauto.
     }
     by iDestruct (map_full_own with "Hmem") as "Hmem".
   Qed.
@@ -353,8 +355,7 @@ Section cap_lang_rules.
     state_interp_transient
       σ σt lreg lregt
       (full_own_mem lmem) (full_own_mem lmemt) ⊢
-    ∃ (lmemt' : LMem),
-      ⌜ is_valid_updated_lmemory lmemt (finz.seq_between b e) v lmemt'⌝ ∗
+    let lmemt' : LMem := update_version_region lmemt (finz.seq_between b e) v in
       state_interp_transient
         σ σt (* the physical state does not change *)
         lreg (<[ src := next_version_lword lwsrc ]> lregt) (* the version of the word is updated *)
@@ -375,43 +376,36 @@ Section cap_lang_rules.
     opose proof
       (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc')
       as HmemMap; first (by cbn).
-    destruct
-      (update_cur_version_region lmemt lmt vmap ((finz.seq_between b e)))
-      as ((lmemt' & lmt') & vmap') eqn:Hupd_lmemt.
-    iExists lmemt'.
-    iSplit; first (iPureIntro; eapply update_cur_version_region_valid; eauto).
     iFrame "Hσ Hregs Hmem".
     opose proof (sweep_true_specL _ _ _ _ _ _ _ _ _ Hsweep) as Hsweep'; eauto.
-
+    set (lmemt' := update_version_region lmemt (finz.seq_between b e) v).
+    set (lmt' := update_version_region lmt (finz.seq_between b e) v).
+    set (vmap' := update_version_region_vmap (finz.seq_between b e) v vmap).
     iSplit.
     - iPureIntro; cbn.
       exists (<[src:=next_version_lword lwsrc]> lrt).
       exists (snd <$> (full_own_mem lmt')).
       exists vmap'.
-      split; [|split]; auto.
+      destruct (id HLinv) as ((Hregcorr & Hregcur) & Hmem).
+      split; [|split; [|split] ]; auto.
       { by apply insert_mono. }
-      { rewrite !snd_fmap_pair_inv.
-        eapply update_cur_version_region_preserves_lmem_incl; eauto. }
+      { do 2 (eapply map_fmap_mono).
+        now eapply update_version_region_mono.
+      }
       {
-        split.
-        + eapply update_cur_version_region_lreg_corresponds_src'; eauto.
-          eapply update_cur_version_region_lcap_update_lword; eauto.
-          eapply lreg_corresponds_read_iscur; eauto; by destruct HLinv.
-        + eapply update_cur_version_region_lmem_corresponds; eauto.
-          by rewrite snd_fmap_pair_inv.
+        eapply update_version_region_lreg_corresponds_src'; eauto.
+        eapply update_version_word_region_update_lword; eauto.
+      }
+      {
+        eapply update_version_region_preserves_mem_corresponds; eauto.
+        unfold full_own_mem.
+        now rewrite <-map_fmap_compose, map_fmap_id.
+        eapply unique_in_machine_no_accessL; eauto.
       }
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
       iDestruct (update_state_interp_next_version with "[$Hσ $Hregs $Hmem]") as "H"; eauto.
-      iMod "H" as (lmemt0) "(%Hvalid & Hσ & Hreg & Hmem)".
-      iFrame.
-      eapply update_cur_version_region_valid in Hupd_lmemt; eauto.
-      (* TODO well, it is problematic because the
-         lmemt0 that I get from the update of the commit
-         might not be the same as the one obtained before. *)
-      (* eapply lookup_weaken ; eauto. *)
-      admit.
-  Admitted.
+  Qed.
 
   (* TODO the proof uses wp_opt,
      but requires some early destructs,
@@ -513,9 +507,8 @@ Section cap_lang_rules.
         ; try done
         ; inversion Hget_lsrcv; subst.
         all: eapply IsUnique_success_true_is_sealed; eauto.
-      + iDestruct (update_state_interp_transient_next_version
-                     (b := b) (e := e) with "Hσ")
-          as (lmt') "(%Hvalid_lmt' & Hσ)"; eauto.
+      + iPoseProof (update_state_interp_transient_next_version with "Hσ")
+          as "Hσ"; eauto.
         rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
         ; last by set_solver.
         iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").

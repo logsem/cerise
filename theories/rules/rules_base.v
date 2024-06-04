@@ -7,7 +7,7 @@ From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
-Ltac destruct_cons_hook ::= destruct_cons_hook2.
+(* Ltac destruct_cons_hook ::= destruct_cons_hook2. *)
 Ltac inv_head_step :=
   repeat match goal with
          | _ => progress simplify_map_eq/= (* simplify memory stuff *)
@@ -308,12 +308,45 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
+  Lemma gen_heap_lmem_version_update_addr `{HmemG : memG Σ, HregG : regG Σ}
+    {lmem lm lmem' lm': LMem} {vmap vmap': VMap}
+      {a : Addr} {v : Version} :
+      lmem ⊆ lm ->
+      lmem' = update_version_addr lmem a v ->
+      lm' = update_version_addr lm a v ->
+      vmap' = update_version_addr_vmap a v vmap ->
+      lm !! (a, v+1) = None ->
+      is_cur_addr (a,v) vmap ->
+      gen_heap_interp lm
+      -∗ ([∗ map] k↦y ∈ lmem, mapsto k (DfracOwn 1) y)
+      ==∗ gen_heap_interp lm' ∗ [∗ map] k↦y ∈ lmem', mapsto k (DfracOwn 1) y.
+  Proof.
+    iIntros (Hlmem_incl Hupdlmem Hupdlm Hupdvm Hmaxvm_lm Hcur_lm) "Hgen Hmem".
+    rewrite /update_version_addr in Hupdlm, Hupdlmem.
+    unfold is_cur_addr in Hcur_lm; cbn in Hcur_lm.
+    destruct (lm !! (a,v)) as [lw|]eqn:Hlmav.
+    - iMod (((gen_heap_alloc lm (a, v + 1) lw) with "Hgen"))
+        as "(Hgen & Ha & _)"; auto.
+      iModIntro; subst; iFrame.
+      destruct (lmem !! (a,v)) as [lw'|] eqn:Hlmemav; last iFrame.
+      (* local knowledge about (a,v) *)
+      iApply (big_sepM_insert with "[Hmem Ha]"); last iFrame.
+      eapply lookup_weaken_None; eauto.
+      rewrite (lookup_weaken lmem lm (a,v) lw' Hlmemav Hlmem_incl) in Hlmav.
+      now inversion Hlmav.
+    - (*shouldn't happen, but okay *)
+      rewrite (lookup_weaken_None lmem lm (a,v) Hlmav Hlmem_incl) in Hupdlmem.
+      subst. now iFrame.
+  Qed.
+
   Lemma gen_heap_lmem_version_update `{HmemG : memG Σ, HregG : regG Σ} :
     ∀ (lmem lm lmem' lm': LMem) (vmap vmap': VMap)
       (la : list Addr) ( v : Version ),
       NoDup la ->
       lmem ⊆ lm ->
-      update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') ->
+      lmem' = update_version_region lmem la v ->
+      lm' = update_version_region lm la v ->
+      vmap' = update_version_region_vmap la v vmap ->
       Forall (λ a : Addr, lm !! (a, v+1) = None) la ->
       Forall (λ a : Addr, is_cur_addr (a,v) vmap) la ->
       gen_heap_interp lm
@@ -325,34 +358,24 @@ Section cap_lang_rules.
     induction la as [|a la IH]
     ; iIntros
         (lmem lm lmem' lm' vmap vmap' v
-           HNoDup_la Hlmem_incl Hupd Hmaxv_lm Hcur_lm)
+           HNoDup_la Hlmem_incl Hupdlmem Hupdlm Hupdvmap Hmaxv_lm Hcur_lm)
         "Hgen Hmem".
     - (* no addresses updated *)
-      cbn in Hupd ; simplify_eq.
+      cbn in Hupdlm, Hupdvmap, Hupdlmem; simplify_eq.
       iModIntro; iFrame.
     - destruct_cons.
-      assert (lmem0 ⊆ lm0) as Hlmem0_incl
-          by (eapply update_cur_version_region_preserves_lmem_incl; eauto; done).
-      rewrite /update_cur_version_addr in Hupd0.
-      destruct (vmap0 !! a) as [va |] eqn:Hvmap0_a
-      ; last ( simplify_eq ; iApply (IH with "Hgen"); eauto).
-      rewrite /is_cur_addr /= in Hcur_lm_a.
-      erewrite <- update_cur_version_region_notin_preserves_cur
-        in Hcur_lm_a; eauto.
-      eapply lookup_weaken in Hvmap0_a; eauto.
-      rewrite -/(is_cur_addr (a,va) vmap0) in Hvmap0_a.
-      eapply is_cur_addr_same in Hcur_lm_a; eauto; simplify_map_eq.
-      destruct (lm0 !! (a, v)) as [lw|] eqn:Hlm0_a
-      ; rewrite Hlm0_a in Hupd0
-      ; simplify_eq
-      ; last (iApply (IH with "Hgen"); eauto).
       iDestruct (IH with "Hgen Hmem") as ">[Hgen Hmem]"; eauto.
-      erewrite <- update_cur_version_region_notin_preserves_lm in Hmaxv_lm_a; eauto.
-      iMod (((gen_heap_alloc lm0 (a, v + 1) lw) with "Hgen"))
-        as "(Hgen & Ha & _)"; auto.
-      iModIntro ; iFrame.
-      iApply (big_sepM_insert with "[Hmem Ha]"); last iFrame.
-      eapply lookup_weaken_None; eauto.
+      simpl in Hupdlmem, Hupdlm, Hupdvmap.
+      set (lm'' := update_version_region lm la v).
+      set (lmem'' := update_version_region lmem la v).
+      iDestruct (gen_heap_lmem_version_update_addr with "Hgen Hmem") as ">[Hgen Hmem]"; eauto.
+      + now apply update_version_region_mono.
+      + rewrite <-Hmaxv_lm_a.
+        now apply update_version_region_notin_preserves_lmem.
+      + unfold is_cur_addr; cbn.
+        rewrite (update_version_region_notin_preserves_cur _ _ _ _ _ eq_refl Ha_notin_la).
+        exact Hcur_lm_a.
+      + now iFrame.
   Qed.
 
   Lemma prim_step_no_kappa {e1 σ1 κ e2 σ2 efs}:
