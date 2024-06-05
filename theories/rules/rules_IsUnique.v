@@ -351,47 +351,49 @@ Section cap_lang_rules.
     now iApply map_full_own.
   Qed.
 
-  (* (* TODO move *) *)
-  (* Lemma update_version_addr_next *)
-  (*   (lmem : LMem) (a : Addr) (v : Version) (lw : LWord) : *)
-  (*   lmem !! (a, v) = Some lw -> *)
-  (*   lmem !! (a, v + 1) = None -> *)
-  (*   update_version_addr lmem a v !! (a, v+1) = Some lw. *)
-  (* Proof. *)
-  (*   intros Hlw Hlw_max. *)
-  (*   by rewrite /update_version_addr Hlw ; simplify_map_eq. *)
-  (* Qed. *)
+  (* TODO move *)
+  Lemma update_version_addr_next
+    (glmem llmem : LMem) (a : Addr) (v : Version) (lw : LWord) :
+    glmem !! (a, v) = Some lw ->
+    glmem !! (a, v + 1) = None ->
+    update_version_addr glmem a v llmem !! (a, v+1) = Some lw.
+  Proof.
+    intros Hlw Hlw_max.
+    by rewrite /update_version_addr Hlw ; simplify_map_eq.
+  Qed.
 
-  (* (* TODO move *) *)
-  (* Lemma is_valid_updated_lmemory_update_version_region *)
-  (*   (lmem : LMem) (la : list Addr) (v : Version) : *)
-  (*   NoDup la -> *)
-  (*   Forall (λ a : Addr, lmem !! (a, v + 1) = None) la -> *)
-  (*   Forall (λ a' : Addr, is_Some (lmem !! (a', v))) la -> *)
-  (*   is_valid_updated_lmemory lmem la v (update_version_region lmem la v). *)
-  (* Proof. *)
-  (*   induction la as [|a la] ; intros HnoDup Hmax Hsome ; destruct_cons ; cbn *)
-  (*   ; rewrite /is_valid_updated_lmemory //=. *)
-  (*   destruct IHla as (_ & Hla_max & Hla_upd) *)
-  (*   ; try by destruct_cons. *)
-  (*   split; [|split] ; cbn. *)
-  (*   - done. *)
-  (*   - apply Forall_cons; split; auto. *)
-  (*   - rewrite -/(update_version_region lmem la v). *)
-  (*     apply Forall_cons; split; auto. *)
-  (*     + destruct Hsome_a as [lw Hlw]. *)
-  (*       exists lw. *)
-  (*       erewrite update_version_addr_next *)
-  (*       ; eauto *)
-  (*       ; rewrite update_version_region_notin_preserves_lmem; eauto. *)
-  (*     + eapply Forall_impl ; try eapply Hla_upd; cbn. *)
-  (*       intros a' [lw' Hlw']. *)
-  (*       destruct (decide (a = a')); subst. *)
-  (*       * rewrite update_version_region_notin_preserves_lmem in Hlw'; eauto. *)
-  (*         exfalso. *)
-  (*         by rewrite Hlw' in Hmax_a. *)
-  (*       * exists lw'; rewrite update_version_addr_lookup_neq; eauto. *)
-  (* Qed. *)
+  (* TODO move *)
+  Lemma is_valid_updated_lmemory_update_version_region
+    (glmem llmem : LMem) (la : list Addr) (v : Version) :
+    llmem ⊆ glmem ->
+    NoDup la ->
+    Forall (λ a : Addr, glmem !! (a, v + 1) = None) la ->
+    Forall (λ a' : Addr, is_Some (glmem !! (a', v))) la ->
+    is_valid_updated_lmemory glmem llmem la v
+      (update_version_region glmem la v llmem).
+  Proof.
+    induction la as [|a la] ; intros Hincl HnoDup Hmax Hsome ; destruct_cons ; cbn
+    ; rewrite /is_valid_updated_lmemory //=.
+    destruct IHla as (_ & Hla_max & Hla_upd) ; try by destruct_cons.
+    split; [|split] ; cbn.
+    - done.
+    - apply Forall_cons; split; auto. eapply lookup_weaken_None; eauto.
+    - rewrite -/(update_version_region glmem la v llmem).
+      apply Forall_cons; split; auto.
+      + destruct Hsome_a as [lw Hlw].
+        exists lw.
+        erewrite update_version_addr_next
+        ; eauto
+        ; rewrite update_version_region_notin_preserves_lmem; eauto.
+      + eapply Forall_impl ; try eapply Hla_upd; cbn.
+        intros a' [lw' Hlw'].
+        destruct (decide (a = a')); subst.
+        * rewrite update_version_region_notin_preserves_lmem in Hlw'; eauto.
+          exfalso.
+          eapply lookup_weaken in Hlw' ; eauto.
+          by rewrite Hlw' in Hmax_a.
+        * exists lw'; rewrite update_version_addr_lookup_neq; eauto.
+  Qed.
 
   Lemma update_state_interp_transient_next_version {σ σt lreg lregt lmem lmemt src lwsrc p b e a v}:
     sweep (mem σt) (reg σt) src = true ->
@@ -432,13 +434,7 @@ Section cap_lang_rules.
     iExists lmt.
     iSplitR; first done.
     iSplit ; [iPureIntro|].
-    { admit.
-      (* apply is_valid_updated_lmemory_update_version_region; eauto. *)
-      (* + eapply Forall_impl; first eapply HmemMap_maxv ; cbn. *)
-      (*   intros a' Ha'. *)
-      (*   eapply lookup_weaken_None ; eauto. *)
-      (* + admit. (* not provable ! *) *)
-    }
+    { apply is_valid_updated_lmemory_update_version_region; eauto. }
     iSplit.
     - iPureIntro; cbn.
       exists (<[src:=next_version_lword lwsrc]> lrt).
@@ -462,7 +458,13 @@ Section cap_lang_rules.
       }
     - iIntros (Ep) "H".
       iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iDestruct (update_state_interp_next_version with "[$Hσ $Hregs $Hmem]") as "H"; eauto.
+      iDestruct (update_state_interp_next_version  with "[$Hσ $Hregs $Hmem]") as "H"
+      ; eauto.
+      iMod "H".
+      iModIntro.
+      iDestruct "H" as (glm) "(%Hincl & Hσ & Hlr & Hlm)".
+      iFrame.
+      (* TODO PROBLEM HERE -> we don't know the link between glm and lmt *)
   Admitted.
 
   (* TODO the proof uses wp_opt,
