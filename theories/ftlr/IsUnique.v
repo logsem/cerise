@@ -181,6 +181,7 @@ Section fundamental.
        assert (dst ≠ PC) as Hdst_pc by (intro ; simplify_map_eq); simplify_map_eq.
        do 2 (rewrite (insert_commute _ _ PC) //);
        rewrite !insert_insert.
+       destruct Hupd as (lm & Hlm_incl & Hvalid).
 
        assert ( lmem' !! (a_pc', v) = Some lw ) as Hmem'_pca.
        { eapply is_valid_updated_lmemory_preserves_lmem; cycle 1 ; eauto.
@@ -217,11 +218,13 @@ Section fundamental.
              by (eapply logical_region_map_some_inv; eauto)
          ; simplify_eq.
          simplify_eq.
-         destruct Hupd.
-         eapply lookup_weaken; last eapply H0.
+         destruct Hvalid as (Hupd_incl & HmaxvMap & HsomeMap).
+         eapply lookup_weaken; last eapply Hupd_incl.
          rewrite update_version_region_preserves_lmem_next; eauto.
-         { rewrite lookup_insert_ne ; last (intro ; simplify_eq ; set_solver).
-           erewrite logical_region_map_lookup_versions; eauto.
+         {
+           erewrite logical_region_map_lookup_versions with (v':= v) in Hlw'; eauto.
+           eapply lookup_weaken in Hlw'; eauto.
+           eapply insert_subseteq_r_inv; eauto.
          }
          { subst la'.
            eapply elem_of_submseteq; eauto.
@@ -460,8 +463,10 @@ Section fundamental.
             iIntros; discriminate.
           }
           { (* case sweep true cap *)
+            destruct Hupd as (lm & Hlm_incl & Hvalid).
             assert ( lmem' !! (a, v) = Some lw ) as Hmem'_pca.
-            { eapply is_valid_updated_lmemory_preserves_lmem; eauto.
+            {
+              eapply is_valid_updated_lmemory_preserves_lmem; eauto.
               apply finz_seq_between_NoDup.
               by simplify_map_eq.
             }
@@ -670,6 +675,7 @@ Section fundamental.
             ; simplify_map_eq.
             assert (dst ≠ PC) as Hdst_pc by (intro ; simplify_map_eq); simplify_map_eq.
             do 2 (rewrite (insert_commute _ _ PC) //); rewrite insert_insert.
+            destruct Hupd as (lm & Hlm_incl & Hvalid).
 
             assert ( lmem' !! (a_pc', v_pc') = Some lw ) as Hmem'_pca.
             { eapply is_valid_updated_lmemory_preserves_lmem; eauto.
@@ -688,16 +694,22 @@ Section fundamental.
             assert
               (logical_range_map b0 e0 lws (v0 + 1) ⊆ lmem')
               as Hmem'_be_next.
-            { clear -Hupd Hlen_lws HNoDup_range Ha_notin_src.
+            {
               eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
               assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be]
                   by (eapply logical_range_map_some_inv; eauto); simplify_eq.
-              destruct Hupd.
-              eapply lookup_weaken; last eauto.
+              simplify_eq.
+              destruct Hvalid as (Hupd_incl & HmaxvMap & HsomeMap).
+              eapply lookup_weaken; last eapply Hupd_incl.
               rewrite update_version_region_preserves_lmem_next; eauto.
-              all: rewrite lookup_insert_ne //=; last (intro ; set_solver).
-              erewrite logical_region_map_lookup_versions; eauto.
-              eapply logical_region_version_neq; eauto; lia.
+              {
+                erewrite logical_range_map_lookup_versions with (v':= v0) in Hlw'; eauto.
+                eapply lookup_weaken in Hlw'; eauto.
+                eapply insert_subseteq_r_inv; eauto.
+              }
+              { rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
+                eapply logical_region_version_neq; eauto; lia.
+              }
             }
 
             rewrite -(insert_id lmem' (a_pc', v_pc') lw); auto.
