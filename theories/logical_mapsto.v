@@ -1264,47 +1264,6 @@ Qed.
 (* Qed. *)
 
 
-(* (* If an address `a'` is not reachable from the current view of the lmem, *)
-(*    then updating the version number of another address `a` *)
-(*    does not make it reachable *) *)
-(* Lemma update_cur_version_addr_notin_preserves_no_access *)
-(*   (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) (a a' : Addr): *)
-(*   a ≠ a' → *)
-(*   update_cur_version_addr lmem lm vmap a' = (lmem', lm', vmap') → *)
-(*   lmem_not_access_addrL lm vmap a → *)
-(*   lmem_not_access_addrL lm' vmap' a. *)
-(* Proof. *)
-(*   intros Hneq Hupd Hno_access. *)
-(*   rewrite /update_cur_version_addr in Hupd. *)
-(*   destruct (vmap !! a') as [va'|] eqn:Heqn ; cbn in Hupd ; [|by simplify_eq]. *)
-(*   destruct (lm !! (a', va')) as [lw'|] eqn:Heqn'; simplify_map_eq; last done. *)
-(*   apply map_Forall_lookup. *)
-(*   intros la lw Hsome Hcur. *)
-(*   destruct la as [a0 v0]. *)
-(*   destruct (decide (a0 = a')) ; simplify_eq. *)
-(*   - assert (v0 = (va' + 1)) by (rewrite /is_cur_addr in Hcur; by simplify_map_eq). *)
-(*     simplify_map_eq. *)
-(*     apply (map_Forall_lookup_1 _ _ _ _ Hno_access) in Heqn'; auto. *)
-(*   - assert ((a', va' + 1) ≠ (a0, v0)) by (intro ; simplify_eq). *)
-(*     simplify_map_eq. *)
-(*     apply (map_Forall_lookup_1 _ _ _ _ Hno_access) in Hsome; auto. *)
-(*     rewrite /is_cur_addr /= in Hcur; simplify_map_eq. *)
-(*     auto. *)
-(* Qed. *)
-
-(* Lemma update_cur_version_region_notin_preserves_no_access *)
-(*   (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr) (a' : Addr): *)
-(*   a' ∉ la → *)
-(*   update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') → *)
-(*   lmem_not_access_addrL lm vmap a' → *)
-(*   lmem_not_access_addrL lm' vmap' a'. *)
-(* Proof. *)
-(*   move: lmem lmem' lm lm' vmap vmap' a'. *)
-(*   induction la as [| a la IH]; intros * Hnot_in Hupd Hno_access. *)
-(*   - by cbn in * ; simplify_eq. *)
-(*   - destruct_cons. *)
-(*     eapply update_cur_version_addr_notin_preserves_no_access ; eauto. *)
-(* Qed. *)
 
 (* Lemma update_cur_version_notin_is_cur_word *)
 (*   (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap) *)
@@ -2183,27 +2142,35 @@ Proof.
   - eapply update_version_addr_preserves_mem_vmap_root ; eauto.
 Qed.
 
+(* If an address `a'` is not reachable from the current view of the lmem, *)
+(*    then updating the version number of another address `a` *)
+(*    does not make it reachable *)
 Lemma update_version_addr_preserves_notin_not_access
   (lm lm' : LMem) (a : Addr) (vmap vmap': VMap) (v : Version) (a' : Addr) :
   a ≠ a' ->
   lm ⊆ lm' ->
   is_Some (lm !! (a', v)) ->
-  is_cur_addr (a', v) vmap ->
+  is_cur_addr (a', v) vmap' ->
   lm !! (a' , v+1) = None ->
   lmem_not_access_addrL lm' vmap' a ->
   lmem_not_access_addrL (update_version_addr lm a' v lm')
     (update_version_addr_vmap a' v vmap') a.
 Proof.
-  intros Hneq Hincl [lw Hlm] Hcur Hmaxv Hnot_access.
+  intros Hneq Hincl [lw Hlm] Hcur Hmaxv Hno_access.
   rewrite /update_version_addr /update_version_addr_vmap.
-  (* assert (lm !! (a', v) = Some lw) as Hlm by (eapply lookup_weaken; eauto). *)
   rewrite Hlm.
-  (* extract as a lemma ? *)
-  (* rewrite /lmem_not_access_addrL in Hnot_access |- *. *)
-  (* rewrite map_Forall_insert; eauto. *)
-  (* split. intro. *)
-  (* eapply Hnot_access; eauto. eapply lookup_weaken; eauto. *)
-Admitted.
+  apply map_Forall_lookup.
+  intros la' lw' Hsome' Hcur'.
+  destruct la' as [a0 v0].
+  destruct (decide (a0 = a')) ; simplify_eq.
+  - assert (v0 = (v + 1)) by (rewrite /is_cur_addr in Hcur'; by simplify_map_eq).
+    simplify_map_eq.
+    eapply lookup_weaken in Hlm ; eauto.
+  - assert ((a', v + 1) ≠ (a0, v0)) by (intro ; simplify_eq).
+    simplify_map_eq.
+    apply (map_Forall_lookup_1 _ _ _ _ Hno_access) in Hsome'; auto.
+    by rewrite /is_cur_addr /= in Hcur'; simplify_map_eq.
+Qed.
 
 Lemma update_version_addr_expands (lm lm' : LMem) (a : Addr) ( v : Version ) :
   lm ⊆ lm' ->
@@ -2227,6 +2194,30 @@ Proof.
   eapply update_version_addr_expands; eauto.
 Qed.
 
+Lemma update_version_addr_vmap_neq_preserves_cur
+  (vmap : VMap) (a' : Addr) (v : Version) (a: Addr) :
+  a ≠ a' ->
+  is_cur_addr (a, v) vmap ->
+  is_cur_addr (a, v) (update_version_addr_vmap a' v vmap).
+Proof.
+  intros Hneq Hcur.
+  rewrite /update_version_addr_vmap /is_cur_addr.
+  by simplify_map_eq.
+Qed.
+
+Lemma update_version_region_vmap_notin_preserves_cur
+  (vmap : VMap) (la : list Addr) (v : Version) (a : Addr) :
+  a ∉ la ->
+  is_cur_addr (a, v) vmap ->
+  is_cur_addr (a, v) (update_version_region_vmap la v vmap).
+Proof.
+  induction la as [|a' la IHla] ; cbn in * ; intros Hnot_in Hcur; auto.
+  rewrite -/(update_version_region_vmap la v vmap).
+  destruct_cons.
+  apply IHla in Ha_notin_la; auto.
+  by eapply update_version_addr_vmap_neq_preserves_cur.
+Qed.
+
 Lemma update_version_region_preserves_notin_not_access
   (lm : LMem) (la : list Addr) (vmap : VMap) (v : Version) (a : Addr) :
   a ∉ la ->
@@ -2246,6 +2237,7 @@ Proof.
   apply IHla in Hnot_access; eauto.
   eapply update_version_addr_preserves_notin_not_access; eauto.
   apply update_version_region_expands; auto.
+  by apply update_version_region_vmap_notin_preserves_cur.
 Qed.
 
 Lemma update_version_region_preserves_mem_corresponds
@@ -2382,22 +2374,24 @@ Proof.
      /update_version_addr map_subseteq_spec in Hcompatibility.
   apply Hcompatibility; clear Hcompatibility.
   destruct ( glmem !! (a, v) ) as [lwa'|] eqn:Hlwa'.
-  (* - destruct Ha'_in_la as [? | Ha'_in_la] ; simplify_map_eq. *)
-  (*   pose proof Ha'_in_la as Ha'_in_la'. *)
-  (*   apply elem_of_list_lookup in Ha'_in_la'. *)
-  (*   destruct Ha'_in_la' as [? Ha'_lookup]. *)
-  (*   eapply Forall_lookup in Hmax_la ; eauto. *)
-  (*   rewrite lookup_insert_ne //=; last (intro ; simplify_eq; set_solver). *)
-  (*   rewrite update_version_region_preserves_lmem_next; eauto. *)
-  (*   rewrite update_version_region_preserves_lmem in Hlmem ; eauto. *)
-  (* - destruct Ha'_in_la as [? | Ha'_in_la] ; simplify_map_eq. *)
-  (*   rewrite update_version_region_preserves_lmem in Hlmem; eauto. *)
-  (*   rewrite update_version_region_preserves_lmem_next ; eauto. *)
-  (*   apply elem_of_list_lookup_1 in Ha'_in_la; destruct Ha'_in_la as [? Ha'_in_la]. *)
-  (*   eapply Forall_lookup in Hmax_la ; eauto. *)
-(* Qed. *)
-Admitted.
-
+  - destruct Ha'_in_la as [? | Ha'_in_la] ; simplify_map_eq.
+    { eapply lookup_weaken in Hlmem; eauto. by rewrite Hlmem in Hlwa'. }
+    { pose proof Ha'_in_la as Ha'_in_la'.
+    apply elem_of_list_lookup in Ha'_in_la'.
+    destruct Ha'_in_la' as [? Ha'_lookup].
+    eapply Forall_lookup in Hmax_la ; eauto.
+    rewrite lookup_insert_ne //=; last (intro ; simplify_eq; set_solver).
+    rewrite update_version_region_preserves_lmem_next; eauto.
+    eapply lookup_weaken in Hlmem; eauto. }
+  - destruct Ha'_in_la as [Hneq | Ha']; subst.
+    { eapply lookup_weaken in Hlmem; eauto. by rewrite Hlmem in Hlwa'. }
+    {
+      erewrite update_version_region_preserves_lmem_next; eauto.
+      eapply lookup_weaken in Hlmem; eauto.
+      apply elem_of_list_lookup_1 in Ha' ; destruct Ha' as [? Ha'].
+      eapply Forall_lookup in Hmax_la; eauto.
+    }
+Qed.
 
 Lemma is_valid_updated_lmemory_insert
   (glmem llmem llmem' : LMem) (la : list Addr) (a' : Addr) (v v' : Version) (lw : LWord) :
