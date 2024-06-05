@@ -723,14 +723,6 @@ Definition lmem_not_access_addrL (lm : LMem) (vmap : VMap) (a : Addr) : Prop :=
     is_cur_addr la vmap → (¬ word_access_addrL a lw)
   ) lm.
 
-(* describes whether the region pointed by a lword is not reachable *)
-Definition lmem_not_access_wordL (lm : LMem) (vmap : VMap) (lw : LWord) : Prop :=
-  match get_lcap lw with
-  | Some (LSCap p b e a v) =>
-      Forall (fun a => lmem_not_access_addrL lm vmap a) (finz.seq_between b e)
-  | Some _ | None => True
-  end.
-
 (** Sweep in logical memory *)
 Definition overlap_wordL (lw1 lw2 : LWord) : Prop :=
   (overlap_word (lword_get_word lw1) (lword_get_word lw2)).
@@ -2099,8 +2091,29 @@ Proof.
     by simplify_map_eq.
 Qed.
 
+
+Lemma update_cur_version_notin_is_cur_word
+  (lm : LMem) (vmap : VMap) (a : Addr) (v : Version) (lw : LWord) :
+  lmem_not_access_addrL lm vmap a ->
+  lm !! (a, v) = Some lw ->
+  is_cur_addr (a,v) vmap ->
+  is_cur_word lw vmap ->
+  is_cur_word lw (<[a:=v + 1]> vmap).
+Proof.
+  move=> Hno_access Hlm Hcur His_cur_lw.
+  destruct_lword lw ; cbn; try done
+  ; intros a' Ha' ; cbn in His_cur_lw
+  ; pose proof (His_cur_lw a' Ha') as Ha'_cur
+  ; eapply map_Forall_lookup in Hlm ; eauto; cbn in *
+  ; eapply Hlm in Hcur.
+  all: assert (a ≠ a')
+    as Hneq by by (intro ; simplify_eq; by apply elem_of_finz_seq_between in Ha').
+  all: try rewrite lookup_insert_ne ; auto.
+Qed.
+
 Lemma update_version_addr_preserves_mem_vmap_root
   (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (a : Addr) v :
+  lm !! (a, v + 1) = None ->
   is_cur_addr (a , v) vmap ->
   lm' = update_version_addr lm a v lm ->
   vmap' = update_version_addr_vmap a v vmap ->
@@ -2108,23 +2121,77 @@ Lemma update_version_addr_preserves_mem_vmap_root
   mem_vmap_root phm lm vmap ->
   mem_vmap_root phm lm' vmap'.
 Proof.
-  intros Hcur_addr -> -> Hnaccess_mem Hroot.
+  intros Hmax Hcur_addr -> -> Hnaccess_mem Hroot.
   rewrite /update_version_addr /update_version_addr_vmap.
   rewrite /mem_vmap_root in Hroot |- *.
-  destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq.
-  - eapply map_Forall_insert_2 ; eauto.
-    + exists lw.
-      split; first apply lookup_insert.
-      admit.
-    + eapply map_Forall_impl ; eauto ; cbn in *.
-      intros la' v' (lw' & Hlw' & Hphm' & Hcur_lw').
+  pose proof Hcur_addr as Hcur_addr'.
+  eapply map_Forall_lookup in Hcur_addr ; eauto; cbn in *.
+  destruct Hcur_addr as (lw & Hlm_lw & Hphm_lw & Hcur_lw).
+  rewrite Hlm_lw.
+  eapply map_Forall_insert_2 ; eauto.
+  - exists lw.
+    split; first apply lookup_insert.
+    split; auto.
+    eapply update_cur_version_notin_is_cur_word; eauto.
+  - eapply map_Forall_impl ; eauto ; cbn in *.
+    intros a' v' (lw' & Hlm_lw' & Hphm_lw' & Hcur_lw').
+    destruct (decide (a  = a')) as [?|Hneq_a]; simplify_eq.
+    + (* a = a' *)
+      destruct (decide (v = v')) as [?|Hneq_v]; simplify_eq.
+      * (* v = v' *)
+        exists lw.
+        split;[|split];auto.
+        rewrite lookup_insert_ne; auto. intro ; simplify_eq ; lia.
+        eapply update_cur_version_notin_is_cur_word; eauto.
+      * (* v ≠ v' *)
+        destruct (decide (v+1 = v')) as [?|Hneq_v']; simplify_eq.
+        { exists lw.
+          split;[|split];auto.
+          { simplify_map_eq. }
+          { eapply update_cur_version_notin_is_cur_word ; eauto. }
+        }
+        { exists lw'.
+          split;[|split];auto.
+          { rewrite lookup_insert_ne; auto. intro ; simplify_eq ; lia. }
+          { by rewrite H. }
+          {
+            rewrite /lmem_not_access_addrL in Hnaccess_mem.
+
+            eapply update_cur_version_notin_is_cur_word ; eauto.
+            admit. (* provable ?? *)
+          }
+        }
+    + (* a ≠ a' *)
       exists lw'.
-      admit.
-      (* eapply map_Forall_lookup in Hcur_addr ; eauto ; cbn in *. *)
-      (* destruct Hcur_addr as (lw' & Hlw' & Hphm & Hcur) ; simplify_map_eq. *)
-  - eapply map_Forall_lookup in Hcur_addr ; eauto ; cbn in *.
-    destruct Hcur_addr as (?&?&_) ; simplify_map_eq.
+      split;[|split];auto.
+      { by rewrite lookup_insert_ne; [|intro;simplify_eq;lia]. }
+      { eapply update_cur_version_notin_is_cur_word ; eauto.
+        admit. (* provable ?? *)
+      }
+
+    (* destruct (decide ((a, v) = (a', v'))) as [?|Hneq]; simplify_eq. *)
+    (* { exists lw. *)
+    (*   split;[|split];auto. *)
+    (*   rewrite lookup_insert_ne; auto. intro ; simplify_eq ; lia. *)
+    (*   eapply update_cur_version_notin_is_cur_word; eauto. *)
+    (* } *)
+
+
+    (* destruct (decide ((a, v+1) = (la', v'))) as [?|Hneq]; simplify_eq. *)
+    (* + rewrite Hlw' in Hmax ; simplify_eq. *)
+    (* + *)
+    (*   destruct (decide (a = la')) as [?|Hneq'] ; subst. *)
+    (*   * rewrite Hphm' in Hphm_lw; simplify_eq. *)
+    (*     exists lw'. *)
+    (*      split;[|split];auto. *)
+    (*      { by rewrite lookup_insert_ne; [|intro;simplify_eq;lia]. } *)
+    (*      {eapply update_cur_version_notin_is_cur_word ; eauto. *)
+    (*        (* TODO provable ?? *) *)
+    (*        admit. *)
+    (*   } *)
 Admitted.
+
+
 
 Lemma update_version_addr_preserves_mem_corresponds
   (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (a : Addr) v :
