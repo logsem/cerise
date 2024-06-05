@@ -241,6 +241,14 @@ Proof.
   by simplify_map_eq.
 Qed.
 
+Lemma is_cur_addr_insert
+  (vmap : VMap) (a : Addr) (v : Version) :
+  is_cur_addr (a,v) (<[a := v]> vmap).
+Proof.
+  rewrite /is_cur_addr //=.
+  by simplify_map_eq.
+Qed.
+
 Lemma insert_reg_lreg_strip (lregs : LReg) (r : RegName) (lw : LWord) :
   lregs !! r = Some lw ->
   <[ r := lword_get_word lw ]> (lreg_strip lregs) = lreg_strip lregs.
@@ -1603,7 +1611,7 @@ Qed.
 Definition update_version_addr
   (lmem : LMem) (a : Addr) (v : Version) : LMem :=
   match lmem !! (a,v) with
-  | Some lw => <[ (a, v+1) := lw ]>lmem
+  | Some lw => <[ (a, v+1) := lw ]> lmem
   | None => lmem
   end.
 
@@ -1725,7 +1733,6 @@ Proof.
     eapply update_version_addr_lookup; eauto.
     rewrite update_version_region_notin_preserves_lmem; eauto.
 Qed.
-
 
 Lemma update_version_region_preserves_lmem_next
   (lmem : LMem) (la : list Addr) (a' : Addr) (v : Version) :
@@ -2049,8 +2056,91 @@ Qed.
 (*   by simplify_map_eq. *)
 (* Qed. *)
 
+
+Lemma update_version_addr_preserves_mem_current_version
+  (lm lm': LMem) (vmap vmap' : VMap) (a : Addr) v :
+  lm !! (a, v + 1) = None ->
+  is_cur_addr (a , v) vmap ->
+  lm' = update_version_addr lm a v ->
+  vmap' = update_version_addr_vmap a v vmap ->
+  lmem_not_access_addrL lm vmap a →
+  mem_current_version lm vmap ->
+  mem_current_version lm' vmap'.
+Proof.
+  intros Hmaxv Hcur_addr -> -> Hnaccess_mem Hdom.
+  rewrite /update_version_addr /update_version_addr_vmap.
+  rewrite /mem_current_version in Hdom |- *.
+  destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq ; rewrite Hla.
+  - eapply map_Forall_insert; eauto.
+    split.
+    + exists (v+1).
+      split ; [|split] ; cbn ; eauto.
+      by apply is_cur_addr_insert.
+      by simplify_map_eq.
+    + eapply map_Forall_impl; eauto.
+    cbn ; intros la' lw' Hlegal.
+    destruct Hlegal as (cur_v' & Hcur_la' & Hcurv'_max & Hsome_la').
+    destruct (decide (laddr_get_addr la' = a)) as [Heq|Hneq] ; subst.
+    {
+      exists (v+1).
+      split ; [|split] ; cbn ; eauto.
+      apply is_cur_addr_insert.
+      eapply is_cur_addr_same in Hcur_addr ; eauto ; subst.
+      lia.
+      by simplify_map_eq.
+    }
+    {
+      exists cur_v'.
+      split ; [|split] ; eauto.
+      rewrite /is_cur_addr in Hcur_la' |- * ; cbn in *.
+      by simplify_map_eq.
+      rewrite lookup_insert_ne; auto. intro Heq ; destruct Heq ; subst.
+      eapply is_cur_addr_same in Hcur_addr ; eauto ; subst.
+      lia.
+    }
+  - eapply map_Forall_impl; eauto.
+    cbn ; intros la' lw' Hlegal.
+    destruct Hlegal as (cur_v' & Hcur_la' & Hcurv'_max & Hsome_la').
+    exists cur_v'.
+    split ; [|split] ; eauto.
+    assert (a ≠ laddr_get_addr la') as Hneq_a.
+    {
+      intro ; subst. destruct Hsome_la'.
+      eapply is_cur_addr_same in Hcur_addr ; eauto ; subst.
+      by rewrite H in Hla.
+    }
+    rewrite /is_cur_addr in Hcur_la' |- * ; cbn in *.
+    by simplify_map_eq.
+Qed.
+
+Lemma update_version_addr_preserves_mem_vmap_root
+  (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (a : Addr) v :
+  is_cur_addr (a , v) vmap ->
+  lm' = update_version_addr lm a v ->
+  vmap' = update_version_addr_vmap a v vmap ->
+  lmem_not_access_addrL lm vmap a →
+  mem_vmap_root phm lm vmap ->
+  mem_vmap_root phm lm' vmap'.
+Proof.
+  intros Hcur_addr -> -> Hnaccess_mem Hroot.
+  rewrite /update_version_addr /update_version_addr_vmap.
+  rewrite /mem_vmap_root in Hroot |- *.
+  destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq.
+  - eapply map_Forall_insert_2 ; eauto.
+    + admit.
+    + eapply map_Forall_impl ; eauto ; cbn in *.
+      intros la' v' (lw' & Hlw' & Hphm' & Hcur_lw').
+      exists lw'.
+      admit.
+      (* eapply map_Forall_lookup in Hcur_addr ; eauto ; cbn in *. *)
+      (* destruct Hcur_addr as (lw' & Hlw' & Hphm & Hcur) ; simplify_map_eq. *)
+  - eapply map_Forall_lookup in Hcur_addr ; eauto ; cbn in *.
+    destruct Hcur_addr as (?&?&_) ; simplify_map_eq.
+Admitted.
+
 Lemma update_version_addr_preserves_mem_corresponds
   (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (a : Addr) v :
+  lm !! (a, v + 1) = None ->
   is_cur_addr (a , v) vmap ->
   lm' = update_version_addr lm a v ->
   vmap' = update_version_addr_vmap a v vmap ->
@@ -2058,91 +2148,36 @@ Lemma update_version_addr_preserves_mem_corresponds
   mem_phys_log_corresponds phm lm vmap ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-  (* intros -> -> Hnaccess_mem [Hdom Hroot]. *)
-  (* (* destruct (vmap !! a) as [v' |] eqn:Hcur_la; cbn in *. *) *)
-  (* (* destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq. *) *)
-  (* (* rewrite -/(is_cur_addr (a,v') vmap) in Hcur_la. *) *)
-  (* (* pose proof (map_Forall_lookup_1 _ _ _ _ Hnaccess_mem Hla) as Hnaccess; cbn in Hnaccess. *) *)
-  (* (* assert (not (word_access_addrL a lw)) as Hnaccess by eauto. *) *)
-  (* (* pose proof (Hla' := Hla). *) *)
-  (* (* eapply map_Forall_lookup_1 in Hla'; eauto; cbn in Hla'. *) *)
-  (* (* destruct Hla' as (va & Hcur_va & Hle_va & [lwa Hlwa]). *) *)
-  (* (* rewrite /is_cur_addr /= in Hcur_la, Hcur_va. *) *)
-  (* (* rewrite Hcur_la in Hcur_va ; simplify_eq. *) *)
-  (* split. *)
-  (* - unfold mem_current_version. *)
-  (*    eapply lmem_corresponds_read_iscur in Hla ; eauto. *)
-  (*   2: split ; eauto. *)
-  (*   eapply update_cur_word with (v := va+1) in Hla;eauto. *)
-  (*   apply map_Forall_insert_2. *)
-  (*   { eexists (va+1). *)
-  (*     split. *)
-  (*     rewrite /is_cur_addr //= ; by simplify_map_eq. *)
-  (*     split; by simplify_map_eq. *)
-  (*   } *)
-  (*   eapply map_Forall_lookup; eauto. *)
-  (*   intros la' lw' Hroot' ; cbn in Hroot'. *)
-  (*   destruct la' as [a' v'] ; cbn in *. *)
-  (*   eapply map_Forall_lookup_1 in Hroot' ; eauto ; cbn in Hroot'. *)
-  (*   destruct Hroot' as (cur_v & Hcur_v & Hcur_max & [cur_lw Hcur_lw]). *)
-  (*   destruct (decide (a = a')); simplify_eq. *)
-  (*   + exists (va+1). split ; [|split] ; try by simplify_map_eq. *)
-  (*     rewrite /is_cur_addr; by simplify_map_eq. *)
-  (*     replace va with cur_v *)
-  (*       by ( by rewrite /is_cur_addr /= Hcur_la in Hcur_v; simplify_eq). *)
-  (*     lia. *)
-  (*   + exists cur_v. split; [|split]; eauto. *)
-  (*     apply is_cur_addr_insert_ne; eauto. *)
-  (*     exists cur_lw. rewrite lookup_insert_ne //=; congruence. *)
-  (* - apply map_Forall_insert_2. *)
-  (*   { pose proof (Hla' := Hla). *)
-  (*     eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *. *)
-  (*     destruct Hla as (cur_v & Hcur_v & Hcur_max & [cur_lw Hcur_lw]). *)
-  (*     rewrite /is_cur_addr /= Hcur_la in Hcur_v; simplify_map_eq. *)
-  (*     exists lw. split. by simplify_map_eq. *)
-  (*     eapply map_Forall_lookup_1 in Hcur_la ; eauto ; cbn in Hcur_la. *)
-  (*     destruct Hcur_la as (lw' & Hlw' & Hw' & Hcur_lw'). *)
-  (*     rewrite Hlw' in Hla' ; simplify_eq. *)
-  (*     split; auto. *)
-  (*     eapply update_cur_word ; eauto. *)
-  (*   } *)
-  (*   eapply map_Forall_lookup; eauto. *)
-  (*   intros a' v' Hcur_a'. *)
-  (*   pose proof (Hcur_a'' := Hcur_a'). *)
-  (*   eapply map_Forall_lookup_1 in Hcur_a'' ; eauto ; cbn in Hcur_a''. *)
-  (*   destruct Hcur_a'' as (lw' & Hlw' & Hw' & Hcur_lw'). *)
-  (*   destruct (decide (a = a')); simplify_eq. *)
-  (*   + eapply update_cur_word with (v := va+1) in Hcur_lw'; eauto. *)
-  (*     exists lw. *)
-  (*     assert ((a', va + 1) ≠ (a', va)) by (intro ; simplify_eq ; lia). *)
-  (*     rewrite Hcur_la in Hcur_a' ; simplify_eq. *)
-  (*     rewrite Hlwa in Hla ; simplify_eq. *)
-  (*     by simplify_map_eq. *)
-  (*   + exists lw'. *)
-  (*     assert ((a, va + 1) ≠ (a', v')) by (intro ; simplify_eq). *)
-  (*     split ; [|split] ; try by simplify_map_eq. *)
-  (*     eapply update_cur_word;eauto. *)
-Admitted.
+  intros Hmax Hcur_addr -> -> Hnaccess_mem [Hdom Hroot].
+  split.
+  - eapply update_version_addr_preserves_mem_current_version ; eauto.
+  - eapply update_version_addr_preserves_mem_vmap_root ; eauto.
+Qed.
+
 
 Lemma update_version_region_preserves_mem_corresponds
   (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (la : list Addr) v:
-  NoDup la →
-  Forall (fun a => is_cur_addr (a , v) vmap) la ->
   vmap' = update_version_region_vmap la v vmap ->
   lm' = update_version_region lm la v ->
+  NoDup la →
+  Forall (fun a => is_cur_addr (a , v) vmap) la ->
+  Forall (fun a => lm !! (a , v+1) = None) la ->
   Forall (fun a => lmem_not_access_addrL lm vmap a) la →
   mem_phys_log_corresponds phm lm vmap ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-(*   move: phm lmem lm lmem' lm' vmap vmap'. *)
-(*   induction la as [| a la IH]; intros * Hno_dup Hupd Hall_naccess_mem Hmem_corr. *)
-(*   - by cbn in * ; simplify_eq. *)
-(*   - destruct_cons. *)
-(*     assert (mem_phys_log_corresponds phm lm0 vmap0) as Hinv0 *)
-(*         by (eapply IH ;eauto). *)
-(*     eapply update_cur_version_addr_preserves_mem_corresponds in Hupd0 ; eauto. *)
-(*     by eapply update_cur_version_region_notin_preserves_no_access. *)
-(* Qed. *)
+  move: phm lm lm' vmap vmap'.
+  induction la as [| a la IH]; intros * -> -> Hno_dup Hcur Hmax Hall_naccess_mem Hmem_corr.
+  - by cbn in * ; simplify_eq.
+  - destruct_cons.
+    assert (mem_phys_log_corresponds phm
+              (update_version_region lm la v)
+              (update_version_region_vmap la v vmap)) as Hinv
+    by (eapply IH ;eauto).
+    eapply update_version_addr_preserves_mem_corresponds in Hinv ; eauto.
+    admit.
+    admit.
+    admit.
 Admitted.
 
 
