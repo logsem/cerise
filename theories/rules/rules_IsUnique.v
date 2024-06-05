@@ -56,7 +56,7 @@ Section cap_lang_rules.
     lregs !! src = Some (LCap p b e a v) ->
     p ≠ E ->
     (* we update the region of memory with the new version *)
-    is_valid_updated_lmemory lmem lmem (finz.seq_between b e) v lmem' ->
+    (∃ lm, lmem ⊆ lm ∧ is_valid_updated_lmemory lm lmem (finz.seq_between b e) v lmem') ->
     (* specific instance of unique_in_registers *)
     unique_in_registersL lregs src (LCap p b e a v) ->
     incrementLPC (<[ dst := LInt 1 ]> (<[ src := next_version_lword (LCap p b e a v) ]> lregs)) = Some lregs' ->
@@ -522,7 +522,6 @@ Section cap_lang_rules.
         destruct sb; cbn in *; done.
         destruct l; cbn in *; done.
       }
-
       iIntros "%Heqlwsrcv %Heqgwsrcv".
       rewrite updatePC_incrementPC; cbn.
 
@@ -565,6 +564,8 @@ Section cap_lang_rules.
         ; try done
         ; inversion Hget_lsrcv; subst.
         all: eapply IsUnique_success_true_is_sealed; eauto.
+
+
       + iDestruct (update_state_interp_transient_next_version with "Hσ")
           as "(%lmt & %Hlmem_incl & %Hisvalid &Hσ)"; eauto.
         rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
@@ -601,8 +602,6 @@ Section cap_lang_rules.
         ; inversion Hget_lsrcv; subst.
         eapply IsUnique_success_true_cap; eauto.
         { by intro ; subst. }
-        (* apply is_valid_updated_lmemory_update_version_region. *)
-        admit.
     - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
       { iCombine "Hpca Hmem" as "Hmem".
         rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
@@ -655,8 +654,7 @@ Section cap_lang_rules.
       ; auto
       ; try done
       ; eapply IsUnique_success_false; eauto.
-  (* Qed. *)
-  Admitted.
+  Qed.
 
   (* Lemma update_state_interp_transient_next_version {σ σt lr lrt} {lm lmt : LMemF} la lw lw' : *)
   (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) -> *)
@@ -1068,6 +1066,7 @@ Section cap_lang_rules.
       iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
       iClear "Hrmap".
       iFrame.
+      destruct Hupd as ( lm & Hlm_incl & Hvalid ).
 
       assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca
           by (eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq).
@@ -1075,7 +1074,8 @@ Section cap_lang_rules.
       assert ( logical_range_map b0 e0 lws v0 ⊆ mem' )
         as Hmem'_be.
       {
-        eapply is_valid_updated_lmemory_lmem_incl; eauto.
+        eapply is_valid_updated_lmemory_lmem_incl with (glmem := lm); eauto.
+        (* destruct Hvalid as (Hupd&_&?). *)
         (* eapply is_valid_updated_lmemory_insert; eauto. *)
         admit.
         (* eapply logical_range_notin; eauto. *)
@@ -1085,17 +1085,18 @@ Section cap_lang_rules.
       assert
         (logical_range_map b0 e0 lws (v0 + 1) ⊆ mem')
         as Hmem'_be_next.
-      { clear -Hupd Hpca_notin Hlen_lws.
+      { clear -Hlm_incl Hvalid Hpca_notin Hlen_lws.
         (* TODO extract as a lemma *)
         eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
         assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be]
             by (eapply logical_range_map_some_inv; eauto) ; simplify_eq.
-        destruct Hupd.
-        eapply lookup_weaken; last eauto.
-        rewrite update_version_region_preserves_lmem_next; eauto.
-        all: rewrite lookup_insert_ne //=; last (intro ; set_solver).
-        erewrite logical_range_map_lookup_versions; eauto.
-        eapply logical_range_version_neq; eauto; lia.
+        (* erewrite logical_range_map_lookup_versions with (v':=v0) in Hlw'; eauto. *)
+        (* rewrite /logical_range_map in Hlw'. *)
+        admit.
+        (* rewrite update_version_region_preserves_lmem_next; eauto. *)
+        (* eapply lookup_weaken. ; last eauto. *)
+        (* all: rewrite lookup_insert_ne //=; last (intro ; set_solver). *)
+        (* eapply logical_range_version_neq; eauto; lia. *)
       }
 
       rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
@@ -1193,16 +1194,18 @@ Section cap_lang_rules.
       iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
       iClear "Hrmap".
       iFrame.
+      destruct Hupd as ( lm & Hlm_incl & Hvalid ).
 
       assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
       { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq. }
 
+      destruct Hvalid as (Hupd&_&?).
       assert (
           exists lws,
             length lws = length (finz.seq_between b0 e0) /\
               logical_range_map b0 e0 lws (v0 + 1) ⊆ mem')
         as (lws & Hlen_lws & Hmem'_be_next).
-      { destruct Hupd as (_ & _ &Hupd) ; eapply logical_region_map_inv ; eauto. }
+      { eapply logical_region_map_inv ; eauto. }
 
       rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
       iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
