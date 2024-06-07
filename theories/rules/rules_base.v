@@ -390,21 +390,32 @@ Section cap_lang_rules.
 
   Definition LMemF := gmap LAddr (dfrac * LWord).
 
-  Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMemF) : iProp Σ :=
-    state_interp_logical φ
-      ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
-      (* ∗ ⌜ lreg_strip lrt ⊆ reg φt ⌝ *)
-      ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2)
-      ∗ (∃ lreg_t lmem_t cur_map,
-        ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗
-          ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝)
+  Definition transiently (Pcommitted : iProp Σ) (Ptransient : iProp Σ) : iProp Σ :=
+    Pcommitted ∗ (∀ Ep, Pcommitted ={Ep}=∗ Ptransient).
 
-      ∗ (∀ Ep, state_interp_logical φ
-                 ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
-                 ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2)
-               ={Ep}=∗ state_interp_logical φt
-                       ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y)
-                       ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2)).
+  Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMemF) : iProp Σ :=
+    transiently
+      (state_interp_logical φ ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2))
+      (state_interp_logical φt ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2)) ∗
+    ∃ lreg_t lmem_t cur_map,
+      ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗
+      ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝.
+
+  (* Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMemF) : iProp Σ := *)
+  (*   state_interp_logical φ *)
+  (*     ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) *)
+  (*     (* ∗ ⌜ lreg_strip lrt ⊆ reg φt ⌝ *) *)
+  (*     ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2) *)
+  (*     ∗ (∃ lreg_t lmem_t cur_map, *)
+  (*       ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗ *)
+  (*         ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝) *)
+
+  (*     ∗ (∀ Ep, state_interp_logical φ *)
+  (*                ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) *)
+  (*                ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2) *)
+  (*              ={Ep}=∗ state_interp_logical φt *)
+  (*                      ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y) *)
+  (*                      ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2)). *)
 
   Lemma state_interp_corr {σ lregs Ep} {lmem : LMemF} :
     state_interp_logical σ ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lmem, k ↦ₐ{y.1} y.2) ⊢
@@ -412,7 +423,6 @@ Section cap_lang_rules.
       ∗ ∃ lreg_t lmem_t cur_map,
         ⌜ lregs ⊆ lreg_t ⌝ ∗ ⌜ (snd <$> lmem) ⊆ lmem_t ⌝ ∗
         ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lreg_t lmem_t cur_map⌝.
-                                                              (* ∗ ⌜ lreg_strip regs ⊆ reg σ ⌝. *)
   Proof.
     iIntros "(Hσ & Hregs & Hmem)".
     iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
@@ -436,8 +446,8 @@ Section cap_lang_rules.
     iDestruct "Hcorr" as (lr' lm' cur_map) "(%Hlr_incl & %Hlm_incl & %Hcorr)".
     iModIntro. iFrame.
     iSplit.
-    now iExists lr', lm', cur_map.
     now iIntros.
+    now iExists lr', lm', cur_map.
   Qed.
 
   Lemma state_interp_transient_intro_nodfracs {Ep} {φ : ExecConf} {lr : LReg} {lm : LMem} :
@@ -454,7 +464,7 @@ Section cap_lang_rules.
       ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y)
       ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2).
   Proof.
-    iIntros "(Hφ & Hregs & Hmem & _)".
+    iIntros "((Hφ & _) & _)".
     now iFrame.
   Qed.
 
@@ -465,7 +475,7 @@ Section cap_lang_rules.
                 ∗ ([∗ map] k↦y ∈ lrt, k ↦ᵣ y)
                 ∗ ([∗ map] k↦y ∈ lmt, k ↦ₐ{y.1} y.2).
   Proof.
-    iIntros "(Hφ & Hregs & Hmem & _ & Hupd)".
+    iIntros "(((Hφ & Hregs & Hmem) & Hupd) & _)".
     iMod ("Hupd" with "[$Hφ $Hregs $Hmem]") as "(Hφ & Hregs & Hmem)".
     now iFrame.
   Qed.
@@ -1553,7 +1563,7 @@ Section cap_lang_rules_opt.
         ⌜ lrt ⊆ lreg_t ⌝ ∗ ⌜ snd <$> lmt ⊆ lmem_t ⌝ ∗
           ⌜state_phys_log_corresponds φt.(reg) φt.(mem) lreg_t lmem_t cur_map⌝.
   Proof.
-    now iIntros "(Hσ & Hregs & Hmem & %Hres & Hcommit)".
+    now iIntros "(((Hσ & Hregs & Hmem) & Hcommit) & %Hcor)".
   Qed.
   (* Lemma wp_reg_lookup lrt {r φ φt lr Φs Φf} : *)
   (*   (state_interp_regs_transient φ φt lr lrt ∗ *)
@@ -1700,9 +1710,14 @@ Section cap_lang_rules_opt.
       σ (update_reg σt dst (lword_get_word lw2))
       lr (<[ dst := lw2 ]> lrt) lm lmt .
   Proof.
-    iIntros (Hdom Hcur). iIntros "(Hσ & Hregs & Hmem & %Hcor & Hcommit)"; cbn in *.
+    iIntros (Hdom Hcur).
+    iIntros "(((Hσ & Hregs & Hmem) & Hcommit) & %Hcor)"; cbn in *.
     iFrame "Hσ Hregs Hmem".
     iSplit.
+    - iIntros (Ep) "H".
+      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
+      iFrame.
+      iApply (update_state_interp_from_regs_mod Hdom Hcur with "[$Hσ $Hregs]").
     - iPureIntro; cbn.
       destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
       exists (<[dst:=lw2]> lr'), lm', cur_map.
@@ -1715,10 +1730,6 @@ Section cap_lang_rules_opt.
       specialize (Hcur cur_map Hcur_lr').
       destruct Hinv as [Hregs ?] ; split ; auto.
       by apply lreg_corresponds_insert_respects.
-    - iIntros (Ep) "H".
-      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iFrame.
-      iApply (update_state_interp_from_regs_mod Hdom Hcur with "[$Hσ $Hregs]").
   Qed.
 
   (* This lemma updates the state for operations where a current word is
@@ -1798,9 +1809,12 @@ Section cap_lang_rules_opt.
       σ (update_reg σt dst (lword_get_word lw2))
       lr (<[ dst := lw2 ]> lrt) lm lmt.
   Proof.
-    iIntros (Hdom Hr Hinbounds Ha) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)"; cbn in *.
+    iIntros (Hdom Hr Hinbounds Ha) "(((Hσ & Hregs & Hmem) & Hcommit) & %Hcor)"; cbn in *.
     iFrame "Hσ Hregs Hmem".
-    iSplitR.
+    iSplitL.
+    - iIntros (Ep) "H".
+      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
+      iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
     - iPureIntro; cbn.
       destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
       exists (<[dst:=lw2]> lr'), lm', cur_map.
@@ -1815,9 +1829,6 @@ Section cap_lang_rules_opt.
       eapply lmem_corresponds_read_iscur in Ha; eauto.
       by apply lreg_corresponds_insert_respects.
       eapply state_corresponds_cap_cur_word; eauto ; by cbn.
-    - iIntros (Ep) "H".
-      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iApply (update_state_interp_from_cap_mod Hdom Hr Hinbounds Ha with "[$Hσ $Hregs $Hmem]").
   Qed.
 
   Lemma update_state_interp_from_mem_mod {σ Ep lregs} {lmem : LMemF} laddr lwold lwnew :
@@ -1858,9 +1869,12 @@ Qed.
                           lr lrt (* registers remain unchanged *)
                           lm (<[ la := (DfracOwn 1, lw)]> lmt).
   Proof.
-    iIntros (Hcurw Hcura Hla) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)". cbn in *.
+    iIntros (Hcurw Hcura Hla) "(((Hσ & Hregs & Hmem) & Hcommit) & %Hcor)". cbn in *.
     iFrame "Hσ Hregs Hmem".
     iSplit.
+    - iIntros (Ep) "H".
+      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
+      iApply (update_state_interp_from_mem_mod la lw' lw Hcurw Hcura Hla). iFrame.
     - iPureIntro; cbn.
       destruct Hcor as (lr' & lm' & cur_map & Hlrt_incl & Hlmt_incl & Hinv).
       exists lr', (<[la:=lw]> lm'), cur_map.
@@ -1871,9 +1885,6 @@ Qed.
           by (by destruct Hinv as [[_ Hcur'] _]).
       eapply is_cur_regs_mono in Hcur_lr'; eauto.
       apply state_phys_log_corresponds_update_mem; auto.
-    - iIntros (Ep) "H".
-      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iApply (update_state_interp_from_mem_mod la lw' lw Hcurw Hcura Hla). iFrame.
   Qed.
 
   Lemma word_of_argumentL_cur {lregs src lw2 cur_map} :

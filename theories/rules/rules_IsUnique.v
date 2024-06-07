@@ -240,7 +240,7 @@ Section cap_lang_rules.
     state_interp_transient σ σt lreg lrt lmem lmt ⊢
     ⌜ unique_in_registersL lreg src lwsrc ⌝.
   Proof.
-    iIntros (Hsweep Hsrc) "(Hσ & Hregs & Hmem & _ & Hcommit)".
+    iIntros (Hsweep Hsrc) "(((Hσ & Hregs & Hmem) & Hcommit) & _)".
     iDestruct "Hσ" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
     iPureIntro.
@@ -276,79 +276,6 @@ Section cap_lang_rules.
         iDestruct (IHlm with "Hmem") as "Hmem".
         cbn.
         by iDestruct (big_sepM_insert with "[Hi Hmem]") as "Hmem"; try iFrame.
-  Qed.
-
-  (* TODO lemma à la update_state_interp_from_mem_mod ,
-       i.e. that updates the actual state *)
-  Lemma update_state_interp_next_version
-    {σ Ep lregs lmem src lwsrc p b e a v} :
-
-    sweep (mem σ) (reg σ) src = true ->
-    lregs !! src = Some lwsrc ->
-    get_lcap lwsrc = Some (LSCap p b e a v) ->
-
-    state_interp_logical σ
-    ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
-    ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem), la ↦ₐ{dw.1} dw.2)
-    ⊢ |={Ep}=>
-          ∃ glm, ⌜ lmem ⊆ glm ⌝ ∗
-          let lmem' := update_version_region glm (finz.seq_between b e) v lmem in
-          state_interp_logical σ
-          ∗ ([∗ map] k↦y ∈ (<[src:=next_version_lword lwsrc]> lregs), k ↦ᵣ y)
-          ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem'), la ↦ₐ{dw.1} dw.2).
-  Proof.
-    iIntros (Hsweep Hlsrc Hlcap_wsrc) "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
-    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
-    iDestruct (map_full_own with "Hmem") as "Hmem".
-    iPoseProof (gen_heap_valid_inclSepM with "Hm Hmem") as "%Hlmem_incl".
-    iMod ((gen_heap_update_inSepM _ _ src (next_version_lword lwsrc)) with "Hr Hregs") as
-      "[Hr Hregs]"; eauto.
-    iFrame.
-    assert (lr !! src = Some lwsrc) as Hsrc by (eapply lookup_weaken in Hlsrc ; eauto).
-    assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
-    opose proof
-      (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
-      as HcurMap ; first (by cbn).
-    opose proof
-      (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hsrc)
-      as HmemMap_maxv; first (by cbn).
-    opose proof
-      (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
-      as HmemMap; first (by cbn).
-    set (lmem' := update_version_region lm (finz.seq_between b e) v lmem).
-    set (lm' := update_version_region lm (finz.seq_between b e) v lm).
-    set (vmap' := update_version_region_vmap (finz.seq_between b e) v vmap).
-    iMod ((gen_heap_lmem_version_update' lm lmem lm lmem' _ vmap _ (finz.seq_between b e) v)
-           with "Hm Hmem") as "[Hm Hmem]"; eauto.
-    iModIntro.
-    iExists lm.
-    iSplitR; first done.
-    iSplitR "Hmem".
-    rewrite /state_interp_logical.
-    iExists (<[src:=next_version_lword lwsrc]> lr),lm',vmap'.
-    iFrame.
-    iPureIntro.
-    {
-      (* TODO extract as a lemma ? *)
-      assert (lr !! src = Some lwsrc) as Hsrc' by (eapply lookup_weaken; eauto).
-      eapply sweep_true_specL in Hsweep; eauto.
-      split.
-      + rewrite (_: (reg σ) = (<[src:=(lword_get_word (next_version_lword lwsrc))]> (reg σ))).
-        * eapply update_version_region_lreg_corresponds_src; eauto.
-          eapply update_version_word_region_update_lword; eauto.
-          eapply lreg_corresponds_read_iscur; eauto.
-          by destruct HLinv.
-        * rewrite lword_get_word_next_version.
-          rewrite insert_id; first done.
-          eapply state_corresponds_reg_get_word; eauto.
-      + destruct (id HLinv).
-        eapply update_version_region_preserves_mem_corresponds; eauto.
-        destruct (Hsweep Hsrc').
-        eapply unique_in_machine_no_accessL; eauto.
-        eapply lreg_corresponds_read_iscur; eauto.
-    }
-    now iApply map_full_own.
   Qed.
 
   (* TODO move *)
@@ -395,6 +322,83 @@ Section cap_lang_rules.
         * exists lw'; rewrite update_version_addr_lookup_neq; eauto.
   Qed.
 
+
+  (* TODO lemma à la update_state_interp_from_mem_mod ,
+       i.e. that updates the actual state *)
+  Lemma update_state_interp_next_version
+    {σ Ep lregs lmem src lwsrc p b e a v} :
+
+    sweep (mem σ) (reg σ) src = true ->
+    lregs !! src = Some lwsrc ->
+    get_lcap lwsrc = Some (LSCap p b e a v) ->
+
+    state_interp_logical σ
+    ∗ ([∗ map] k↦y ∈ lregs, k ↦ᵣ y)
+    ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem), la ↦ₐ{dw.1} dw.2)
+    ⊢ |={Ep}=>
+          ∃ glm, ⌜ lmem ⊆ glm ⌝ ∗
+          let lmem' := update_version_region glm (finz.seq_between b e) v lmem in
+          ⌜ is_valid_updated_lmemory glm lmem (finz.seq_between b e) v lmem'⌝ ∗
+          state_interp_logical σ
+          ∗ ([∗ map] k↦y ∈ (<[src:=next_version_lword lwsrc]> lregs), k ↦ᵣ y)
+          ∗ ([∗ map] la↦dw ∈ (full_own_mem lmem'), la ↦ₐ{dw.1} dw.2).
+  Proof.
+    iIntros (Hsweep Hlsrc Hlcap_wsrc) "(Hσ & Hregs & Hmem)".
+    iDestruct "Hσ" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
+    iDestruct (map_full_own with "Hmem") as "Hmem".
+    iPoseProof (gen_heap_valid_inclSepM with "Hm Hmem") as "%Hlmem_incl".
+    iMod ((gen_heap_update_inSepM _ _ src (next_version_lword lwsrc)) with "Hr Hregs") as
+      "[Hr Hregs]"; eauto.
+    iFrame.
+    assert (lr !! src = Some lwsrc) as Hsrc by (eapply lookup_weaken in Hlsrc ; eauto).
+    assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
+    opose proof
+      (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
+      as HcurMap ; first (by cbn).
+    opose proof
+      (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hsrc)
+      as HmemMap_maxv; first (by cbn).
+    opose proof
+      (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc)
+      as HmemMap; first (by cbn).
+    set (lmem' := update_version_region lm (finz.seq_between b e) v lmem).
+    set (lm' := update_version_region lm (finz.seq_between b e) v lm).
+    set (vmap' := update_version_region_vmap (finz.seq_between b e) v vmap).
+    iMod ((gen_heap_lmem_version_update' lm lmem lm lmem' _ vmap _ (finz.seq_between b e) v)
+           with "Hm Hmem") as "[Hm Hmem]"; eauto.
+    iModIntro.
+    iExists lm.
+    iSplitR; first done.
+    iSplitR.
+    { iPureIntro. apply is_valid_updated_lmemory_update_version_region; eauto. }
+    iSplitR "Hmem".
+    rewrite /state_interp_logical.
+    iExists (<[src:=next_version_lword lwsrc]> lr),lm',vmap'.
+    iFrame.
+    iPureIntro.
+    {
+      (* TODO extract as a lemma ? *)
+      assert (lr !! src = Some lwsrc) as Hsrc' by (eapply lookup_weaken; eauto).
+      eapply sweep_true_specL in Hsweep; eauto.
+      split.
+      + rewrite (_: (reg σ) = (<[src:=(lword_get_word (next_version_lword lwsrc))]> (reg σ))).
+        * eapply update_version_region_lreg_corresponds_src; eauto.
+          eapply update_version_word_region_update_lword; eauto.
+          eapply lreg_corresponds_read_iscur; eauto.
+          by destruct HLinv.
+        * rewrite lword_get_word_next_version.
+          rewrite insert_id; first done.
+          eapply state_corresponds_reg_get_word; eauto.
+      + destruct (id HLinv).
+        eapply update_version_region_preserves_mem_corresponds; eauto.
+        destruct (Hsweep Hsrc').
+        eapply unique_in_machine_no_accessL; eauto.
+        eapply lreg_corresponds_read_iscur; eauto.
+    }
+    now iApply map_full_own.
+  Qed.
+
   Lemma update_state_interp_transient_next_version {σ σt lreg lregt lmem lmemt src lwsrc p b e a v}:
     sweep (mem σt) (reg σt) src = true ->
     lregt !! src = Some lwsrc ->
@@ -402,70 +406,70 @@ Section cap_lang_rules.
     state_interp_transient
       σ σt lreg lregt
       (full_own_mem lmem) (full_own_mem lmemt) ⊢
-      ∃ glm, ⌜ lmemt ⊆ glm ⌝ ∗
-    let lmemt' : LMem := update_version_region glm (finz.seq_between b e) v lmemt in
-      (* remove the following pure fact and move into separate lemma *)
-    ⌜ is_valid_updated_lmemory glm lmemt (finz.seq_between b e) v lmemt'⌝ ∗
-    state_interp_transient
-      σ σt (* the physical state does not change *)
-      lreg (<[ src := next_version_lword lwsrc ]> lregt) (* the version of the word is updated *)
-      (full_own_mem lmem) (full_own_mem lmemt'). (* the version of the memory region is updated *)
+    transiently
+      (state_interp_logical σ
+       ∗ ([∗ map] k↦y ∈ lreg, k ↦ᵣ y)
+       ∗ ([∗ map] k↦y ∈ (full_own_mem lmem), k ↦ₐ{y.1} y.2))
+      (∃ glm,
+          ⌜ lmemt ⊆ glm ⌝ ∗
+          let lmemt' : LMem := update_version_region glm (finz.seq_between b e) v lmemt in
+          let lregt' : LReg := <[src:=next_version_lword lwsrc]> lregt in
+          ⌜ is_valid_updated_lmemory glm lmemt (finz.seq_between b e) v lmemt'⌝ ∗
+          (* remove the following pure fact and move into separate lemma *)
+          ∃ lreg_t lmem_t cur_map,
+            ⌜ lregt' ⊆ lreg_t ⌝
+            ∗ ⌜ snd <$> (full_own_mem lmemt') ⊆ lmem_t ⌝ ∗
+            ⌜state_phys_log_corresponds σt.(reg) σt.(mem) lreg_t lmem_t cur_map⌝ ∗
+            state_interp_logical σt
+            ∗ ([∗ map] k↦y ∈ lregt', k ↦ᵣ y)
+            ∗ ([∗ map] k↦y ∈ (full_own_mem lmemt'), k ↦ₐ{y.1} y.2)).
   Proof.
-    iIntros (Hsweep Hsrc Hcap_lwsrc) "(Hσ & Hregs & Hmem & %Hcor & Hcommit)".
+    iIntros (Hsweep Hsrc Hcap_lwsrc) "(((Hσ & Hregs & Hmem) & Hcommit) & %Hcor)".
     cbn in *.
     destruct Hcor as (lrt & lmt & vmap & Hlregt_incl & Hlmemt_incl & HLinv).
     rewrite snd_fmap_pair_inv in Hlmemt_incl.
     assert (HNoDup : NoDup (finz.seq_between b e)) by (apply finz_seq_between_NoDup).
     assert (lrt !! src = Some lwsrc) as Hsrc' by (eapply lookup_weaken in Hsrc ; eauto).
-    opose proof
-      (state_corresponds_cap_all_current _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc')
-      as HcurMap ; first (by cbn).
-    opose proof
-      (state_corresponds_last_version_lword_region _ _ _ _ _ _ _ _ _ _ _ _  HLinv _ Hsrc')
-      as HmemMap_maxv; first (by cbn).
-    opose proof
-      (state_corresponds_access_lword_region _ _ _ _ _ _ _ _ _ _ _ _ HLinv _ Hsrc')
-      as HmemMap; first (by cbn).
     iFrame "Hσ Hregs Hmem".
     opose proof (sweep_true_specL _ _ _ _ _ _ _ _ _ Hsweep) as Hsweep'; eauto.
-    set (lmemt' := update_version_region lmt (finz.seq_between b e) v lmemt).
-    set (lmt' := update_version_region lmt (finz.seq_between b e) v lmt).
+    iIntros (Ep) "H".
+    iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
+    iDestruct (update_state_interp_next_version  with "[$Hσ $Hregs $Hmem]") as "H"
+    ; eauto.
+    iMod "H".
+    iModIntro.
+    iDestruct "H" as (glm) "(%Hincl & %Hvalid & Hσ & Hlr & Hlm)".
+
+    set (lmemt' := update_version_region glm (finz.seq_between b e) v lmemt).
+    set (lmt' := update_version_region glm (finz.seq_between b e) v lmt).
     set (vmap' := update_version_region_vmap (finz.seq_between b e) v vmap).
-    iExists lmt.
-    iSplitR; first done.
-    iSplit ; [iPureIntro|].
-    { apply is_valid_updated_lmemory_update_version_region; eauto. }
-    iSplit.
-    - iPureIntro; cbn.
-      exists (<[src:=next_version_lword lwsrc]> lrt).
-      exists (snd <$> (full_own_mem lmt')).
-      exists vmap'.
-      destruct (id HLinv) as ((Hregcorr & Hregcur) & Hmem).
-      split; [|split; [|split] ]; auto.
-      { by apply insert_mono. }
-      { do 2 (eapply map_fmap_mono).
-        now eapply update_version_region_mono.
-      }
-      {
-        eapply update_version_region_lreg_corresponds_src'; eauto.
-        eapply update_version_word_region_update_lword; eauto.
-      }
-      {
-        eapply update_version_region_preserves_mem_corresponds; eauto.
-        unfold full_own_mem.
-        now rewrite <-map_fmap_compose, map_fmap_id.
-        eapply unique_in_machine_no_accessL; eauto.
-      }
-    - iIntros (Ep) "H".
-      iMod ("Hcommit" with "H") as "(Hσ & Hregs & Hmem)".
-      iDestruct (update_state_interp_next_version  with "[$Hσ $Hregs $Hmem]") as "H"
-      ; eauto.
-      iMod "H".
-      iModIntro.
-      iDestruct "H" as (glm) "(%Hincl & Hσ & Hlr & Hlm)".
-      iFrame.
-      (* TODO PROBLEM HERE -> we don't know the link between glm and lmt *)
+
+    iExists glm.
+    iFrame.
+    iSplit ; first done.
+    iSplit ; first done.
+
+    iPureIntro; cbn.
+    exists (<[src:=next_version_lword lwsrc]> lrt), lmemt', vmap'.
+    split; [|split; [|split] ]; auto.
+
+    { by apply insert_mono. }
+    { rewrite snd_fmap_pair_inv. subst lmt' lmemt'.
+      now eapply update_version_region_mono.
+    }
+    {
+      eapply update_version_region_lreg_corresponds_src'; eauto.
+      eapply update_version_word_region_update_lword; eauto.
+      eapply lreg_corresponds_read_iscur; eauto.
+      by destruct HLinv.
+    }
+    {
+      subst lmt' vmap' lmemt'.
+      admit.
+      (* eapply update_version_region_preserves_mem_corresponds; eauto. *)
+    }
   Admitted.
+
 
   (* TODO the proof uses wp_opt,
      but requires some early destructs,
@@ -568,42 +572,44 @@ Section cap_lang_rules.
         all: eapply IsUnique_success_true_is_sealed; eauto.
 
 
-      + iDestruct (update_state_interp_transient_next_version with "Hσ")
-          as "(%lmt & %Hlmem_incl & %Hisvalid &Hσ)"; eauto.
+      + iDestruct (update_state_interp_transient_next_version with "Hσ") as "Hσ" ; eauto.
+        (* TODO and now, how do I convert transiently into transient_state again ? *)
+        admit.
         rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
         ; last by set_solver.
-        iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
-        { rewrite elem_of_dom.
-          destruct (decide (PC = dst)); try by simplify_map_eq.
-          destruct (decide (PC = src)); by simplify_map_eq.
-        }
-        iSplit.
-        { (* failure case: incrementing the pc failed *)
-          iIntros (ec lregs') "Hσ %Hlincr %Hincr".
-          iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
-          rewrite big_sepM_fmap.
-          iApply ("Hφ" with "[$Hregs $Hmem]").
-          iPureIntro.
-          constructor 4; auto.
-          destruct srcv as [ | [|] | ? [|] ]
-          ; cbn in *
-          ; try done
-          ; by econstructor 2.
-        }
+        (* iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). *)
+        (* { rewrite elem_of_dom. *)
+        (*   destruct (decide (PC = dst)); try by simplify_map_eq. *)
+        (*   destruct (decide (PC = src)); by simplify_map_eq. *)
+        (* } *)
+        (* iSplit. *)
+        (* { (* failure case: incrementing the pc failed *) *)
+        (*   iIntros (ec lregs') "Hσ %Hlincr %Hincr". *)
+        (*   iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". *)
+        (*   rewrite big_sepM_fmap. *)
+        (*   iApply ("Hφ" with "[$Hregs $Hmem]"). *)
+        (*   iPureIntro. *)
+        (*   constructor 4; auto. *)
+        (*   destruct srcv as [ | [|] | ? [|] ] *)
+        (*   ; cbn in * *)
+        (*   ; try done *)
+        (*   ; by econstructor 2. *)
+        (* } *)
 
         (* pc incr success *)
-        iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
-        iApply wp2_val. cbn.
-        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
-        rewrite big_sepM_fmap; cbn.
-        iApply ("Hφ" with "[$Hmem $Hregs]").
-        iPureIntro.
-        destruct srcv as [ | [|] | ? [|] ] ; cbn in *
-        ; auto
-        ; try done
-        ; inversion Hget_lsrcv; subst.
-        eapply IsUnique_success_true_cap; eauto.
-        { by intro ; subst. }
+        (* iIntros (lregs' regs') "Hσ %Hlincr %Hincr". *)
+        (* iApply wp2_val. cbn. *)
+        (* iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)". *)
+        (* rewrite big_sepM_fmap; cbn. *)
+        (* iApply ("Hφ" with "[$Hmem $Hregs]"). *)
+        (* iPureIntro. *)
+        (* destruct srcv as [ | [|] | ? [|] ] ; cbn in * *)
+        (* ; auto *)
+        (* ; try done *)
+        (* ; inversion Hget_lsrcv; subst. *)
+        (* eapply IsUnique_success_true_cap; eauto. *)
+        (* { by intro ; subst. } *)
+
     - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
       { iCombine "Hpca Hmem" as "Hmem".
         rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).

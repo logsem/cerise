@@ -2279,6 +2279,7 @@ Proof.
   by apply update_version_region_vmap_notin_preserves_cur.
 Qed.
 
+(* TODO generalize to update with glm instead of lm *)
 Lemma update_version_region_preserves_mem_corresponds
   (phm : Mem) (lm lm': LMem) (vmap vmap' : VMap) (la : list Addr) v:
   vmap' = update_version_region_vmap la v vmap ->
