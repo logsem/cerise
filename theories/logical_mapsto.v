@@ -2357,6 +2357,7 @@ Class regG Σ := RegG {
   reg_invG : invGS Σ;
   reg_gen_regG :: gen_heapGS RegName LWord Σ; }.
 
+(* TODO: @Denis, add enclave/etable resources *)
 Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ} : iProp Σ :=
   ∃ lr lm vmap , gen_heap_interp lr ∗ gen_heap_interp lm ∗
                       ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.

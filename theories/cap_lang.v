@@ -248,82 +248,152 @@ Proof.
   destruct (f <? f2)%a; solve_decision.
 Defined.
 
-Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+Definition unique_in_registers (regs : Reg) (wsrc : Word) (exclsrc : option RegName) : Prop :=
   (map_Forall
-     (λ (r : RegName) (wr : Word), if decide (r = src) then True else ¬ overlap_word wsrc wr)
+     (λ (r : RegName) (wr : Word),
+       match exclsrc with
+       | None => ¬ overlap_word wsrc wr
+       | Some src => if decide (r = src) then True else ¬ overlap_word wsrc wr
+       end)
      regs).
 
-Global Instance unique_in_registers_dec (regs : Reg) (src : RegName) (wsrc : Word)
-  : Decision (unique_in_registers regs src wsrc).
+Global Instance unique_in_registers_dec (regs : Reg) (wsrc : Word) (src : option RegName)
+  : Decision (unique_in_registers regs wsrc src).
 Proof.
   apply map_Forall_dec.
   move=> r rw.
-  case_decide; solve_decision.
+  destruct src.
+  { case_decide; solve_decision. }
+  { solve_decision. }
 Defined.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
+Definition sweep_registers_reg (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => true (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc => (bool_decide (unique_in_registers regs src wsrc))
+  | Some wsrc => (bool_decide (unique_in_registers regs wsrc (Some src)))
   end.
 
-Lemma sweep_registers_spec (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep_registers regs src = true ->
+Definition sweep_registers_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  match mem !! a with
+  | None => true (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc => (bool_decide (unique_in_registers regs wsrc None))
+  end.
+
+Lemma sweep_registers_reg_spec (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_registers_reg regs src = true ->
   regs !! src = Some wsrc ->
-  unique_in_registers regs src wsrc.
+  unique_in_registers regs wsrc (Some src).
 Proof.
   move=> Hsweep Hsrc.
-  rewrite /sweep_registers Hsrc in Hsweep.
+  rewrite /sweep_registers_reg Hsrc in Hsweep.
   by apply bool_decide_eq_true in Hsweep.
 Qed.
 
-Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
+Lemma sweep_registers_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wsrc : Word) :
+  sweep_registers_addr mem regs excla = true ->
+  mem !! excla = Some wsrc ->
+  unique_in_registers regs wsrc None.
+Proof.
+  move=> Hsweep Hsrc.
+  rewrite /sweep_registers_addr Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
+
+Definition unique_in_memory (mem : Mem) (wsrc : Word) (excla : option Addr) : Prop :=
   (map_Forall
-     (λ (a : Addr) (wa : Word), ¬ overlap_word wsrc wa)
+     (λ (a : Addr) (wa : Word),
+       match excla with
+       | None        => ¬ overlap_word wsrc wa
+       | Some wexcla => if decide (a = wexcla) then True else ¬ overlap_word wsrc wa
+       end)
      mem).
 
-Global Instance unique_in_memory_dec (mem : Mem) (wsrc : Word)
-  : Decision (unique_in_memory mem wsrc).
-Proof. solve_decision. Defined.
+Global Instance unique_in_memory_dec (mem : Mem) (wsrc : Word) (excla : option Addr)
+  : Decision (unique_in_memory mem wsrc excla).
+Proof.
+  apply map_Forall_dec.
+  move=> r rw.
+  destruct excla.
+  { case_decide; solve_decision. }
+  { solve_decision. }
+Defined.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+Definition sweep_memory_reg (mem : Mem) (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => true (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc => (bool_decide (unique_in_memory mem wsrc))
+  | Some wsrc => (bool_decide (unique_in_memory mem wsrc None))
   end.
 
-Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep_memory mem regs src = true ->
+Definition sweep_memory_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  match mem !! a with
+  | None => true (* if we don't find the addr src, then it cannot overlap *)
+  | Some w => (bool_decide (unique_in_memory mem w (Some a)))
+  end.
+
+Lemma sweep_memory_reg_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_memory_reg mem regs src = true ->
   regs !! src = Some wsrc ->
-  unique_in_memory mem wsrc.
+  unique_in_memory mem wsrc None.
 Proof.
   intros Hsweep Hsrc.
-  rewrite /sweep_memory Hsrc in Hsweep.
+  rewrite /sweep_memory_reg Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
+
+Lemma sweep_memory_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :
+  sweep_memory_addr mem regs excla = true ->
+  mem !! excla = Some wexcla ->
+  unique_in_memory mem wexcla (Some excla).
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /sweep_memory_addr Hsrc in Hsweep.
   by apply bool_decide_eq_true in Hsweep.
 Qed.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep (mem : Mem) (regs : Reg) (src : RegName) : bool :=
-  let unique_mem := sweep_memory mem regs src in
-  let unique_reg := sweep_registers regs src in
+(* src is the register that is excluded in the sweeping *)
+Definition sweep_reg (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+  let unique_mem := sweep_memory_reg mem regs src in
+  let unique_reg := sweep_registers_reg regs src in
   unique_mem && unique_reg
 .
 
-Definition unique_in_machine (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :=
-  regs !! src = Some wsrc ->
-  unique_in_registers regs src wsrc /\ unique_in_memory mem wsrc.
+Definition sweep_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  let unique_mem := sweep_memory_addr mem regs a in
+  let unique_reg := sweep_registers_addr mem regs a in
+  unique_mem && unique_reg
+.
 
-Lemma sweep_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep mem regs src = true →
+Definition unique_in_machine_reg (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :=
   regs !! src = Some wsrc ->
-  unique_in_machine mem regs src wsrc.
+  unique_in_registers regs wsrc (Some src) /\ unique_in_memory mem wsrc None.
+
+Definition unique_in_machine_addr (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :=
+  mem !! excla = Some wexcla ->
+  unique_in_registers regs wexcla None /\ unique_in_memory mem wexcla (Some excla).
+
+Lemma sweep_reg_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_reg mem regs src = true →
+  regs !! src = Some wsrc ->
+  unique_in_machine_reg mem regs src wsrc.
 Proof.
   move=> Hsweep Hsrc.
-  rewrite /sweep andb_true_iff in Hsweep.
+  rewrite /sweep_reg andb_true_iff in Hsweep.
   by destruct Hsweep; split
-  ; [eapply sweep_registers_spec | eapply sweep_memory_spec].
+  ; [eapply sweep_registers_reg_spec | eapply sweep_memory_reg_spec].
+Qed.
+
+Lemma sweep_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :
+  sweep_addr mem regs excla = true →
+  mem !! excla = Some wexcla ->
+  unique_in_machine_addr mem regs excla wexcla.
+Proof.
+  move=> Hsweep Hsrc.
+  rewrite /sweep_reg andb_true_iff in Hsweep.
+  by destruct Hsweep; split
+  ; [eapply sweep_registers_addr_spec | eapply sweep_memory_addr_spec].
 Qed.
 
 Section opsem.
@@ -332,6 +402,18 @@ Section opsem.
   Definition get_wcap : Word -> option (Perm * Addr * Addr * Addr) :=
     fun w => match  w with WCap p b e a => Some (p, b, e, a)
                          | _ => None end.
+
+  (* need to coerce finz ONum (1024) to ENum (finz MaxENum (128)) *)
+  Axiom eid_of_seal : finz ONum -> ENum.
+    (* fun σ => let s := finz.to_z σ in *)
+    (*          match Z.even s with *)
+    (*          | true => (s / 2)%Z *)
+    (*          | false => ((s-1) / 2)%Z *)
+    (*          end. *)
+
+
+  (*@TODO *)
+  Search (bool -> option unit).
 
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
@@ -498,23 +580,34 @@ Section opsem.
   | EInit rd rs =>
     ccap          ← (reg φ) !! rs; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
-    if (* p = RX_  ... *) true
+    if decide (readAllowed p && executeAllowed p) (* need RX_ for code section *)
     then dcap              ← (mem φ) !! b;
          '(p', b', e', a') ← get_wcap dcap;
-         if (* p' = RW *)
-         then _                 ← (* isUnique for ccap and dcap - both at once somehow *)
-                                ← (* check: ccap does not contain capabilities *)
-              scap              ← (* allocate fresh otypes for the enclave *)
-              _                 ← (* store scap (the cap with seals for the registered otype) at address b' *)
-              sccap             ← (* seal ccap with o_entry *)
-              sdcap             ← (* seal dcap with o_entry *)
-              identity          ← (* calculate hash of ccap *)
-              eid               ← enumcur φ; (* read value of EC register *)
-                                ← (* store in etable: eid := identity, if table full: fail *)
-              _                 ← (* increment enumcur in φ by 2 *)
-              let r' := update_reg φ rd (WCap E b e a) in
-              let m' := update_mem r' b' (* seals... *) in
-              let t' := update_etable m' (* TIndex? *) eid identity in
+         if decide (readAllowed p' && writeAllowed p') (* need RW for data section *)
+         then
+              let sweep_excl_b := sweep_addr (mem φ) (reg φ) b in
+              let sweep_reg_rs := sweep_reg (mem φ) (reg φ) rs in
+              if (sweep_excl_b && sweep_reg_rs) then
+              (* _                 ← (* check: ccap does not contain capabilities -- except data cap at addr b *) *)
+
+              (* ALLOCATION OF THE ENCLAVE'S SEALS *)
+              (* If IIUC, the EC register acts as a bump allocator for enclave otypes *)
+              let ec := enumcur φ in
+              (* therefore, to write the seals for the enclave, it is sufficient to use the value of the EC register
+                 and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
+              let seals := (WSealRange (true, true) (2%Z*ec)%f (2*ec+2) (2*ec)) in
+              (* these seals should be stored at address b' -- i.e. the base address of the enclave's data section *)
+              let m' := update_mem φ b' seals in
+
+              (* sccap             ← (* seal ccap with o_entry *) *)
+              (* sdcap             ← (* seal dcap with o_entry *) *)
+              (* identity          ← (* calculate hash of ccap *) *)
+              (* eid               ← enumcur φ; (* read value of EC register *) *)
+              (* _                 ← (* store in etable: eid := identity, if table full: fail *) *)
+              (* _                 ← (* increment enumcur in φ by 2 *) *)
+              let r' := update_reg m' rd (WCap E b e a) in
+              (* let t' := update_etable m' (* TIndex? *) eid identity in *)
+              let t' := m' in
               updatePC t' (* we should flip argument order so we can just compose these intermediate ExecConfs *)
          else (* no RW access for data cap *) None
     else (* no RX access for code cap *) None
@@ -522,16 +615,20 @@ Section opsem.
     (* enclave deinitialization *)
   | EDeInit rd rs =>
       σ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
-      eid ← has_seal σ;
-      i   ← index_of (etable φ) eid (* made up fn: find the index in the etable with `eid` as enclave id *)
-      updatePC (update_etable (update_reg φ rd (WInt 1)) (* etable should remove the `i`th entry *)
+      let eid := 0 in (* @TODO: determine the eid from σ -- defined as σ = 2 * eid ∨ σ = 2 * eid + 1 *)
+      (* let i := index_of (etable φ) eid in *)
+      let i := 0 in (* @TODO: find the correct etable index for this eid *)
+      (* @TODO: update the etable with the index to be removed (`i`) -- should this actually remove from the gmap or do we just mark the entry as invalid/deinitialized? *)
+      updatePC (update_reg φ rd (WInt 1))
     (* enclave local attestation *)
   | EStoreId rd rs1 rs2 =>
       σ             ← (reg φ) !! rs1;
       wrs2          ← (reg φ) !! rs2;
       '(p, b, e, a) ← wrs2;
-      eid           ← has_seal σ; (* defined as σ = 2 * eid ∨ σ = 2 * eid + 1 *)
-      i             ← index_of (etable φ) eid (* made up fn: find the index in the etable with `eid` as enclave id *)
+      let eid := 0 in (* @TODO: determine the eid from σ -- defined as σ = 2 * eid ∨ σ = 2 * eid + 1 *)
+      (* let i := index_of (etable φ) eid in *)
+      let i := 0 in (* @TODO: find the correct etable index for this eid *)
+
       identity      ← (etable φ) !! i; (* apparently this gives back a pair of an identity and an eid, matching
                                            the one above... *)
       if writeAllowed p && withinBounds b e a
