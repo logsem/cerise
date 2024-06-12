@@ -413,7 +413,9 @@ Section opsem.
 
 
   (*@TODO *)
-  Search (bool -> option unit).
+
+  Axiom contains_cap : Mem -> Addr -> Addr -> bool.
+  Axiom measure : Mem -> Addr -> Addr -> Z.
 
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
@@ -584,31 +586,30 @@ Section opsem.
     then dcap              ← (mem φ) !! b;
          '(p', b', e', a') ← get_wcap dcap;
          if decide (readAllowed p' && writeAllowed p') (* need RW for data section *)
-         then
-              let sweep_excl_b := sweep_addr (mem φ) (reg φ) b in
-              let sweep_reg_rs := sweep_reg (mem φ) (reg φ) rs in
-              if (sweep_excl_b && sweep_reg_rs) then
-              (* _                 ← (* check: ccap does not contain capabilities -- except data cap at addr b *) *)
-
+         then let succ_sweep_mem := sweep_addr (mem φ) (reg φ) b in (* sweep the memory excluding the data cap at location b *)
+              let succ_sweep_reg := sweep_reg (mem φ) (reg φ) rs in (* sweep the registers excluding the code cap in register rs *)
+              let succ_no_caps   := negb (contains_cap (mem φ) (b+1) e) in (* ccap does not contain capabilities  dcap at addr b *)
+              if (succ_sweep_mem && succ_sweep_reg && succ_no_caps)
+              then let ec := enumcur φ in
               (* ALLOCATION OF THE ENCLAVE'S SEALS *)
               (* If IIUC, the EC register acts as a bump allocator for enclave otypes *)
-              let ec := enumcur φ in
               (* therefore, to write the seals for the enclave, it is sufficient to use the value of the EC register
                  and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
-              let seals := (WSealRange (true, true) (2%Z*ec)%f (2*ec+2) (2*ec)) in
-              (* these seals should be stored at address b' -- i.e. the base address of the enclave's data section *)
-              let m' := update_mem φ b' seals in
+                   let seals := (WSealRange (true, true) (2%Z*ec)%f (2*ec+2) (2*ec)) in
+                   let m' := update_mem φ b' seals in (* these seals should be stored at address b'
+                                                         i.e. the base address of the enclave's data section *)
+                   let identity := measure (mem φ) (b+1) e in (* calculate hash of ccap *)
+                   let t' := update_etable m' 0 (* @todo: which table index? Is it the same as the eid *) ec identity in
+                   (* @todo: check size bounds on the table etc. *)
+                   let ec' := update_enumcur t' (ec + 2) in (* increment enumcur in φ by 2 *)
+                   let r' := update_reg ec' rd (WCap E b e a) in
+                   updatePC r' (* we should flip argument order so we can just compose these intermediate ExecConfs *)
 
-              (* sccap             ← (* seal ccap with o_entry *) *)
-              (* sdcap             ← (* seal dcap with o_entry *) *)
-              (* identity          ← (* calculate hash of ccap *) *)
-              (* eid               ← enumcur φ; (* read value of EC register *) *)
-              (* _                 ← (* store in etable: eid := identity, if table full: fail *) *)
-              (* _                 ← (* increment enumcur in φ by 2 *) *)
-              let r' := update_reg m' rd (WCap E b e a) in
-              (* let t' := update_etable m' (* TIndex? *) eid identity in *)
-              let t' := m' in
-              updatePC t' (* we should flip argument order so we can just compose these intermediate ExecConfs *)
+
+                   (* denis says: o_entry still needed? Was part of original proposal, re: sealed pairs I believe. *)
+                   (* sccap             ← (* seal ccap with o_entry *) *)
+                   (* sdcap             ← (* seal dcap with o_entry *) *)
+              else (* memory sweep fails *) None
          else (* no RW access for data cap *) None
     else (* no RX access for code cap *) None
 
@@ -644,7 +645,7 @@ Section opsem.
            cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
          *)
         =>
-          let uniqueb := sweep (mem φ) (reg φ) src in
+          let uniqueb := sweep_reg (mem φ) (reg φ) src in
           updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
       | _ => None
       end
