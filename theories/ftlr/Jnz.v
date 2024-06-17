@@ -46,48 +46,72 @@ Section fundamental.
     { simplify_map_eq. iApply wp_pure_step_later; auto.
       rewrite !insert_insert.
 
+
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
 
-      (* Needed because IH disallows non-capability values *)
-      destruct w' as [ | [p' b' e' a' | ] | ]; cycle 1.
+     (* Needed because IH disallows non-capability values *)
+      destruct w' as [ | [p' b' e' a' | ] | ot sb ]
+      ; [
+          (* Integer *) shelve
+        | (* Unsealed cap *) idtac
+        | (* Sealing cap *) shelve
+        | (* Sealed cap *) idtac
+        ].
+
+      (* Unsealed capability *)
       {
+        iNext; iIntros "_".
         rewrite /updatePcPerm.
-        iAssert (fixpoint interp1 (WCap p' b' e' a')) as "HECap".
+        iAssert (fixpoint interp1 (WCap p' b' e' a')) as "HCap".
         { destruct (decide (r1 = PC)) as [-> | Hne]. by simplify_map_eq.
           rewrite lookup_insert_ne // in H1.
           unshelve iDestruct ("Hreg" $! r1 _ _ H1) as "HPCv"; auto.
         }
+        iAssert ([∗ map] k↦y ∈ <[PC:= WCap p' b' e' a']> r, k ↦ᵣ y)%I  with "[Hmap]" as "Hmap".
+        { destruct p'; auto. }
 
-        (* Special case for E-values*)
-        destruct (decide (p' = E)) as [-> | HneE].
-        - iClear "Hinv".
-          rewrite fixpoint_interp1_eq; simpl.
-          iDestruct ("HECap" with "[$Hmap $Hown]") as "Hcont"; auto.
-        - iAssert ([∗ map] k↦y ∈ <[PC:= WCap p' b' e' a']> r, k ↦ᵣ y)%I  with "[Hmap]" as "Hmap".
-          { destruct p'; auto. congruence. }
-          iNext; iIntros "_".
-
-          iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
-          { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
-          { iIntros (ri v Hri Hvs).
-            rewrite lookup_insert_ne in Hvs; auto.
-              unshelve iSpecialize ("Hreg" $! ri _ _ Hvs); eauto. }
-          { rewrite insert_insert. iApply "Hmap". }
-          auto.
+        iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
+        { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
+        { iIntros (ri v Hri Hvs).
+          rewrite lookup_insert_ne in Hvs; auto.
+          unshelve iSpecialize ("Hreg" $! ri _ _ Hvs); eauto. }
+        { rewrite insert_insert. iApply "Hmap". }
+        auto.
       }
-     (* Non-capability cases *)
 
+      (* Sealed capability *)
+      {
+        rewrite /updatePcPerm.
+        destruct (decide (ot = otype_sentry)) as [Hot|Hot]; subst.
+        + destruct sb as [p' b' e' a' | ]; [|shelve].
+          (* Sentry *)
+          iAssert (fixpoint interp1 (WSealed otype_sentry (SCap p' b' e' a'))) as "HPCv".
+          { destruct (decide (r1 = PC)) as [-> | Hne]. by simplify_map_eq.
+            rewrite lookup_insert_ne // in H1.
+            unshelve iDestruct ("Hreg" $! r1 _ _ H1) as "HPCv"; auto.
+          }
+
+          iEval (rewrite fixpoint_interp1_eq) in "HPCv"; simpl.
+          iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
+        + (* Not a sentry *)
+          rewrite (_: match sb with | SCap _ _ _ _ | _ => WSealed ot sb end = WSealed ot sb)
+          ; last (by destruct sb).
+          shelve.
+      }
+
+      (* Non-capability cases *)
+      Unshelve.
       all: iNext; iIntros "_".
-     all: iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap] /=";
-      [apply lookup_insert|]; simpl.
-     all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
+      all: iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap] /=";
+        [apply lookup_insert|]; simpl.
+      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
         iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
-     all: repeat iNext; iIntros "HPC /=".
-     all: iApply wp_pure_step_later; auto.
-     all: iNext; iIntros "_".
-     all: iApply wp_value.
-     all: iIntros.
-     all: discriminate.
+      all: repeat iNext; iIntros "HPC /=".
+      all: iApply wp_pure_step_later; auto.
+      all: iNext; iIntros "_".
+      all: iApply wp_value.
+      all: iIntros.
+      all: discriminate.
      }
 Qed.
 

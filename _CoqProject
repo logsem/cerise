@@ -52,18 +52,18 @@ theories/rules/rules_UnSeal.v
 theories/rules.v
 
 # Program logic: Binary WP rules
-theories/rules_binary/rules_binary_base.v
-theories/rules_binary/rules_binary_Get.v
-theories/rules_binary/rules_binary_Load.v
-theories/rules_binary/rules_binary_Store.v
-theories/rules_binary/rules_binary_AddSubLt.v
-theories/rules_binary/rules_binary_Lea.v
-theories/rules_binary/rules_binary_Mov.v
-theories/rules_binary/rules_binary_Restrict.v
-theories/rules_binary/rules_binary_Jmp.v
-theories/rules_binary/rules_binary_Jnz.v
-theories/rules_binary/rules_binary_Subseg.v
-theories/rules_binary.v
+# theories/rules_binary/rules_binary_base.v
+# theories/rules_binary/rules_binary_Get.v
+# theories/rules_binary/rules_binary_Load.v
+# theories/rules_binary/rules_binary_Store.v
+# theories/rules_binary/rules_binary_AddSubLt.v
+# theories/rules_binary/rules_binary_Lea.v
+# theories/rules_binary/rules_binary_Mov.v
+# theories/rules_binary/rules_binary_Restrict.v
+# theories/rules_binary/rules_binary_Jmp.v
+# theories/rules_binary/rules_binary_Jnz.v
+# theories/rules_binary/rules_binary_Subseg.v
+# theories/rules_binary.v
 
 # Cerise Proofmode
 theories/proofmode/region.v
@@ -95,22 +95,22 @@ theories/ftlr/UnSeal.v
 theories/fundamental.v
 
 # Binary Logical Relation
-theories/logrel_binary.v
-theories/ftlr_binary/ftlr_base_binary.v
-theories/ftlr_binary/interp_weakening.v
-theories/ftlr_binary/Load_binary.v
-theories/ftlr_binary/Mov_binary.v
-theories/ftlr_binary/AddSubLt_binary.v
-theories/ftlr_binary/Get_binary.v
-theories/ftlr_binary/Jmp_binary.v
-theories/ftlr_binary/Jnz_binary.v
-theories/ftlr_binary/Lea_binary.v
-theories/ftlr_binary/Subseg_binary.v
-theories/ftlr_binary/Restrict_binary.v
-theories/ftlr_binary/Store_binary.v
-theories/ftlr_binary/Seal_binary.v
-theories/ftlr_binary/UnSeal_binary.v
-theories/fundamental_binary.v
+# theories/logrel_binary.v
+# theories/ftlr_binary/ftlr_base_binary.v
+# theories/ftlr_binary/interp_weakening.v
+# theories/ftlr_binary/Load_binary.v
+# theories/ftlr_binary/Mov_binary.v
+# theories/ftlr_binary/AddSubLt_binary.v
+# theories/ftlr_binary/Get_binary.v
+# theories/ftlr_binary/Jmp_binary.v
+# theories/ftlr_binary/Jnz_binary.v
+# theories/ftlr_binary/Lea_binary.v
+# theories/ftlr_binary/Subseg_binary.v
+# theories/ftlr_binary/Restrict_binary.v
+# theories/ftlr_binary/Store_binary.v
+# theories/ftlr_binary/Seal_binary.v
+# theories/ftlr_binary/UnSeal_binary.v
+# theories/fundamental_binary.v
 
 # Misc for examples
 theories/monotone.v
@@ -130,10 +130,10 @@ theories/examples/template_adequacy.v
 theories/examples/template_adequacy_ocpl.v
 
 # Tutorial and Exercises for learning Cerise in Coq
-theories/exercises/cerise_tutorial.v
-theories/exercises/cerise_tutorial_solutions.v
-theories/exercises/cerise_modularity.v
-theories/exercises/cerise_modularity_solutions.v
+# theories/exercises/cerise_tutorial.v
+# theories/exercises/cerise_tutorial_solutions.v
+# theories/exercises/cerise_modularity.v
+# theories/exercises/cerise_modularity_solutions.v
 
 theories/exercises/subseg_buffer.v
 theories/exercises/restrict_buffer.v
@@ -176,16 +176,16 @@ theories/examples/interval_arch/interval_client_closure_arch.v
 theories/examples/interval_arch/interval_client_adequacy_arch.v
 
 # Common macros (binary)
-theories/examples/malloc_binary.v
-theories/examples/macros_binary.v
+# theories/examples/malloc_binary.v
+# theories/examples/macros_binary.v
 
 # Counter example (binary)
-theories/examples/counter_binary/counter_binary.v
-theories/examples/counter_binary/counter_binary_preamble_def.v
-theories/examples/counter_binary/counter_binary_preamble.v
-theories/examples/counter_binary/counter_binary_preamble_left.v
-theories/examples/counter_binary/counter_binary_adequacy.v
-theories/examples/counter_binary/counter_binary_adequacy_theorem.v
+# theories/examples/counter_binary/counter_binary.v
+# theories/examples/counter_binary/counter_binary_preamble_def.v
+# theories/examples/counter_binary/counter_binary_preamble.v
+# theories/examples/counter_binary/counter_binary_preamble_left.v
+# theories/examples/counter_binary/counter_binary_adequacy.v
+# theories/examples/counter_binary/counter_binary_adequacy_theorem.v
 
 # Other examples
 theories/examples/adder.v

@@ -53,7 +53,7 @@ Section instr_encodings.
   Definition fail_end := encodeInstrW Fail.
 
   (* encodings of return pointer permission pair *)
-  Definition e := encodePerm E.
+  (* Definition e := encodePerm E. *)
 End instr_encodings.
 
 (* Some additional helper lemmas about region_addrs *)

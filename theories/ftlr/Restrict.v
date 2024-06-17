@@ -16,7 +16,6 @@ Section fundamental.
   Implicit Types interp : (D).
 
   Lemma PermPairFlows_interp_preserved p p' b e a :
-    p <> E ->
     PermFlowsTo p' p = true →
     (□ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
@@ -28,18 +27,8 @@ Section fundamental.
     (fixpoint interp1) (WCap p b e a) -∗
     (fixpoint interp1) (WCap p' b e a).
   Proof.
-    intros HpnotE Hp. iIntros "#IH HA".
+    intros Hp. iIntros "#IH HA".
     iApply (interp_weakening with "IH HA"); eauto; try solve_addr.
-  Qed.
-
-  Lemma match_perm_with_E_rewrite:
-    forall (A: Type) p (a1 a2: A),
-      match p with
-      | E => a1
-      | _ => a2
-      end = if (perm_eq_dec p E) then a1 else a2.
-  Proof.
-    intros. destruct (perm_eq_dec p E); destruct p; auto; congruence.
   Qed.
 
   Lemma restrict_case (r : leibnizO Reg) (p : Perm)
@@ -57,7 +46,7 @@ Section fundamental.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst ? Hz Hfl HincrPC | * Hdst Hz Hfl HincrPC | ].
+    destruct HSpec as [ * Hdst Hz Hfl HincrPC | * Hdst Hz Hfl HincrPC | ].
     { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
 
       assert (a'' = a ∧ b'' = b ∧ e'' = e) as (-> & -> & ->).
@@ -82,7 +71,6 @@ Section fundamental.
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
       { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
         auto. by rewrite PermFlowsToReflexive. }
     }
@@ -113,7 +101,6 @@ Section fundamental.
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
      { iApply wp_pure_step_later; auto.

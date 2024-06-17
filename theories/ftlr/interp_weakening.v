@@ -30,7 +30,6 @@ Section fundamental.
   Qed.
 
   Lemma interp_weakening p p' b b' e e' a a':
-      p <> E ->
       (b <= b')%a ->
       (e' <= e)%a ->
       PermFlowsTo p' p ->
@@ -38,12 +37,9 @@ Section fundamental.
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p' b' e' a').
   Proof.
-    intros HpnotE Hb He Hp. iIntros "#IH #HA".
+    intros Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
-         iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-         iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
-         iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
     }
     destruct p'.
     - rewrite !fixpoint_interp1_eq. done.
@@ -65,20 +61,55 @@ Section fundamental.
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       iApply (big_sepL_mono with "A2").
       iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
-    - rewrite !fixpoint_interp1_eq. iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-      iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
-      destruct p; inversion Hp; try contradiction.
-      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
-        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]"; iFrame "#".
-      + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
-        rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
-        iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3)". iExists P. iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
   Qed.
+
+  Lemma sealing_preserves_interp sb p0 b0 e0 a0:
+        permit_seal p0 = true →
+        withinBounds b0 e0 a0 = true →
+        IH -∗
+        fixpoint interp1 (WSealable sb) -∗
+        fixpoint interp1 (WSealRange p0 b0 e0 a0) -∗
+        fixpoint interp1 (WSealed a0 sb).
+  Proof.
+    iIntros (Hpseal Hwb) "#IH #HVsb #HVsr".
+    rewrite (fixpoint_interp1_eq (WSealRange _ _ _ _)) (fixpoint_interp1_eq (WSealed _ _)) /= Hpseal /interp_sb.
+    iDestruct "HVsr" as "[Hss _]".
+    apply seq_between_dist_Some in Hwb.
+    iDestruct (big_sepL_delete with "Hss") as "[HSa0 _]"; eauto.
+    iDestruct "HSa0" as (P) "[% [HsealP HWcond]]".
+    iExists P.
+    repeat iSplitR; auto.
+    by iApply "HWcond".
+    destruct (decide (a0 = otype_sentry)) as [Hot|Hot] ; subst; last done.
+    iIntros (r).
+    iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
+    destruct sb as [p b e a |]; cycle 1.
+    + (* PC contains sealrange, it is trivially safe *)
+      (* rewrite /interp_conf. *)
+      admit.
+    + iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
+  Admitted.
+
+  Lemma sealing_preserves_interp_sentry sb:
+        IH -∗
+        fixpoint interp1 (WSealable sb) -∗
+        fixpoint interp1 (WSealed otype_sentry sb).
+  Proof.
+    iIntros "#IH #HVsb".
+    rewrite (fixpoint_interp1_eq (WSealed _ _)) /= /interp_sb.
+    iIntros (r).
+    iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
+    destruct sb as [p b e a |]; cycle 1.
+    - (* PC contains sealrange, it is trivially safe *)
+      (* rewrite /interp_conf. *)
+      admit.
+    - iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
+  Admitted.
+
 
   Lemma safe_to_unseal_weakening b e b' e':
     (b <= b')%ot ->

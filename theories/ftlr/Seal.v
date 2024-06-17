@@ -16,23 +16,6 @@ Section fundamental.
   Implicit Types interp : (D).
 
   (* Proving the meaning of sealing in the LR sane *)
-  Lemma sealing_preserves_interp sb p0 b0 e0 a0:
-        permit_seal p0 = true →
-        withinBounds b0 e0 a0 = true →
-        fixpoint interp1 (WSealable sb) -∗
-        fixpoint interp1 (WSealRange p0 b0 e0 a0) -∗
-        fixpoint interp1 (WSealed a0 sb).
-  Proof.
-    iIntros (Hpseal Hwb) "#HVsb #HVsr".
-    rewrite (fixpoint_interp1_eq (WSealRange _ _ _ _)) (fixpoint_interp1_eq (WSealed _ _)) /= Hpseal /interp_sb.
-    iDestruct "HVsr" as "[Hss _]".
-    apply seq_between_dist_Some in Hwb.
-    iDestruct (big_sepL_delete with "Hss") as "[HSa0 _]"; eauto.
-    iDestruct "HSa0" as (P) "[% [HsealP HWcond]]".
-    iExists P.
-    repeat iSplitR; auto.
-    by iApply "HWcond".
-  Qed.
 
   Lemma seal_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (dst r1 r2 : RegName) (P:D):
@@ -76,13 +59,12 @@ Section fundamental.
           rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
           (* Sealrange is valid -> validity implies P *)
           unshelve iDestruct ("Hreg" $! r1 _ _ Hr1) as "HVsr"; eauto.
-          iApply (sealing_preserves_interp with "HVsb HVsr"); auto. }
+          iApply (sealing_preserves_interp with "IH HVsb HVsr"); auto. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
     { iApply wp_pure_step_later; auto.

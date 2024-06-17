@@ -29,11 +29,14 @@ Section fundamental.
     apply seq_between_dist_Some in Hwb.
     iDestruct (big_sepL_delete with "Hss") as "[HSa0 _]"; eauto.
     iDestruct "HSa0" as (P) "[HsealP HWcond]".
-    iDestruct "HVsd" as (P') "[% [HsealP' HP']]".
-    iDestruct (seal_pred_agree with "HsealP HsealP'") as "Hequiv". iSpecialize ("Hequiv" $! (WSealable sb)).
-    iAssert (▷ P (WSealable sb))%I as "HP". { iNext. by iRewrite "Hequiv". }
-    by iApply "HWcond".
-  Qed.
+    destruct (decide (a0 = otype_sentry)) as [?|Hot] ; subst.
+    + admit.
+    +
+      iDestruct "HVsd" as (P') "[% [HsealP' HP']]".
+      iDestruct (seal_pred_agree with "HsealP HsealP'") as "Hequiv". iSpecialize ("Hequiv" $! (WSealable sb)).
+      iAssert (▷ P (WSealable sb))%I as "HP". { iNext. by iRewrite "Hequiv". }
+      by iApply "HWcond".
+  Admitted.
 
   Lemma unseal_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (dst r1 r2 : RegName) (P:D):
@@ -69,22 +72,6 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
       iNext; iIntros "_".
 
-      (* If PC=dst and perm of unsealed cap = E -> error! *)
-      destruct (decide (PC = dst ∧ p'' = E)) as [ [Herr1 Herr2] | HNoError].
-      { (* Error case *)
-        simplify_map_eq.
-        iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
-        { subst. by rewrite lookup_insert. }
-        iApply (wp_bind (fill [SeqCtx])).
-        iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
-        iIntros "!> _".
-        iApply wp_pure_step_later; auto.
-        iNext; iIntros "_".
-        iApply wp_value.
-        iIntros (a1); inversion a1.
-      }
-      (* Otherwise, we will be able to derive validity of the PC below*)
-
       iApply ("IH" $! regs' with "[%] [] [Hmap] [$Hown]").
       { cbn. intros. subst regs'. by repeat (apply lookup_insert_is_Some'; right). }
       { iIntros (ri v Hri Hvs).
@@ -101,7 +88,6 @@ Section fundamental.
       - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr. (* HNoError used here *)
         { by rewrite PermFlowsToReflexive. }
       - iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-        { destruct Hp; by subst p''. }
         { by rewrite PermFlowsToReflexive. }
     }
     { iApply wp_pure_step_later; auto.

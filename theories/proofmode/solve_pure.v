@@ -61,7 +61,6 @@ Proof. auto. Qed.
 
 #[export] Hint Resolve ExecPCPerm_RX : solve_pure.
 #[export] Hint Resolve ExecPCPerm_RWX : solve_pure.
-#[export] Hint Resolve ExecPCPerm_not_E : solve_pure.
 #[export] Hint Resolve ExecPCPerm_flows_to : solve_pure.
 (* TODO: add a test checking the use of ExecPCPerm_flows_to (if it is still
    needed) *)
@@ -139,5 +138,4 @@ Goal forall (r_t1 r_t2 r_t3: RegName), exists r1 r2 r3,
   r1 = r_t2 ∧ r2 = r_t2 ∧ r3 = r_t3.
 Proof. do 3 eexists. repeat apply conj. solve_pure. all: reflexivity. Qed.
 
-Goal E ≠ RO. solve_pure. Qed.
 Goal forall (P: Prop), P → P. intros. solve_pure. Qed.

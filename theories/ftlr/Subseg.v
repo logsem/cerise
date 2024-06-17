@@ -27,8 +27,6 @@ Section fundamental.
   Qed.
 
   Lemma subseg_interp_preserved p b b' e e' a :
-      p <> E ->
-
       (b <= b')%a ->
       (e' <= e)%a ->
       (□ ▷ (∀ a0 a1 a2 a3 a4,
@@ -40,7 +38,7 @@ Section fundamental.
       (fixpoint interp1) (WCap p b e a) -∗
       (fixpoint interp1) (WCap p b' e' a).
   Proof.
-    intros Hne Hb He. iIntros "#IH Hinterp".
+    intros Hb He. iIntros "#IH Hinterp".
     iApply (interp_weakening with "IH Hinterp"); eauto.
     destruct p; reflexivity.
   Qed.
@@ -61,7 +59,7 @@ Section fundamental.
 
 
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
-    destruct HSpec as [ * Hdst ? Hao1 Hao2 Hwi HincrPC | * Hdst Hoo1 Hoo2 Hwi HincrPC | ].
+    destruct HSpec as [ * Hdst Hao1 Hao2 Hwi HincrPC | * Hdst Hoo1 Hoo2 Hwi HincrPC | ].
     { apply incrementPC_Some_inv in HincrPC as (p''&b''&e''&a''& ? & HPC & Z & Hregs') .
 
       assert (a'' = a ∧ p'' = p) as (-> & ->).
@@ -88,7 +86,6 @@ Section fundamental.
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
       { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
         1,2: rewrite /isWithin in Hwi; solve_addr. }
       { destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
@@ -123,7 +120,6 @@ Section fundamental.
         { subst regs'. rewrite insert_insert. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-      { destruct Hp; by subst p. }
       { by rewrite PermFlowsToReflexive. }
     }
     { iApply wp_pure_step_later; auto.

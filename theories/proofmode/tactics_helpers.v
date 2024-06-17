@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 Require Import Eqdep_dec List.
 From cap_machine Require Import cap_lang region contiguous.
-From cap_machine.rules_binary Require Import rules_binary_base.
+(* From cap_machine.rules_binary Require Import rules_binary_base. *)
 
 Section helpers.
 
@@ -39,16 +39,6 @@ Section helpers.
     intros Hr H0n.
     assert (isCorrectPC (WCap p b e a0)) as HH by (apply Hr; solve_addr).
     inversion HH; auto.
-  Qed.
-
-  Lemma isCorrectPC_range_npE p b e a0 an :
-    isCorrectPC_range p b e a0 an →
-    (a0 < an)%a →
-    p ≠ E.
-  Proof.
-    intros HH1 HH2.
-    destruct (isCorrectPC_range_perm _ _ _ _ _ HH1 HH2) as [?| ? ];
-      congruence.
   Qed.
 
 End helpers.
@@ -88,11 +78,11 @@ Ltac iEpilogue prog :=
   iNext; iIntros prog; iSimpl;
   iApply wp_pure_step_later;auto;iNext;iIntros "_".
 
-Ltac iEpilogue_both prog :=
-  iNext; iIntros prog; iSimpl;
-  iApply wp_pure_step_later;auto;iNext;iIntros "_";
-  iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto;
-  iSimpl in "Hj".
+(* Ltac iEpilogue_both prog := *)
+(*   iNext; iIntros prog; iSimpl; *)
+(*   iApply wp_pure_step_later;auto;iNext;iIntros "_"; *)
+(*   iMod (do_step_pure _ [] with "[$Hspec $Hj]") as "Hj";auto; *)
+(*   iSimpl in "Hj". *)
 
 Ltac iCombinePtrn :=
   iCombine "Hi" "Hprog_done" as "Hprog_done";

@@ -3,8 +3,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 Require Import Eqdep_dec.
-From cap_machine Require Import stdpp_extra iris_extra cap_lang
-     region rules_base rules rules_binary rules_binary_base.
+From cap_machine Require Import stdpp_extra iris_extra cap_lang region rules_base rules.
+(* From cap_machine Require Import rules_binary rules_binary_base. *)
 From cap_machine.proofmode Require Import disjoint_regions_tactics.
 
 Definition mkregion (r_start r_end: Addr) (contents: list Word): gmap Addr Word :=
@@ -166,12 +166,12 @@ Proof.
   iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
 Qed.
 
-Lemma mkregion_prepare_spec `{cfgSG Σ} (a e: Addr) l :
-  (a + length l)%a = Some e →
-  ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↣ₐ v) ==∗ ([∗ list] k;v ∈ (finz.seq_between a e); l, k ↣ₐ v).
-Proof.
-  iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto.
-Qed.
+(* Lemma mkregion_prepare_spec `{cfgSG Σ} (a e: Addr) l : *)
+(*   (a + length l)%a = Some e → *)
+(*   ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↣ₐ v) ==∗ ([∗ list] k;v ∈ (finz.seq_between a e); l, k ↣ₐ v). *)
+(* Proof. *)
+(*   iIntros (?) "H". iDestruct (mkregion_sepM_to_sepL2 with "H") as "H"; auto. *)
+(* Qed. *)
 
 
 Lemma mkregion_sepM_to_sepL2_zip `{Σ: gFunctors} (a e: Addr) l l' (φ φ': Addr → Word → iProp Σ) :
@@ -207,12 +207,12 @@ Proof.
     iFrame. iApply (IHl with "H H'"). solve_addr. solve_addr. }
 Qed.
 
-Lemma mbkregion_prepare `{memG Σ, cfgSG Σ} (a e : Addr) l l' :
-  (a + length l)%a = Some e →
-  (a + length l')%a = Some e →
-  ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) -∗
-  ([∗ map] k↦v ∈ mkregion a e l', k ↣ₐ v) ==∗
-  ([∗ map] k↦v ∈ mbkregion a e l l', k ↦ₐ v.1 ∗ k ↣ₐ v.2).
-Proof.
-  iIntros (? ?) "H H'". iDestruct (mkregion_sepM_to_sepL2_zip with "H H'") as "H"; auto.
-Qed.
+(* Lemma mbkregion_prepare `{memG Σ, cfgSG Σ} (a e : Addr) l l' : *)
+(*   (a + length l)%a = Some e → *)
+(*   (a + length l')%a = Some e → *)
+(*   ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) -∗ *)
+(*   ([∗ map] k↦v ∈ mkregion a e l', k ↣ₐ v) ==∗ *)
+(*   ([∗ map] k↦v ∈ mbkregion a e l l', k ↦ₐ v.1 ∗ k ↣ₐ v.2). *)
+(* Proof. *)
+(*   iIntros (? ?) "H H'". iDestruct (mkregion_sepM_to_sepL2_zip with "H H'") as "H"; auto. *)
+(* Qed. *)

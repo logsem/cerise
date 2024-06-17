@@ -26,13 +26,11 @@ Section cap_lang_rules.
       Restrict_failure regs dst src
   | Restrict_fail_invalid_perm_cap p b e a n:
       regs !! dst = Some (WCap p b e a) →
-      p ≠ E →
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = false →
       Restrict_failure regs dst src
   | Restrict_fail_PC_overflow_cap p b e a n:
       regs !! dst = Some (WCap p b e a) →
-      p ≠ E →
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = true →
       incrementPC (<[ dst := WCap (decodePerm n) b e a ]> regs) = None →
@@ -52,7 +50,6 @@ Section cap_lang_rules.
   Inductive Restrict_spec (regs: Reg) (dst: RegName) (src: Z + RegName) (regs': Reg): cap_lang.val -> Prop :=
   | Restrict_spec_success_cap p b e a n:
       regs !! dst = Some (WCap p b e a) →
-      p ≠ E ->
       z_of_argument regs src = Some n →
       PermFlowsTo (decodePerm n) p = true →
       incrementPC (<[ dst := WCap (decodePerm n) b e a ]> regs) = Some regs' →
@@ -117,9 +114,7 @@ Section cap_lang_rules.
        unfold is_mutable_range in Hwdst.
        assert (c = Failed ∧ σ2 = (r, m)) as (-> & ->).
        { destruct wdst as [ | [p b e a | ] | ]; try by inversion Hwdst.
-         all: try by simplify_pair_eq.
-         destruct p; try congruence.
-         simplify_pair_eq; auto. }
+         all: try by simplify_pair_eq. }
        iFailWP "Hφ" Restrict_fail_allowed. }
 
     (* Now the proof splits depending on the type of value in wdst *)
@@ -127,10 +122,7 @@ Section cap_lang_rules.
     1,4: inversion Hwdst.
 
      (* First, the case where r1v is a capability *)
-     + destruct (perm_eq_dec p E); [ subst p |].
-       { rewrite /is_mutable_range in Hwdst; congruence. }
-
-       destruct (PermFlowsTo (decodePerm wsrc) p) eqn:Hflows; cycle 1.
+     + destruct (PermFlowsTo (decodePerm wsrc) p) eqn:Hflows; cycle 1.
        { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Restrict_fail_invalid_perm_cap. }
        rewrite /update_reg /= in Hstep.
 
@@ -150,7 +142,7 @@ Section cap_lang_rules.
          as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
        eapply updatePC_success_incl with (m':=m) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
        eassert ((c, σ2) = (NextI, _)) as HH.
-       { destruct p; cbn in Hstep; eauto. congruence. }
+       { destruct p; cbn in Hstep; eauto. }
        simplify_pair_eq.
 
        iFrame.
@@ -207,8 +199,6 @@ Section cap_lang_rules.
      iApply (wp_Restrict with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by unfold regs_of; rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-     assert (pc_p ≠ E).
-     { intros ->. inversion Hvpc; subst. naive_solver. }
 
      destruct Hspec as [| | * Hfail].
      { (* Success *)
@@ -220,7 +210,6 @@ Section cap_lang_rules.
        simplify_map_eq. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq; eauto; try congruence.
-       destruct pc_p; congruence.
        incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
@@ -229,7 +218,6 @@ Section cap_lang_rules.
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
-     p ≠ E →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w
@@ -242,7 +230,7 @@ Section cap_lang_rules.
            ∗ rv ↦ᵣ WInt z
            ∗ r1 ↦ᵣ WCap (decodePerm z) b e a }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Hflows Hnp ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Hflows ϕ) "(>HPC & >Hpc_a & >Hr1 & >Hrv) Hφ".
      iDestruct (map_of_regs_3 with "HPC Hr1 Hrv") as "[Hmap (%&%&%)]".
      iApply (wp_Restrict with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by unfold regs_of; rewrite !dom_insert; set_solver+.
@@ -258,7 +246,6 @@ Section cap_lang_rules.
        simplify_map_eq. }
     { (* Failure (contradiction) *)
       destruct Hfail; simplify_map_eq; eauto; try congruence.
-      destruct p; congruence.
       incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
@@ -280,8 +267,6 @@ Section cap_lang_rules.
      iApply (wp_Restrict with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)".
      iDestruct "Hspec" as %Hspec.
-     assert (pc_p ≠ E).
-     { intros ->. inversion Hvpc; subst. naive_solver. }
 
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
@@ -292,7 +277,6 @@ Section cap_lang_rules.
        simplify_map_eq. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq; eauto.
-       destruct pc_p; congruence.
        congruence.
        incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
@@ -302,7 +286,6 @@ Section cap_lang_rules.
      isCorrectPC (WCap pc_p pc_b pc_e pc_a) →
      (pc_a + 1)%a = Some pc_a' →
      PermFlowsTo (decodePerm z) p = true →
-     p ≠ E →
 
      {{{ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e pc_a
          ∗ ▷ pc_a ↦ₐ w
@@ -313,13 +296,11 @@ Section cap_lang_rules.
          ∗ pc_a ↦ₐ w
          ∗ r1 ↦ᵣ WCap (decodePerm z) b e a }}}.
    Proof.
-     iIntros (Hinstr Hvpc Hpca' Hflows HpE ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
+     iIntros (Hinstr Hvpc Hpca' Hflows ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
      iApply (wp_Restrict with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by unfold regs_of; rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-     assert (pc_p ≠ E).
-     { intros ->. inversion Hvpc; subst. naive_solver. }
 
      destruct Hspec as [| | * Hfail].
      { (* Success *)
@@ -331,7 +312,6 @@ Section cap_lang_rules.
        simplify_map_eq. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq; eauto; try congruence.
-       destruct p; congruence.
        incrementPC_inv; simplify_map_eq; eauto. congruence. }
    Qed.
 
@@ -393,8 +373,6 @@ Section cap_lang_rules.
      iApply (wp_Restrict with "[$Hmap Hpc_a]"); eauto; simplify_map_eq; eauto.
      by unfold regs_of; rewrite !dom_insert; set_solver+.
      iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
-     assert (pc_p ≠ E).
-     { intros ->. inversion Hvpc; subst. naive_solver. }
 
      destruct Hspec as [| | * Hfail].
      { (* Success with WSealRange (contradiction) *)

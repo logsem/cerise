@@ -174,9 +174,9 @@ Section fundamental.
     (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (WCap p b e a))%I.
 
   Lemma interp_exec_cond p b e a :
-    p ≠ E -> interp (WCap p b e a) -∗ exec_cond b e p.
+    interp (WCap p b e a) -∗ exec_cond b e p.
   Proof.
-    iIntros (Hnp) "#Hw".
+    iIntros "#Hw".
     iIntros (a0 r Hin). iNext. iModIntro.
     iApply fundamental.
     rewrite !fixpoint_interp1_eq /=. destruct p; try done.
@@ -203,11 +203,17 @@ Section fundamental.
     ⊢ interp w -∗ ▷ (∀ r, interp_expression r (updatePcPerm w)).
   Proof.
     iIntros "#Hw".
-    assert ((∃ b e a, w = WCap E b e a) ∨ updatePcPerm w = w) as [Hw | ->].
+    assert ((∃ p b e a, w = (WSealed otype_sentry (SCap p b e a))) ∨ updatePcPerm w = w) as [Hw | ->].
     { destruct w as [ | [ | ] | ]; eauto. unfold updatePcPerm.
-      case_match; eauto. }
-    { destruct Hw as [b [e [a ->] ] ]. rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
-      iNext. iIntros (rmap). iSpecialize ("Hw" $! rmap). iDestruct "Hw" as "#Hw".
+      destruct (decide (f = otype_sentry)) as [?|Hot]; subst.
+      case_match; eauto; subst.
+      + left. eexists _,_,_,_; eauto.
+      + right. case_match; eauto; subst.
+    }
+    { destruct Hw as [p [b [e [a ->] ] ] ]. rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
+      iNext. iIntros (rmap).
+      iDestruct "Hw" as "[Hw HwP]".
+      iSpecialize ("Hw" $! rmap). iDestruct "Hw" as "#Hw".
       iIntros "(HPC & Hr & ?)". iApply "Hw". iFrame. }
     { iNext. iIntros (rmap). iApply fundamental. eauto. }
   Qed.
@@ -248,10 +254,6 @@ Section fundamental.
   Proof.
     iIntros (Hl) "H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
-    4: { (* E *) rewrite fixpoint_interp1_eq /=.
-         iDestruct (region_integers_alloc _ _ _ a _ RX with "H") as ">#H"; auto.
-         iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
     all: iApply region_integers_alloc; eauto.
   Qed.
 
@@ -262,10 +264,6 @@ Section fundamental.
   Proof.
     iIntros "#Hl H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
-    4: { (* E *) rewrite fixpoint_interp1_eq /=.
-         iDestruct (region_valid_alloc _ _ _ a _ RX with "Hl H") as ">#H"; auto.
-         iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
     all: iApply (region_valid_alloc with "Hl"); eauto.
   Qed.
 
@@ -277,10 +275,6 @@ Section fundamental.
   Proof.
     iIntros (Hmasks Hl) "H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
-    4: { (* E *) rewrite fixpoint_interp1_eq /=.
-         iDestruct (region_valid_in_region _ _ _ a _ RX with "H") as ">#H"; auto.
-         iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
     all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 

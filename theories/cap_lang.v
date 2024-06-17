@@ -246,13 +246,10 @@ Section opsem.
       wdst ← (reg φ) !! dst;
       match wdst with
       | WCap p b e a =>
-        match p with
-        | E => None
-        | _ => match (a + n)%a with
-               | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
-               | None => None
-               end
-        end
+          match (a + n)%a with
+          | Some a' => updatePC (update_reg φ dst (WCap p b e a'))
+          | None => None
+          end
       | WSealRange p b e a =>
          match (a + n)%ot with
           | Some a' => updatePC (update_reg φ dst (WSealRange p b e a'))
@@ -264,13 +261,10 @@ Section opsem.
       n ← z_of_argument (reg φ) ρ ;
       wdst ← (reg φ) !! dst;
       match wdst with
-      | WCap permPair b e a =>
-        match permPair with
-        | E => None
-        | _ => if PermFlowsTo (decodePerm n) permPair then
-                updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
-              else None
-        end
+      | WCap p b e a =>
+          if PermFlowsTo (decodePerm n) p then
+            updatePC (update_reg φ dst (WCap (decodePerm n) b e a))
+          else None
       | WSealRange p b e a =>
         if SealPermFlowsTo (decodeSealPerms n) p then
               updatePC (update_reg φ dst (WSealRange (decodeSealPerms n) b e a))
@@ -295,13 +289,9 @@ Section opsem.
     | WCap p b e a =>
       a1 ← addr_of_argument (reg φ) ρ1;
       a2 ← addr_of_argument (reg φ) ρ2;
-      match p with
-      | E => None
-      | _ =>
-        if isWithin a1 a2 b e then
-          updatePC (update_reg φ dst (WCap p a1 a2 a))
-        else None
-      end
+      if isWithin a1 a2 b e then
+        updatePC (update_reg φ dst (WCap p a1 a2 a))
+      else None
     | WSealRange p b e a =>
       o1 ← otype_of_argument (reg φ) ρ1;
       o2 ← otype_of_argument (reg φ) ρ2;
@@ -368,6 +358,15 @@ Section opsem.
         else None
     | _,_ => None
     end
+  (* | SealEntry dst r => *)
+  (*   wr ← (reg φ) !! r; *)
+  (*   match wr with *)
+  (*   | WCap p b e a => *)
+  (*       if executeAllowed p *)
+  (*       then updatePC (update_reg φ dst (WSealed otype_sentry (SCap p b e a))) *)
+  (*       else None *)
+  (*   |  _ => None *)
+  (*   end *)
   end.
 
   Definition exec (i: instr) (φ: ExecConf) : Conf :=

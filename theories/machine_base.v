@@ -15,7 +15,6 @@ Inductive Perm: Type :=
 | RO
 | RW
 | RX
-| E
 | RWX.
 
 Definition SealPerms: Type := bool * bool. (* Permit_Seal x Permit_Unseal *)
@@ -23,6 +22,8 @@ Definition permit_seal (s : SealPerms) :=
   s.1.
 Definition permit_unseal (s : SealPerms) :=
   s.2.
+
+Definition otype_sentry : OType := 0%ot.
 
 Inductive Sealable: Type :=
 | SCap: Perm -> Addr -> Addr -> Addr -> Sealable
@@ -57,6 +58,7 @@ Inductive instr: Type :=
 | GetOType (dst r: RegName)
 | Seal (dst : RegName) (r1 r2: RegName)
 | UnSeal (dst : RegName) (r1 r2: RegName)
+(* | SealEntry (dst : RegName) (r : RegName) *)
 | Fail
 | Halt.
 
@@ -131,18 +133,16 @@ Definition is_sealed_with_o (w : Word) (o : OType) : bool :=
   | WSealed o' sb => (o =? o')%ot
   | _ => false end.
 
-
 (* non-E capability or range of seals *)
 Definition is_mutable_range (w : Word) : bool:=
   match w with
-  | WCap p _ _ _ => match p with | E  => false | _ => true end
-  | WSealRange _ _ _ _ => true
+  | WCap _ _ _ _ | WSealRange _ _ _ _ => true
   | _ => false end.
 
 (* Auxiliary definitions to work on permissions *)
 Definition executeAllowed (p: Perm): bool :=
   match p with
-  | RWX | RX | E => true
+  | RWX | RX => true
   | _ => false
   end.
 
@@ -201,10 +201,6 @@ Proof. right; auto. Qed.
 Definition PermFlowsTo (p1 p2: Perm): bool :=
   match p1 with
   | O => true
-  | E => match p2 with
-        | E | RX | RWX => true
-        | _ => false
-        end
   | RX => match p2 with
          | RX | RWX => true
          | _ => false
@@ -296,13 +292,6 @@ Proof.
   { destruct p'; try by inversion H; constructor. }
 Qed.
 
-Lemma ExecPCPerm_not_E p :
-  ExecPCPerm p →
-  p ≠ E.
-Proof.
-  intros [H|H] ->; inversion H.
-Qed.
-
 Lemma ExecPCPerm_readAllowed p :
   ExecPCPerm p →
   readAllowed p = true.
@@ -339,15 +328,17 @@ Qed.
 (* Turn E into RX into PC after a jump *)
 Definition updatePcPerm (w: Word): Word :=
   match w with
-  | WCap E b e a => WCap RX b e a
+  | WSealed ot (SCap p b e a) =>
+      if decide (ot = otype_sentry)
+      then WCap p b e a
+      else w
   | _ => w
   end.
 
-Lemma updatePcPerm_cap_non_E p b e a :
-  p ≠ E →
+Lemma updatePcPerm_cap p b e a :
   updatePcPerm (WCap p b e a) = WCap p b e a.
 Proof.
-  intros HnE. cbn. destruct p; auto. contradiction.
+  by cbn.
 Qed.
 
 Definition nonZero (w: Word): bool :=
@@ -661,16 +652,14 @@ Proof.
     | RO => 2
     | RW => 3
     | RX => 4
-    | E => 5
-    | RWX => 6
+    | RWX => 5
     end%positive.
   set decode := fun n => match n with
     | 1 => Some O
     | 2 => Some RO
     | 3 => Some RW
     | 4 => Some RX
-    | 5 => Some E
-    | 6 => Some RWX
+    | 5 => Some RWX
     | _ => None
     end%positive.
   eapply (Build_Countable _ _ encode decode).
@@ -742,8 +731,9 @@ Proof.
 
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | Fail => GenNode 19 []
-      | Halt => GenNode 20 []
+      (* | SealEntry dst r => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] *)
+      | Fail => GenNode 20 []
+      | Halt => GenNode 21 []
       end).
   set (dec := fun e =>
       match e with
@@ -768,8 +758,9 @@ Proof.
 
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [] => Fail
-      |  GenNode 20 [] => Halt
+      (* | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] => SealEntry dst r *)
+      | GenNode 20 [] => Fail
+      |  GenNode 21 [] => Halt
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

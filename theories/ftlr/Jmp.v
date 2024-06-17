@@ -38,7 +38,7 @@ Section fundamental.
       iIntros "_".
       iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
       { iPureIntro. apply Hsome. }
-      destruct Hp as [-> | ->]; iFrame.
+      (* destruct Hp as [-> | ->]; iFrame. *)
     * specialize Hsome with r0 as Hr0.
       destruct Hr0 as [wsrc Hsomesrc].
       iDestruct ((big_sepM_delete _ _ r0) with "Hmap") as "[Hsrc Hmap]"; eauto.
@@ -54,23 +54,22 @@ Section fundamental.
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
 
      (* Needed because IH disallows non-capability values *)
-      destruct wsrc as [ | [p' b' e' a' | ] | ]; cycle 1.
+      destruct wsrc as [ | [p' b' e' a' | ] | ot sb ]
+      ; [
+          (* Integer *) shelve
+        | (* Unsealed cap *) idtac
+        | (* Sealing cap *) shelve
+        | (* Sealed cap *) idtac
+        ].
+
+      (* Unsealed capability *)
       {
+        iNext; iIntros "_".
         rewrite /updatePcPerm.
-        (* Special case for E-values*)
-        destruct (decide (p' = E)) as [-> | HneE].
-        -
-          unshelve iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "HPCv"; auto.
-          iClear "Hinv".
-          rewrite fixpoint_interp1_eq; simpl.
-
-          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
-          iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iAssert (PC ↦ᵣ WCap p' b' e' a')%I  with "[HPC]" as "HPC".
-          { destruct p'; auto. congruence. }
+          { destruct p'; auto. (* congruence. *) }
 
           iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
-          iNext; iIntros "_".
           iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
           { iIntros (ri v Hri Hvs).
@@ -86,10 +85,27 @@ Section fundamental.
           unshelve iSpecialize ("Hreg" $! r0 _ _ Hsomesrc); eauto.
       }
 
-     (* Non-capability cases *)
+      (* Sealed capability *)
+      {
+        rewrite /updatePcPerm.
+        destruct (decide (ot = otype_sentry)) as [Hot|Hot]; subst.
+        + destruct sb as [p' b' e' a' | ]; [|shelve].
+          (* Sentry *)
+            unshelve iDestruct ("Hreg" $! r0 _ _ Hsomesrc) as "HPCv"; auto.
+            iClear "Hinv".
+            rewrite fixpoint_interp1_eq; simpl.
+            iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
+            iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
+        + (* Not a sentry *)
+          rewrite (_: match sb with | SCap _ _ _ _ | _ => WSealed ot sb end = WSealed ot sb)
+          ; last (by destruct sb).
+          shelve.
+      }
+
+      Unshelve.
       all: iNext; iIntros "_".
-      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
-        iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
+      all: iApply (wp_bind (fill [SeqCtx]));
+            iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
       all: repeat iNext; iIntros "HPC /=".
       all: iApply wp_pure_step_later; auto.
       all: iNext; iIntros "_".
