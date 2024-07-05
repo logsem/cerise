@@ -1874,6 +1874,24 @@ Qed.
     eapply word_of_argumentL_cur. eauto. all: auto. now apply Is_true_true_1.
   Qed.
 
+  Lemma seal_from_argumentL {lregs src sb ot cur_map} :
+    lregs !! src = Some (LWSealable sb) ->
+    is_cur_regs lregs cur_map →
+    is_cur_word (LWSealed ot sb) cur_map.
+  Proof.
+    cbn. intros Hreg Hcurregs.
+    apply (map_Forall_lookup_1 _ _ _ _ Hcurregs Hreg).
+  Qed.
+
+  Lemma unseal_from_argumentL {lregs src sb ot cur_map} :
+    lregs !! src = Some (LWSealed ot sb) ->
+    is_cur_regs lregs cur_map →
+    is_cur_word (LWSealable sb) cur_map.
+  Proof.
+    cbn. intros Hreg Hcurregs.
+    apply (map_Forall_lookup_1 _ _ _ _ Hcurregs Hreg).
+  Qed.
+
   (* Lemma updatePC_impl {φ} : *)
   (*   updatePC φ = (reg' ← incrementPC (reg φ); Some (NextI , update_regs φ reg')). *)
   (* Proof. *)

@@ -385,6 +385,7 @@ Section opsem.
           end
       | _ => None
       end
+
     | Restrict dst ρ =>
       n ← z_of_argument (reg φ) ρ ;
       wdst ← (reg φ) !! dst;
@@ -489,7 +490,8 @@ Section opsem.
     wr2 ← (reg φ) !! r2;
     match wr1, wr2 with
     | WSealRange p b e a, WSealed a' sb =>
-        if decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
+        if decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a)
+        then updatePC (update_reg φ dst (WSealable sb))
         else None
     | _,_ => None
     end

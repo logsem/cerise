@@ -52,99 +52,114 @@ Section cap_lang_rules.
       Seal_failure lregs dst src1 src2 lregs' →
       Seal_spec lregs dst src1 src2 lregs' FailedV.
 
-  Lemma wp_Seal Ep pc_p pc_b pc_e pc_a pc_v lw dst src1 src2 lregs :
-    decodeInstrWL lw = Seal dst src1 src2 ->
+
+  Definition exec_optL_Seal
+    (lregs : LReg) (dst src_key src_val: RegName) : option LReg :=
+    key ← lregs !! src_key;
+    val ← lregs !! src_val;
+    match key,val with
+    | LSealRange p b e a, LWSealable sb =>
+      if permit_seal p && withinBounds b e a
+      then
+        lregs' ← incrementLPC ( <[dst := (LWSealed a sb) ]> lregs) ;
+        Some lregs'
+      else None
+    | _, _ => None
+    end.
+
+  Lemma wp_Seal Ep pc_p pc_b pc_e pc_a pc_v lw dst src_key src_val lregs :
+    decodeInstrWL lw = Seal dst src_key src_val ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
-    regs_of (Seal dst src1 src2) ⊆ dom lregs →
+    regs_of (Seal dst src_key src_val) ⊆ dom lregs →
 
     {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
       Instr Executable @ Ep
     {{{ lregs' retv, RET retv;
-        ⌜ Seal_spec lregs dst src1 src2 lregs' retv ⌝ ∗
+        ⌜ Seal_spec lregs dst src_key src_val lregs' retv ⌝ ∗
         (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
-  (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
-  (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
-  (*   iDestruct "Hσ1" as "[Hr Hm]". *)
-  (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
-  (*   have ? := lookup_weaken _ _ _ _ HPC Hregs. *)
-  (*   iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto. *)
-  (*   iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-  (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
-  (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-  (*   iIntros "_". *)
-  (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    cbn in Dregs.
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hmap Hφ]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) Hcred".
 
-  (*   specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. *)
-  (*   odestruct (Hri src2) as [r2v [Hr'2 Hr2]]. by set_solver+. *)
-  (*   pdestruct (Hri src1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
-  (*   destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. clear Hri. *)
+    iApply (wp_wp2 (φ1 := exec_optL_Seal lregs dst src_key src_val)).
 
-  (*   rewrite /exec /= Hr2 Hr1 /= in Hstep. *)
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
 
-  (*   (* Now we start splitting on the different cases in the Seal spec, and prove them one at a time *) *)
-  (*    destruct (is_sealr r1v) eqn:Hr1v. *)
-  (*    2:{ (* Failure: r2 is not a sealrange *) *)
-  (*      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*      { *)
-  (*        unfold is_sealr in Hr1v. *)
-  (*        destruct_word r1v; by simplify_pair_eq. *)
-  (*      } *)
-  (*       iFailWP "Hφ" Seal_fail_sealr. *)
-  (*    } *)
-  (*    destruct r1v as [ | [ | p b e a ] | ]; try inversion Hr1v. clear Hr1v. *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (key) "Hσ %Hlrs_key %Hrs_key".
 
-  (*    destruct (is_sealb r2v) eqn:Hr2v. *)
-  (*    2:{ (* Failure: r2 is not a sealrange *) *)
-  (*      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*      { *)
-  (*        unfold is_sealed in Hr2v. *)
-  (*        destruct_word r2v; by simplify_pair_eq. *)
-  (*      } *)
-  (*       iFailWP "Hφ" Seal_fail_sealb. *)
-  (*    } *)
-  (*    destruct r2v as [ | sb | ]; try inversion Hr2v. clear Hr2v. *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (val) "Hσ %Hlrs_val %Hrs_val".
 
-  (*    destruct (permit_seal p && withinBounds b e a) eqn:HSA. *)
-  (*    2 : { (* Failure: r2 is either not within bounds or doesnt allow sealing *) *)
-  (*      symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2. *)
-  (*      apply andb_false_iff in HSA. *)
-  (*      iFailWP "Hφ" Seal_fail_bounds. *)
-  (*    } *)
-  (*    apply andb_true_iff in HSA; destruct HSA as (Hps & Hwb). *)
+    destruct (is_sealrL key) eqn:Hkey; cycle 1.
+    {
+      destruct_lword key; cbn in * ; simplify_eq.
+      all: iModIntro.
+      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      all: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      all: iPureIntro; econstructor; by eapply Seal_fail_sealr.
+    }
+    destruct_lword key; cbn in * ; simplify_eq.
 
-  (*    destruct (incrementPC (<[ dst := (WSealed a sb) ]> regs)) as  [ regs' |] eqn:Hregs'. *)
-  (*    2: { (* Failure: the PC could not be incremented correctly *) *)
-  (*      assert (incrementPC (<[ dst := (WSealed a sb) ]> reg) = None). *)
-  (*      { eapply incrementPC_overflow_mono; first eapply Hregs'. *)
-  (*        by rewrite lookup_insert_is_Some'; eauto. *)
-  (*        by apply insert_mono; eauto. } *)
+    destruct (is_sealbL val) eqn:Hval; cycle 1.
+    {
+      destruct_lword val; cbn in * ; simplify_eq.
+      all: iModIntro.
+      all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      all: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      all: iPureIntro; econstructor; by eapply Seal_fail_sealb.
+    }
+    destruct val; cbn in * ; simplify_eq.
 
-  (*      rewrite incrementPC_fail_updatePC /= in Hstep; auto. *)
-  (*      symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2. *)
-  (*      (* Update the heap resource, using the resource for r2 *) *)
-  (*      iFailWP "Hφ" Seal_fail_incrPC. *)
-  (*    } *)
+    destruct (decide (permit_seal p && withinBounds b e a = true)) as [Hseal|Hseal]
+    ; [|apply not_true_is_false in Hseal] ; rewrite Hseal ;cycle 1;cbn.
+    {
+      apply andb_false_iff in Hseal.
+      iModIntro.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro; constructor; by eapply Seal_fail_bounds.
+    }
 
-  (*    (* Success *) *)
-  (*    rewrite /update_reg /= in Hstep. *)
-  (*    eapply (incrementPC_success_updatePC _ mem) in Hregs' *)
-  (*      as (p1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->). *)
-  (*    eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono. *)
-  (*    rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn. *)
-  (*    iFrame. *)
-  (*    iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*    iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*    iFrame. iModIntro. iApply "Hφ". iFrame. *)
-  (*    iPureIntro. eapply Seal_spec_success; eauto. *)
-  (*    unfold incrementPC. by rewrite HPC'' Ha_pc'. *)
-  (*    Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+    apply andb_true_iff in Hseal; destruct Hseal as [ Hseal Hinbounds ].
+    iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LWSealed a sb) with "Hσ") as "Hσ".
+    { now set_solver. }
+    { intros.
+      eapply seal_from_argumentL ; eauto.
+    }
+
+
+    rewrite updatePC_incrementPC.
+    iApply (wp_opt2_bind (k1 := fun x => Some x)).
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := <[ dst := LWSealed a sb]> lregs)).
+    { now rewrite elem_of_dom (lookup_insert_dec HPC). }
+    iFrame "Hσ".
+    iSplit; cbn.
+    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro; constructor ; by eapply Seal_fail_incrPC .
+    - iIntros (lrt' rs') "Hσ %Hlis %His".
+      cbn.
+      iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro.
+      by eapply Seal_spec_success.
+  Qed.
 
   (* after pruning impossible or impractical options, 5 wp rules remain *)
 
