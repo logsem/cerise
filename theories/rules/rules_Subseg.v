@@ -4,6 +4,39 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base.
 
+
+    Set Nested Proofs Allowed.
+  Context `{MachineParameters}.
+  Context `{memG Σ, regG Σ}.
+  Implicit Types lw: LWord.
+  Lemma wp2_word_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt} :
+    regs_of_argument src ⊆ dom lrt ->
+    state_interp_transient φ φt lr lrt lm lmt ∗
+      (∀ lw, state_interp_transient φ φt lr lrt lm lmt -∗ Φs lw (lword_get_word lw))
+      ⊢ wp_opt2 Ep (word_of_argumentL lrt src) (word_of_argument (reg φt) src) Φf Φs.
+  Proof.
+    iIntros (Hdom) "(Hσr & HΦs)".
+    destruct src as [z|r]; cbn.
+    - now iApply ("HΦs" with "Hσr").
+    - iApply (wp2_reg_lookup with "[$Hσr $HΦs]").
+      now set_solver.
+  Qed.
+    
+    Lemma wp2_addr_of_argument {Ep} {src Φf} {Φs : LAddr -> Addr -> iProp Σ} {φ φt lr lrt lm lmt} :
+      regs_of_argument src ⊆ dom lrt ->
+      state_interp_transient φ φt lr lrt lm lmt ∗
+      (∀ la, state_interp_transient φ φt lr lrt lm lmt -∗ Φs la (laddr_get_addr la))
+      ⊢ wp_opt2 Ep (addr_of_argumentL lrt src) (addr_of_argument (reg φt) src) Φf Φs.
+    Proof.
+      iIntros (Hdom) "(Hσr & HΦs)".
+      destruct src as [z|r]; cbn.
+      - now iApply ("HΦs" with "Hσr").
+      - iApply (wp2_reg_lookup with "[$Hσr $HΦs]").
+        now set_solver.
+    Qed.
+
+
+
 Section cap_lang_rules.
   Context `{memG Σ, regG Σ}.
   Context `{MachineParameters}.
@@ -87,6 +120,45 @@ Section cap_lang_rules.
       Subseg_failure lregs dst src1 src2 lregs' →
       Subseg_spec lregs dst src1 src2 lregs' FailedV.
 
+  Definition exec_optL_Subseg
+    (lregs : LReg) (dst: RegName) (src1 src2: Z + RegName) : option LReg :=
+    lwdst ← lregs !! dst ;
+    match lwdst with
+    | LCap p b e a v =>
+        a1 ← addr_of_argumentL lregs src1 ;
+        a2 ← addr_of_argumentL lregs src2 ;
+        match p with
+        | E => None
+        | _ =>
+            (if isWithin a1 a2 b e
+              then
+                lregs' ← incrementLPC ( <[dst := (LCap p a1 a2 a v) ]> lregs) ;
+                Some lregs'
+              else None)
+        end
+    | LSealRange p b e a =>
+        o1 ← otype_of_argumentL lregs src1 ;
+        o2 ← otype_of_argumentL lregs src2 ;
+        if isWithin o1 o2 b e
+        then
+          lregs' ← incrementLPC ( <[dst := (LSealRange p o1 o2 a) ]> lregs) ;
+          Some lregs'
+        else None
+    | _ => None
+    end.
+
+  (* TODO move *)
+  Lemma rewrite_invert_match_E {R: Type} (X Y : R) (p : Perm) :
+    p ≠ E ->
+    (match p with
+     | E => Y
+     | _ => X
+     end) = X.
+  Proof.
+    intros.
+    destruct p ; cbn in *; done.
+  Qed.
+
   Lemma wp_Subseg Ep pc_p pc_b pc_e pc_a pc_v lw dst src1 src2 lregs :
     decodeInstrWL lw = Subseg dst src1 src2 ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -101,7 +173,43 @@ Section cap_lang_rules.
         (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+
+    cbn in Dregs.
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hmap Hφ]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) Hcred".
+
+    iApply (wp_wp2 (φ1 := exec_optL_Subseg lregs dst src1 src2)).
+
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
+
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (lwdst) "Hσ %HdstL %Hdst".
+    destruct lwdst; cbn in * ; simplify_eq; cycle 2.
+    1,2: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+    1,2: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+    1,2: iPureIntro; eapply Subseg_spec_failure.
+    1,2: by econstructor.
+    destruct sb; cbn in * ; simplify_eq.
+    - (* case LCap *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+
+
+    +
+
+    iIntros ( n_perm ) "Hσ %HsrcL %Hsrc".
+
+
+
+
+   
   (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
   (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
   (*   iDestruct "Hσ1" as "[Hr Hm]". *)
