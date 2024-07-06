@@ -99,19 +99,6 @@ Section cap_lang_rules.
     | _ => None
     end.
 
-  (* TODO move *)
-  Lemma rewrite_invert_match_E {R: Type} (X Y : R) (p : Perm) :
-    p ≠ E ->
-    (match p with
-     | E => Y
-     | _ => X
-     end) = X.
-  Proof.
-    intros.
-    destruct p ; cbn in *; done.
-  Qed.
-
-
   Lemma wp_lea Ep pc_p pc_b pc_e pc_a pc_v dst lw src (lregs: LReg) :
     decodeInstrWL lw = Lea dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -185,6 +172,7 @@ Section cap_lang_rules.
        { now set_solver. }
        { intros.
          eapply is_cur_lword_lea; eauto; eauto.
+         apply isWithin_refl.
        }
 
       rewrite updatePC_incrementPC.

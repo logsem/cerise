@@ -93,18 +93,6 @@ Section cap_lang_rules.
     | _ => None
     end.
 
-  (* TODO move *)
-  Lemma rewrite_invert_match_E {R: Type} (X Y : R) (p : Perm) :
-    p ≠ E ->
-    (match p with
-     | E => Y
-     | _ => X
-     end) = X.
-  Proof.
-    intros.
-    destruct p ; cbn in *; done.
-  Qed.
-
   Lemma wp_Restrict Ep pc_p pc_b pc_e pc_a pc_v lw dst src lregs :
     decodeInstrWL lw = Restrict dst src ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -178,7 +166,7 @@ Section cap_lang_rules.
       iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LCap (decodePerm n_perm) b e a v) with "Hσ") as "Hσ".
       { now set_solver. }
       { intros.
-        eapply is_cur_lword_lea; eauto; eauto.
+        eapply is_cur_lword_lea; eauto; eauto; apply isWithin_refl.
       }
 
       rewrite updatePC_incrementPC.

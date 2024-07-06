@@ -219,15 +219,19 @@ Proof.
 Qed.
 
 Lemma is_cur_lword_lea
-  (vmap : VMap) (p p' : Perm) (b e a a' : Addr) (v : Version) (lw lw' : LWord) :
+  (vmap : VMap) (p p' : Perm) (b b' e e' a a' : Addr) (v : Version) (lw lw' : LWord) :
+  isWithin b' e' b e ->
   get_lcap lw = Some (LSCap p b e a v) ->
-  get_lcap lw' = Some (LSCap p' b e a' v) ->
+  get_lcap lw' = Some (LSCap p' b' e' a' v) ->
   is_cur_word lw vmap ->
   is_cur_word lw' vmap.
 Proof.
   intros Hlw Hlw'.
   destruct_lword lw ; destruct_lword lw' ; cbn in * ; simplify_eq
-  ; rewrite /is_cur_word; intros Hcur; auto.
+  ; rewrite /is_cur_word; intros Hcur; auto ; simplify_eq.
+  all: intros Hin a0 Ha0in ; apply Hin.
+  all: rewrite !elem_of_finz_seq_between in Ha0in |- *.
+  all: apply Is_true_true in Hlw; apply isWithin_implies in Hlw; solve_addr.
 Qed.
 
 Lemma is_cur_addr_insert_ne
@@ -462,6 +466,7 @@ Proof.
   apply withinBounds_in_seq_2 in Ha'.
   eapply cur_lword_cur_addr; eauto.
   rewrite /is_lword_version //=.
+  by apply isWithin_refl.
 Qed.
 
 (* Lemmas about lmem_corresponds *)
@@ -939,9 +944,9 @@ Proof.
   apply Forall_forall; move=> a' Ha'.
   destruct_lword lw ; cbn in Hlw ; simplify_eq.
   1: assert (is_cur_word (LCap p b e a' v) vmap)
-    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto).
+    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto; apply isWithin_refl).
   2: assert (is_cur_word (LSealedCap o p b e a' v) vmap)
-    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto).
+    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto; apply isWithin_refl).
   all: assert (Hcur_a': is_cur_addr (a',v) vmap).
   1: { eapply cur_lword_cur_addr; [|eauto|].
     by rewrite /is_lword_version.
@@ -1564,7 +1569,7 @@ Lemma lreg_corresponds_insert_respects_updated_vmap
   is_cur_word lw' vmap'.
 Proof.
   intros.
-  eapply is_cur_lword_lea with (lw := lw); eauto.
+  eapply is_cur_lword_lea with (lw := lw); eauto; first apply isWithin_refl.
   eapply update_cur_version_notin_is_cur_word; cycle 1 ; eauto.
   eapply unique_in_machineL_not_overlap_word with (r := r); eauto.
   eapply lreg_corresponds_read_iscur; eauto.
@@ -2281,13 +2286,10 @@ Definition word_of_argumentL (lregs: LReg) (a: Z + RegName): option LWord :=
   | inr r => lregs !! r
   end.
 
-Definition addr_of_argumentL lregs src :=
-  match z_of_argumentL lregs src with
-  | Some n => z_to_addr n
-  | None => None
-  end.
+Definition addr_of_argumentL (lregs: LReg) (src: Z + RegName): option Addr :=
+  n ← z_of_argumentL lregs src ; z_to_addr n.
 
-Definition otype_of_argumentL lregs src : option OType :=
+Definition otype_of_argumentL (lregs: LReg) (src: Z + RegName) : option OType :=
   match z_of_argumentL lregs src with
   | Some n => (z_to_otype n) : option OType
   | None => None : option OType

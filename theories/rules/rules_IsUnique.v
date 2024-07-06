@@ -389,7 +389,7 @@ Section cap_lang_rules.
       .
       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
       { eapply lookup_weaken in HPC'' ; eauto.
-        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto.
+        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 2 ; eauto ; apply isWithin_refl.
       }
       eapply lreg_corresponds_insert_respects; eauto.
       eapply lreg_corresponds_insert_respects; done.
@@ -417,7 +417,7 @@ Section cap_lang_rules.
 
       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
       { eapply lookup_weaken in HPC'' ; eauto.
-        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 1 ; eauto.
+        eapply is_cur_lword_lea with (a' := a_pc1) ; cycle 2 ; eauto ; apply isWithin_refl.
       }
       eapply lreg_corresponds_insert_respects; eauto.
       eapply lreg_corresponds_insert_respects; done.
@@ -532,7 +532,7 @@ Section cap_lang_rules.
         (phm := mem) (lwsrc := (LCap p1 b1 e1 a1 pc_v) ); eauto; cycle 1.
       rewrite -/((next_version_lword (LCap p1 b1 e1 a_pc1 pc_v))).
       eapply update_cur_version_region_lcap_update_lword ; eauto.
-      eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 pc_v)); eauto.
+      eapply is_cur_lword_lea with (lw := (LCap p1 b1 e1 a1 pc_v)); eauto; first apply isWithin_refl.
       eapply lreg_corresponds_read_iscur; eauto.
       by rewrite lookup_insert_ne // lookup_insert_ne //.
       eapply unique_in_machineL_insert_reg; eauto ; try by simplify_map_eq.

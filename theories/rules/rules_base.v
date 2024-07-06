@@ -1463,28 +1463,6 @@ Section cap_lang_rules_opt.
     now inversion Hstep.
   Qed.
 
-  (* Lemma wp_opt_updatePC {φ Φs Φf w E}: *)
-  (*   reg φ !! PC = Some w -> *)
-  (*     (∀ p b e a a', ⌜ w = WCap p b e a ⌝ -∗ ⌜ (a + 1)%a = Some a' ⌝ -∗ |={E}=> Φs (NextI , update_reg φ PC (WCap p b e a'))) ∧ *)
-  (*       (⌜ incrementPC (reg φ) = None ⌝ -∗ Φf) *)
-  (*     ⊢ *)
-  (*   |={E}=> wp_opt (updatePC φ) Φf Φs. *)
-  (* Proof. *)
-  (*   unfold updatePC, incrementPC. *)
-  (*   iIntros (->) "Hsf". *)
-  (*   destruct w eqn:Heqw; iFrame; cbn. *)
-  (*   - rewrite bi.and_elim_r. *)
-  (*     now iApply "Hsf". *)
-  (*   - destruct sb eqn:Heqsb; iFrame; cbn. *)
-  (*     + destruct (f1 + 1)%a eqn:Heqf; cbn; iFrame. *)
-  (*       {rewrite bi.and_elim_l. *)
-  (*        now iApply "Hsf". *)
-  (*       } *)
-  (*       { rewrite bi.and_elim_r. now iApply "Hsf". } *)
-  (*     + rewrite bi.and_elim_r. now iApply "Hsf". *)
-  (*   - rewrite bi.and_elim_r. now iApply "Hsf". *)
-  (* Qed. *)
-
   Lemma state_phys_log_corresponds_update_reg {reg mem lr lm cur_map i w lw}:
     lword_get_word lw = w ->
     is_cur_word lw cur_map ->
@@ -1534,20 +1512,6 @@ Section cap_lang_rules_opt.
   Proof.
     now iIntros "(Hσ & Hregs & Hmem & %Hres & Hcommit)".
   Qed.
-  (* Lemma wp_reg_lookup lrt {r φ φt lr Φs Φf} : *)
-  (*   (state_interp_regs_transient φ φt lr lrt ∗ *)
-  (*      wp_opt (lrt !! r) False *)
-  (*         (fun lwr => state_interp_regs_transient φ φt lr lrt -∗ Φs (lword_get_word lwr))) ⊢ *)
-  (*      wp_opt (reg φt !! r) Φf Φs. *)
-  (* Proof. *)
-  (*   iIntros "(Hσr & Hk)". *)
-  (*   iPoseProof (state_interp_regs_transient_corr with "Hσr") as "%Hregs_incl". *)
-  (*   destruct (lrt !! r) as [lwr|] eqn:Heqr ; last done. *)
-  (*   rewrite map_subseteq_spec in Hregs_incl. *)
-  (*   erewrite Hregs_incl. *)
-  (*   - now iApply "Hk". *)
-  (*   - now rewrite lookup_fmap Heqr. *)
-  (* Qed. *)
 
   Lemma wp2_reg_lookup {Ep} {lrt lmt r φ φt lr lm Φs Φf} :
     r ∈ dom lrt ->
@@ -1564,19 +1528,6 @@ Section cap_lang_rules_opt.
     specialize (Hregs_incl r lrw Hlrt).
     eapply state_corresponds_reg_get_word in Hregs_incl; eauto.
     erewrite Hregs_incl.
-
-  (* Lemma wp_word_of_argument {src lw Φf Φs φ φt lr lrt} : *)
-  (*   regs_of_argument src ⊆ dom lrt -> *)
-  (*   state_interp_regs_transient φ φt lr lrt ∗ *)
-  (*     wp_opt (word_of_argumentL lrt src) False  *)
-  (*     (fun lw => state_interp_regs_transient φ φt lr lrt -∗ Φs (lword_get_word lw)) ⊢ *)
-  (*     wp_opt (word_of_argument (reg φt) src) Φf Φs. *)
-  (* Proof. *)
-  (*   iIntros (Hdom) "(Hσr & HΦs)". *)
-  (*   destruct src as [z|r]; cbn. *)
-  (*   - now iApply ("HΦs" with "Hσr"). *)
-  (*   - now iApply (wp_reg_lookup lrt with "[$Hσr $HΦs]"). *)
-  (* Qed. *)
     iApply wp2_val. now iApply "Hk".
   Qed.
 
@@ -1593,6 +1544,55 @@ Section cap_lang_rules_opt.
       now set_solver.
   Qed.
 
+  Lemma wp2_addr_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt} :
+    regs_of_argument src ⊆ dom lrt ->
+    state_interp_transient φ φt lr lrt lm  lmt ∗
+      (state_interp_transient φ φt lr lrt lm lmt -∗ Φf) ∧
+      ((∀ z, state_interp_transient φ φt lr lrt lm lmt -∗ Φs z z))
+      ⊢ wp_opt2 Ep (addr_of_argumentL lrt src) (addr_of_argument (reg φt) src) Φf Φs.
+  Proof.
+    iIntros (Hregs) "(Hφ & Hk)".
+    destruct src; cbn.
+    - destruct (z_to_addr z); cbn; by iApply "Hk".
+    - change (wp_opt2 _ _ _ _ _) with
+        (wp_opt2 Ep
+           ((lrt !! r ≫= fun y => match y with | LInt z => Some z | _ => None end)
+              ≫= (λ n : Z, z_to_addr n))
+          ((reg φt !! r ≫= fun y => match y with | WInt z => Some z | _ => None end)
+              ≫= (λ n : Z, z_to_addr n))
+           Φf Φs).
+      rewrite <- wp_opt2_bind.
+      rewrite <- wp_opt2_bind.
+      iApply (wp2_reg_lookup with "[$Hφ Hk]").
+      { set_solver. }
+      iIntros (lwr) "Hφ".
+      destruct lwr; cbn ; [destruct (z_to_addr z)| |] ; cbn; by iApply "Hk".
+  Qed.
+
+  Lemma wp2_otype_of_argument {Ep} {src Φf Φs φ φt lr lrt lm lmt} :
+    regs_of_argument src ⊆ dom lrt ->
+    state_interp_transient φ φt lr lrt lm  lmt ∗
+      (state_interp_transient φ φt lr lrt lm lmt -∗ Φf) ∧
+      ((∀ z, state_interp_transient φ φt lr lrt lm lmt -∗ Φs z z))
+      ⊢ wp_opt2 Ep (otype_of_argumentL lrt src) (otype_of_argument (reg φt) src) Φf Φs.
+  Proof.
+    iIntros (Hregs) "(Hφ & Hk)".
+    destruct src; cbn.
+    - destruct (z_to_otype z); cbn; by iApply "Hk".
+    - change (wp_opt2 _ _ _ _ _) with
+        (wp_opt2 Ep
+           ((lrt !! r ≫= fun y => match y with | LInt z => Some z | _ => None end)
+              ≫= (λ n : Z, z_to_otype n))
+          ((reg φt !! r ≫= fun y => match y with | WInt z => Some z | _ => None end)
+              ≫= (λ n : Z, z_to_otype n))
+           Φf Φs).
+      rewrite <- wp_opt2_bind.
+      rewrite <- wp_opt2_bind.
+      iApply (wp2_reg_lookup with "[$Hφ Hk]").
+      { set_solver. }
+      iIntros (lwr) "Hφ".
+      destruct lwr; cbn ; [destruct (z_to_otype z)| |] ; cbn; by iApply "Hk".
+  Qed.
 
   Lemma wp2_word_get_cap {Ep} {w Φf Φs} :
          Φf ∧ (∀ p b e a v, Φs (p , b , e , a , v) (p , b , e , a))
@@ -1966,6 +1966,7 @@ Qed.
 
     intros cur_map Hcurregs.
     eapply is_cur_lword_lea with (lw := LCap p f f0 f1 v); try now cbn.
+    apply isWithin_refl.
     by eapply (map_Forall_lookup_1 _ _ _ _ Hcurregs).
   Qed.
 
