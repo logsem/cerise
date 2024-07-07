@@ -313,43 +313,70 @@ Section cap_lang_rules.
              ∗ (pc_a, pc_v) ↦ₐ{dq} lw
              ∗ r2 ↦ᵣ LCap p b e a v
              ∗ (if ((a, v) =? (pc_a, pc_v))%la then emp else (a, v) ↦ₐ{dq'} lw') }}}.
-  Proof. Admitted.
-  (*   iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) *)
-  (*           "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ". *)
-  (*   iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]". *)
+  Proof.
+    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ)
+            "(>HPC & >Hi & >Hr1 & >Hr2 & Hr2a) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap (%&%&%)]".
 
-  (*   iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr2a") as (lmem dfracs) "[>Hmem Hmem']". *)
-  (*   iDestruct "Hmem'" as %[Hmem Hdfracs] ; cbn in *. *)
+    iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr2a") as (lmem dfracs) "[>Hmem Hmem']".
+    iDestruct "Hmem'" as %[Hmem Hdfracs] ; cbn in *.
 
-  (*   iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto. *)
-  (*   { by rewrite !dom_insert; set_solver+. } *)
-  (*   { destruct ((a =? pc_a)%Z && (v =? pc_v)). by simplify_map_eq. } *)
-  (*   { eapply mem_implies_allow_load_map; eauto. *)
-  (*     destruct ((a =? pc_a)%Z && (v =? pc_v)) eqn:Heq ; simplify_map_eq; eauto. } *)
-  (*   { destruct ((a =? pc_a)%Z && (v =? pc_v)); simplify_eq *)
-  (*    ; subst ; rewrite !dom_insert_L;set_solver+. } *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)". *)
-  (*   iDestruct "Hspec" as %Hspec. *)
+    iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { destruct ((a =? pc_a)%Z && (v =? pc_v)) eqn:Heq; simplify_eq;
+      rewrite prod_merge_insert;
+      by simplify_map_eq.
+    }
+    { eapply mem_implies_allow_load_map with (pc_a := pc_a) (pca_v := pc_v) (lw := lw) (lw' := lw')
+      ; eauto; last by simplify_map_eq.
+      cbn.
+      destruct ((a =? pc_a)%Z && (v =? pc_v)) eqn:Heq
+      ; simplify_eq
+      ; by rewrite !prod_merge_insert prod_merge_empty_l !fmap_insert fmap_empty.
+    }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail ]. *)
-  (*    { (* Success *) *)
-  (*      (* FIXME: fragile *) *)
-  (*      destruct H5 as [Hrr2 _]. simplify_map_eq. *)
-  (*      iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *. *)
-  (*      { iExists lmem,dfracs; iSplitL; eauto. *)
-  (*        iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v). *)
-  (*        split ; eauto. *)
-  (*      } *)
-  (*      incrementLPC_inv. *)
-  (*      pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem H6) as Hloadv; eauto. *)
-  (*      simplify_map_eq. *)
-  (*      rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert. *)
-  (*      iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto. *)
-  (*      iApply "Hφ". iFrame. } *)
-  (*    { (* Failure (contradiction) *) *)
-  (*      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. *)
-  (*      destruct o. all: congruence. } *)
-  (* Qed. *)
+    destruct Hspec as [ | * Hfail ].
+     { (* Success *)
+       (* FIXME: fragile *)
+       destruct H5 as [Hrr2 _]. simplify_map_eq.
+       iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
+       { iExists lmem,dfracs; iSplitL; eauto.
+         iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v).
+         split ; eauto.
+       }
+       incrementLPC_inv.
+       assert (lmem !! (a0, v0) = Some loadv) as Hload.
+       { destruct (decide ((a0 = pc_a) /\ (v0 = pc_v))) as [ [Heq_a Heq_v] |Heq]; subst.
+         - assert (((pc_a =? pc_a)%f && (pc_v =? pc_v)) = true) as Heq.
+           {
+             rewrite andb_true_iff ; split; [solve_addr | by rewrite Nat.eqb_refl].
+           }
+           rewrite Heq in Hmem, Hdfracs ; simplify_map_eq.
+           rewrite prod_merge_insert prod_merge_empty_l in H6.
+           by simplify_map_eq.
+         - rewrite not_and_r in Heq.
+           assert (((a0 =? pc_a)%f && (v0 =? pc_v)) = false) as Hneq.
+           {
+             rewrite andb_false_iff.
+             destruct Heq as [Hneq | Hneq]; [left;solve_addr|right;by rewrite Nat.eqb_neq].
+           }
+           assert ((pc_a,pc_v) ≠ (a0,v0)).
+           { intro ; simplify_eq. destruct Heq ; congruence. }
+           rewrite Hneq in Hmem, Hdfracs ; simplify_map_eq.
+           rewrite !prod_merge_insert prod_merge_empty_l in H6.
+           by simplify_map_eq.
+       }
+       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem Hload) as Hloadv; eauto.
+       simplify_map_eq.
+       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto.
+       iApply "Hφ". iFrame. }
+     { (* Failure (contradiction) *)
+       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+       destruct o. all: congruence. }
+  Qed.
 
   Lemma wp_load_success_notinstr Ep r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw'
     lw'' p b e a v pc_a' dq dq':
@@ -434,44 +461,69 @@ Section cap_lang_rules.
              ∗ r1 ↦ᵣ (if ((a =? pc_a)%Z && (v =? pc_v)) then lw else lw')
              ∗ (pc_a, pc_v) ↦ₐ{dq} lw
              ∗ (if ((a =? pc_a)%Z && (v =? pc_v)) then emp else (a, v) ↦ₐ{dq'} lw') }}}.
-  Proof. Admitted.
-    (* iIntros (Hinstr Hvpc Hra Hwb Hpca' φ) *)
-    (*         "(>HPC & >Hi & >Hr1 & Hr1a) Hφ". *)
-    (* iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]". *)
-    (* iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr1a") as *)
-    (*     (lmem dfracs) "[>Hmem Hmem']". *)
-    (* iDestruct "Hmem'" as %[Hmem Hfracs]. *)
+  Proof.
+    iIntros (Hinstr Hvpc Hra Hwb Hpca' φ)
+            "(>HPC & >Hi & >Hr1 & Hr1a) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
+    iDestruct (memMap_resource_2gen_clater_dq _ _ _ _ _ _ (λ la dq lw, la ↦ₐ{dq} lw)%I with "Hi Hr1a") as
+        (lmem dfracs) "[>Hmem Hmem']".
+    iDestruct "Hmem'" as %[Hmem Hfracs].
 
-    (* iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto. *)
-    (* { by rewrite !dom_insert; set_solver+. } *)
-    (* { destruct ((a =? pc_a)%Z && (v =? pc_v)); by simplify_map_eq. } *)
-    (* { eapply mem_implies_allow_load_map; eauto. *)
-    (*   destruct ((a =? pc_a)%Z && (v =? pc_v)) eqn:Heq ; simplify_map_eq; eauto. } *)
-    (* { destruct ((a =? pc_a)%Z && (v =? pc_v)); simplify_eq *)
-    (*  ; subst ; rewrite !dom_insert_L;set_solver+. } *)
-    (* iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)". *)
-    (* iDestruct "Hspec" as %Hspec. *)
+    iApply (wp_load_general with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { destruct ((a =? pc_a)%Z && (v =? pc_v)); simplify_eq
+      ; rewrite prod_merge_insert; by simplify_map_eq.
+    }
+    { eapply mem_implies_allow_load_map with (pc_a := pc_a) (pca_v := pc_v) (lw := lw) (lw' := lw')
+      ; eauto; last by simplify_map_eq.
+      cbn.
+      destruct ((a =? pc_a)%Z && (v =? pc_v)) eqn:Heq
+      ; simplify_eq
+      ; by rewrite !prod_merge_insert prod_merge_empty_l !fmap_insert fmap_empty.
+    }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
 
-    (* destruct Hspec as [ | * Hfail ]. *)
-    (*  { (* Success *) *)
-    (*    iApply "Hφ". *)
-    (*    destruct H3 as [Hrr2 _]. simplify_map_eq. *)
-    (*    iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *. *)
-    (*    { iExists lmem,dfracs; iSplitL; eauto. *)
-    (*      iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v). *)
-    (*      split ; eauto. *)
-    (*    } *)
-    (*    incrementLPC_inv. *)
-    (*    pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem H4) as Hloadv; eauto. *)
-    (*    simplify_map_eq. *)
-    (*    rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert. *)
-    (*    iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. *)
-    (*    (* destruct ((a0 =? x2)%Z && (v0 =? x3)); iFrame. *) *)
-    (*  } *)
-    (*  { (* Failure (contradiction) *) *)
-    (*    destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. *)
-    (*    destruct o. all: congruence. } *)
-    (* Qed. *)
+    destruct Hspec as [ | * Hfail ].
+     { (* Success *)
+       iApply "Hφ".
+       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
+       { iExists lmem,dfracs; iSplitL; eauto.
+         iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v).
+         split ; eauto.
+       }
+       incrementLPC_inv.
+       assert (lmem !! (a0, v0) = Some loadv) as Hload.
+       { destruct (decide ((a0 = pc_a) /\ (v0 = pc_v))) as [ [Heq_a Heq_v] |Heq]; subst.
+         - assert (((pc_a =? pc_a)%f && (pc_v =? pc_v)) = true) as Heq.
+           {
+             rewrite andb_true_iff ; split; [solve_addr | by rewrite Nat.eqb_refl].
+           }
+           rewrite Heq in Hmem, Hfracs ; simplify_map_eq.
+           rewrite prod_merge_insert prod_merge_empty_l in H4.
+           by simplify_map_eq.
+         - rewrite not_and_r in Heq.
+           assert (((a0 =? pc_a)%f && (v0 =? pc_v)) = false) as Hneq.
+           {
+             rewrite andb_false_iff.
+             destruct Heq as [Hneq | Hneq]; [left;solve_addr|right;by rewrite Nat.eqb_neq].
+           }
+           assert ((pc_a,pc_v) ≠ (a0,v0)).
+           { intro ; simplify_eq. destruct Heq ; congruence. }
+           rewrite Hneq in Hmem, Hfracs ; simplify_map_eq.
+           rewrite !prod_merge_insert prod_merge_empty_l in H4.
+           by simplify_map_eq.
+       }
+       pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem Hload) as Hloadv; eauto.
+       simplify_map_eq.
+       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame.
+     }
+     { (* Failure (contradiction) *)
+       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+       destruct o. all: congruence. }
+    Qed.
 
   Lemma wp_load_success_same_notinstr Ep r1 pc_p pc_b pc_e pc_a pc_v lw lw' lw'' p b e a v pc_a' dq dq' :
     decodeInstrWL lw = Load r1 r1 →
@@ -532,7 +584,7 @@ Section cap_lang_rules.
     iApply "Hφ". iFrame. Unshelve. all: eauto.
   Qed.
 
-  (* (* If a points to a capability, the load into PC success if its address can be incr *) *)
+  (* If a points to a capability, the load into PC success if its address can be incr *)
   Lemma wp_load_success_PC Ep r2 pc_p pc_b pc_e pc_a pc_v lw
         p b e a v p' b' e' a' v' a'' :
     decodeInstrWL lw = Load PC r2 →
@@ -550,32 +602,32 @@ Section cap_lang_rules.
              ∗ (pc_a, pc_v) ↦ₐ lw
              ∗ r2 ↦ᵣ LCap p b e a v
              ∗ (a, v) ↦ₐ LCap p' b' e' a' v' }}}.
-  Proof. Admitted.
-  (*   iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ) *)
-  (*           "(>HPC & >Hi & >Hr2 & >Hr2a) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]". *)
-  (*   iDestruct (memMap_resource_2ne_apply with "Hi Hr2a") as "[Hmem %]"; auto. *)
-  (*   iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto. *)
-  (*   { by rewrite !dom_insert; set_solver+. } *)
-  (*   { eapply mem_neq_implies_allow_load_map *)
-  (*       with (pc_a := pc_a) (pca_v := pc_v) (a := a) (v := v) ; eauto. *)
-  (*     destruct (decide (a = pc_a)) ; simplify_eq ; eauto. *)
-  (*     by simplify_map_eq. } *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)". *)
-  (*   iDestruct "Hspec" as %Hspec. *)
+  Proof.
+    iIntros (Hinstr Hvpc [Hra Hwb] Hpca' φ)
+            "(>HPC & >Hi & >Hr2 & >Hr2a) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr2") as "[Hmap %]".
+    iDestruct (memMap_resource_2ne_apply with "Hi Hr2a") as "[Hmem %]"; auto.
+    iApply (wp_load with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { eapply mem_neq_implies_allow_load_map
+        with (pc_a := pc_a) (pca_v := pc_v) (a := a) (v := v) ; eauto.
+      destruct (decide (a = pc_a)) ; simplify_eq ; eauto.
+      by simplify_map_eq. }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail ]. *)
-  (*    { (* Success *) *)
-  (*      iApply "Hφ". *)
-  (*      destruct H4 as [Hrr2 _]. simplify_map_eq. *)
-  (*      iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto. *)
-  (*      incrementLPC_inv; simplify_map_eq. *)
-  (*      rewrite insert_insert insert_insert. *)
-  (*      iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr2]"; eauto. iFrame. } *)
-  (*    { (* Failure (contradiction) *) *)
-  (*      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. *)
-  (*      destruct o. all: congruence. } *)
-  (* Qed. *)
+    destruct Hspec as [ | * Hfail ].
+     { (* Success *)
+       iApply "Hφ".
+       destruct H4 as [Hrr2 _]. simplify_map_eq.
+       iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
+       incrementLPC_inv; simplify_map_eq.
+       rewrite insert_insert insert_insert.
+       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr2]"; eauto. iFrame. }
+     { (* Failure (contradiction) *)
+       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+       destruct o. all: congruence. }
+  Qed.
 
   Lemma isCorrectLPC_ra_wb pc_p pc_b pc_e pc_a pc_v :
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -599,33 +651,33 @@ Section cap_lang_rules.
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
              ∗ (pc_a, pc_v) ↦ₐ{dq} lw
              ∗ r1 ↦ᵣ lw }}}.
-  Proof. Admitted.
-  (*   iIntros (Hinstr Hvpc Hpca' φ) *)
-  (*           "(>HPC & >Hi & >Hr1) Hφ". *)
-  (*   iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]". *)
-  (*   rewrite memMap_resource_1_dq. *)
-  (*   iApply (wp_load with "[$Hmap $Hi]"); eauto; simplify_map_eq; eauto. *)
-  (*   { by rewrite !dom_insert; set_solver+. } *)
-  (*   { eapply mem_eq_implies_allow_load_map with (a := pc_a); eauto. *)
-  (*     by simplify_map_eq. } *)
-  (*   iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)". *)
-  (*   iDestruct "Hspec" as %Hspec. *)
+  Proof.
+    iIntros (Hinstr Hvpc Hpca' φ)
+            "(>HPC & >Hi & >Hr1) Hφ".
+    iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
+    rewrite memMap_resource_1_dq.
+    iApply (wp_load with "[$Hmap $Hi]"); eauto; simplify_map_eq; eauto.
+    { by rewrite !dom_insert; set_solver+. }
+    { eapply mem_eq_implies_allow_load_map with (a := pc_a); eauto.
+      by simplify_map_eq. }
+    iNext. iIntros (regs' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
 
-  (*   destruct Hspec as [ | * Hfail ]. *)
-  (*    { (* Success *) *)
-  (*      iApply "Hφ". *)
-  (*      destruct H3 as [Hrr2 _]. simplify_map_eq. *)
-  (*      rewrite -memMap_resource_1_dq. *)
-  (*      incrementLPC_inv. *)
-  (*      simplify_map_eq. *)
-  (*      rewrite insert_commute //= insert_insert insert_commute //= insert_insert. *)
-  (*      iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. } *)
-  (*    { (* Failure (contradiction) *) *)
-  (*      destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto. *)
-  (*      apply isCorrectLPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb]. *)
-  (*      destruct o; apply Is_true_false in H3. all: try congruence. done. *)
-  (*    } *)
-  (* Qed. *)
+    destruct Hspec as [ | * Hfail ].
+     { (* Success *)
+       iApply "Hφ".
+       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       rewrite -memMap_resource_1_dq.
+       incrementLPC_inv.
+       simplify_map_eq.
+       rewrite insert_commute //= insert_insert insert_commute //= insert_insert.
+       iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. }
+     { (* Failure (contradiction) *)
+       destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
+       apply isCorrectLPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb].
+       destruct o; apply Is_true_false in H3. all: try congruence. done.
+     }
+  Qed.
 
   Lemma wp_load_success_alt r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw' lw'' p
     b e a v pc_a' :

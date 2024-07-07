@@ -2385,7 +2385,7 @@ Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at
 Declare Scope LAddr_scope.
 Delimit Scope LAddr_scope with la.
 
-Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
+Notation eqb_laddr := (λ (a1 a2: LAddr), (a1.1 =? a2.1)%a && (a1.2 =? a2.2)).
 Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
 
 Section machine_param.
