@@ -70,7 +70,6 @@ Definition cst : Z → (Z+RegName)%type := inl.
 Coercion regn : RegName >-> sum.
 Coercion cst : Z >-> sum.
 
-
 (* Registers and memory: maps from register names/addresses to words *)
 
 Definition Reg := gmap RegName Word.
@@ -81,10 +80,11 @@ Definition TableSize: nat := 128.
 Global Opaque TableSize.
 Definition MaxENum: nat := 1024.
 Global Opaque MaxENum.
-Definition TIndex := (finz TableSize).
+(* Definition TIndex := (finz TableSize). *)
+Definition TIndex := (finz MaxENum).
 Definition EId := Z. (* For now, we assume the hash to be unbounded *)
 Definition ENum := (finz MaxENum). (* The max # of supported enclaves *)
-Definition ETable := gmap TIndex (EId * ENum).
+Definition ETable := gmap TIndex (EId * ENum). (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
 
 (* EqDecision instances *)
 
@@ -753,7 +753,7 @@ Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
 Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
 Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl).
-Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl).
+(* Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl). *)
 Global Instance etable_inhabited: Inhabited ETable. Proof. solve [typeclasses eauto]. Defined.
 
 Global Instance instr_countable : Countable instr.

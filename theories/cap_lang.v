@@ -26,6 +26,10 @@ Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg'
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
 Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
+(* use add_etable or fresh_table_index *)
+(* either use a global freshness counter, never reusing indices
+  or check domain of table and use minimal unused index
+  or axiomatize a freshness function -- keeps it implementation independent *)
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
@@ -416,6 +420,9 @@ Section opsem.
 
   Axiom contains_cap : Mem -> Addr -> Addr -> bool.
   Axiom measure : Mem -> Addr -> Addr -> Z.
+  Axiom coerce_Z : forall A, finz A -> Z.
+  Axiom fresh_table_index : ETable -> TIndex.
+
 
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
@@ -588,28 +595,28 @@ Section opsem.
          if decide (readAllowed p' && writeAllowed p') (* need RW for data section *)
          then let succ_sweep_mem := sweep_addr (mem φ) (reg φ) b in (* sweep the memory excluding the data cap at location b *)
               let succ_sweep_reg := sweep_reg (mem φ) (reg φ) rs in (* sweep the registers excluding the code cap in register rs *)
-              let succ_no_caps   := negb (contains_cap (mem φ) (b+1) e) in (* ccap does not contain capabilities  dcap at addr b *)
+              let succ_no_caps   := negb (contains_cap (mem φ) (b^+1)%a e) in (* ccap does not contain capabilities except dcap at addr b *) (* @TODO no longer needed? *)
               if (succ_sweep_mem && succ_sweep_reg && succ_no_caps)
               then let ec := enumcur φ in
               (* ALLOCATION OF THE ENCLAVE'S SEALS *)
               (* If IIUC, the EC register acts as a bump allocator for enclave otypes *)
               (* therefore, to write the seals for the enclave, it is sufficient to use the value of the EC register
                  and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
-                   let seals := (WSealRange (true, true) (2%Z*ec)%f (2*ec+2) (2*ec)) in
+                   let seals := (WSealRange (true, true) (2%Z * ec)%a (2*ec+2) (2*ec)) in
                    let m' := update_mem φ b' seals in (* these seals should be stored at address b'
                                                          i.e. the base address of the enclave's data section *)
                    let identity := measure (mem φ) (b+1) e in (* calculate hash of ccap *)
-                   let t' := update_etable m' 0 (* @todo: which table index? Is it the same as the eid *) ec identity in
+                   let t' := update_etable m' (fresh_table_index (etable φ)) ec identity in
                    (* @todo: check size bounds on the table etc. *)
                    let ec' := update_enumcur t' (ec + 2) in (* increment enumcur in φ by 2 *)
-                   let r' := update_reg ec' rd (WCap E b e a) in
+                   let r' := update_reg ec' rd (WCap E b e a) in (* @Denis should we use a or b+1 or ?  depending on starting address enclave has different behaviour *)
                    updatePC r' (* we should flip argument order so we can just compose these intermediate ExecConfs *)
 
 
                    (* denis says: o_entry still needed? Was part of original proposal, re: sealed pairs I believe. *)
                    (* sccap             ← (* seal ccap with o_entry *) *)
                    (* sdcap             ← (* seal dcap with o_entry *) *)
-              else (* memory sweep fails *) None
+              else (* memory sweep fails *) None (* @TODO maybe update Opsem and return 0 in rd to signal failure? *)
          else (* no RW access for data cap *) None
     else (* no RX access for code cap *) None
 
