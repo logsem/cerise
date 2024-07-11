@@ -22,7 +22,7 @@ Section SimpleSalloc.
           `{MP: MachineParameters}.
 
   Definition salloc_subroutine_instrs' (offset: Z) :=
-    encodeInstrsW [
+    encodeInstrsLW [
      (* 0 < size ? *)
      Lt r_t3 0 r_t1;
      Mov r_t2 PC;
@@ -57,37 +57,37 @@ Section SimpleSalloc.
   Definition salloc_subroutine_instrs :=
     salloc_subroutine_instrs' (salloc_subroutine_instrs_length - 5).
 
-  Definition salloc_inv (b e : Addr) : iProp Σ :=
+  Definition salloc_inv (b e : Addr) (v : Version) : iProp Σ :=
     (∃ (b_s a_s e_s : OType) bcap bcap',
-       codefrag b salloc_subroutine_instrs
+       codefrag b v salloc_subroutine_instrs
      ∗ ⌜(b + salloc_subroutine_instrs_length)%a = Some bcap⌝
      ∗ ⌜(bcap + 1)%a = Some bcap'⌝
      ∗ ⌜(bcap' + 1)%a = Some e⌝
-     ∗ bcap ↦ₐ WCap RWX bcap' e bcap' (* Needed to gain Write access *)
-     ∗ bcap' ↦ₐ (WSealRange (true,true) b_s e_s a_s)
+     ∗ (bcap, v) ↦ₐ LCap RWX bcap' e bcap' v (* Needed to gain Write access *)
+     ∗ (bcap', v) ↦ₐ (LSealRange (true,true) b_s e_s a_s)
      ∗ ([∗ list] o ∈ finz.seq_between a_s e_s, can_alloc_pred o)
      ∗ ⌜(b_s <= a_s)%ot ∧ (a_s <= e_s)%ot⌝)%I.
 
-  Lemma simple_salloc_subroutine_spec (wsize: Word) (cont: Word) b e rmap N E φ :
+  Lemma simple_salloc_subroutine_spec (wsize: LWord) (cont: LWord) b e v rmap N E φ :
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
     ↑N ⊆ E →
-    ( na_inv logrel_nais N (salloc_inv b e)
+    ( na_inv logrel_nais N (salloc_inv b e v)
      ∗ na_own logrel_nais E
      ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w)
      ∗ r_t0 ↦ᵣ cont
-     ∗ PC ↦ᵣ WCap RX b e b
+     ∗ PC ↦ᵣ LCap RX b e b v
      ∗ r_t1 ↦ᵣ wsize
      ∗ ▷ ((na_own logrel_nais E
-          ∗ [∗ map] r↦w ∈ <[r_t2 := WInt 0%Z]>
-                         (<[r_t3 := WInt 0%Z]>
-                         (<[r_t4 := WInt 0%Z]>
+          ∗ [∗ map] r↦w ∈ <[r_t2 := LInt 0%Z]>
+                         (<[r_t3 := LInt 0%Z]>
+                         (<[r_t4 := LInt 0%Z]>
                           rmap)), r ↦ᵣ w)
           ∗ r_t0 ↦ᵣ cont
-          ∗ PC ↦ᵣ updatePcPerm cont
+          ∗ PC ↦ᵣ updatePcPermL cont
           ∗ (∃ (bs es : OType) size,
-            ⌜wsize = WInt size⌝
+            ⌜wsize = LInt size⌝
             ∗ ⌜(bs + size)%ot = Some es⌝
-            ∗ r_t1 ↦ᵣ WSealRange (true,true) bs es bs
+            ∗ r_t1 ↦ᵣ LSealRange (true,true) bs es bs
             ∗ ([∗ list] o ∈ finz.seq_between bs es, can_alloc_pred o))
           -∗ WP Seq (Instr Executable) {{ φ }}))
     ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
@@ -116,7 +116,7 @@ Section SimpleSalloc.
     unfold salloc_subroutine_instrs_length in Hbm.
     assert (SubBounds b e b (b ^+ length salloc_subroutine_instrs)%a) by solve_addr.
     destruct wsize as [size | [ | ] | ].
-    2,3,4: iInstr "Hprog"; wp_end; eauto.
+    2,3,4: iInstr "Hprog"; try wp_end; eauto.
     do 3 iInstr "Hprog".
 
     (* we need to destruct on the cases for the size *)
@@ -138,7 +138,7 @@ Section SimpleSalloc.
     destruct (a_s + size)%ot as [a_s'|] eqn:Ha_m'; cycle 1.
     { (* Failure case: no registered rule for that yet; do it the manual way *)
       iInstr_lookup "Hprog" as "Hi" "Hcont".
-      iAssert ([∗ map] k↦x ∈ (∅:gmap RegName Word), k ↦ᵣ x)%I as "-#Hregs".
+      iAssert ([∗ map] k↦x ∈ (∅:gmap RegName LWord), k ↦ᵣ x)%I as "-#Hregs".
         by rewrite big_sepM_empty.
       iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "-#Hregs".
         by apply lookup_empty.
@@ -162,7 +162,7 @@ Section SimpleSalloc.
     destruct (isWithin a_s a_s' b_s e_s) eqn:Ha_m'_within; cycle 1.
     { (* Failure case: manual mode. *)
       iInstr_lookup "Hprog" as "Hi" "Hcont".
-      iAssert ([∗ map] k↦x ∈ (∅:gmap RegName Word), k ↦ᵣ x)%I as "-#Hregs".
+      iAssert ([∗ map] k↦x ∈ (∅:gmap RegName LWord), k ↦ᵣ x)%I as "-#Hregs".
         by rewrite big_sepM_empty.
       iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "-#Hregs".
         by apply lookup_empty.
@@ -208,9 +208,9 @@ Section SimpleSalloc.
     { auto. }
   Qed.
 
-  Lemma simple_salloc_subroutine_valid N b e :
-    na_inv logrel_nais N (salloc_inv b e) -∗
-    interp (WCap E b e b).
+  Lemma simple_salloc_subroutine_valid N b e v :
+    na_inv logrel_nais N (salloc_inv b e v) -∗
+    interp (LCap E b e b v).
   Proof.
     iIntros "#Hsalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
@@ -222,7 +222,7 @@ Section SimpleSalloc.
     iDestruct (big_sepM_delete _ _ r_t1 with "Hregs") as "[r_t1 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iApply (wp_wand with "[-]").
     iApply (simple_salloc_subroutine_spec with "[- $Hown $Hsalloc $Hregs $r_t0 $HPC $r_t1]");[|solve_ndisj|].
-    3: { iSimpl. iIntros (v) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
+    3: { iSimpl. iIntros (w) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
     unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.
     iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
