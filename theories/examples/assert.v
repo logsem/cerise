@@ -13,7 +13,7 @@ Section Assert.
 
   (* assert (r4 == r5) *)
   Definition assert_subroutine_instrs :=
-    encodeInstrsW [
+    encodeInstrsLW [
       Sub r_t4 r_t4 r_t5;
       Mov r_t5 PC;
       Lea r_t5 6;
@@ -36,29 +36,29 @@ Section Assert.
     end:
   *)
 
-  Definition assert_inv (b a_flag e : Addr) : iProp Σ :=
+  Definition assert_inv (b a_flag e : Addr) (v : Version) : iProp Σ :=
     (∃ cap_addr,
-       codefrag b assert_subroutine_instrs ∗
+       codefrag b v assert_subroutine_instrs ∗
        ⌜(b + length assert_subroutine_instrs)%a = Some cap_addr⌝ ∗
        ⌜(cap_addr + 1)%a = Some a_flag⌝ ∗
        ⌜(a_flag + 1)%a = Some e⌝ ∗
-       cap_addr ↦ₐ WCap RW a_flag e a_flag).
+       (cap_addr, v) ↦ₐ LCap RW a_flag e a_flag v).
 
-  Lemma assert_subroutine_spec b a_flag e cont n1 n2 flag N E φ :
+  Lemma assert_subroutine_spec b a_flag e v cont n1 n2 flag N E φ :
     ↑N ⊆ E →
-    (  na_inv logrel_nais N (assert_inv b a_flag e)
+    (  na_inv logrel_nais N (assert_inv b a_flag e v)
      ∗ na_own logrel_nais E
-     ∗ PC ↦ᵣ WCap RX b e b
+     ∗ PC ↦ᵣ LCap RX b e b v
      ∗ r_t0 ↦ᵣ cont
-     ∗ r_t4 ↦ᵣ WInt n1
-     ∗ r_t5 ↦ᵣ WInt n2
-     ∗ a_flag ↦ₐ WInt flag
+     ∗ r_t4 ↦ᵣ LInt n1
+     ∗ r_t5 ↦ᵣ LInt n2
+     ∗ (a_flag, v) ↦ₐ LInt flag
      ∗ ▷ (na_own logrel_nais E
-          ∗ PC ↦ᵣ updatePcPerm cont
+          ∗ PC ↦ᵣ updatePcPermL cont
           ∗ r_t0 ↦ᵣ cont
-          ∗ r_t4 ↦ᵣ WInt 0
-          ∗ r_t5 ↦ᵣ WInt 0
-          ∗ a_flag ↦ₐ WInt (if (n1 =? n2)%Z then flag else 1%Z)
+          ∗ r_t4 ↦ᵣ LInt 0
+          ∗ r_t5 ↦ᵣ LInt 0
+          ∗ (a_flag, v) ↦ₐ LInt (if (n1 =? n2)%Z then flag else 1%Z)
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
@@ -87,20 +87,20 @@ Section Assert.
       by apply Z.eqb_neq. }
   Qed.
 
-  Lemma assert_success_spec b a_flag e cont n1 n2 N E φ :
+  Lemma assert_success_spec b a_flag e v cont n1 n2 N E φ :
     ↑N ⊆ E →
     n1 = n2 →
-    (  na_inv logrel_nais N (assert_inv b a_flag e)
+    (  na_inv logrel_nais N (assert_inv b a_flag e v)
      ∗ na_own logrel_nais E
-     ∗ PC ↦ᵣ WCap RX b e b
+     ∗ PC ↦ᵣ LCap RX b e b v
      ∗ r_t0 ↦ᵣ cont
-     ∗ r_t4 ↦ᵣ WInt n1
-     ∗ r_t5 ↦ᵣ WInt n2
+     ∗ r_t4 ↦ᵣ LInt n1
+     ∗ r_t5 ↦ᵣ LInt n2
      ∗ ▷ (na_own logrel_nais E
-          ∗ PC ↦ᵣ updatePcPerm cont
+          ∗ PC ↦ᵣ updatePcPermL cont
           ∗ r_t0 ↦ᵣ cont
-          ∗ r_t4 ↦ᵣ WInt 0
-          ∗ r_t5 ↦ᵣ WInt 0
+          ∗ r_t4 ↦ᵣ LInt 0
+          ∗ r_t5 ↦ᵣ LInt 0
           -∗ WP Seq (Instr Executable) {{ φ }})
      ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
