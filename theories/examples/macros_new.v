@@ -14,8 +14,8 @@ Section macros.
   (* ------------------------------------- FETCH ------------------------------------- *)
   (* --------------------------------------------------------------------------------- *)
 
-  Definition fetch_instrs (f : Z) : list Word :=
-    encodeInstrsW [
+  Definition fetch_instrs (f : Z) : list LWord :=
+    encodeInstrsLW [
       Mov r_t1 PC;
       GetB r_t2 r_t1;
       GetA r_t3 r_t1;
@@ -28,27 +28,27 @@ Section macros.
       Load r_t1 r_t1
     ].
 
-  Lemma fetch_spec f pc_p pc_b pc_e a_first b_link e_link a_link entry_a wentry φ w1 w2 w3:
+  Lemma fetch_spec f pc_p pc_b pc_e v a_first b_link e_link a_link entry_a wentry φ w1 w2 w3:
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_instrs f))%a →
     withinBounds b_link e_link entry_a = true ->
     (a_link + f)%a = Some entry_a ->
 
-      ▷ codefrag a_first (fetch_instrs f)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ entry_a ↦ₐ wentry
+      ▷ codefrag a_first v (fetch_instrs f)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (entry_a,v) ↦ₐ wentry
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (fetch_instrs f))%a
-         ∗ codefrag a_first (fetch_instrs f)
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_instrs f))%a v
+         ∗ codefrag a_first v (fetch_instrs f)
          (* the newly allocated region *)
-         ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ entry_a ↦ₐ wentry
+         ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ LInt 0%Z ∗ r_t3 ↦ᵣ LInt 0%Z
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (entry_a,v) ↦ₐ wentry
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -65,7 +65,7 @@ Section macros.
 
   Definition assert_instrs f_a :=
     fetch_instrs f_a ++
-    encodeInstrsW [
+    encodeInstrsLW [
       Mov r_t2 r_t0;
       Mov r_t0 PC;
       Lea r_t0 3;
@@ -76,7 +76,7 @@ Section macros.
     ].
 
   (* Spec for assertion success *)
-  Lemma assert_success f_a pc_p pc_b pc_e a_first
+  Lemma assert_success f_a pc_p pc_b pc_e v a_first
         b_link e_link a_link a_entry ba a_flag ea w0 w1 w2 w3 assertN EN n1 n2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (assert_instrs f_a))%a →
@@ -87,26 +87,26 @@ Section macros.
     (* condition for assertion success *)
     (n1 = n2) →
 
-    ▷ codefrag a_first (assert_instrs f_a)
-    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea)
+    ▷ codefrag a_first v (assert_instrs f_a)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v)
     ∗ na_own logrel_nais EN
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E ba ea ba
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E ba ea ba v
     ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
-    ∗ ▷ r_t4 ↦ᵣ WInt n1
-    ∗ ▷ r_t5 ↦ᵣ WInt n2
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a
+    ∗ ▷ r_t4 ↦ᵣ LInt n1
+    ∗ ▷ r_t5 ↦ᵣ LInt n2
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a v
          ∗ r_t0 ↦ᵣ w0
-         ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z ∗ r_t3 ↦ᵣ WInt 0%Z
-         ∗ r_t4 ↦ᵣ WInt 0%Z ∗ r_t5 ↦ᵣ WInt 0%Z
-         ∗ codefrag a_first (assert_instrs f_a)
+         ∗ r_t1 ↦ᵣ LInt 0%Z ∗ r_t2 ↦ᵣ LInt 0%Z ∗ r_t3 ↦ᵣ LInt 0%Z
+         ∗ r_t4 ↦ᵣ LInt 0%Z ∗ r_t5 ↦ᵣ LInt 0%Z
+         ∗ codefrag a_first v (assert_instrs f_a)
          ∗ na_own logrel_nais EN
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E ba ea ba
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E ba ea ba v
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -124,7 +124,7 @@ Section macros.
     do 4 iInstr "Hprog".
     iApply (assert_success_spec with "[- $Hinv $Hna $HPC $Hr0 $Hr4 $Hr5]"); auto.
     iNext. iIntros "(Hna & HPC & Hr0 & Hr4 & Hr5)".
-    rewrite updatePcPerm_cap_non_E; [| solve_pure ].
+    rewrite updatePcPermL_cap_non_E; [| solve_pure ].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ". iFrame.
@@ -139,7 +139,7 @@ Section macros.
      f_m is the offset of the malloc capability *)
   Definition malloc_instrs f_m (size: Z) :=
     fetch_instrs f_m ++
-    encodeInstrsW [
+    encodeInstrsLW [
      Mov r_t5 r_t0;
      Mov r_t3 r_t1;
      Mov r_t1 size;
@@ -151,7 +151,7 @@ Section macros.
   ].
 
   (* malloc spec *)
-  Lemma malloc_spec_alt φ ψ size cont pc_p pc_b pc_e a_first
+  Lemma malloc_spec_alt φ ψ size cont pc_p pc_b pc_e v a_first
         b_link e_link a_link f_m a_entry mallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
@@ -162,34 +162,34 @@ Section macros.
     (size > 0)%Z →
 
     (* malloc program and subroutine *)
-    ▷ codefrag a_first (malloc_instrs f_m size)
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ▷ codefrag a_first v (malloc_instrs f_m size)
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a
-         ∗ codefrag a_first (malloc_instrs f_m size)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a v
+         ∗ codefrag a_first v (malloc_instrs f_m size)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ WCap RWX b e b
-            ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
+            ∗ r_t1 ↦ᵣ LCap RWX b e b v
+            ∗ [[b,e]] ↦ₐ{v} [[region_addrs_zeroesL b e v]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
-                               (<[r_t3:=WInt 0%Z]>
-                                (<[r_t4:=WInt 0%Z]>
-                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>
+                               (<[r_t3:=LInt 0%Z]>
+                                (<[r_t4:=LInt 0%Z]>
+                                 (<[r_t5:=LInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
@@ -230,7 +230,7 @@ Section macros.
     iApply (simple_malloc_subroutine_spec with "[- $Hmalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { set_solver+ Hrmap_dom. }
     iNext.
-    rewrite updatePcPerm_cap_non_E; [| solve_pure].
+    rewrite updatePcPermL_cap_non_E; [| solve_pure].
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
     iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
@@ -249,11 +249,11 @@ Section macros.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
       simplify_map_eq. reflexivity.
       iFrameMapSolve+ Hrmap_dom "Hregs". }
-    { iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
+    { iIntros (w) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
   Qed.
 
   (* malloc spec - alternative formulation *)
-  Lemma malloc_spec φ size cont pc_p pc_b pc_e a_first
+  Lemma malloc_spec φ size cont pc_p pc_b pc_e v a_first
         b_link e_link a_link f_m a_entry mallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
@@ -264,32 +264,32 @@ Section macros.
     (size > 0)%Z →
 
     (* malloc program and subroutine *)
-    ▷ codefrag a_first (malloc_instrs f_m size)
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ▷ codefrag a_first v (malloc_instrs f_m size)
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a
-         ∗ codefrag a_first (malloc_instrs f_m size)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a v
+         ∗ codefrag a_first v (malloc_instrs f_m size)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ WCap RWX b e b
-            ∗ [[b,e]] ↦ₐ [[region_addrs_zeroes b e]])
+            ∗ r_t1 ↦ᵣ LCap RWX b e b v
+            ∗ [[b,e]] ↦ₐ{v} [[region_addrs_zeroesL b e v]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
-                               (<[r_t3:=WInt 0%Z]>
-                                (<[r_t4:=WInt 0%Z]>
-                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>
+                               (<[r_t3:=LInt 0%Z]>
+                                (<[r_t4:=LInt 0%Z]>
+                                 (<[r_t5:=LInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
@@ -310,7 +310,7 @@ Section macros.
      f_m is the offset of the salloc capability *)
   Definition salloc_instrs f_m (size: Z) :=
     fetch_instrs f_m ++
-    encodeInstrsW [
+    encodeInstrsLW [
      Mov r_t5 r_t0;
      Mov r_t3 r_t1;
      Mov r_t1 size;
@@ -322,7 +322,7 @@ Section macros.
   ].
 
   (* salloc spec *)
-  Lemma salloc_spec_alt φ ψ size cont pc_p pc_b pc_e a_first
+  Lemma salloc_spec_alt φ ψ size cont pc_p pc_b pc_e v a_first
         b_link e_link a_link f_m a_entry sallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
@@ -333,34 +333,34 @@ Section macros.
     (size > 0)%Z →
 
     (* salloc program and subroutine *)
-    ▷ codefrag a_first (salloc_instrs f_m size)
-    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m)
+    ▷ codefrag a_first v (salloc_instrs f_m size)
+    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the salloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a
-         ∗ codefrag a_first (salloc_instrs f_m size)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a v
+         ∗ codefrag a_first v (salloc_instrs f_m size)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
          ∗ (∃ (bs es : OType),
             ⌜(bs + size)%ot = Some es⌝
-            ∗ r_t1 ↦ᵣ WSealRange (true,true) bs es bs
+            ∗ r_t1 ↦ᵣ LSealRange (true,true) bs es bs
             ∗ ([∗ list] o ∈ finz.seq_between bs es, can_alloc_pred o))
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
-                               (<[r_t3:=WInt 0%Z]>
-                                (<[r_t4:=WInt 0%Z]>
-                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>
+                               (<[r_t3:=LInt 0%Z]>
+                                (<[r_t4:=LInt 0%Z]>
+                                 (<[r_t5:=LInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ ψ }})
@@ -401,7 +401,7 @@ Section macros.
     iApply (simple_salloc_subroutine_spec with "[- $Hsalloc $Hna $Hregs $Hr_t0 $HPC $Hr_t1]"); auto.
     { set_solver+ Hrmap_dom. }
     iNext.
-    rewrite updatePcPerm_cap_non_E; [| solve_pure].
+    rewrite updatePcPermL_cap_non_E; [| solve_pure].
     iIntros "((Hna & Hregs) & Hr_t0 & HPC & Hbe) /=".
     iDestruct "Hbe" as (b e size' Hsize' Hbe) "(Hr_t1 & Hbe)". inversion Hsize'; subst size'.
     iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]".
@@ -420,11 +420,11 @@ Section macros.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
       simplify_map_eq. reflexivity.
       iFrameMapSolve+ Hrmap_dom "Hregs". }
-    { iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
+    { iIntros (w) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. eauto. }
   Qed.
 
   (* salloc spec - alternative formulation *)
-  Lemma salloc_spec φ size cont pc_p pc_b pc_e a_first
+  Lemma salloc_spec φ size cont pc_p pc_b pc_e v a_first
         b_link e_link a_link f_m a_entry sallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (salloc_instrs f_m size))%a →
@@ -435,32 +435,32 @@ Section macros.
     (size > 0)%Z →
 
     (* salloc program and subroutine *)
-    ▷ codefrag a_first (salloc_instrs f_m size)
-    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m)
+    ▷ codefrag a_first v (salloc_instrs f_m size)
+    ∗ na_inv logrel_nais sallocN (salloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the salloc capability is in the linking table at offset f_m *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a
-         ∗ codefrag a_first (salloc_instrs f_m size)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (salloc_instrs f_m size))%a v
+         ∗ codefrag a_first v (salloc_instrs f_m size)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
          ∗ (∃ (bs es : OType),
             ⌜(bs + size)%ot = Some es⌝
-            ∗ r_t1 ↦ᵣ WSealRange (true,true) bs es bs
+            ∗ r_t1 ↦ᵣ LSealRange (true,true) bs es bs
             ∗ ([∗ list] o ∈ finz.seq_between bs es, can_alloc_pred o))
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=WInt 0%Z]>
-                               (<[r_t3:=WInt 0%Z]>
-                                (<[r_t4:=WInt 0%Z]>
-                                 (<[r_t5:=WInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
+         ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>
+                               (<[r_t3:=LInt 0%Z]>
+                                (<[r_t4:=LInt 0%Z]>
+                                 (<[r_t5:=LInt 0%Z]> (delete r_t1 rmap))))), r_i ↦ᵣ w_i)
          (* the newly allocated region is fresh in the current world *)
          (* ∗ ⌜Forall (λ a, a ∉ dom (gset Addr) (std W)) (finz.seq_between b e)⌝ *)
          -∗ WP Seq (Instr Executable) {{ φ }})
@@ -479,11 +479,10 @@ Section macros.
      otherwise it continues *)
 
   (* ------------------------------- *)
-
   Definition reqperm_instrs r z :=
-    encodeInstrsW [
+    encodeInstrsLW [
         GetWType r_t1 r;
-        Sub r_t1 r_t1 (encodeWordType wt_cap);
+        Sub r_t1 r_t1 (encodeLWordType lwt_cap);
         Mov r_t2 PC;
         Lea r_t2 11;
         Jnz r_t2 r_t1;
@@ -499,20 +498,20 @@ Section macros.
         ; Mov r_t1 0
         ; Mov r_t2 0].
 
-  Lemma reqperm_spec r perm w pc_p pc_b pc_e a_first w1 w2 φ :
+  Lemma reqperm_spec r perm w pc_p pc_b pc_e v a_first w1 w2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a →
 
-      ▷ codefrag a_first (reqperm_instrs r (encodePerm perm))
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+      ▷ codefrag a_first v (reqperm_instrs r (encodePerm perm))
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     ∗ ▷ r ↦ᵣ w
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
-    ∗ ▷ (if isPermWord w perm then
-           ∃ b e a', ⌜w = WCap perm b e a'⌝ ∧
-           (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a
-            ∗ codefrag a_first (reqperm_instrs r (encodePerm perm)) ∗
-            r ↦ᵣ WCap perm b e a' ∗ r_t1 ↦ᵣ WInt 0%Z ∗ r_t2 ↦ᵣ WInt 0%Z
+    ∗ ▷ (if isPermLWord w perm then
+           ∃ b e a', ⌜w = LCap perm b e a' v⌝ ∧
+           (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (reqperm_instrs r (encodePerm perm)))%a v
+            ∗ codefrag a_first v (reqperm_instrs r (encodePerm perm)) ∗
+            r ↦ᵣ LCap perm b e a' v ∗ r_t1 ↦ᵣ LInt 0%Z ∗ r_t2 ↦ᵣ LInt 0%Z
             -∗ WP Seq (Instr Executable) {{ φ }})
         else φ FailedV)
     ⊢
@@ -523,34 +522,37 @@ Section macros.
     iGo "Hprog".
     eapply getwtype_denote ; reflexivity .
     do 3 iInstr "Hprog".
-    destruct (is_cap w) eqn:Hcap; cycle 1.
+    destruct (is_log_cap w) eqn:Hcap; cycle 1.
     {
-      assert (isPermWord w perm = false) as ->. {destruct_word w; auto. inversion Hcap. }
+      assert (isPermLWord w perm = false) as ->. {destruct_lword w; auto. inversion Hcap. }
 
       (* if w is not a capability we jump to the failure case *)
       iInstr "Hprog".
       (* TODO maybe I could generalize this next sub-proof ? *)
-     { intros Hcontr; clear -Hcap Hcontr.
+     { rewrite -/(encodeLWordType w).
+       intros Hcontr; clear -Hcap Hcontr.
         destruct w; [| (destruct sb; [by simpl in Hcap|]) |]
-        ; unfold wt_cap in Hcontr
+        ; unfold lwt_cap in Hcontr
         ; injection Hcontr
         ; clear Hcontr; intro Hcontr
         ; apply Zminus_eq in Hcontr
         ; match goal with
-          | H: encodeWordType ?x = encodeWordType ?y |- _ =>
-              pose proof (encodeWordType_correct x y) as Hcontr2 ; cbn in Hcontr2
+          | H: encodeLWordType ?x = encodeLWordType ?y |- _ =>
+              pose proof (encodeLWordType_correct x y) as Hcontr2 ; cbn in Hcontr2
           end
         ; auto.
       }
-      rewrite -/(updatePcPerm (WCap _ _ _ _ )). rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      rewrite -/(updatePcPermL (LCap _ _ _ _ _)). rewrite updatePcPermL_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
       by wp_end. }
     {
     (* now we know that w is a capability *)
-    assert (∃ p b e a, w = WCap p b e a)  as (pc & bc & ec & ac & ->). {destruct_word w ; inversion Hcap. eauto. }
-    simpl_encodeWordType; rewrite Z.sub_diag.
+    assert (∃ p b e a v, w = LCap p b e a v)  as (pc & bc & ec & ac & vc & ->).
+    {destruct_lword w ; inversion Hcap. eexists _,_,_,_,_; eauto. }
+    rewrite -/(encodeLWordType _).
+    simpl_encodeLWordType; rewrite Z.sub_diag.
     do 5 iInstr "Hprog".
-    destruct (isPermWord (WCap pc bc ec ac) perm) eqn:Hperm.
+    destruct (isPermLWord (LCap pc bc ec ac vc) perm) eqn:Hperm.
     {
       iInstr_lookup "Hprog" as "Hi" "Hcont".
       wp_instr.
@@ -560,8 +562,8 @@ Section macros.
       iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
       iDestruct ("Hcont" with "Hi") as "Hprog".
       iGo "Hprog".
-      rewrite -/(updatePcPerm (WCap _ _ _ _)).
-      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      rewrite -/(updatePcPermL (LCap _ _ _ _ _)).
+      rewrite updatePcPermL_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
       iDestruct "Hφ" as (b' e' a' Heq) "Hφ". inv Heq.
       iApply "Hφ"; iFrame. }
@@ -569,8 +571,8 @@ Section macros.
       iGo "Hprog".
       inversion Hperm as [Hp]. apply bool_decide_eq_false_1 in Hp. intros Hcontr; inversion Hcontr as [Heq].
       apply Zminus_eq,encodePerm_inj in Heq. subst pc. done.
-      rewrite -/(updatePcPerm (WCap _ _ _ _)%a).
-      rewrite updatePcPerm_cap_non_E;[|inv Hvpc;auto].
+      rewrite -/(updatePcPermL (LCap _ _ _ _ _)%a).
+      rewrite updatePcPermL_cap_non_E;[|inv Hvpc;auto].
       iGo "Hprog".
       iApply wp_value. iFrame. } }
   Qed.
@@ -580,7 +582,7 @@ Section macros.
      (i.e. e-b) exactly equal to [minsize]. *)
 
   Definition reqsize_exact_instrs r (exsize : Z) :=
-    encodeInstrsW
+    encodeInstrsLW
       [ GetB r_t1 r ;
       GetE r_t2 r;
       Sub r_t1 r_t2 r_t1;
@@ -593,20 +595,20 @@ Section macros.
       Jmp r_t2;
       Fail].
 
-  Lemma reqsize_spec r minsize pc_p pc_b pc_e a_first r_p r_b r_e r_a w1 w2 φ :
+  Lemma reqsize_spec r minsize pc_p pc_b pc_e v a_first r_p r_b r_e r_a w1 w2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (reqsize_exact_instrs r minsize))%a →
 
-      ▷ codefrag a_first (reqsize_exact_instrs r minsize)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ ▷ r ↦ᵣ WCap r_p r_b r_e r_a
+      ▷ codefrag a_first v (reqsize_exact_instrs r minsize)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ r ↦ᵣ LCap r_p r_b r_e r_a v
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ (if (minsize =? (r_e - r_b)%a)%Z then
            (∃ w1 w2,
-            codefrag a_first (reqsize_exact_instrs r minsize)
-            ∗ PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (reqsize_exact_instrs r minsize))%a
-            ∗ r ↦ᵣ WCap r_p r_b r_e r_a
+            codefrag a_first v (reqsize_exact_instrs r minsize)
+            ∗ PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (reqsize_exact_instrs r minsize))%a v
+            ∗ r ↦ᵣ LCap r_p r_b r_e r_a v
             ∗ r_t1 ↦ᵣ w1
             ∗ r_t2 ↦ᵣ w2)
            -∗ WP Seq (Instr Executable) {{ φ }}
@@ -627,12 +629,12 @@ Section macros.
       iNext. iIntros "(HPC & Hi & Hr_t2 & Hr_t1)". wp_pure.
       iDestruct ("Hcont" with "Hi") as "Hprog".
       iGo "Hprog".
-      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 11)%a)).
-      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      rewrite -/(updatePcPermL (LCap pc_p pc_b pc_e (a_first ^+ 11)%a v)).
+      rewrite updatePcPermL_cap_non_E;[|by inv Hvpc].
       iApply "Hφ". iExists _,_. iFrame. }
     { iGo "Hprog". intros Hcontr. inv Hcontr. solve_addr.
-      rewrite -/(updatePcPerm (WCap pc_p pc_b pc_e (a_first ^+ 10)%a)).
-      rewrite updatePcPerm_cap_non_E;[|by inv Hvpc].
+      rewrite -/(updatePcPermL ((LWSealable (LSCap pc_p pc_b pc_e (a_first ^+ 10)%a v)))).
+      rewrite updatePcPermL_cap_non_E;[|by inv Hvpc].
       iGo "Hprog". iApply wp_value. iFrame. }
   Qed.
 
@@ -640,12 +642,12 @@ Section macros.
   (* the following macro clears registers in r. a denotes the list of addresses
      containing the instructions for the clear: |a| = |r| *)
   Definition rclear_instrs (r : list RegName) :=
-    encodeInstrsW (map (λ r_i, Mov r_i 0) r).
+    encodeInstrsLW (map (λ r_i, Mov r_i 0) r).
 
-  Lemma rclear_instrs_cons rr r: rclear_instrs (rr :: r) = encodeInstrW (Mov rr 0) :: rclear_instrs r.
+  Lemma rclear_instrs_cons rr r: rclear_instrs (rr :: r) = encodeInstrWL (Mov rr 0) :: rclear_instrs r.
   Proof. reflexivity. Qed.
 
-  Lemma rclear_spec (r: list RegName) (rmap : gmap RegName Word) pc_p pc_b pc_e a_first φ :
+  Lemma rclear_spec (r: list RegName) (rmap : gmap RegName LWord) pc_p pc_b pc_e v a_first φ :
     PC ∉ r →
     r ≠ [] →
     ExecPCPerm pc_p →
@@ -653,11 +655,11 @@ Section macros.
     list_to_set r = dom rmap →
 
       ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ ▷ codefrag a_first (rclear_instrs r)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (rclear_instrs r))%a
-            ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ WInt 0%Z)
-            ∗ codefrag a_first (rclear_instrs r)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ codefrag a_first v (rclear_instrs r)
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (rclear_instrs r))%a v
+            ∗ ([∗ map] r_i↦_ ∈ rmap, r_i ↦ᵣ LInt 0%Z)
+            ∗ codefrag a_first v (rclear_instrs r)
             -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢ WP Seq (Instr Executable) {{ φ }}.
   Proof.
@@ -677,8 +679,8 @@ Section macros.
       rewrite (_: delete r0 rmap = ∅) //. apply dom_empty_inv_L.
       rewrite dom_delete_L -Hrdom. set_solver. }
 
-    iAssert (codefrag (a_first ^+ 1)%a (rclear_instrs r') ∗
-             (codefrag (a_first ^+ 1)%a (rclear_instrs r') -∗ codefrag a_first (rclear_instrs (r0 :: r'))))%I
+    iAssert (codefrag (a_first ^+ 1)%a v (rclear_instrs r') ∗
+             (codefrag (a_first ^+ 1)%a v (rclear_instrs r') -∗ codefrag a_first v (rclear_instrs (r0 :: r'))))%I
     with "[Hrclear]" as "[Hrclear Hcont]".
     { cbn. unfold codefrag. rewrite (region_mapsto_cons _ (a_first ^+ 1)%a). 2,3: solve_addr.
       iDestruct "Hrclear" as "[? Hr]".
@@ -726,13 +728,13 @@ Section macros.
   Definition v5 := encodeInstr (Load r_t20 r_t20).
   Definition v6 := encodeInstr (Jmp r_t20).
 
-  Definition activation_code : list Word :=
-    encodeInstrsW [ Mov r_t20 PC ; Lea r_t20 7 ; Load r_env r_t20 ; Lea r_t20 (-1)%Z ; Load r_t20 r_t20 ; Jmp r_t20].
-  Definition activation_instrs wcode wenv : list Word :=
+  Definition activation_code : list LWord :=
+    encodeInstrsLW [ Mov r_t20 PC ; Lea r_t20 7 ; Load r_env r_t20 ; Lea r_t20 (-1)%Z ; Load r_t20 r_t20 ; Jmp r_t20].
+  Definition activation_instrs wcode wenv : list LWord :=
     activation_code ++ [ wcode; wenv ].
 
   Definition scrtcls_instrs (rcode rdata: RegName) :=
-    encodeInstrsW [ Store r_t1 v1
+    encodeInstrsLW [ Store r_t1 v1
                   ; Lea r_t1 1
                   ; Store r_t1 v2
                   ; Lea r_t1 1
@@ -754,32 +756,32 @@ Section macros.
                   ].
 
   Definition crtcls_instrs f_m :=
-    encodeInstrsW [ Mov r_t6 r_t1
+    encodeInstrsLW [ Mov r_t6 r_t1
                   ; Mov r_t7 r_t2
                   ] ++ malloc_instrs f_m 8%nat
                   ++ scrtcls_instrs r_t6 r_t7.
 
-  Lemma scrtcls_spec rcode rdata wvar wcode pc_p pc_b pc_e a_first act_b act_e act φ :
+  Lemma scrtcls_spec rcode rdata wvar wcode pc_p pc_b pc_e v a_first act_b act_e act φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (scrtcls_instrs rcode rdata))%a →
 
     (act_b + 8)%a = Some act_e →
 
-    ▷ codefrag a_first (scrtcls_instrs rcode rdata)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
+    ▷ codefrag a_first v (scrtcls_instrs rcode rdata)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
     (* register state *)
-    ∗ ▷ r_t1 ↦ᵣ WCap RWX act_b act_e act_b
+    ∗ ▷ r_t1 ↦ᵣ LCap RWX act_b act_e act_b v
     ∗ ▷ rcode ↦ᵣ wcode
     ∗ ▷ rdata ↦ᵣ wvar
     (* memory for the activation record *)
-    ∗ ▷ ([[act_b,act_e]] ↦ₐ [[ act ]])
+    ∗ ▷ ([[act_b,act_e]] ↦ₐ{v} [[ act ]])
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (scrtcls_instrs rcode rdata))%a
-         ∗ codefrag a_first (scrtcls_instrs rcode rdata)
-         ∗ r_t1 ↦ᵣ WCap E act_b act_e act_b
-         ∗ [[act_b,act_e]] ↦ₐ [[ activation_instrs wcode wvar ]]
-         ∗ rcode ↦ᵣ WInt 0%Z
-         ∗ rdata ↦ᵣ WInt 0%Z
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (scrtcls_instrs rcode rdata))%a v
+         ∗ codefrag a_first v (scrtcls_instrs rcode rdata)
+         ∗ r_t1 ↦ᵣ LCap E act_b act_e act_b v
+         ∗ [[act_b,act_e]] ↦ₐ{v} [[ activation_instrs wcode wvar ]]
+         ∗ rcode ↦ᵣ LInt 0%Z
+         ∗ rdata ↦ᵣ LInt 0%Z
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -795,7 +797,7 @@ Section macros.
     assert (Hact_len_a : length acta = 8).
     { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
     iDestruct (big_sepL2_length with "Hact") as %Hact_len.
-    rewrite Hact_len_a in Hact_len. symmetry in Hact_len.
+    rewrite map_length Hact_len_a in Hact_len. symmetry in Hact_len.
     repeat (destruct act as [| ? act]; try by inversion Hact_len). clear Hact_len.
     assert (∀ i a', acta !! i = Some a' → withinBounds act_b act_e a' = true) as Hwbact.
     { intros i a' Hsome. apply andb_true_intro. subst acta.
@@ -842,7 +844,7 @@ Section macros.
     iApply "Hφ". iFrame. rewrite /e decode_encode_perm_inv //.
   Qed.
 
-  Lemma crtcls_spec_alt f_m wvar wcode pc_p pc_b pc_e
+  Lemma crtcls_spec_alt f_m wvar wcode pc_p pc_b pc_e v
         a_first b_link a_link e_link a_entry b_m e_m mallocN EN rmap cont φ ψ:
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (crtcls_instrs f_m))%a →
@@ -852,13 +854,13 @@ Section macros.
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
-    ▷ codefrag a_first (crtcls_instrs f_m)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ▷ codefrag a_first v (crtcls_instrs f_m)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
@@ -867,21 +869,21 @@ Section macros.
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (crtcls_instrs f_m))%a
-         ∗ codefrag a_first (crtcls_instrs f_m)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (crtcls_instrs f_m))%a v
+         ∗ codefrag a_first v (crtcls_instrs f_m)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap E b e b
-         ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ LCap E b e b v
+         ∗ [[b,e]] ↦ₐ{v} [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
-         ∗ r_t2 ↦ᵣ WInt 0%Z
+         ∗ r_t2 ↦ᵣ LInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
-                               (<[r_t4:=WInt 0%Z]>
-                                (<[r_t5:=WInt 0%Z]>
-                                 (<[r_t6:=WInt 0%Z]>
-                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=LInt 0%Z]>
+                               (<[r_t4:=LInt 0%Z]>
+                                (<[r_t5:=LInt 0%Z]>
+                                 (<[r_t6:=LInt 0%Z]>
+                                  (<[r_t7:=LInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ ψ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v }}.
@@ -945,7 +947,7 @@ Section macros.
     clear -Hrmap_dom; iFrameMapSolve "Hregs".
   Qed.
 
-  Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e
+  Lemma crtcls_spec f_m wvar wcode pc_p pc_b pc_e v
         a_first b_link a_link e_link a_entry b_m e_m mallocN EN rmap cont φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (crtcls_instrs f_m))%a →
@@ -955,34 +957,34 @@ Section macros.
     dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1; r_t2 ]} →
     ↑mallocN ⊆ EN →
 
-    ▷ codefrag a_first (crtcls_instrs f_m)
-    ∗ ▷ PC ↦ᵣ WCap pc_p pc_b pc_e a_first
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
+    ▷ codefrag a_first v (crtcls_instrs f_m)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset 0 *)
-    ∗ ▷ pc_b ↦ₐ WCap RO b_link e_link a_link
-    ∗ ▷ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
     (* register state *)
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ r_t1 ↦ᵣ wcode
     ∗ ▷ r_t2 ↦ᵣ wvar
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ WCap pc_p pc_b pc_e (a_first ^+ length (crtcls_instrs f_m))%a
-         ∗ codefrag a_first (crtcls_instrs f_m)
-         ∗ pc_b ↦ₐ WCap RO b_link e_link a_link
-         ∗ a_entry ↦ₐ WCap E b_m e_m b_m
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (crtcls_instrs f_m))%a v
+         ∗ codefrag a_first v (crtcls_instrs f_m)
+         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
+         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
          (* the newly allocated region *)
-         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ WCap E b e b
-         ∗ [[b,e]] ↦ₐ [[ activation_instrs wcode wvar ]]
+         ∗ (∃ (b e : Addr), ⌜(b + 8)%a = Some e⌝ ∧ r_t1 ↦ᵣ LCap E b e b v
+         ∗ [[b,e]] ↦ₐ{v} [[ activation_instrs wcode wvar ]]
          ∗ r_t0 ↦ᵣ cont
-         ∗ r_t2 ↦ᵣ WInt 0%Z
+         ∗ r_t2 ↦ᵣ LInt 0%Z
          ∗ na_own logrel_nais EN
-         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=WInt 0%Z]>
-                               (<[r_t4:=WInt 0%Z]>
-                                (<[r_t5:=WInt 0%Z]>
-                                 (<[r_t6:=WInt 0%Z]>
-                                  (<[r_t7:=WInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
+         ∗ ([∗ map] r_i↦w_i ∈ <[r_t3:=LInt 0%Z]>
+                               (<[r_t4:=LInt 0%Z]>
+                                (<[r_t5:=LInt 0%Z]>
+                                 (<[r_t6:=LInt 0%Z]>
+                                  (<[r_t7:=LInt 0%Z]> rmap)))), r_i ↦ᵣ w_i))
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}.
@@ -995,17 +997,17 @@ Section macros.
 
   (* ------------------------------- Closure Activation --------------------------------- *)
 
-  Lemma closure_activation_spec pc_p b_cls e_cls r1v renvv wcode wenv φ :
+  Lemma closure_activation_spec pc_p b_cls e_cls v r1v renvv wcode wenv φ :
     ExecPCPerm pc_p →
 
-    PC ↦ᵣ WCap pc_p b_cls e_cls b_cls
+    PC ↦ᵣ LCap pc_p b_cls e_cls b_cls v
     ∗ r_t20 ↦ᵣ r1v
     ∗ r_env ↦ᵣ renvv
-    ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
-    ∗ ▷ (  PC ↦ᵣ updatePcPerm wcode
+    ∗ [[b_cls, e_cls]] ↦ₐ{v} [[ activation_instrs wcode wenv ]]
+    ∗ ▷ (  PC ↦ᵣ updatePcPermL wcode
        ∗ r_t20 ↦ᵣ wcode
        ∗ r_env ↦ᵣ wenv
-       ∗ [[b_cls, e_cls]]↦ₐ[[ activation_instrs wcode wenv ]]
+       ∗ [[b_cls, e_cls]] ↦ₐ{v} [[ activation_instrs wcode wenv ]]
        -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -1014,16 +1016,18 @@ Section macros.
     rewrite /region_mapsto.
     iDestruct (big_sepL2_length with "Hprog") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
-    { rewrite finz_seq_between_length /finz.dist in Hcls_len.
+    { rewrite map_length finz_seq_between_length /finz.dist in Hcls_len.
       revert Hcls_len; clear; solve_addr. }
     assert (∃ b_end, b_cls + 6 = Some b_end)%a as [b_end Hbend];[destruct (b_cls + 6)%a eqn:HH;eauto;exfalso;solve_addr|].
     assert (∃ b_mid, b_cls + 7 = Some b_mid)%a as [b_mid Hbmid];[destruct (b_cls + 7)%a eqn:HH;eauto;exfalso;solve_addr|].
 
-    iAssert (codefrag b_cls (activation_code) ∗ b_end ↦ₐ wcode ∗ b_mid ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
+    iAssert (codefrag b_cls v (activation_code) ∗ (b_end,v) ↦ₐ wcode ∗ (b_mid,v) ↦ₐ wenv)%I with "[Hprog]" as "[Hprog [Henv Henv']]".
     { rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a /=; [|solve_addr].
       rewrite /activation_instrs.
       rewrite (finz_seq_between_split _ b_end);[|solve_addr].
-      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl. rewrite finz_seq_between_length /finz.dist. left. solve_addr.
+      rewrite map_app.
+      iDestruct (big_sepL2_app_inv with "Hprog") as "[Hprog Henv]". simpl.
+      rewrite map_length finz_seq_between_length /finz.dist. left. solve_addr.
       iFrame. rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
       rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.
       iDestruct "Henv" as "($&$&_)". }
@@ -1040,6 +1044,7 @@ Section macros.
     iApply "Hcont". iFrame.
     rewrite /codefrag (_: b_cls ^+ length activation_code = b_end)%a; [| solve_addr]. rewrite /activation_instrs.
     rewrite (finz_seq_between_split _ b_end);[|solve_addr].
+      rewrite map_app.
     iApply (big_sepL2_app with "Hprog").
     rewrite finz_seq_between_cons;[|solve_addr]. assert (b_end + 1 = Some b_mid)%a as ->%addr_incr_eq. solve_addr. simpl.
     rewrite finz_seq_between_cons;[|solve_addr]. assert (b_mid + 1 = Some e_cls)%a as ->%addr_incr_eq. solve_addr. simpl.

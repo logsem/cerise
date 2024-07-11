@@ -70,11 +70,11 @@ Ltac solve_block_move :=
 
 (* Ltac specifically meant for switching to the next block. Use `changePCto` to perform more arbitrary moves *)
 Ltac changePC_next_block new_a :=
-  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?prev_a)%I ] =>
+  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ LCap _ _ _ ?prev_a _)%I ] =>
                     rewrite (_: prev_a = new_a) ; [ | solve_block_move  ] end.
 (* More powerful ltac to change the address of the pc. Might take longer to solve than the more specific alternative above.*)
 Ltac changePCto0 new_a :=
-  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ WCap _ _ _ ?a)%I ] =>
+  match goal with |- context [ Esnoc _ _ (PC ↦ᵣ LCap _ _ _ ?a _)%I ] =>
     rewrite (_: a = new_a); [| solve_addr]
   end.
 Tactic Notation "changePCto" constr(a) := changePCto0 a.
@@ -211,7 +211,7 @@ Ltac focus_block_0 h hi hcont :=
   let hi := constr:(hi:ident) in
   let hcont := constr:(hcont:ident) in
   let x := iFresh in
-  match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
+  match goal with |- context [ Esnoc _ h (codefrag ?a0 _ _) ] =>
     iPoseProof (codefrag_block0_acc with h) as x;
     eapply tac_and_destruct with x _ hi hcont _ _ _;
     [pm_reflexivity|pm_reduce;tc_solve|
@@ -257,7 +257,7 @@ Ltac focus_block n h a_base Ha_base hi hcont :=
   let hi := constr:(hi:ident) in
   let hcont := constr:(hcont:ident) in
   let x := iFresh in
-  match goal with |- context [ Esnoc _ h (codefrag ?a0 _) ] =>
+  match goal with |- context [ Esnoc _ h (codefrag ?a0 _ _) ] =>
     iPoseProof ((codefrag_block_acc n) with h) as (a_base) x;
       [ once (typeclasses eauto with proofmode_focus) | ];
     let xbase := iFresh in
