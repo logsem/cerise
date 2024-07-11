@@ -73,3 +73,19 @@ Proof.
   rewrite (finz_dist_split a). 2: solve_addr.
   rewrite replicate_add //.
 Qed.
+
+Definition region_addrs_zeroesL (b e : Addr) (v : Version) : list LWord :=
+  replicate (finz.dist b e) (LWInt 0%Z).
+
+Lemma region_addrs_zeroesL_lookup (b e : Addr) (v : Version) i y :
+  region_addrs_zeroesL b e v !! i = Some y → y = LInt 0%Z.
+Proof. apply lookup_replicate. Qed.
+
+Lemma region_addrs_zeroesL_split (b a e: Addr) (v : Version) :
+  (b <= a)%a ∧ (a <= e)%a →
+  region_addrs_zeroesL b e v = region_addrs_zeroesL b a v ++ region_addrs_zeroesL a e v.
+Proof.
+  intros. rewrite /region_addrs_zeroesL.
+  rewrite (finz_dist_split a). 2: solve_addr.
+  rewrite replicate_add //.
+Qed.
