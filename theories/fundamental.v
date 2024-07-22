@@ -212,7 +212,7 @@ Section fundamental.
     }
     { destruct Hw as [p [b [e [a ->] ] ] ]. rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
       iNext. iIntros (rmap).
-      iDestruct "Hw" as "[Hw HwP]".
+      iDestruct "Hw" as (P) "(%HP & HPsentry & HwP & Hw)".
       iSpecialize ("Hw" $! rmap). iDestruct "Hw" as "#Hw".
       iIntros "(HPC & Hr & ?)". iApply "Hw". iFrame. }
     { iNext. iIntros (rmap). iApply fundamental. eauto. }

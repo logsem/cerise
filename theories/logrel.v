@@ -81,6 +81,13 @@ Section logrel.
     Proper (dist n ==> dist n) enter_cond.
   Proof. solve_proper. Qed.
 
+  Program Definition jump_cond (P : D) : D -n> iPropO Σ :=
+    λne interp, (▷ □ ∀ (w : Word), P w -∗ enter_cond w interp)%I.
+  Solve Obligations with solve_proper.
+  Global Instance jump_cond_ne n :
+    Proper (dist n ==> dist n ==> dist n) jump_cond.
+  Proof. solve_proper. Qed.
+
   (* interp definitions *)
   Program Definition interp_ref_inv (a : Addr) : D -n> iPropO Σ := λne P, (∃ w, a ↦ₐ w ∗ P w)%I.
   Solve Obligations with solve_proper.
@@ -127,23 +134,19 @@ Section logrel.
     ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D,  ⌜∀ w, Persistent (P w)⌝ ∗ seal_pred a P ∗ write_cond P interp)%I.
   Definition safe_to_unseal (interp : D) (b e : OType) : iPropO Σ :=
     ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D, seal_pred a P ∗ read_cond P interp)%I.
+  Definition safe_to_jump (interp : D) : iPropO Σ :=
+   (∃ P : D, seal_pred otype_sentry P ∗ jump_cond P interp)%I.
+
+  Definition permit_call (b e : OType) := decide (b <= otype_sentry < e)%ot.
 
   Program Definition interp_sr (interp : D) : D :=
     λne w, (match w with
     | WSealRange p b e a =>
     (if permit_seal p then safe_to_seal interp b e else True)
     ∗ (if permit_unseal p then safe_to_unseal interp b e else True)
+    ∗ (if permit_call b e then safe_to_jump interp else True)
     | _ => False end ) %I.
   Solve All Obligations with solve_proper.
-
-  (* Program Definition interp_sentry (interp : D) : D :=
-    λne w,
-      (match w with
-       | WSealed otype_sentry sb => enter_cond (WSealable sb) interp
-       | _ => True
-       end)%I.
-  Solve All Obligations with solve_proper. *)
-
 
   Program Definition interp_sb (o : OType) (interp : D) : D :=
     λne w,
@@ -157,6 +160,20 @@ Section logrel.
      )%I.
   Solve All Obligations with solve_proper.
 
+  (* TODO possible alternative:
+     if sealed with otype_sentry, we only require safe-to-execute, not interp *)
+  (* Program Definition interp_sb (o : OType) (interp : D) : D := *)
+  (*   λne w, *)
+  (*    (∃ P : Word → iPropI Σ, *)
+  (*        ⌜∀ w', Persistent (P w')⌝ *)
+  (*              ∗ seal_pred o P *)
+  (*              ∗ ▷ P w *)
+  (*              ∗ (if (decide (o = otype_sentry)) *)
+  (*                 then enter_cond w interp *)
+  (*                 else True) *)
+  (*    )%I. *)
+  (* Solve All Obligations with solve_proper. *)
+
   Program Definition interp1 (interp : D) : D :=
     (λne w,
     match w return _ with
@@ -168,9 +185,6 @@ Section logrel.
     | WCap RWX b e a => interp_cap_RWX interp w
     | WSealRange p b e a => interp_sr interp w
     | WSealed o sb => interp_sb o interp (WSealable sb)
-        (* (if (decide (o = otype_sentry)) *)
-        (* then interp_sentry interp w *)
-        (* else ) *)
     end)%I.
 
   Global Instance read_cond_contractive :
@@ -198,6 +212,11 @@ Section logrel.
   Proof.
     solve_contractive.
   Qed.
+  Global Instance jump_cond_contractive :
+    Contractive (jump_cond).
+  Proof.
+    solve_contractive.
+  Qed.
   Global Instance interp_cap_RX_contractive :
     Contractive (interp_cap_RX).
   Proof.
@@ -217,17 +236,10 @@ Section logrel.
   Proof.
     solve_proper_prepare.
     destruct_word x0; auto.
-    destruct (permit_seal sr), (permit_unseal sr);
-    rewrite /safe_to_seal /safe_to_unseal;
-    solve_contractive.
-  Qed.
-  (* Global Instance interp_sentry_contractive : *)
-  (*   Contractive (interp_sentry). *)
-  (* Proof. *)
-  (*   solve_proper_prepare. *)
-  (*   destruct_word x0; auto. *)
-  (*   solve_contractive. *)
-  (* Qed. *)
+    destruct (permit_seal sr), (permit_unseal sr), (permit_call f f0);
+    rewrite /safe_to_seal /safe_to_unseal /safe_to_jump.
+    (* solve_contractive. *)
+  Admitted.
 
   Global Instance interp1_contractive :
     Contractive (interp1).
@@ -256,9 +268,9 @@ Section logrel.
   Proof. intros. destruct_word w; simpl; rewrite fixpoint_interp1_eq; simpl.
          - apply _.
          - destruct c; repeat (apply exist_persistent; intros); try apply _.
-         - destruct (permit_seal sr), (permit_unseal sr); rewrite /safe_to_seal /safe_to_unseal; apply _ .
-         -
-           apply exist_persistent; intros P.
+         - destruct (permit_seal sr), (permit_unseal sr), (permit_call f f0)
+            ; rewrite /safe_to_seal /safe_to_unseal /safe_to_jump; apply _ .
+         - apply exist_persistent; intros P.
            unfold Persistent. iIntros "(Hpers & #Hs & [HP Hjmp])". iDestruct "Hpers" as %Hpers.
            iAssert (<pers> ▷ P (WSealable s))%I with "[ HP ]" as "HP".
            { iApply later_persistently_1. by iApply Hpers.  }
@@ -618,39 +630,50 @@ Section logrel.
   Qed.
 
   Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
+    not (b <= otype_sentry < e)%ot ->
     ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗
     interp (WSealRange (b1,b2) b e a).
   Proof.
+    intros Hnsentry.
     remember (finz.seq_between b e) as l eqn:Hgen. rewrite Hgen; revert Hgen.
-    generalize b e. clear b e.
+    generalize dependent Hnsentry.
+    generalize b e.
+    clear b e.
     induction l as [|hd tl IH].
-    - iIntros (b e Hfinz) "_ !>".
+    - iIntros (b e Hnsentry Hfinz) "_ !>".
       rewrite /interp fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
-      rewrite -Hfinz. destruct b1, b2; iSplit; done.
-    - iIntros (b e Hfinz).
+      rewrite -Hfinz.
+      destruct b1, b2; iSplit; try done.
+      all: symmetry in Hfinz; apply finz_empty_seq_between in Hfinz.
+      all: destruct (permit_call b e); iSplit; try done; solve_addr.
+    - iIntros (b e Hnsentry Hfinz).
       assert (b < e)%ot as Hlbe.
       {destruct (decide (b < e)%ot) as [|HF]; first auto. rewrite finz_seq_between_empty in Hfinz; [inversion Hfinz | solve_addr  ]. }
       apply finz_cons_tl in Hfinz as (b' & Hplus & Hfinz).
-      specialize (IH b' e Hfinz). rewrite (finz_seq_between_split _ b' _).
+      assert (¬ (b' <= otype_sentry < e)%f) as Hnsentry' by solve_addr.
+      specialize (IH b' e Hnsentry' Hfinz). rewrite (finz_seq_between_split _ b' _).
       2 : split; solve_addr.
       iIntros "[#Hfirst Hca]".
       iMod (IH with "Hca") as "Hca". iModIntro.
       rewrite /interp !fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
       rewrite !(finz_seq_between_split b b' e). 2: { split ; solve_addr. }
-      iDestruct "Hca" as "[Hseal Hunseal]".
-      iSplitL "Hseal"; [destruct b1| destruct b2]; iFrame.
+      iDestruct "Hca" as "(Hseal & Hunseal & Hcall)".
+      iSplitL "Hseal"
+      ; [|iSplitL "Hunseal"]
+      ; [destruct b1| destruct b2 | destruct (permit_call b e)]; iFrame; try done.
       all: iApply (big_sepL_mono with "Hfirst").
-      all: iIntros (k a' Hk) "H"; cbn.
-      all: iExists _; iFrame; auto.
-      iSplit; auto. iPureIntro; apply _.
+      all: (iIntros (k a' Hk) "H"; cbn).
+      all: (iExists _; iFrame; auto).
+      iSplit; auto; iPureIntro; apply _.
   Qed.
 
   (* Get the validity of sealing capabilities if we can allocate an arbitrary predicate, and can hence choose interp itself as the sealing predicate *)
   Lemma region_can_alloc_interp E (b e a: OType) b1 b2:
+    not (b <= otype_sentry < e)%ot ->
     ([∗ list] o ∈ finz.seq_between b e, can_alloc_pred o) ={E}=∗
     interp (WSealRange (b1,b2) b e a).
   Proof.
-    iIntros "Hca".
+    iIntros (Hnsentry) "Hca".
     iDestruct (big_sepL_mono with "Hca") as "Hca".
     iIntros (k a' Hk) "H". iDestruct (seal_store_update_alloc _ interp  with "H") as "H". iExact "H".
 

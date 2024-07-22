@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine.ftlr Require Import ftlr_base.
-From cap_machine Require Import addr_reg region.
+From cap_machine Require Import addr_reg region proofmode register_tactics.
 
 Section fundamental.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
@@ -89,26 +89,42 @@ Section fundamental.
     iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
     destruct sb as [p b e a |]; cycle 1.
     + (* PC contains sealrange, it is trivially safe *)
-      (* rewrite /interp_conf. *)
-      admit.
+      wp_instr.
+      iEval (rewrite /registers_mapsto) in "Hregs".
+      iExtract "Hregs" PC as "HPC".
+      iApply (wp_notCorrectPC with "HPC"); eauto; first (intro Hcontra; inversion Hcontra).
+      iNext ; iIntros "HPC".
+      wp_pure; wp_end.
+      iIntros "%" ; done.
     + iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
-  Admitted.
+  Qed.
 
   Lemma sealing_preserves_interp_sentry sb:
         IH -∗
+        seal_pred otype_sentry (fixpoint interp1) -∗
         fixpoint interp1 (WSealable sb) -∗
         fixpoint interp1 (WSealed otype_sentry sb).
   Proof.
-    iIntros "#IH #HVsb".
+    iIntros "#IH #Hsentry_pred #HVsb".
     rewrite (fixpoint_interp1_eq (WSealed _ _)) /= /interp_sb.
+    iExists (fixpoint interp1).
+    iSplit.
+    { iPureIntro; intro; apply interp_persistent. }
+    iSplit; first done.
+    iSplit; first done.
     iIntros (r).
     iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
     destruct sb as [p b e a |]; cycle 1.
-    - (* PC contains sealrange, it is trivially safe *)
-      (* rewrite /interp_conf. *)
-      admit.
-    - iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
-  Admitted.
+    + (* PC contains sealrange, it is trivially safe *)
+      wp_instr.
+      iEval (rewrite /registers_mapsto) in "Hregs".
+      iExtract "Hregs" PC as "HPC".
+      iApply (wp_notCorrectPC with "HPC"); eauto; first (intro Hcontra; inversion Hcontra).
+      iNext ; iIntros "HPC".
+      wp_pure; wp_end.
+      iIntros "%" ; done.
+    + iApply ("IH" with "Hfull Hreg Hregs Hna"); auto.
+  Qed.
 
 
   Lemma safe_to_unseal_weakening b e b' e':
@@ -160,10 +176,11 @@ Section fundamental.
   intros Hb He Hp. iIntros "#HA".
   rewrite !fixpoint_interp1_eq. cbn.
   destruct (permit_seal p') eqn:Hseal; [eapply (permit_seal_flowsto _ p) in Hseal as ->; auto | ].
-  all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as ->; auto | ]; iDestruct "HA" as "[Hs Hus]".
-  all: iSplitL "Hs";
-  [try iApply (safe_to_seal_weakening with "Hs") | try iApply (safe_to_unseal_weakening with "Hus")]; auto.
+  all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as
+        ->; auto | ]; iDestruct "HA" as "[Hs [Hus Hj]]".
+  all: destruct (permit_call b' e') as [Hjump|Hjump].
+  all: iSplitL "Hs"; [try iApply (safe_to_seal_weakening with "Hs") | iSplitL "Hus" ; try iApply (safe_to_unseal_weakening with "Hus")]; auto.
+  all: destruct (permit_call b e) as [Hjump'|Hjump']; solve_addr.
   Qed.
-
 
 End fundamental.

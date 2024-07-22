@@ -95,7 +95,8 @@ Section fundamental.
             iClear "Hinv".
             rewrite fixpoint_interp1_eq; simpl.
             iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
-            iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
+            iDestruct "HPCv" as (Psentry) "(%Hpers & #Hseal_pred & HPsentry & Hcont)"; auto.
+            iDestruct ("Hcont" $! r with "[$Hmap $Hown]") as "Hcont'"; auto.
         + (* Not a sentry *)
           rewrite (_: match sb with | SCap _ _ _ _ | _ => WSealed ot sb end = WSealed ot sb)
           ; last (by destruct sb).

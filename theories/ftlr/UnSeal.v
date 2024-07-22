@@ -25,18 +25,16 @@ Section fundamental.
   Proof.
     iIntros (Hpseal Hwb) "#HVsd #HVsr".
     rewrite (fixpoint_interp1_eq (WSealRange _ _ _ _)) (fixpoint_interp1_eq (WSealed _ _)) /= Hpseal /interp_sb.
-    iDestruct "HVsr" as "[_ Hss]".
+    iDestruct "HVsr" as "[_ [Hss Hjmp]]".
     apply seq_between_dist_Some in Hwb.
     iDestruct (big_sepL_delete with "Hss") as "[HSa0 _]"; eauto.
     iDestruct "HSa0" as (P) "[HsealP HWcond]".
-    destruct (decide (a0 = otype_sentry)) as [?|Hot] ; subst.
-    + admit.
-    +
-      iDestruct "HVsd" as (P') "[% [HsealP' HP']]".
-      iDestruct (seal_pred_agree with "HsealP HsealP'") as "Hequiv". iSpecialize ("Hequiv" $! (WSealable sb)).
-      iAssert (▷ P (WSealable sb))%I as "HP". { iNext. by iRewrite "Hequiv". }
-      by iApply "HWcond".
-  Admitted.
+    (* destruct (decide (a0 = otype_sentry)) as [?|Hot] ; subst. *)
+    iDestruct "HVsd" as (P') "[% [HsealP' [HP' Hjmp']]]".
+    iDestruct (seal_pred_agree with "HsealP HsealP'") as "Hequiv". iSpecialize ("Hequiv" $! (WSealable sb)).
+    iAssert (▷ P (WSealable sb))%I as "HP". { iNext. by iRewrite "Hequiv". }
+    by iApply "HWcond".
+  Qed.
 
   Lemma unseal_case (r : leibnizO Reg) (p : Perm)
         (b e a : Addr) (w : Word) (dst r1 r2 : RegName) (P:D):

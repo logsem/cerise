@@ -207,11 +207,21 @@ Section SimpleMalloc.
   Qed.
 
   Lemma simple_malloc_subroutine_valid N b e :
-    na_inv logrel_nais N (malloc_inv b e) -∗
-    interp (WCap E b e b).
+    na_inv logrel_nais N (malloc_inv b e)
+    ∗ seal_pred otype_sentry interp -∗
+    interp (WSealed otype_sentry (SCap RX b e b)).
   Proof.
-    iIntros "#Hmalloc".
-    rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
+    iIntros "[#Hmalloc #Hsentry]".
+    rewrite fixpoint_interp1_eq /=.
+    iExists (interp); rewrite fixpoint_interp1_eq /=.
+    iSplit.
+    { iPureIntro; intro; apply interp_persistent. }
+    iSplit; first done.
+    (* TODO not working here:
+       it means that I have to prove that the content of malloc is safe to share,
+       which is not *)
+    iSplit; first done.
+    iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
     destruct H with r_t0 as [? ?].
