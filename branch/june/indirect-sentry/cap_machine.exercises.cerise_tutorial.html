@@ -1,0 +1,581 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">cap_machine.exercises.cerise_tutorial</h1>
+
+<div class="code">
+</div>
+
+<div class="doc">
+This file is a tutorial to learn how to use the Cerise Program Logic within Coq.
+    We will specify a simple program and explain how to use the tactics of the
+    Cerise Proofmode to prove the specification.
+
+<div class="paragraph"> </div>
+
+    Prerequisites:
+    We assume the user already knows how to use Iris and the Iris Proofmode,
+    for instance with Heaplang. Learning material for Iris is available
+    at this URL: https://iris-project.org/ 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.proofmode</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">tactics</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.rules.html#"><span class="id" title="library">rules</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.proofmode</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.proofmode.tactics_helpers.html#"><span class="id" title="library">tactics_helpers</span></a> <a class="idref" href="cap_machine.proofmode.proofmode.html#"><span class="id" title="library">proofmode</span></a> <a class="idref" href="cap_machine.proofmode.contiguous.html#"><span class="id" title="library">contiguous</span></a>.<br/>
+<span class="id" title="keyword">Open</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">Z_scope</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The imports correspond to the following:
+<ul class="doclist">
+<li> the Iris tactics and the Iris proofmode
+
+</li>
+<li> the WP rules of the Cerise program logic
+
+</li>
+<li> the automated tactics of the Cerise proofmode
+
+</li>
+<li> some additional tactics for the Cerise proofmode
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+    We recommand to check the documentation of the proofmode of Cerise:
+    https://github.com/logsem/cerise/blob/main/proofmode.md 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Section</span> <a id="base_program" class="idref" href="#base_program"><span class="id" title="section">base_program</span></a>.<br/>
+</div>
+
+<div class="doc">
+Iris requires the ressources in the context. The resources of our machine
+      are the registers and the memory. Moreover, we need the machine parameters
+      in the context, which abstract the encoding and the decoding function
+      (for instance, to encode the instructions). 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> {<a id="0101b9beac487b383a5ba2a8f6922788" class="idref" href="#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="binder">Σ</span></a>:<span class="id" title="record">gFunctors</span>} {<a id="memg:2" class="idref" href="#memg:2"><span class="id" title="binder">memg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#memG"><span class="id" title="class">memG</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>} {<a id="regg:3" class="idref" href="#regg:3"><span class="id" title="binder">regg</span></a>:<a class="idref" href="cap_machine.rules.rules_base.html#regG"><span class="id" title="class">regG</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="MP:4" class="idref" href="#MP:4"><span class="id" title="binder">MP</span></a>: <a class="idref" href="cap_machine.machine_parameters.html#MachineParameters"><span class="id" title="class">MachineParameters</span></a>}.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The program is a list of instructions. As the machine has a Von Neumann
+      architecture, the instructions are encoded data. The function
+      `encodeInstrsW` transforms a list of instructions into integers.
+      The encoding does not matter, as we always manipulate the encoded
+      instructions with the decoding function. 
+<div class="paragraph"> </div>
+
+ The program we will study in this file moves a pointer in a buffer and
+      stores a value at this new location. More precisely, we assumes that the
+      register `r1` of the machine contains a capability pointing to a memory
+      buffer of size &gt;= 1. The program derives a capability to the next address,
+      and stores the value of the register `r2` at this address. 
+</div>
+<div class="code">
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <a id="prog_instrs" class="idref" href="#prog_instrs"><span class="id" title="definition">prog_instrs</span></a> : <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="cap_machine.machine_base.html#Word"><span class="id" title="inductive">Word</span></a> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_parameters.html#encodeInstrsW"><span class="id" title="definition">encodeInstrsW</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Lea"><span class="id" title="constructor">Lea</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> 1<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a>     <span class="comment">(*&nbsp;load&nbsp;effective&nbsp;address&nbsp;1&nbsp;into&nbsp;`r1`&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#Store"><span class="id" title="constructor">Store</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <span class="comment">(*&nbsp;store&nbsp;value&nbsp;from&nbsp;`r2`&nbsp;at&nbsp;address&nbsp;specified&nbsp;by&nbsp;`r1`&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+We use the program logic to specify the program. In the program logic,
+      there is 2 types of ressources:
+<ul class="doclist">
+<li> the register /reg/ maps to the word /w/, reg ↦ᵣ w
+
+</li>
+<li> the address /a/ maps to the word /w/, a ↦ₐ w.
+
+</li>
+</ul>
+      The notation <span class="inlinecode">[<span class="id" title="var">a1</span>,</span> <span class="inlinecode"><span class="id" title="var">a2</span>]</span> ↦ₐ <span class="inlinecode">[<span class="id" title="var">lw</span>]</span> maps the list of words /lw/ to the
+      contiguous fragment of memory between the adresses /a1/ and /a2/.
+
+<div class="paragraph"> </div>
+
+      To write the specification, we need to have the separation logic
+      assertion that describe all the resources required throughout the
+      execution. In this case, we need the ownership of:
+<ul class="doclist">
+<li> the fragment of the memory with the instructions of the program,
+        stored between the adresses `a_prog` and `a_prog + len(prog)`
+
+</li>
+<li> the memory buffer on which the program stores the new value,
+        between the addresses `b_mem` and `b_mem + 2`
+
+</li>
+<li> the PC contains a capability pointing to the first addresse of the
+        program `a_prog`, with all the required permissions
+        (i.e. validity range and executable)
+
+</li>
+<li> the registers `r1` and `r2`, where `r1` contains the capability to the
+        buffer and `r2` contains the new data (in our case, 42)
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+      The usual way to specify a program in Cerise in Coq is to use the
+      weakest-precondition (WP) with a Continuation Passing Style, instead of
+      the Hoare Triples.
+      The CPS style is defined as follows:
+
+<div class="paragraph"> </div>
+
+      {P} e {Q} ≡ ∀ ϕ, (P ∗ ▷(Q -∗ WP e { ϕ })) -∗ WP e { ϕ }
+
+<div class="paragraph"> </div>
+
+      It is important to notice that, for a such low-level programming language,
+      there is no notion of expression. The semantic only describes how the
+      state of the machine changes at each execution step, as soon as the machine
+      is in a Running state.
+      However, the WP property requires an expression. In this way, an
+      expression in the Cerise program logic encodes only the execution state of
+      the machine (Running, Halted or Failed) (1).
+      Thus, the WP rules only describes how the resources of the machine evolve
+      at each execution step.
+
+<div class="paragraph"> </div>
+
+      (1) For technical purpose, an expression in actually either a (non-atomic)
+          Sequence of instructions, or an (atomic) Instruction. 
+<div class="paragraph"> </div>
+
+ The following lemma `prog_spec_instr` is a specification of the program
+      previously defined.
+
+<div class="paragraph"> </div>
+
+      The SL assertion for the fragment of code is `codefrag a_prog prog_instr`.
+
+<div class="paragraph"> </div>
+
+      The PCC (PC Capability) has the permission `pc_p`, which has, at least,
+      the execution permission: `ExecPCPerm p_pc`.
+      The validity range of the PCC, between the addresses `pc_b` and `pc_e`,
+      is larger than the actual range of the code fragment. Indeed, for
+      modular purposes, the program we are specifying may be a part of a larger
+      program. Thus, we need to ensure the fragment of the code is included in
+      the PCC range, i.e. `SubBounds b_pc e_pc a_prog e_prog`.
+
+<div class="paragraph"> </div>
+
+      Because we work with addresses, which are actually finite integers,
+      we need to assume the addresses are always valid when we do addresses
+      arithmetic operations (for instance, there is no overflow of the memory).
+      In particular, the memory buffer is a contiguous region of memory where
+      all the addresses are in the bounds of the memory.
+
+<div class="paragraph"> </div>
+
+      For simplicity, we assume the buffer is filled with 0.
+
+<div class="paragraph"> </div>
+
+      When the whole program is a list of instructions, it is required to
+      manually get some helping facts before reasoning on the instructions,
+      using the tactic `codefrag_facts "Hprog"`. This tactic has to be used
+      when the `codefrag` assertion is used. It allows to get some additionnal
+      facts about the memory addresses containing the code. It is a boilerplate.
+
+<div class="paragraph"> </div>
+
+      To prove the specification, the idea is to manipulate the resources, such
+      that we have all the required assertion that fit with the corresponding
+      WP rule. Once all the resource are ready, the tactic `iInstr "Hprog"`
+      steps through one instruction, automatically finds the appropriate rule,
+      and tries to discharge as much goal as possible (e.g. side-condition
+      about the PC). It only remains some side-condition to prove manually,
+      such as address arithmetic.
+      We can use the tactic `solve_addr` to solve automatically the address
+      arithmetic goals. It sometimes requires to transform the goal or
+      hypotheses a bit to work.
+
+<div class="paragraph"> </div>
+
+      We advice to read carefully the following specification and to try to
+      understand each statement in the lemma.
+      Then, we urge to execute the proof step by step, and to understand
+      each time what happens to the proof state and why we are doing it. 
+</div>
+<div class="code">
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="prog_spec_instr" class="idref" href="#prog_spec_instr"><span class="id" title="lemma">prog_spec_instr</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:5" class="idref" href="#p_pc:5"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:6" class="idref" href="#b_pc:6"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:7" class="idref" href="#e_pc:7"><span class="id" title="binder">e_pc</span></a> <a id="a_prog:8" class="idref" href="#a_prog:8"><span class="id" title="binder">a_prog</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="b_mem:9" class="idref" href="#b_mem:9"><span class="id" title="binder">b_mem</span></a> <span class="comment">(*&nbsp;mem&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="ec4b304ddf42d851d75fca6932b4d645" class="idref" href="#ec4b304ddf42d851d75fca6932b4d645"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_mem:11" class="idref" href="#e_mem:11"><span class="id" title="binder">e_mem</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span> <span class="comment">(*&nbsp;end&nbsp;of&nbsp;memory&nbsp;buffer&nbsp;at&nbsp;b_mem&nbsp;+&nbsp;2&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:12" class="idref" href="#e_prog:12"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:8"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a>)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span> <span class="comment">(*&nbsp;end&nbsp;of&nbsp;program&nbsp;at&nbsp;a_prog&nbsp;+&nbsp;length&nbsp;of&nbsp;instructions&nbsp;*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:5"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;p_pc&nbsp;has&nbsp;at&nbsp;least&nbsp;the&nbsp;executable&nbsp;permission*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:6"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:7"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:8"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:12"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;<span class="inlinecode"><span class="id" title="var">b_pc</span></span> <span class="inlinecode">:</span> <span class="inlinecode"><span class="id" title="var">e_pc</span>)</span> <span class="inlinecode"><span class="id" title="var">contains</span></span> <span class="inlinecode">[<span class="id" title="var">a_prog</span></span> <span class="inlinecode">:</span> <span class="inlinecode"><span class="id" title="var">e_prog</span>)</span> <span class="inlinecode"></span>*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> 2 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a> <span class="comment">(*&nbsp;addresses&nbsp;in&nbsp;<span class="inlinecode"><span class="id" title="var">b_mem</span></span> <span class="inlinecode">:</span> <span class="inlinecode"><span class="id" title="var">b_mem</span></span> <span class="inlinecode">+</span> <span class="inlinecode">2)</span> <span class="inlinecode"><span class="id" title="var">are</span></span> <span class="inlinecode"><span class="id" title="var">valid</span></span> <span class="inlinecode"></span>*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:5"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:6"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:7"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:8"><span class="id" title="variable">a_prog</span></a> <span class="comment">(*&nbsp;PC&nbsp;points&nbsp;to&nbsp;the&nbsp;prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:8"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a> <span class="comment">(*&nbsp;the&nbsp;prog&nbsp;instruction&nbsp;start&nbsp;at&nbsp;a_prog&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:11"><span class="id" title="variable">e_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> <span class="comment">(*&nbsp;r1&nbsp;points&nbsp;to&nbsp;the&nbsp;allocated&nbsp;memory&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:11"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <span class="comment">(*&nbsp;memory&nbsp;buffer,&nbsp;filled&nbsp;with&nbsp;0&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42 <span class="comment">(*&nbsp;new&nbsp;value&nbsp;42&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <span class="comment">(*&nbsp;everything&nbsp;under&nbsp;the&nbsp;later&nbsp;`▷`&nbsp;and&nbsp;before&nbsp;the&nbsp;wand&nbsp;`-*`&nbsp;is&nbsp;our&nbsp;postcondition&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:5"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:6"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:7"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:12"><span class="id" title="variable">e_prog</span></a> <span class="comment">(*&nbsp;PC&nbsp;has&nbsp;reached&nbsp;the&nbsp;end&nbsp;of&nbsp;the&nbsp;program&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:11"><span class="id" title="variable">e_mem</span></a> (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span> <span class="comment">(*&nbsp;r1&nbsp;points&nbsp;to&nbsp;b_mem&nbsp;+&nbsp;1*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42 <span class="comment">(*&nbsp;unchanged&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:8"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a> <span class="comment">(*&nbsp;unchanged&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:9"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:11"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <span class="comment">(*&nbsp;our&nbsp;memory&nbsp;buffer&nbsp;now&nbsp;contains&nbsp;42&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#ec4b304ddf42d851d75fca6932b4d645"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#ec4b304ddf42d851d75fca6932b4d645"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr1 &amp; Hmem &amp; Hr2 &amp; Hcont)".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;1&nbsp;-&nbsp;prepare&nbsp;the&nbsp;assertions&nbsp;for&nbsp;the&nbsp;proof&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_mem</span> <span class="id" title="var">e_prog</span>. <span class="comment">(*&nbsp;replace&nbsp;e_mem&nbsp;and&nbsp;e_prog&nbsp;with&nbsp;their&nbsp;known&nbsp;values&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">codefrag_facts</span> "Hprog". <span class="comment">(*&nbsp;Derives&nbsp;the&nbsp;facts&nbsp;from&nbsp;the&nbsp;codefrag&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2&nbsp;-&nbsp;wp&nbsp;rules&nbsp;for&nbsp;each&nbsp;instructions&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Lea&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Store&nbsp;requires&nbsp;the&nbsp;resource&nbsp;(b_mem&nbsp;^+&nbsp;1),&nbsp;we&nbsp;need&nbsp;to&nbsp;destruct&nbsp;the&nbsp;region_mapsto.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;essentially&nbsp;the&nbsp;same&nbsp;as&nbsp;destructing&nbsp;a&nbsp;list&nbsp;into&nbsp;(first&nbsp;element)::(rest&nbsp;of&nbsp;list).&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_cons"><span class="id" title="axiom">region_mapsto_cons</span></a> <span class="id" title="notation">with</span> "Hmem"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "(Hmem0 &amp; Hmem1)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="comment">(*&nbsp;We&nbsp;simplify&nbsp;the&nbsp;subgoal&nbsp;first&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: <span class="id" title="tactic">reflexivity</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;This&nbsp;inequality&nbsp;holds&nbsp;if&nbsp;the&nbsp;address&nbsp;(b_mem&nbsp;+&nbsp;1)&nbsp;is&nbsp;in&nbsp;memory&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;The&nbsp;hypothesis&nbsp;`Hmem_bounds`&nbsp;ensures&nbsp;that&nbsp;(b_mem&nbsp;+&nbsp;2)&nbsp;is&nbsp;in&nbsp;memory,&nbsp;so&nbsp;(b_mem&nbsp;+&nbsp;1)&nbsp;too&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. <span class="comment">(*&nbsp;`solve_addr`&nbsp;is&nbsp;invoked&nbsp;with&nbsp;the&nbsp;"required"&nbsp;environment&nbsp;+&nbsp;`Hmem_bounds`&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. <span class="comment">(*&nbsp;`solve_addr`&nbsp;is&nbsp;invoked&nbsp;with&nbsp;only&nbsp;the&nbsp;"required"&nbsp;environment&nbsp;*)</span> }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;We&nbsp;do&nbsp;it&nbsp;twice&nbsp;since&nbsp;we&nbsp;need&nbsp;the&nbsp;second&nbsp;element&nbsp;(b_mem&nbsp;^+&nbsp;1).&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_cons"><span class="id" title="axiom">region_mapsto_cons</span></a> <span class="id" title="notation">with</span> "Hmem1"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "(Hmem1 &amp; _)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a>1 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span>); [ <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span> | <span class="id" title="tactic">reflexivity</span> ]. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Store&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iInstr</span> "Hprog".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;Continuation&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> "Hcont".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_cons"><span class="id" title="axiom">region_mapsto_cons</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_cons"><span class="id" title="axiom">region_mapsto_cons</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a>1 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">replace</span> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a>1 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span> <span class="id" title="keyword">with</span> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span> <span class="id" title="tactic">by</span> <span class="id" title="var">solve_addr</span> +.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="cap_machine.proofmode.region.html#region_mapsto"><span class="id" title="definition">region_mapsto</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="machine_utils.finz_interval.html#finz_seq_between_empty"><span class="id" title="lemma">finz_seq_between_empty</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">simpl</span>; <span class="id" title="var">iPureIntro</span>. <span class="id" title="tactic">exact</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#I"><span class="id" title="constructor">I</span></a>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. }<br/>
+&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The tactic `iGo "Hprog"` steps through multiple instructions,
+     until a side-condition needs to be prove manually. 
+<div class="paragraph"> </div>
+
+<a id="lab1"></a><h4 class="section">Exercise 1 --- More automation with iGo</h4>
+
+      Prove the specification of the previous example using the automated
+      tactic `iGo`. In order to leverage the strengh of the tactic, the memory
+      resources should be ready before the execution of the tactic, in
+      particular, the memory buffer should be split at the beginning of the
+      proof: it will allows the tactic `iGo` to step through multiple
+      instructions at once.
+
+<div class="paragraph"> </div>
+
+      Tips: take inspiration on the proof of the previous exercise, but we
+            recommend to try to manipulate the SL resources and the address
+            arithmetic by yourself.
+            Indeed, address arithmetic is a very common side-condition,
+            and the lemmas often require you to manipulate the PL resources
+            in order to make them fit with the hypothesis. 
+</div>
+<div class="code">
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="prog_spec_igo" class="idref" href="#prog_spec_igo"><span class="id" title="lemma">prog_spec_igo</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:13" class="idref" href="#p_pc:13"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:14" class="idref" href="#b_pc:14"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:15" class="idref" href="#e_pc:15"><span class="id" title="binder">e_pc</span></a> <a id="a_prog:16" class="idref" href="#a_prog:16"><span class="id" title="binder">a_prog</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="b_mem:17" class="idref" href="#b_mem:17"><span class="id" title="binder">b_mem</span></a> <span class="comment">(*&nbsp;mem&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="7d5e13789b0c6cc8575b0ea97e93b653" class="idref" href="#7d5e13789b0c6cc8575b0ea97e93b653"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_mem:19" class="idref" href="#e_mem:19"><span class="id" title="binder">e_mem</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:20" class="idref" href="#e_prog:20"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:16"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a>)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:13"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:14"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:15"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:16"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:20"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a> 2 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:13"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:14"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:15"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:16"><span class="id" title="variable">a_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:16"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:19"><span class="id" title="variable">e_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:19"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a><br/>
+        <span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:13"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:14"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:15"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:20"><span class="id" title="variable">e_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:19"><span class="id" title="variable">e_mem</span></a> (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#codefrag"><span class="id" title="definition">codefrag</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:16"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:17"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:19"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a><br/>
+               <span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#7d5e13789b0c6cc8575b0ea97e93b653"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#7d5e13789b0c6cc8575b0ea97e93b653"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr1 &amp; Hmem &amp; Hr2 &amp; Hcont)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_mem</span> <span class="id" title="var">e_prog</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">codefrag_facts</span> "Hprog"; <span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Prepare&nbsp;the&nbsp;memory&nbsp;resource&nbsp;for&nbsp;the&nbsp;Store&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_cons"><span class="id" title="axiom">region_mapsto_cons</span></a> <span class="id" title="notation">with</span> "Hmem"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "(Hmem0 &amp; Hmem1)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">solve_addr</span> +. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.proofmode.region.html#region_mapsto_single"><span class="id" title="axiom">region_mapsto_single</span></a> <span class="id" title="notation">with</span> "Hmem1"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "Hmem1".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">(</span></a>1 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.BinInt.html#46584eddd5fdb16176a10a2843177d3a"><span class="id" title="notation">+</span></a> 1<a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">)</span></a>)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hmem1" <span class="id" title="keyword">as</span> (<span class="id" title="var">v</span>) "(Hmem1 &amp; %Hr)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">injection</span> <span class="id" title="var">Hr</span> <span class="id" title="keyword">as</span> &lt;-. <span class="comment">(*&nbsp;`Hmem1`&nbsp;is&nbsp;now&nbsp;pointing&nbsp;to&nbsp;`WInt&nbsp;0`&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2&nbsp;-&nbsp;step&nbsp;through&nbsp;multiple&nbsp;instructions&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;Continuation&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The tactics `iInstr` and `iGo` automatically lookup the PC, find the
+      corresponding instruction in the `codefrag` instruction, find the
+      right WP rule to apply accordingly with the instruction, instantiate
+      the lemma and try to prove as much precondition as possible.
+
+<div class="paragraph"> </div>
+
+      However, in order to get a better understanding of the way to use the
+      WP rules in Cerise, we propose to prove the previous lemma using the
+      fully detailed tactics.
+      It is also useful if the assertion that embeds the code is not the
+      `codefrag` predicate, but for instance, the big conjonction separation
+      `<span class="inlinecode">∗</span> <span class="inlinecode"><span class="id" title="library">list</span></span>` --- even though it is usually possible to rewrite the one
+      in term of the other. 
+<div class="paragraph"> </div>
+
+<a id="lab2"></a><h4 class="section">Exercise 2 --- Manual detailled proofs</h4>
+
+        For this exercise, we propose to re-do the proof of the previous
+        specification, using the manual WP rules.
+        We explain the different steps for the first instruction `Lea`.
+        Complete the proof.
+   
+</div>
+<div class="code">
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="prog_spec_detailed" class="idref" href="#prog_spec_detailed"><span class="id" title="lemma">prog_spec_detailed</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="p_pc:21" class="idref" href="#p_pc:21"><span class="id" title="binder">p_pc</span></a> <a id="b_pc:22" class="idref" href="#b_pc:22"><span class="id" title="binder">b_pc</span></a> <a id="e_pc:23" class="idref" href="#e_pc:23"><span class="id" title="binder">e_pc</span></a> <span class="comment">(*&nbsp;pc&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="a_prog:24" class="idref" href="#a_prog:24"><span class="id" title="binder">a_prog</span></a> <a id="a:25" class="idref" href="#a:25"><span class="id" title="binder">a</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="b_mem:26" class="idref" href="#b_mem:26"><span class="id" title="binder">b_mem</span></a> <span class="comment">(*&nbsp;mem&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a id="121d2b861d49b1fcee040f9bfb948b0a" class="idref" href="#121d2b861d49b1fcee040f9bfb948b0a"><span class="id" title="binder">φ</span></a> :<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_mem:28" class="idref" href="#e_mem:28"><span class="id" title="binder">e_mem</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <a id="e_prog:29" class="idref" href="#e_prog:29"><span class="id" title="binder">e_prog</span></a> := (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> <span class="id" title="abbreviation">length</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a>)%<span class="id" title="var">a</span> <span class="id" title="tactic">in</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.machine_base.html#ExecPCPerm"><span class="id" title="definition">ExecPCPerm</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#SubBounds"><span class="id" title="definition">SubBounds</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:29"><span class="id" title="variable">e_prog</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.proofmode.contiguous.html#contiguous_between"><span class="id" title="inductive">contiguous_between</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a:25"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:24"><span class="id" title="variable">a_prog</span></a> (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:29"><span class="id" title="variable">e_prog</span></a>) <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a> 2 <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Unicode.Utf8_core.html#c41c566ddac4c1298b9e7dd2bae1c794"><span class="id" title="notation">→</span></a><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_prog:24"><span class="id" title="variable">a_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> (<span class="id" title="notation">[∗</span> <span class="id" title="notation">list</span><span class="id" title="notation">]</span> <a id="a_i:30" class="idref" href="#a_i:30"><span class="id" title="binder"><span id="a_i:31" class="id">a_i</span></span></a><span class="id" title="notation">;</span><a id="w:32" class="idref" href="#w:32"><span class="id" title="binder"><span id="w:33" class="id">w</span></span></a> <span class="id" title="notation">∈</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a:25"><span class="id" title="variable">a</span></a><span class="id" title="notation">;</span><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_i:30"><span class="id" title="variable">a_i</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#w:32"><span class="id" title="variable">w</span></a>)%<span class="id" title="var">I</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:28"><span class="id" title="variable">e_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:28"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a><br/>
+        <span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <span class="id" title="notation">▷</span> <span class="id" title="notation">(</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#p_pc:21"><span class="id" title="variable">p_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_pc:22"><span class="id" title="variable">b_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_pc:23"><span class="id" title="variable">e_pc</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_prog:29"><span class="id" title="variable">e_prog</span></a><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t1"><span class="id" title="definition">r_t1</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WCap"><span class="id" title="abbreviation">WCap</span></a> <a class="idref" href="cap_machine.machine_base.html#RW"><span class="id" title="constructor">RW</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:28"><span class="id" title="variable">e_mem</span></a> (<a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.addr_reg.html#r_t2"><span class="id" title="definition">r_t2</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#db884c99aed36a9ddaddcd7edc424755"><span class="id" title="notation">↦ᵣ</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> (<span class="id" title="notation">[∗</span> <span class="id" title="notation">list</span><span class="id" title="notation">]</span> <a id="a_i:34" class="idref" href="#a_i:34"><span class="id" title="binder"><span id="a_i:35" class="id">a_i</span></span></a><span class="id" title="notation">;</span><a id="w:36" class="idref" href="#w:36"><span class="id" title="binder"><span id="w:37" class="id">w</span></span></a> <span class="id" title="notation">∈</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a:25"><span class="id" title="variable">a</span></a><span class="id" title="notation">;</span><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#prog_instrs"><span class="id" title="definition">prog_instrs</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#a_i:34"><span class="id" title="variable">a_i</span></a> <a class="idref" href="cap_machine.rules.rules_base.html#e389c97555835874498bb08a394266c6"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#w:36"><span class="id" title="variable">w</span></a>)%<span class="id" title="var">I</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">∗</span> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a><a class="idref" href="cap_machine.exercises.cerise_tutorial.html#b_mem:26"><span class="id" title="variable">b_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">,</span></a> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#e_mem:28"><span class="id" title="variable">e_mem</span></a><a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">↦ₐ</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">[[</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 0<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">;</span></a> <a class="idref" href="cap_machine.machine_base.html#WInt"><span class="id" title="constructor">WInt</span></a> 42<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#e76c6291366b599375c28eba0aae94bb"><span class="id" title="notation">]</span></a> <a class="idref" href="cap_machine.proofmode.region.html#f61454323753175334a2a2859e68823d"><span class="id" title="notation">]]</span></a><br/>
+               <span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#121d2b861d49b1fcee040f9bfb948b0a"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span><span class="id" title="notation">)</span><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">-∗</span> <span class="id" title="notation">WP</span> <a class="idref" href="cap_machine.cap_lang.html#Seq"><span class="id" title="constructor">Seq</span></a> (<a class="idref" href="cap_machine.cap_lang.html#Instr"><span class="id" title="constructor">Instr</span></a> <a class="idref" href="cap_machine.cap_lang.html#Executable"><span class="id" title="constructor">Executable</span></a>) <span class="id" title="notation">{{</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#121d2b861d49b1fcee040f9bfb948b0a"><span class="id" title="variable">φ</span></a> <span class="id" title="notation">}}</span>%<span class="id" title="var">I</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span> * <span class="id" title="var">Hpc_perm</span> <span class="id" title="var">Hpc_bounds</span> <span class="id" title="var">Hprog_addr</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "(HPC &amp; Hprog &amp; Hr1 &amp; Hmem &amp; Hr2 &amp; Hcont)".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span> <span class="id" title="var">e_mem</span> <span class="id" title="var">e_prog</span>; <span class="id" title="tactic">simpl</span> <span class="id" title="tactic">in</span> *.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;In&nbsp;order&nbsp;to&nbsp;use&nbsp;the&nbsp;tactic&nbsp;`iCorrectPC`&nbsp;that&nbsp;solves&nbsp;the&nbsp;side-condition<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;about&nbsp;the&nbsp;PC,&nbsp;we&nbsp;need&nbsp;this&nbsp;assertion,&nbsp;equivalent&nbsp;to<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`Hpc_perm&nbsp;/\&nbsp;Hpc_bounds`&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">assert</span> (<span class="id" title="var">Hpc_correct</span> : <a class="idref" href="cap_machine.proofmode.contiguous.html#isCorrectPC_range"><span class="id" title="definition">isCorrectPC_range</span></a> <span class="id" title="var">p_pc</span> <span class="id" title="var">b_pc</span> <span class="id" title="var">e_pc</span> <span class="id" title="var">a_prog</span> (<span class="id" title="var">a_prog</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">unfold</span> <a class="idref" href="cap_machine.proofmode.contiguous.html#isCorrectPC_range"><span class="id" title="definition">isCorrectPC_range</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#isCorrectPC_ExecPCPerm_InBounds"><span class="id" title="axiom">isCorrectPC_ExecPCPerm_InBounds</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">assumption</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">solve_addr</span> +<span class="id" title="var">H</span> <span class="id" title="var">Hpc_bounds</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2&nbsp;-&nbsp;step&nbsp;through&nbsp;instructions&nbsp;*)</span><br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2.1&nbsp;-&nbsp;Lea&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Prepare&nbsp;the&nbsp;resources:&nbsp;Destruct&nbsp;the&nbsp;list&nbsp;of&nbsp;addresses&nbsp;of&nbsp;the&nbsp;code&nbsp;fragment&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><span class="id" title="lemma">big_sepL2_length</span> <span class="id" title="notation">with</span> "Hprog"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> %<span class="id" title="var">Hlength_prog</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">destruct_list</span> <span class="id" title="var">a</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">pose</span> <span class="id" title="var">proof</span> (<a class="idref" href="cap_machine.proofmode.contiguous.html#contiguous_between_cons_inv_first"><span class="id" title="lemma">contiguous_between_cons_inv_first</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">Hprog_addr</span>) <span class="id" title="keyword">as</span> -&gt;.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Focus&nbsp;to&nbsp;the&nbsp;atomic&nbsp;expression&nbsp;(regarding&nbsp;the&nbsp;operational&nbsp;semantic)&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hprog" <span class="id" title="keyword">as</span> "[Hi Hprog]".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Apply&nbsp;the&nbsp;WP&nbsp;rule&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;instruction<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;prove&nbsp;the&nbsp;preconditions&nbsp;of&nbsp;the&nbsp;rule&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> (<span class="id" title="lemma">wp_bind</span> (<span class="id" title="projection">fill</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">[</span></a><a class="idref" href="cap_machine.cap_lang.html#SeqCtx"><span class="id" title="constructor">SeqCtx</span></a><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#ddd65c2f7ee73ecec433744948d846bb"><span class="id" title="notation">]</span></a>)); <span class="id" title="var">iSimpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_Lea.html#wp_lea_success_z"><span class="id" title="axiom">wp_lea_success_z</span></a> <span class="id" title="notation">with</span> "[$HPC $Hi $Hr1]"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_parameters.html#decode_encode_instrW_inv"><span class="id" title="lemma">decode_encode_instrW_inv</span></a>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iCorrectPC</span> <span class="id" title="var">a_prog</span> (<span class="id" title="var">a_prog</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 2)%<span class="id" title="var">a</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iContiguous_next</span> <span class="id" title="var">Hprog_addr</span> 0%<span class="id" title="var">nat</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.finz_base.html#ContiguousRegion"><span class="id" title="definition">ContiguousRegion</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hmem_bounds</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">transitivity</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#Some"><span class="id" title="constructor">Some</span></a> (<span class="id" title="var">b_mem</span> <a class="idref" href="cap_machine.addr_reg.html#58e53c8acf01fb8822eb5bae448055ec"><span class="id" title="notation">^+</span></a> 1)%<span class="id" title="var">a</span>); <span class="id" title="var">solve_addr</span> +<span class="id" title="var">Hmem_bounds</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">auto</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">auto</span>. }<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">auto</span>. }<br/>
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Introduce&nbsp;the&nbsp;postconditions&nbsp;of&nbsp;the&nbsp;rule&nbsp;and&nbsp;re-focus&nbsp;the&nbsp;expression.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span>; <span class="id" title="var">iIntros</span> "(HPC &amp; Hdone &amp; Hr1)"; <span class="id" title="var">iSimpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; [ <span class="id" title="tactic">exact</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#I"><span class="id" title="constructor">I</span></a> |].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "!&gt; _".<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;2.2&nbsp;-&nbsp;Store&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Destruct&nbsp;the&nbsp;list&nbsp;of&nbsp;addresses&nbsp;of&nbsp;the&nbsp;code&nbsp;fragment&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">pose</span> <span class="id" title="var">proof</span> (<a class="idref" href="cap_machine.proofmode.contiguous.html#contiguous_between_last"><span class="id" title="axiom">contiguous_between_last</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">a</span> <span class="id" title="var">Hprog_addr</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#eq_refl"><span class="id" title="constructor">eq_refl</span></a>) <span class="id" title="keyword">as</span> <span class="id" title="var">Hlast</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Prepare&nbsp;the&nbsp;memory&nbsp;resource&nbsp;for&nbsp;the&nbsp;Store&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Focus&nbsp;to&nbsp;the&nbsp;atomic&nbsp;expression&nbsp;(regarding&nbsp;the&nbsp;operational&nbsp;semantic)&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Apply&nbsp;the&nbsp;WP&nbsp;rule&nbsp;corresponding&nbsp;to&nbsp;the&nbsp;instruction<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;prove&nbsp;the&nbsp;preconditions&nbsp;of&nbsp;the&nbsp;rule&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Introduce&nbsp;the&nbsp;postconditions&nbsp;of&nbsp;the&nbsp;rule&nbsp;and&nbsp;re-focus&nbsp;the&nbsp;expression.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;3&nbsp;-&nbsp;Continuation&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The next step to learn how to use the Cerise Proofmode is to leverage
+      the modularity of program logic to define macros and use their
+      specification inside bigger programs.
+      The next part of the tutorial "cerise_modularity.v" will learn you how
+      to define, specify and use user-defined macros, and present you the main
+      macros already defined in Cerise.
+   
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.exercises.cerise_tutorial.html#base_program"><span class="id" title="section">base_program</span></a>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
