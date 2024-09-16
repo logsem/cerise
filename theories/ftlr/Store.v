@@ -220,11 +220,12 @@ Section fundamental.
         exists wsrc. by rewrite Hsomer.
     }
 
-    (* Step 1: open the region, if necessary, and store all the resources obtained from the region in allow_load_res *)
+    (* Step 1: open the region, if necessary,
+       and store all the resources obtained from the region in allow_load_res *)
     iDestruct (create_store_res with "Hreg") as "HStoreRes"; eauto.
 
-
-    (* Step2: derive the concrete map of memory we need, and any spatial predicates holding over it *)
+    (* Step2: derive the concrete map of memory we need,
+       and any spatial predicates holding over it *)
     iMod (store_res_implies_mem_map with "HStoreRes Ha") as (mem) "[HStoreMem >HMemRes]".
 
     (* Step 3:  derive the non-spatial conditions over the memory map*)

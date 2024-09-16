@@ -19,7 +19,7 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  (* TODO @Bastien: keep the lemma around,
+  (* TODO @June: keep the lemma around,
      until doing the proof in a `wp_opt2` style
    *)
   Lemma incrementLPC_incrementPC_some regs regs' :

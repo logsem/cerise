@@ -276,13 +276,6 @@ Section fundamental.
     iFrame.
   Qed.
 
-  (* TODO @Bastien Which formulation ?
-     1) ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw)
-     2) ([∗ list] a;lw ∈ finz.seq_between b e;l, (a,v) ↦ₐ lw)
-     3) Both
-
-    Also, cf in logrel.v
-   *)
   Lemma region_integers_alloc' E (b e a: Addr) (v : Version) l p :
     Forall (λ lw, is_zL lw = true) l →
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
@@ -305,7 +298,7 @@ Section fundamental.
     iIntros "#Hl H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
-         iDestruct (region_valid_alloc _ _ _ a _ _ RX with "Hl H") as ">#H"; auto.
+         iDestruct (region_valid_alloc _ RX _ _ a _ _  with "Hl H") as ">#H"; auto.
          iModIntro. iIntros (r).
          iDestruct (fundamental _ r with "H") as "H'". eauto. }
     all: iApply (region_valid_alloc with "Hl"); eauto.
