@@ -60,6 +60,44 @@ Section macros.
  Qed.
 
   (* --------------------------------------------------------------------------------- *)
+  (* ----------------------------------- FETCH BIS ----------------------------------- *)
+  (* --------------------------------------------------------------------------------- *)
+
+  Definition fetch_reg_instrs (f : Z) (r_lt : RegName): list LWord :=
+    (* r_lt := (RO, b_lt, e_lt, b_tbl) ; linking table capability *)
+    encodeInstrsLW [
+        Lea r_lt f; (* r_lt := (RO, b_lt, e_lt, b_tbl + f) *)
+        Load r_lt r_lt (* r_lt := mem(b_tbl + f) *)
+      ].
+
+  Lemma fetch_reg_spec f r_lt pc_p pc_b pc_e v a_first b_link e_link a_link entry_a wentry φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_reg_instrs f r_lt))%a →
+    withinBounds b_link e_link entry_a = true ->
+    (a_link + f)%a = Some entry_a ->
+
+      ▷ codefrag a_first v (fetch_reg_instrs f r_lt)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ (entry_a,v) ↦ₐ wentry
+    ∗ ▷ r_lt ↦ᵣ LCap RO b_link e_link a_link v
+    (* if the capability is global, we want to be able to continue *)
+    (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_reg_instrs f r_lt))%a v
+         ∗ codefrag a_first v (fetch_reg_instrs f r_lt)
+         (* the newly allocated region *)
+         ∗ r_lt ↦ᵣ wentry
+         ∗ (entry_a,v) ↦ₐ wentry
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+      WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Hentry) "(>Hprog & >HPC & >Ha_entry & >Hr_t1 & Hφ)".
+    codefrag_facts "Hprog".
+    iGo "Hprog".
+    iApply "Hφ"; iFrame.
+ Qed.
+
+  (* --------------------------------------------------------------------------------- *)
   (* ------------------------------------- ASSERT ------------------------------------ *)
   (* --------------------------------------------------------------------------------- *)
 
@@ -129,6 +167,75 @@ Section macros.
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ". iFrame.
     changePCto (a_first ^+ length (assert_instrs f_a))%a. iFrame.
+  Qed.
+
+  (* --------------------------------------------------------------------------------- *)
+  (* ----------------------------------- ASSERT BIS ---------------------------------- *)
+  (* --------------------------------------------------------------------------------- *)
+
+  Definition assert_reg_instrs f_a r_lt :=
+    fetch_reg_instrs f_a r_lt ++
+    encodeInstrsLW [
+      Mov r_t2 r_t0;
+      Mov r_t0 PC;
+      Lea r_t0 3;
+      Jmp r_lt;
+      Mov r_t0 r_t2;
+      Mov r_lt 0;
+      Mov r_t2 0
+    ].
+
+  (* Spec for assertion success *)
+  Lemma assert_reg_success f_a r_lt pc_p pc_b pc_e v a_first
+        b_link e_link a_link a_entry ba a_flag ea w0 w2 assertN EN n1 n2 φ :
+    ExecPCPerm pc_p →
+    SubBounds pc_b pc_e a_first (a_first ^+ length (assert_reg_instrs f_a r_lt))%a →
+    (* linking table assumptions *)
+    withinBounds b_link e_link a_entry = true →
+    (a_link + f_a)%a = Some a_entry ->
+    ↑assertN ⊆ EN →
+    (* condition for assertion success *)
+    (n1 = n2) →
+
+    ▷ codefrag a_first v (assert_reg_instrs f_a r_lt)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v)
+    ∗ na_own logrel_nais EN
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ (a_entry,v) ↦ₐ LCap E ba ea ba v
+    ∗ ▷ r_t0 ↦ᵣ w0
+    ∗ ▷ r_lt ↦ᵣ (LCap RO b_link e_link a_link v)
+    ∗ ▷ r_t2 ↦ᵣ w2
+    ∗ ▷ r_t4 ↦ᵣ LInt n1
+    ∗ ▷ r_t5 ↦ᵣ LInt n2
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_reg_instrs f_a r_lt))%a v
+         ∗ r_t0 ↦ᵣ w0
+         ∗ r_lt ↦ᵣ LInt 0%Z ∗ r_t2 ↦ᵣ LInt 0%Z
+         ∗ r_t4 ↦ᵣ LInt 0%Z ∗ r_t5 ↦ᵣ LInt 0%Z
+         ∗ codefrag a_first v (assert_reg_instrs f_a r_lt)
+         ∗ na_own logrel_nais EN
+         ∗ (a_entry,v) ↦ₐ LCap E ba ea ba v
+         -∗ WP Seq (Instr Executable) {{ φ }})
+    ⊢
+    WP Seq (Instr Executable) {{ φ }}.
+  Proof.
+    iIntros (Hvpc Hcont Hwb Htable HN Hsuccess)
+            "(>Hprog & #Hinv & Hna & >HPC & >Ha_entry & >Hr0 & >Hrlt & >Hr2
+              & >Hr4 & >Hr5 & Hφ)".
+    rewrite {1}/assert_reg_instrs.
+    focus_block_0 "Hprog" as "Hfetch" "Hcont".
+    iApply fetch_reg_spec; iFrameAutoSolve.
+    iNext. iIntros "(HPC & Hfetch & Hrlt & Hpc_b & Ha_entry)".
+    unfocus_block "Hfetch" "Hcont" as "Hprog".
+
+    focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
+    do 4 iInstr "Hprog".
+    iApply (assert_success_spec with "[- $Hinv $Hna $HPC $Hr0 $Hr4 $Hr5]"); auto.
+    iNext. iIntros "(Hna & HPC & Hr0 & Hr4 & Hr5)".
+    rewrite updatePcPermL_cap_non_E; [| solve_pure ].
+    iGo "Hprog".
+    unfocus_block "Hprog" "Hcont" as "Hprog".
+    iApply "Hφ". iFrame.
+    changePCto (a_first ^+ length (assert_reg_instrs f_a r_lt))%a. iFrame.
   Qed.
 
   (* --------------------------------------------------------------------------------- *)
