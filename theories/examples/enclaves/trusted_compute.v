@@ -7,13 +7,6 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import macros_new.
 Open Scope Z_scope.
 
-(* NOTE
-   Careful !! The exact implementation here is slightly different from the one
-   in `trusted_compute.s`,
-   as the main program here has a SEPARATE data section
-   containing the linking table capability and placeholder for identity !
- *)
-
 Section trusted_compute_example.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ} `{MP: MachineParameters}.
 
@@ -24,51 +17,49 @@ Section trusted_compute_example.
       (LWInt 0%Z) (* placeholder for storing identity of the enclave *)
     ].
 
-  Definition trusted_compute_main_data_length : Z :=
-    Eval cbv in (length (trusted_compute_data (LWInt 0%Z))).
-
-  (* Before main_code_init, we expect a capability pointing to the data  *)
-  Definition trusted_compute_main_code_init0 (init callback end_main : Z) : list LWord :=
-    (* (RW, b_data, e_data, b_data) *)
-    (* init: *)
+  (* Expect:
+     - PC := (RWX, main, main_end, main)
+     - R0 := (RWX, adv, adv_end, adv) *)
+  Definition trusted_compute_main_code_init0 (main callback data : Z) : list LWord :=
+    (* main: *)
     encodeInstrsLW [
-        Mov r_t0 PC;      (* rt0 := (RWX, bpc, epc, bpc+1) *)
-        Mov r_t1 r_t0;    (* rt1 := (RWX, bpc, epc, bpc+1) *)
-
-        (* Create adversary capability *)
-        GetA r_t2 r_t1;                     (* rt2 := bpc+1 *)
-        Add r_t2 r_t2 (end_main - init)%Z;  (* rt2 := end_main *)
-        GetE r_t3 r_t1;                     (* rt3 := epc *)
-        Subseg r_t1 r_t2 r_t3;              (* rt1 := (RWX, end_main, epc, bpc+1) *)
-        Lea r_t1 (end_main-init)%Z;         (* rt1 := (RWX, end_main, epc, end_main) *)
+        Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
+        Mov r_t2 r_t1;    (* rt2 := (RWX, main, main_end, main) *)
 
         (* Create callback sentry *)
-        Lea r_t0 (callback - init)%Z;       (* rt0 := (RWX, bpc, epc, callback) *)
-        Restrict r_t0 (encodePerm E);       (* rt0 := (E, bpc, epc, callback) *)
+        Lea r_t1 (callback - main)%Z;       (* rt1 := (RWX, main, main_end, callback) *)
+        Restrict r_t1 (encodePerm E);       (* rt1 := (E, main, main_end, callback) *)
+
+        (* Store writable capability into data*)
+        Lea r_t2 (data - main)%Z;           (* rt2 := (RWX, main, main_end, data) *)
+        Mov r_t3 r_t2;                      (* rt3 := (RWX, main, main_end, data) *)
+        Lea r_t3 1%Z;                       (* rt3 := (RWX, main, main_end, data + 1) *)
+        Store r_t3 r_t2;                    (* mem[data + 1] := (RWX, main, main_end, data) *)
 
         (* Jump to adversary *)
         Mov r_t2 0;
         Mov r_t3 0;
-        Mov r_t4 0;
-        Jmp r_t1
+        Jmp r_t0
       ].
 
+  (* Expect PC := (RWX, main, main_end, callback) *)
   Definition trusted_compute_main_code_callback0
-    (init callback fails : Z)
+    (callback fails data : Z)
     (hash_enclave : Z)
     (assert_lt_offset : Z)
     : list LWord :=
       (* callback: *)
       encodeInstrsLW [
         (* until the end, r3 contains the capability that bails out if something is wrong *)
-        Mov r_t3 PC ;                 (* r_t3 :=  (RX, bpc, epc, callback) *)
-        Mov r_t4 r_t3 ;               (* r_t4 :=  (RX, bpc, epc, callback) *)
-        Lea r_t3 (fails-callback)%Z;  (* r_t3 :=  (RX, bpc, epc, fails) *)
+        Mov r_t3 PC ;                 (* r_t3 :=  (RX, main, main_end, callback) *)
+        Mov r_t4 r_t3 ;               (* r_t4 :=  (RX, main, main_end, callback) *)
+        Lea r_t3 (fails-callback)%Z;  (* r_t3 :=  (RX, main, main_end, fails) *)
 
         (* get a writable capability for storing identity *)
-        Lea r_t4 (init-callback-1)%Z; (* r_t4 :=  (RX, bpc, epc, bpc) *)
-        Load r_t4 r_t4;               (* r_t4 := (RW, b_data, e_data, b_data) *)
-        Lea r_t4 1;                   (* r_t4 := (RW, b_data, e_data, b_data+1) *)
+        Lea r_t4 (data + 1 - callback)%Z; (* r_t4 := (RX, main, main_end, data + 1) *)
+        Load r_t4 r_t4;                   (* r_t4 := (RWX, main, main_end, data) *)
+        Load r_t5 r_t4 ;                  (* r_t5 := (RO, b_lt, e_lt, b_lt) *)
+        Lea r_t4 1;                       (* r_t4 := (RWX, main, main_end, data + 1) *)
 
         (* sanity check: w_res is a sealed capability *)
         GetOType r_t2 r_t0;
@@ -86,13 +77,22 @@ Section trusted_compute_example.
 
         (* get returned value and assert it to be 42 *)
         UnSeal r_t0 r_t0 r_t1;
+        Mov r_t1 r_t5;
         GetA r_t4 r_t0;
         Mov r_t5 42%Z
       ]
-      ++ assert_instrs assert_lt_offset
+      ++ assert_reg_instrs assert_lt_offset r_t1
       ++ encodeInstrsLW [Halt]
       ++ (* fails: *) encodeInstrsLW [Fail].
 
+  Definition trusted_compute_main_init_len : Z :=
+    Eval cbv in (length (trusted_compute_main_code_init0 0%Z 0%Z 0%Z)).
+
+  Definition trusted_compute_main_callback_len : Z :=
+    Eval cbv in (length (trusted_compute_main_code_callback0 0%Z 0%Z 0%Z 0%Z 0%Z)).
+
+  Definition trusted_compute_main_data_len : Z :=
+    Eval cbv in (length (trusted_compute_data (LInt 0%Z))).
 
   Definition trusted_compute_enclave_code (enclave_data_cap : LWord) : list LWord :=
     enclave_data_cap::
@@ -102,8 +102,8 @@ Section trusted_compute_example.
       Lea r_t1 (-1)%Z;
       Load r_t1 r_t1;
       Load r_t1 r_t1;
-      GetA r_t1 r_t2;
-      Add r_t3 r_t1 1;
+      GetA r_t2 r_t1;
+      Add r_t3 r_t2 1;
       Subseg r_t1 r_t2 r_t3;
 
       (* store the result (42) in a O-permission capability and sign it *)
@@ -119,35 +119,91 @@ Section trusted_compute_example.
       Jmp r_t0
     ].
 
-  Definition trusted_compute_main_callback : Z :=
-    Eval cbv in (length (trusted_compute_main_code_init0 0%Z 0%Z 0%Z)).
-
-  Definition trusted_compute_main_data_len : Z :=
-   Eval cbv in (length (trusted_compute_data (LInt 0%Z))).
-
-  Definition trusted_compute_main_end :=
-    Eval cbv in
-      trusted_compute_main_callback +
-        (length (trusted_compute_main_code_callback0 0%Z 0%Z 0%Z 0%Z 0%Z)) +
-        trusted_compute_main_data_len.
-
-  Definition trusted_compute_main_fails :=
-    Eval cbv in trusted_compute_main_end - 1.
-
   Axiom hash_trusted_compute_enclave : Z.
 
   Definition trusted_compute_main_code (assert_lt_offset : Z) : list LWord :=
-    let init := 1%Z in
-    let callback := trusted_compute_main_callback  in
-    let end_main := trusted_compute_main_end in
-    let fails := trusted_compute_main_fails in
-    (trusted_compute_main_code_init0 init callback end_main) ++
-    (trusted_compute_main_code_callback0 init callback fails hash_trusted_compute_enclave assert_lt_offset).
+    let init     := 0%Z in
+    let callback := trusted_compute_main_init_len in
+    let data     := trusted_compute_main_init_len + trusted_compute_main_callback_len in
+    let fails    := (data - 1)%Z in
+    (trusted_compute_main_code_init0 init callback data) ++
+    (trusted_compute_main_code_callback0 callback fails data hash_trusted_compute_enclave assert_lt_offset).
 
+  Definition trusted_compute_main_code_len : Z :=
+    Eval cbv in trusted_compute_main_init_len + trusted_compute_main_callback_len.
+
+  Definition trusted_compute_main_len :=
+    Eval cbv in trusted_compute_main_code_len + trusted_compute_main_data_len.
+
+
+  (** Specification init code *)
+  Lemma trusted_compute_main_init_spec
+    (b_main adv adv_end: Addr)
+    (pc_v adv_v : Version)
+    (assert_lt_offset : Z)
+    (w0 w1 w2 w3 w4 : LWord)
+    φ :
+
+    let e_main := (b_main ^+ trusted_compute_main_len)%a in
+    let a_callback := (b_main ^+ trusted_compute_main_init_len)%a in
+    let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
+
+    let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
+    ContiguousRegion b_main trusted_compute_main_len ->
+    ⊢ ((
+          codefrag b_main pc_v trusted_compute_main
+          ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LWInt 0%Z)
+
+          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+          ∗ r_t0 ↦ᵣ LCap RWX adv adv_end adv adv_v
+          ∗ r_t1 ↦ᵣ w1
+          ∗ r_t2 ↦ᵣ w2
+          ∗ r_t3 ↦ᵣ w3
+          (* NOTE this post-condition stops after jumping to the adversary *)
+          ∗ ▷ ( codefrag b_main pc_v trusted_compute_main
+                ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
+                ∗ PC ↦ᵣ (LCap RWX adv adv_end adv adv_v)
+                ∗ r_t0 ↦ᵣ (LCap RWX adv adv_end adv adv_v)
+                ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
+                ∗ r_t2 ↦ᵣ LInt 0
+                ∗ r_t3 ↦ᵣ LInt 0
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+         -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
+  Proof.
+
+    (* We define a local version of solve_addr, which subst and unfold every computed addresses  *)
+    Local Tactic Notation "solve_addr'" :=
+      repeat (lazymatch goal with x := _ |- _ => subst x end)
+      ; repeat (match goal with
+                  | H: ContiguousRegion _ _  |- _ =>
+                      rewrite /ContiguousRegion /trusted_compute_main_len in H
+                end)
+      ; rewrite !/trusted_compute_main_code_len /trusted_compute_main_len
+          /trusted_compute_main_init_len /trusted_compute_main_callback_len
+      ; solve_addr.
+
+    intros * Hregion.
+    iIntros "(Hcode & Hdata & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hφ)".
+    codefrag_facts "Hcode".
+    iGo "Hcode".
+    rewrite decode_encode_perm_inv; by cbn.
+    rewrite decode_encode_perm_inv.
+    iGo "Hcode".
+    (* FIXME: not sure why I need to rewrite this *)
+    replace (a_data ^+ 1)%a with (b_main ^+ 44)%a by solve_addr'.
+    iGo "Hcode".
+    iApply (wp_wand with "[-]"); last (iIntros (v) "H"; by iLeft).
+    iApply "Hφ".
+    iFrame.
+  Qed.
+
+  (** Specification callback code *)
+  (** ------ TODO ------ *)
 
   Context {nainv: logrel_na_invs Σ} .
   (* Define all the invariants *)
   Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
+
   (* Linking table invariant *)
   Definition link_tableN := (trusted_computeN.@"link_table").
   Definition link_table_inv
@@ -167,14 +223,15 @@ Section trusted_compute_example.
   Definition flag_inv a_flag v_flag :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z) .
 
-  Lemma trusted_compute_main_code_spec
-    (b_code_main b_data_main end_adv: Addr)
+
+  Lemma trusted_compute_callback_code_spec
+    (b_main adv adv_end: Addr)
     (pc_v : Version)
 
     (b_link a_link e_link assert_entry : Addr) (* linking *)
     (assert_lt_offset : Z)
     (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
-    (w0 w1 w2 w3 w4 : LWord)
+    (w0 w1 w2 w3 : LWord)
     φ :
 
     let v_link := pc_v in
@@ -227,37 +284,5 @@ Section trusted_compute_example.
                   -∗ WP Seq (Instr Executable) {{ φ }}))
          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
-    intros * Hlink Hassert_entry Hend_adv.
-    iIntros "(#Hlink & #Hassert & #Hflag)".
-    iIntros "(Hcode & Hdata_cap & Hdata & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hφ)".
-    codefrag_facts "Hcode".
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    transitivity (Some (a_code_main ^+ (trusted_compute_main_end + (-1))))%a; [|done].
-    admit.
-    admit.
-    iInstr "Hcode"; first admit.
-    transitivity (Some (a_code_main ^+ (trusted_compute_main_end + (-1))))%a; [|done].
-    admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    rewrite decode_encode_perm_inv; by cbn.
-    rewrite decode_encode_perm_inv.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-    iInstr "Hcode"; first admit.
-
-    iApply (wp_wand with "[-]").
-    iApply "Hφ".
-    iFrame.
-    admit.
-    iIntros (v); auto.
-  Admitted.
-
 
 End trusted_compute_example.
