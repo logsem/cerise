@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<div id="toc">
+<h2><a href="machine_utils.finz.html">machine_utils.finz</a></h2>
+<h2><a href="machine_utils.finz_base.html">machine_utils.finz_base</a></h2>
+<h2><a href="machine_utils.finz_interval.html">machine_utils.finz_interval</a></h2>
+<h2><a href="machine_utils.finz_lemmas.html">machine_utils.finz_lemmas</a></h2>
+<h2><a href="machine_utils.solve_finz.html">machine_utils.solve_finz</a></h2>
+<h2><a href="machine_utils.classes.html">machine_utils.classes</a></h2>
+<h2><a href="machine_utils.class_instances.html">machine_utils.class_instances</a></h2>
+<h2><a href="machine_utils.solve_pure.html">machine_utils.solve_pure</a></h2>
+<h2><a href="machine_utils.tactics.html">machine_utils.tactics</a></h2>
+<h2><a href="cap_machine.iris_extra.html">cap_machine.iris_extra</a></h2>
+<h2><a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a></h2>
+<h2><a href="cap_machine.proofmode.map_simpl.html">cap_machine.proofmode.map_simpl</a></h2>
+<h2><a href="cap_machine.addr_reg.html">cap_machine.addr_reg</a></h2>
+<h2><a href="cap_machine.proofmode.solve_addr.html">cap_machine.proofmode.solve_addr</a></h2>
+<h2><a href="cap_machine.machine_base.html">cap_machine.machine_base</a></h2>
+<h2><a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a></h2>
+<h2><a href="cap_machine.machine_run.html">cap_machine.machine_run</a></h2>
+<h2><a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a></h2>
+<h2><a href="cap_machine.linking.html">cap_machine.linking</a></h2>
+<h2><a href="cap_machine.proofmode.classes.html">cap_machine.proofmode.classes</a></h2>
+<h2><a href="cap_machine.proofmode.class_instances.html">cap_machine.proofmode.class_instances</a></h2>
+<h2><a href="cap_machine.proofmode.solve_addr_extra.html">cap_machine.proofmode.solve_addr_extra</a></h2>
+<h2><a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a></h2>
+<h2><a href="cap_machine.rules.rules_Get.html">cap_machine.rules.rules_Get</a></h2>
+<h2><a href="cap_machine.rules.rules_Load.html">cap_machine.rules.rules_Load</a></h2>
+<h2><a href="cap_machine.rules.rules_Store.html">cap_machine.rules.rules_Store</a></h2>
+<h2><a href="cap_machine.rules.rules_AddSubLt.html">cap_machine.rules.rules_AddSubLt</a></h2>
+<h2><a href="cap_machine.rules.rules_Lea.html">cap_machine.rules.rules_Lea</a></h2>
+<h2><a href="cap_machine.rules.rules_Mov.html">cap_machine.rules.rules_Mov</a></h2>
+<h2><a href="cap_machine.rules.rules_Restrict.html">cap_machine.rules.rules_Restrict</a></h2>
+<h2><a href="cap_machine.rules.rules_Jmp.html">cap_machine.rules.rules_Jmp</a></h2>
+<h2><a href="cap_machine.rules.rules_Jnz.html">cap_machine.rules.rules_Jnz</a></h2>
+<h2><a href="cap_machine.rules.rules_Subseg.html">cap_machine.rules.rules_Subseg</a></h2>
+<h2><a href="cap_machine.rules.rules_Seal.html">cap_machine.rules.rules_Seal</a></h2>
+<h2><a href="cap_machine.rules.rules_UnSeal.html">cap_machine.rules.rules_UnSeal</a></h2>
+<h2><a href="cap_machine.rules.html">cap_machine.rules</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_base.html">cap_machine.rules_binary.rules_binary_base</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Get.html">cap_machine.rules_binary.rules_binary_Get</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Load.html">cap_machine.rules_binary.rules_binary_Load</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Store.html">cap_machine.rules_binary.rules_binary_Store</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_AddSubLt.html">cap_machine.rules_binary.rules_binary_AddSubLt</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Lea.html">cap_machine.rules_binary.rules_binary_Lea</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Mov.html">cap_machine.rules_binary.rules_binary_Mov</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Restrict.html">cap_machine.rules_binary.rules_binary_Restrict</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Jmp.html">cap_machine.rules_binary.rules_binary_Jmp</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Jnz.html">cap_machine.rules_binary.rules_binary_Jnz</a></h2>
+<h2><a href="cap_machine.rules_binary.rules_binary_Subseg.html">cap_machine.rules_binary.rules_binary_Subseg</a></h2>
+<h2><a href="cap_machine.rules_binary.html">cap_machine.rules_binary</a></h2>
+<h2><a href="cap_machine.proofmode.region.html">cap_machine.proofmode.region</a></h2>
+<h2><a href="cap_machine.proofmode.contiguous.html">cap_machine.proofmode.contiguous</a></h2>
+<h2><a href="cap_machine.proofmode.tactics_helpers.html">cap_machine.proofmode.tactics_helpers</a></h2>
+<h2><a href="cap_machine.proofmode.solve_pure.html">cap_machine.proofmode.solve_pure</a></h2>
+<h2><a href="cap_machine.proofmode.NamedProp.html">cap_machine.proofmode.NamedProp</a></h2>
+<h2><a href="cap_machine.proofmode.proofmode_instr_rules.html">cap_machine.proofmode.proofmode_instr_rules</a></h2>
+<h2><a href="cap_machine.proofmode.proofmode.html">cap_machine.proofmode.proofmode</a></h2>
+<h2><a href="cap_machine.proofmode.register_tactics.html">cap_machine.proofmode.register_tactics</a></h2>
+<h2><a href="cap_machine.seal_store.html">cap_machine.seal_store</a></h2>
+<h2><a href="cap_machine.logrel.html">cap_machine.logrel</a></h2>
+<h2><a href="cap_machine.ftlr.ftlr_base.html">cap_machine.ftlr.ftlr_base</a></h2>
+<h2><a href="cap_machine.ftlr.interp_weakening.html">cap_machine.ftlr.interp_weakening</a></h2>
+<h2><a href="cap_machine.ftlr.Get.html">cap_machine.ftlr.Get</a></h2>
+<h2><a href="cap_machine.ftlr.Load.html">cap_machine.ftlr.Load</a></h2>
+<h2><a href="cap_machine.ftlr.Store.html">cap_machine.ftlr.Store</a></h2>
+<h2><a href="cap_machine.ftlr.AddSubLt.html">cap_machine.ftlr.AddSubLt</a></h2>
+<h2><a href="cap_machine.ftlr.Lea.html">cap_machine.ftlr.Lea</a></h2>
+<h2><a href="cap_machine.ftlr.Mov.html">cap_machine.ftlr.Mov</a></h2>
+<h2><a href="cap_machine.ftlr.Restrict.html">cap_machine.ftlr.Restrict</a></h2>
+<h2><a href="cap_machine.ftlr.Jmp.html">cap_machine.ftlr.Jmp</a></h2>
+<h2><a href="cap_machine.ftlr.Jnz.html">cap_machine.ftlr.Jnz</a></h2>
+<h2><a href="cap_machine.ftlr.Subseg.html">cap_machine.ftlr.Subseg</a></h2>
+<h2><a href="cap_machine.ftlr.Seal.html">cap_machine.ftlr.Seal</a></h2>
+<h2><a href="cap_machine.ftlr.UnSeal.html">cap_machine.ftlr.UnSeal</a></h2>
+<h2><a href="cap_machine.fundamental.html">cap_machine.fundamental</a></h2>
+<h2><a href="cap_machine.logrel_binary.html">cap_machine.logrel_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.ftlr_base_binary.html">cap_machine.ftlr_binary.ftlr_base_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.interp_weakening.html">cap_machine.ftlr_binary.interp_weakening</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Load_binary.html">cap_machine.ftlr_binary.Load_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Mov_binary.html">cap_machine.ftlr_binary.Mov_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.AddSubLt_binary.html">cap_machine.ftlr_binary.AddSubLt_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Get_binary.html">cap_machine.ftlr_binary.Get_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Jmp_binary.html">cap_machine.ftlr_binary.Jmp_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Jnz_binary.html">cap_machine.ftlr_binary.Jnz_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Lea_binary.html">cap_machine.ftlr_binary.Lea_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Subseg_binary.html">cap_machine.ftlr_binary.Subseg_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Restrict_binary.html">cap_machine.ftlr_binary.Restrict_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Store_binary.html">cap_machine.ftlr_binary.Store_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.Seal_binary.html">cap_machine.ftlr_binary.Seal_binary</a></h2>
+<h2><a href="cap_machine.ftlr_binary.UnSeal_binary.html">cap_machine.ftlr_binary.UnSeal_binary</a></h2>
+<h2><a href="cap_machine.fundamental_binary.html">cap_machine.fundamental_binary</a></h2>
+<h2><a href="cap_machine.monotone.html">cap_machine.monotone</a></h2>
+<h2><a href="cap_machine.examples.addr_reg_sample.html">cap_machine.examples.addr_reg_sample</a></h2>
+<h2><a href="cap_machine.proofmode.disjoint_regions_tactics.html">cap_machine.proofmode.disjoint_regions_tactics</a></h2>
+<h2><a href="cap_machine.proofmode.mkregion_helpers.html">cap_machine.proofmode.mkregion_helpers</a></h2>
+<h2><a href="cap_machine.examples.malloc.html">cap_machine.examples.malloc</a></h2>
+<h2><a href="cap_machine.examples.salloc.html">cap_machine.examples.salloc</a></h2>
+<h2><a href="cap_machine.examples.assert.html">cap_machine.examples.assert</a></h2>
+<h2><a href="cap_machine.examples.macros.html">cap_machine.examples.macros</a></h2>
+<h2><a href="cap_machine.examples.macros_new.html">cap_machine.examples.macros_new</a></h2>
+<h2><a href="cap_machine.examples.template_adequacy.html">cap_machine.examples.template_adequacy</a></h2>
+<h2><a href="cap_machine.examples.template_adequacy_ocpl.html">cap_machine.examples.template_adequacy_ocpl</a></h2>
+<h2><a href="cap_machine.exercises.cerise_tutorial.html">cap_machine.exercises.cerise_tutorial</a></h2>
+<h2><a href="cap_machine.exercises.cerise_tutorial_solutions.html">cap_machine.exercises.cerise_tutorial_solutions</a></h2>
+<h2><a href="cap_machine.exercises.cerise_modularity.html">cap_machine.exercises.cerise_modularity</a></h2>
+<h2><a href="cap_machine.exercises.cerise_modularity_solutions.html">cap_machine.exercises.cerise_modularity_solutions</a></h2>
+<h2><a href="cap_machine.exercises.subseg_buffer.html">cap_machine.exercises.subseg_buffer</a></h2>
+<h2><a href="cap_machine.exercises.restrict_buffer.html">cap_machine.exercises.restrict_buffer</a></h2>
+<h2><a href="cap_machine.exercises.subseg_buffer_closure.html">cap_machine.exercises.subseg_buffer_closure</a></h2>
+<h2><a href="cap_machine.exercises.subseg_buffer_malloc.html">cap_machine.exercises.subseg_buffer_malloc</a></h2>
+<h2><a href="cap_machine.exercises.subseg_buffer_call.html">cap_machine.exercises.subseg_buffer_call</a></h2>
+<h2><a href="cap_machine.examples.buffer.html">cap_machine.examples.buffer</a></h2>
+<h2><a href="cap_machine.examples.minimal_counter.html">cap_machine.examples.minimal_counter</a></h2>
+<h2><a href="cap_machine.examples.counter.counter.html">cap_machine.examples.counter.counter</a></h2>
+<h2><a href="cap_machine.examples.counter.counter_preamble.html">cap_machine.examples.counter.counter_preamble</a></h2>
+<h2><a href="cap_machine.examples.counter.counter_adequacy.html">cap_machine.examples.counter.counter_adequacy</a></h2>
+<h2><a href="cap_machine.examples.call.html">cap_machine.examples.call</a></h2>
+<h2><a href="cap_machine.examples.callback.html">cap_machine.examples.callback</a></h2>
+<h2><a href="cap_machine.examples.lse.html">cap_machine.examples.lse</a></h2>
+<h2><a href="cap_machine.examples.lse_adequacy.html">cap_machine.examples.lse_adequacy</a></h2>
+<h2><a href="cap_machine.examples.keylist.html">cap_machine.examples.keylist</a></h2>
+<h2><a href="cap_machine.examples.dynamic_sealing.html">cap_machine.examples.dynamic_sealing</a></h2>
+<h2><a href="cap_machine.examples.interval.interval.html">cap_machine.examples.interval.interval</a></h2>
+<h2><a href="cap_machine.examples.interval.interval_closure.html">cap_machine.examples.interval.interval_closure</a></h2>
+<h2><a href="cap_machine.examples.interval.interval_client.html">cap_machine.examples.interval.interval_client</a></h2>
+<h2><a href="cap_machine.examples.interval.interval_client_closure.html">cap_machine.examples.interval.interval_client_closure</a></h2>
+<h2><a href="cap_machine.examples.interval.interval_client_adequacy.html">cap_machine.examples.interval.interval_client_adequacy</a></h2>
+<h2><a href="cap_machine.examples.arch_sealing.html">cap_machine.examples.arch_sealing</a></h2>
+<h2><a href="cap_machine.examples.interval_arch.interval_arch.html">cap_machine.examples.interval_arch.interval_arch</a></h2>
+<h2><a href="cap_machine.examples.interval_arch.interval_closure_arch.html">cap_machine.examples.interval_arch.interval_closure_arch</a></h2>
+<h2><a href="cap_machine.examples.interval_arch.interval_client_arch.html">cap_machine.examples.interval_arch.interval_client_arch</a></h2>
+<h2><a href="cap_machine.examples.interval_arch.interval_client_closure_arch.html">cap_machine.examples.interval_arch.interval_client_closure_arch</a></h2>
+<h2><a href="cap_machine.examples.interval_arch.interval_client_adequacy_arch.html">cap_machine.examples.interval_arch.interval_client_adequacy_arch</a></h2>
+<h2><a href="cap_machine.examples.malloc_binary.html">cap_machine.examples.malloc_binary</a></h2>
+<h2><a href="cap_machine.examples.macros_binary.html">cap_machine.examples.macros_binary</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary.html">cap_machine.examples.counter_binary.counter_binary</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary_preamble_def.html">cap_machine.examples.counter_binary.counter_binary_preamble_def</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary_preamble.html">cap_machine.examples.counter_binary.counter_binary_preamble</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary_preamble_left.html">cap_machine.examples.counter_binary.counter_binary_preamble_left</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary_adequacy.html">cap_machine.examples.counter_binary.counter_binary_adequacy</a></h2>
+<h2><a href="cap_machine.examples.counter_binary.counter_binary_adequacy_theorem.html">cap_machine.examples.counter_binary.counter_binary_adequacy_theorem</a></h2>
+<h2><a href="cap_machine.examples.adder.html">cap_machine.examples.adder</a></h2>
+<h2><a href="cap_machine.examples.adder_adequacy.html">cap_machine.examples.adder_adequacy</a></h2>
+<h2><a href="cap_machine.examples.ocpl_lowval_like.html">cap_machine.examples.ocpl_lowval_like</a></h2>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
