@@ -240,7 +240,7 @@ Section macros.
     { assert (isCorrectPC (WCap pc_p pc_b pc_e a_first)) as HH.
       { apply Hvpc. split. solve_addr.
         apply contiguous_between_length in Hcont.
-        rewrite Heqapp app_length /= in Hcont. solve_addr. }
+        rewrite Heqapp length_app /= in Hcont. solve_addr. }
       destruct pc_p; inversion HH; destruct_or?; auto. }
     iApply (wp_lea_success_z with "[$HPC $Hi $Hr_t0]");
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|..].
@@ -454,7 +454,7 @@ Section macros.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|apply Hlast|auto|..].
     iEpilogue "(HPC & Hi & Hr_t5)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* continuation *)
-    iApply "Hφ".
+    iApply "Hφ". 2: auto.
     iFrame "HPC". iSplitL "Hprog_done".
     { rewrite Heqapp. repeat (iDestruct "Hprog_done" as "[$ Hprog_done]"). iFrame. done. }
     iFrame.
@@ -464,8 +464,6 @@ Section macros.
       simplify_map_eq. auto.
     repeat (rewrite (insert_commute _ r_t5) //;[]).
     map_simpl "Hregs". rewrite (insert_commute _ r_t2 r_t3); auto.
-    iFrame.
-    iExists b,e. iFrame. auto. auto.
   Qed.
 
   (* malloc spec - alternative formulation *)
@@ -626,7 +624,7 @@ Section macros.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|apply Hlast|auto|..].
     iEpilogue "(HPC & Hi & Hr_t5)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* continuation *)
-    iApply "Hφ".
+    iApply "Hφ". 2: iIntros (v) "[Hφ|Hφ] /="; iApply "Hψ"; iSimplifyEq; iFrame.
     iFrame "HPC". iSplitL "Hprog_done".
     { rewrite Heqapp. repeat (iDestruct "Hprog_done" as "[$ Hprog_done]"). iFrame. done. }
     iFrame.
@@ -642,7 +640,7 @@ Section macros.
     rewrite (insert_commute _ r_t3 r_t2) //.
     rewrite -(delete_insert_ne _ r_t3) // insert_delete_insert.
     iFrame.
-    iExists b,e. iFrame. auto. iIntros (v) "[Hφ|Hφ] /=". iApply "Hψ". iFrame. iSimplifyEq. iApply "Hψ". iFrame.
+    auto.
   Qed.
 
 
@@ -838,7 +836,7 @@ Section macros.
       with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply decode_encode_instrW_inv | | | ..]; eauto.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
-    rewrite /region_mapsto /finz.seq_between.
+    rewrite /region_pointsto /finz.seq_between.
     destruct (Z.le_dec (b_r + z) (e_r - 1))%Z; simpl.
     - assert (Z.b2z (e_r - 1 <? b_r + z)%Z = 0%Z) as Heq0.
       { rewrite /Z.b2z. destruct (e_r - 1 <? b_r + z)%Z eqn:HH; auto.
@@ -917,7 +915,6 @@ Section macros.
       iFrame. iEpilogue "(HPC & Ha2 & Hr_t4 & Hr_t3)".
       iApply "Hφ". iDestruct "Hprog" as "(Ha3 & Ha4 & Ha5 & Ha6 & _)".
       rewrite /region_addrs_zeroes finz_dist_0 //=. iFrame.
-      iSplitL "Hrt"; eauto.
   Qed.
 
   Lemma mclear_spec (a : list Addr) (r : RegName)
@@ -1082,7 +1079,6 @@ Section macros.
     - apply addr_add_0.
     - rewrite Z.add_0_r.
       iFrame.
-      iSplitL "Hr_t6". iNext. iExists w6. iFrame.
       iSplitR; auto.
       iNext.
       iIntros "(HPC & Hbe & Hr_t4 & Hr_t3 & Ha11 & Ha12 & Ha13 & Ha14 &
@@ -1560,7 +1556,7 @@ Section macros.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
-    unfold region_mapsto.
+    unfold region_pointsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
     { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
@@ -1889,7 +1885,7 @@ Section macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros (Hrpc Hvpc HnpcE) "(HPC & Hr1 & Hrenv & Hcls & Hcont)".
-    rewrite /region_mapsto.
+    rewrite /region_pointsto.
     iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
     { rewrite finz_seq_between_length /finz.dist in Hcls_len.

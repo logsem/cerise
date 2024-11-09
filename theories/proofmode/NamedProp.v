@@ -133,7 +133,7 @@ Proof. Qed.
 should be split by [iNamed] as it traverses a proposition for named conjuncts.
 *)
 Class IsSplittable {PROP:bi} (P: PROP) := is_splittable {}.
-Arguments IsSplittable {_} _%I : assert.
+Arguments IsSplittable {_} _ : assert.
 Arguments is_splittable {PROP P} : assert.
 Instance is_splittable_sep {PROP:bi} (P Q: PROP) :
   IsSplittable (P ∗ Q).
@@ -610,7 +610,7 @@ Module tests.
     Abort.
 
     Example test_nested_destruct Ψ :
-      ⊢ ("%wf" ∷ ⌜True⌝ ∗
+      ⊢ ("%well_founded" ∷ ⌜True⌝ ∗
       "*" ∷ ∃ y, "psi" ∷ Ψ y) -∗
       ∃ x, Ψ x.
     Proof.
@@ -619,7 +619,7 @@ Module tests.
     Qed.
 
     Example test_nested_destruct_conjuncts Ψ :
-      ("%wf" ∷ ⌜True⌝ ∗
+      ("%well_founded" ∷ ⌜True⌝ ∗
       "*" ∷ ∃ y, "psi" ∷ Ψ y ∗ "psi2" ∷ Ψ (2+y)) -∗
       ∃ x, Ψ x.
     Proof.

@@ -68,7 +68,7 @@ Section cap_lang_spec_rules.
         assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
         { repeat case_match; inv Hstep; auto. }
 
-        iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
+        iMod (exprspec_pointsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
           iMod ("Hclose" with "[Hown]") as "_";
           [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|].
         iExists (FailedV),_; iFrame;iModIntro;iFailCore Subseg_fail_src1_nonaddr.
@@ -95,7 +95,7 @@ Section cap_lang_spec_rules.
       { rewrite Ha2 /= in Hstep.
         assert (c = Failed ∧ σ2 = (σr, σm)) as (-> & ->).
         { repeat case_match; inv Hstep; auto. }
-        iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
+        iMod (exprspec_pointsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
           iMod ("Hclose" with "[Hown]") as "_";
           [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|].
         iExists (FailedV),_; iFrame;iModIntro;iFailCore Subseg_fail_src2_nonaddr. }
@@ -131,10 +131,10 @@ Section cap_lang_spec_rules.
       eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
       eassert ((c, σ2) = (NextI, _)) as HH.
       { destruct p; cbn in Hstep; eauto. congruence. }
-      simplify_pair_eq. iFrame.
+      simplify_pair_eq.
       iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
       iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-      iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+      iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
       iExists NextIV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
@@ -203,10 +203,10 @@ Section cap_lang_spec_rules.
       eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
       eassert ((c, σ2) = (NextI, _)) as HH.
       { destruct p; cbn in Hstep; eauto. }
-      simplify_pair_eq. iFrame.
+      simplify_pair_eq.
       iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hown Hmap]"; eauto.
       iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p' g' b' a'')) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-      iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+      iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
       iExists NextIV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.

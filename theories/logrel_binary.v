@@ -37,7 +37,7 @@ Section logrel.
   (* -------------------------------------------------------------------------------- *)
 
   (* interp expression definitions *)
-  Definition spec_registers_mapsto (r : Reg) : iProp Σ :=
+  Definition spec_registers_pointsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦x ∈ r, r ↣ᵣ x)%I.
 
   Definition full_map (regpair : Reg * Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (regpair.1 !! r) ∧ is_Some (regpair.2 !! r)⌝)%I.
@@ -47,12 +47,12 @@ Section logrel.
   Solve All Obligations with solve_proper.
 
   Definition interp_conf : iProp Σ :=
-    (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_mapsto r.1 ∗ spec_registers_mapsto r.2 ∗ na_own logrel_nais ⊤ }})%I.
+    (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_pointsto r.1 ∗ spec_registers_pointsto r.2 ∗ na_own logrel_nais ⊤ }})%I.
 
   Program Definition interp_expr (interp : D) r : D :=
     (λne w, (interp_reg interp r
-             ∗ registers_mapsto (<[PC:=w.1]> r.1)
-             ∗ spec_registers_mapsto (<[PC:=w.2]> r.2)
+             ∗ registers_pointsto (<[PC:=w.1]> r.1)
+             ∗ spec_registers_pointsto (<[PC:=w.2]> r.2)
              ∗ na_own logrel_nais ⊤
              ∗ ⤇ Seq (Instr Executable) -∗
              ⌜match w.1,w.2 with WCap _ _ _ _,WCap _ _ _ _ => True | _,_ => False end⌝ ∧ interp_conf))%I.
@@ -328,7 +328,7 @@ Section logrel.
       iFrame. iApply inv_alloc. iNext. iExists p.1,p.2. destruct p; iFrame.
   Qed.
 
-  (* Two words in the binary value relation will be syntactically equivalent *)
+  (* Two String.words in the binary value relation will be syntactically equivalent *)
   Lemma interp_eq (w w' : Word) :
     interp (w,w') -∗ ⌜w = w'⌝.
   Proof.

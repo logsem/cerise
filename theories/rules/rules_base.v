@@ -25,18 +25,18 @@ Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS c
 }.
 
 (* Points to predicates for registers *)
-Notation "r ↦ᵣ{ q } w" := (mapsto (L:=RegName) (V:=Word) r q w)
+Notation "r ↦ᵣ{ q } w" := (pointsto (L:=RegName) (V:=Word) r q w)
   (at level 20, q at level 50, format "r  ↦ᵣ{ q }  w") : bi_scope.
-Notation "r ↦ᵣ w" := (mapsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
+Notation "r ↦ᵣ w" := (pointsto (L:=RegName) (V:=Word) r (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* Points to predicates for memory *)
-Notation "a ↦ₐ{ q } w" := (mapsto (L:=Addr) (V:=Word) a q w)
+Notation "a ↦ₐ{ q } w" := (pointsto (L:=Addr) (V:=Word) a q w)
   (at level 20, q at level 50, format "a  ↦ₐ{ q }  w") : bi_scope.
-Notation "a ↦ₐ w" := (mapsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
+Notation "a ↦ₐ w" := (pointsto (L:=Addr) (V:=Word) a (DfracOwn 1) w) (at level 20) : bi_scope.
 
 (* --------------------------- LTAC DEFINITIONS ----------------------------------- *)
 
-Ltac inv_head_step :=
+Ltac inv_base_step :=
   repeat match goal with
          | _ => progress simplify_map_eq/= (* simplify memory stuff *)
          | H : to_val _ = Some _ |- _ => apply of_to_val in H
@@ -76,7 +76,7 @@ Section cap_lang_rules.
     r ↦ᵣ w1 -∗ r ↦ᵣ w2 -∗ False.
   Proof.
     iIntros "Hr1 Hr2".
-    iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
+    iDestruct (pointsto_valid_2 with "Hr1 Hr2") as %?.
     destruct H2. eapply dfrac_full_exclusive in H2. auto.
   Qed.
 
@@ -169,7 +169,7 @@ Section cap_lang_rules.
     a ↦ₐ w1 -∗ a ↦ₐ w2 -∗ False.
   Proof.
     iIntros "Ha1 Ha2".
-    iDestruct (mapsto_valid_2 with "Ha1 Ha2") as %?.
+    iDestruct (pointsto_valid_2 with "Ha1 Ha2") as %?.
     destruct H2. eapply dfrac_full_exclusive in H2.
     auto.
   Qed.
@@ -182,7 +182,7 @@ Section cap_lang_rules.
       (σ σ' : gmap L V) (l : L) (q : Qp) (v : V),
       σ' !! l = Some v →
       gen_heap_interp σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
+      ([∗ map] k↦y ∈ σ', pointsto k (DfracOwn q) y) -∗
       ⌜σ !! l = Some v⌝.
   Proof.
     intros * Hσ'.
@@ -195,7 +195,7 @@ Section cap_lang_rules.
       (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
+      ([∗ map] k↦y ∈ σ', pointsto k (DfracOwn q) y) -∗
       ⌜forall (l: L) (v: V), σ' !! l = Some v → σ !! l = Some v⌝.
   Proof.
     intros *. iIntros "? Hmap" (l v Hσ').
@@ -208,7 +208,7 @@ Section cap_lang_rules.
       (Σ : gFunctors) (gen_heapG0 : gen_heapGS L V Σ)
       (σ σ' : gmap L V) (q : Qp),
       gen_heap_interp σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
+      ([∗ map] k↦y ∈ σ', pointsto k (DfracOwn q) y) -∗
       ⌜σ' ⊆ σ⌝.
   Proof.
     intros *. iIntros "Hσ Hmap".
@@ -225,7 +225,7 @@ Section cap_lang_rules.
       (σ σ' : gmap L V) (q : Qp),
       (forall (l:L), is_Some (σ' !! l)) →
       gen_heap_interp σ -∗
-      ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn q) y) -∗
+      ([∗ map] k↦y ∈ σ', pointsto k (DfracOwn q) y) -∗
       ⌜ σ = σ' ⌝.
   Proof.
     intros * ? ? * Hσ'. iIntros "A B".
@@ -249,9 +249,9 @@ Section cap_lang_rules.
       (σ σ' : gmap L V) (l : L) (v : V),
       is_Some (σ' !! l) →
       gen_heap_interp σ
-      -∗ ([∗ map] k↦y ∈ σ', mapsto k (DfracOwn 1) y)
+      -∗ ([∗ map] k↦y ∈ σ', pointsto k (DfracOwn 1) y)
       ==∗ gen_heap_interp (<[l:=v]> σ)
-          ∗ [∗ map] k↦y ∈ (<[l:=v]> σ'), mapsto k (DfracOwn 1) y.
+          ∗ [∗ map] k↦y ∈ (<[l:=v]> σ'), pointsto k (DfracOwn 1) y.
   Proof.
     intros * Hσ'. destruct Hσ'.
     rewrite (big_sepM_delete _ σ' l) //. iIntros "Hh [Hl Hmap]".
@@ -262,19 +262,19 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  Program Definition wp_lift_atomic_head_step_no_fork_determ {s E Φ} e1 :
+  Program Definition wp_lift_atomic_base_step_no_fork_determ {s E Φ} e1 :
     to_val e1 = None →
     (∀ (σ1:cap_lang.state) ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
      ∃ κ e2 (σ2:cap_lang.state) efs, ⌜cap_lang.prim_step e1 σ1 κ e2 σ2 efs⌝ ∗
       (▷ |==> (state_interp σ2 (S ns) κs nt ∗ from_option Φ False (to_val e2))))
       ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    iIntros (?) "H". iApply wp_lift_atomic_head_step_no_fork; auto.
+    iIntros (?) "H". iApply wp_lift_atomic_base_step_no_fork; auto.
     iIntros (σ1 ns κ κs nt)  "Hσ1 /=".
     iMod ("H" $! σ1 ns κ κs nt with "[Hσ1]") as "H"; auto.
     iDestruct "H" as (κ' e2 σ2 efs) "[H1 H2]".
     iModIntro. iSplit.
-    - rewrite /head_reducible /=.
+    - rewrite /base_reducible /=.
       iExists κ', e2, σ2, efs. auto.
     - iNext. iIntros (? ? ?) "H".
       iDestruct "H" as %Hs1.
@@ -511,7 +511,7 @@ Section cap_lang_rules.
     ∀ mem0 (m : Mem) (a : Addr) (w : Word) dq,
       mem0 !! a = Some (dq,w) →
       gen_heap_interp m
-                   -∗ ([∗ map] a↦dqw ∈ mem0, mapsto a dqw.1 dqw.2)
+                   -∗ ([∗ map] a↦dqw ∈ mem0, pointsto a dqw.1 dqw.2)
                    -∗ ⌜m !! a = Some w⌝.
   Proof.
     iIntros (mem0 m a w dq Hmem_pc) "Hm Hmem".
@@ -551,12 +551,12 @@ Section cap_lang_rules.
   Proof.
     intros *. intros Hnpc.
     iIntros (ϕ) "HPC Hϕ".
-    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iApply wp_lift_atomic_base_step_no_fork; auto.
     iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl;
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
-    iSplit. by iPureIntro; apply normal_always_head_reducible.
+    iSplit. by iPureIntro; apply normal_always_base_reducible.
     iModIntro. iIntros (e1 σ2 efs Hstep).
     apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_fail_inv in Hstep as [-> ->]; eauto.
@@ -604,13 +604,13 @@ Section cap_lang_rules.
   Proof.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
-    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iApply wp_lift_atomic_base_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
-    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iSplitR. by iPureIntro; apply normal_always_base_reducible.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
@@ -628,13 +628,13 @@ Section cap_lang_rules.
   Proof.
     intros Hinstr Hvpc.
     iIntros (φ) "[Hpc Hpca] Hφ".
-    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iApply wp_lift_atomic_base_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
-    iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iSplitR. by iPureIntro; apply normal_always_base_reducible.
     iIntros (e2 σ2 efs Hstep).
     eapply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
     eapply step_exec_inv in Hstep; eauto. cbn in Hstep. simplify_eq.
@@ -645,11 +645,11 @@ Section cap_lang_rules.
   (* ----------------------------------- PURE RULES ---------------------------------- *)
 
   Local Ltac solve_exec_safe := intros; subst; do 3 eexists; econstructor; eauto.
-  Local Ltac solve_exec_puredet := simpl; intros; by inv_head_step.
-  Local Ltac solve_exec_pure := intros ?; apply nsteps_once, pure_head_step_pure_step;
+  Local Ltac solve_exec_puredet := simpl; intros; by inv_base_step.
+  Local Ltac solve_exec_pure := intros ?; apply nsteps_once, pure_base_step_pure_step;
                                 constructor; [solve_exec_safe|]; intros;
                                 (match goal with
-                                | H : head_step _ _ _ _ _ _ |- _ => inversion H end).
+                                | H : base_step _ _ _ _ _ _ |- _ => inversion H end).
 
   Global Instance pure_seq_failed :
     PureExec True 1 (Seq (Instr Failed)) (Instr Failed).

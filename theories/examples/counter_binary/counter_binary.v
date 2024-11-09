@@ -121,7 +121,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_mapsto r.1 ∗ spec_registers_mapsto r.2
+                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_pointsto r.1 ∗ spec_registers_pointsto r.2
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc1 Hvpc2 Hcont1 Hcont2 Hd1 Hd2 Hdom1 Hdom2 Hnclose φ)
@@ -228,7 +228,7 @@ Section counter.
       set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> rmap)))).
       set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> smap)))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hrmap Hsmap $Hj $Hown HPC HsPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
+      { rewrite /registers_pointsto /spec_registers_pointsto /regs' /segs'.
         iSplit.
         - iClear "Hcallback' Hrmap Hsmap HPC HsPC". rewrite /interp_reg /=. iSplit.
           + iPureIntro.
@@ -308,7 +308,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_mapsto r.1 ∗ spec_registers_mapsto r.2
+                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_pointsto r.1 ∗ spec_registers_pointsto r.2
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc1 Hvpc2 Hcont2 Hcont1 Hd1 Hd2 Hdom1 Hdom2 Hnclose φ)
@@ -415,7 +415,7 @@ Section counter.
       set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> rmap)))).
       set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a]> (<[r_env:=WInt 0%Z]> (<[r_t1:=WInt 0%Z]> smap)))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hrmap Hsmap $Hj $Hown HPC HsPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
+      { rewrite /registers_pointsto /spec_registers_pointsto /regs' /segs'.
         iSplit.
         - iClear "Hcallback' Hrmap Hsmap HPC HsPC". rewrite /interp_reg /=. iSplit.
           + iPureIntro.
@@ -497,7 +497,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_mapsto r.1 ∗ spec_registers_mapsto r.2
+                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_pointsto r.1 ∗ spec_registers_pointsto r.2
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc1 Hvpc2 Hcont1 Hcont2 Hd Hds Hdom1 Hdom2 Hnclose φ)
@@ -597,7 +597,7 @@ Section counter.
       set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> rmap))))).
       set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt z]> smap))))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hregs Hsegs $Hj $Hown HPC HsPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
+      { rewrite /registers_pointsto /spec_registers_pointsto /regs' /segs'.
         iSplit.
         - iClear "Hcallback' Hregs Hsegs HsPC HPC". rewrite /interp_reg /=. iSplit.
           + iPureIntro.
@@ -677,7 +677,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_mapsto r.1 ∗ spec_registers_mapsto r.2
+                    ∃ r, ⤇ of_val HaltedV ∗ full_map r ∧ registers_pointsto r.1 ∗ spec_registers_pointsto r.2
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc1 Hvpc2 Hcont1 Hcont2 Hd Hds Hdom1 Hdom2 Hnclose φ)
@@ -776,7 +776,7 @@ Section counter.
       set (regs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt (- z)]> rmap))))).
       set (segs' := <[PC:=WInt 0%Z]> (<[r_t0:=WCap p b e a']> (<[r_t1:=WInt 0%Z]> (<[r_env:=WInt 0%Z]> (<[r_ret:=WInt (- z)]> smap))))).
       iDestruct ("Hcallback'" $! (regs',segs') with "[Hregs Hsegs $Hj $Hown HPC HsPC]") as "[_ Hexpr]".
-      { rewrite /registers_mapsto /spec_registers_mapsto /regs' /segs'.
+      { rewrite /registers_pointsto /spec_registers_pointsto /regs' /segs'.
         iSplit.
         - iClear "Hcallback' Hregs Hsegs HsPC HPC". rewrite /interp_reg /=. iSplit.
           + iPureIntro.

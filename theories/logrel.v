@@ -43,7 +43,7 @@ Section logrel.
   (* -------------------------------------------------------------------------------- *)
 
   (* interp expression definitions *)
-  Definition registers_mapsto (r : Reg) : iProp Σ :=
+  Definition registers_pointsto (r : Reg) : iProp Σ :=
     ([∗ map] r↦w ∈ r, r ↦ᵣ w)%I.
 
   Definition full_map (reg : Reg) : iProp Σ := (∀ (r : RegName), ⌜is_Some (reg !! r)⌝)%I.
@@ -52,10 +52,10 @@ Section logrel.
                               ∀ (r : RegName) (v : Word), (⌜r ≠ PC⌝ → ⌜reg !! r = Some v⌝ → interp v))%I.
 
   Definition interp_conf : iProp Σ :=
-    (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
+    (WP Seq (Instr Executable) {{ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤ }})%I.
 
   Program Definition interp_expr (interp : D) r : D :=
-    (λne w, (interp_reg interp r ∗ registers_mapsto (<[PC:=w]> r) ∗ na_own logrel_nais ⊤ -∗
+    (λne w, (interp_reg interp r ∗ registers_pointsto (<[PC:=w]> r) ∗ na_own logrel_nais ⊤ -∗
              interp_conf))%I.
   Solve All Obligations with solve_proper.
 
@@ -400,7 +400,7 @@ Section logrel.
     all: try iSplit; iNext; iModIntro; eauto.
   Qed.
 
-  (* Get the validity of a region containing only valid words *)
+  (* Get the validity of a region containing only valid String.words *)
   Lemma region_valid_alloc E (b e a: Addr) l p  :
     PermFlowsTo RO p →
     ([∗ list] w ∈ l, interp w) -∗

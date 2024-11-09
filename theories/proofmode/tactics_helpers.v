@@ -58,7 +58,7 @@ End helpers.
 (* Tactic for destructing a list into elements *)
 Ltac destruct_list l :=
   match goal with
-  | H : strings.length l = _ |- _ =>
+  | H : length l = _ |- _ =>
     let a := fresh "a" in
     let l' := fresh "l" in
     destruct l as [|a l']; [inversion H|];

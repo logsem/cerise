@@ -94,7 +94,7 @@ Section program_call.
       (call_instrs f_m (offset_to_cont_call [r_t9]) r_t30 [r_t7; r_t8] [r_t9])
     = length_call.
     Proof.
-      rewrite /call_instrs !app_length.
+      rewrite /call_instrs !length_app.
       set (l_fetch := length (fetch_instrs f_m)).
       set (l_clear := length (rclear_instrs (list_difference
                                                all_registers ([PC; r_t30; r_t30]
@@ -114,7 +114,7 @@ Section program_call.
       length (add_incr_instrs r_t30 f_m) = 96%nat.
     Proof.
       rewrite /add_incr_instrs.
-      rewrite app_length.
+      rewrite length_app.
       rewrite length_call_instrs.
       done.
     Qed.
@@ -155,7 +155,7 @@ Section program_call.
     iHide "Post" as Post.
 
     focus_block_0 "Hprog" as "Hprog" "Hcont".
-    rewrite {1}/codefrag {2}/region_mapsto.
+    rewrite {1}/codefrag {2}/region_pointsto.
     iHide "Hcont" as Hcont.
     rewrite -/(restore_locals _ _ _).
     iDestruct (big_sepL2_length with "Hlocals") as %Hlength_locals
@@ -270,7 +270,7 @@ Section program_call.
          ∗ na_inv logrel_nais incrN_prog
                   ([∗ list] a_i;w ∈ a;(add_incr_instrs r_t30 f_m), a_i ↦ₐ w)%I
          -∗ WP Seq (Instr Executable) {{λ v,
-                 (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                 (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I
                  ∨ ⌜v = FailedV⌝ }}))%I.
   Proof with (try solve_addr').
     iIntros
@@ -439,7 +439,7 @@ Section program_call.
       iIntros (r). iNext; iModIntro.
       iIntros "([%Hrmap_full #Hrmap_safe] & Hrmap & Hna)".
       iClear "Cont".
-      rewrite /interp_conf {1}/registers_mapsto.
+      rewrite /interp_conf {1}/registers_pointsto.
 
       (* get the registers we need *)
       extract_register PC with "Hrmap" as "[HPC Hrmap]".
@@ -623,7 +623,7 @@ Section program_call.
          ∗ na_own logrel_nais ⊤
          ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m)
          -∗ WP Seq (Instr Executable) {{λ v,
-                 (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                 (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I
                  ∨ ⌜v = FailedV⌝ }}))%I.
   Proof.
     iIntros (Hpc_perm Hpc_bounds Hcont Hwb Hlink Hna Hdom)
@@ -648,7 +648,7 @@ Section program_call.
       with "[Hinit_prog]"
       as "Hinit_prog".
     {clear - Hcont_init Heqapp1 Hlength_init Ha_add.
-      rewrite /codefrag /region_mapsto /=.
+      rewrite /codefrag /region_pointsto /=.
       replace init_addrs with (finz.seq_between a_first (a_first ^+ 4%nat)%a).
       done.
       apply region_addrs_of_contiguous_between in Hcont_init as ->.
@@ -715,7 +715,7 @@ Section program_call.
   (*   rewrite fixpoint_interp1_eq ; simpl. *)
   (*   iIntros (r). iNext; iModIntro. *)
   (*   iIntros "([%Hrmap_full #Hrmap_safe] & Hrmap & Hna)". *)
-  (*   rewrite /interp_conf {1}/registers_mapsto. *)
+  (*   rewrite /interp_conf {1}/registers_pointsto. *)
 
   (*   extract_register PC with "Hrmap" as "[HPC Hrmap]". *)
   (*   iApply (wp_wand with "[-]"). *)

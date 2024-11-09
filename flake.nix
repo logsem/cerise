@@ -16,13 +16,9 @@
               pname = "cerise";
               version = "0.0.0";
 
-              coq-version = "8.18";
+              coq-version = "8.20";
 
               src = ./.;
-              # src = builtins.fetchGit {
-              #   url = ./.;
-              #   submodules = true;
-              # };
 
               buildInputs = with coqPackages; [ equations iris stdpp ];
 

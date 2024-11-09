@@ -20,8 +20,8 @@ Section fundamental.
     (□ ▷ (∀ (a0 : Reg * Reg) (a1 : Perm) (a2 a3 a4 : Addr),
              full_map a0
                       -∗ (∀ (r0 : RegName) v1 v2, (⌜r0 ≠ PC⌝  → ⌜a0.1 !! r0 = Some v1⌝ → ⌜a0.2 !! r0 = Some v2⌝ → interp (v1, v2)))
-                      -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0.1)
-                      -∗ spec_registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0.2)
+                      -∗ registers_pointsto (<[PC:=WCap a1 a2 a3 a4]> a0.1)
+                      -∗ spec_registers_pointsto (<[PC:=WCap a1 a2 a3 a4]> a0.2)
                       -∗ na_own logrel_nais ⊤
                       -∗ ⤇ Seq (Instr Executable)
                       -∗ □ spec_ctx

@@ -229,8 +229,7 @@ Section sealing.
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (WSealable x)).
       by iRewrite "Heqv". }
-    iApply "Hφ". iFrame "∗".
-    iExists _. iFrame "∗ #".
+    iApply "Hφ". iFrame "∗ #".
     eauto.
   Qed.
 
@@ -300,10 +299,7 @@ Section sealing.
     iMod ("Hcls'" with "[Hll $Hown]") as "Hown".
     { iNext. iExists _; iFrame "∗ % #". }
 
-    iApply "Hφ". iFrame "∗".
-    iExists _. iFrame. iSplitR; first auto.
-    iExists _; iFrame "∗ #".
-    iSplit; auto.
+    iApply "Hφ". iFrame "∗ #"; auto.
   Qed.
 
   Lemma sealLL_alloc ι Φ ll o o_e Ep {Hpers : ∀ w, Persistent (Φ w)} :
@@ -404,7 +400,7 @@ Section sealing.
 
     (* Allocated one address *)
     iAssert (lla ↦ₐ _)%I with "[Hll]" as "Hll".
-    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+    { rewrite /region_pointsto. rewrite finz_seq_between_singleton; auto.
       rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist lla lla' 1) ltac:(auto))). simpl replicate. iDestruct "Hll" as "[$ _]". }
 
     focus_block 4 "Hprog" as a_middle1' Ha_middle1' "Hprog" "Hcont".
@@ -424,7 +420,7 @@ Section sealing.
 
     (* Allocated one sealpred *)
     iAssert (can_alloc_pred lls)%I with "[Hll']" as "Hll'".
-    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+    { rewrite /region_pointsto. rewrite finz_seq_between_singleton; auto.
       iDestruct "Hll'" as "[$ _]". }
 
     focus_block 6 "Hprog" as a_middle2 Ha_middle2 "Hprog" "Hcont".
@@ -465,11 +461,9 @@ Section sealing.
     iMod (sealLL_alloc ι Φ with "Hll Hll'") as "Healing". { clear -Heqb'; solve_addr. }
     iInsertList "Hregs" [r_t8;r_t9;r_t10].
     iApply "Hφ"; iFrame "∗ #".
-    iSplitR "Hregs".
-    { iExists b2, e2, b1, e1, lla, lla'. iFrame "% ∗".
- iExists _. iFrame. }
-    { rewrite delete_commute //.
-      rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //. }
+    iSplit ; first by iPureIntro.
+    rewrite delete_commute //.
+    rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //.
 Qed.
 
 End sealing.

@@ -68,10 +68,9 @@ Section fundamental.
       iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
-      iFrame "∗ #".
       iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
       iDestruct "Hinv" as (w) "[>Ha0 #Hinv]".
-      iExists w. iFrame. done.
+      iFrame. done.
     - done.
   Qed.
 

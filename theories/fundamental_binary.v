@@ -104,8 +104,7 @@ Section fundamental.
         iApply (wp_fail with "[HPC Ha]"); eauto; iFrame.
         iNext. iIntros "[HPC Ha] /=".
         iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro]
-        ; [iNext;iExists w'; iFrame|].
+        iMod ("Hcls" with "[HP Ha Ha']");[iExists w;iFrame|iModIntro].
         iNext;iIntros "_".
         iApply wp_value.
         iIntros (Hcontr); inversion Hcontr.

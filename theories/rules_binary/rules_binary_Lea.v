@@ -102,10 +102,9 @@ Section cap_lang_spec_rules.
        { destruct p; cbn in Hstep; eauto. congruence. }
        simplify_pair_eq.
 
-       iFrame.
        iMod ((regspec_heap_update_inSepM _ _ _ r1) with "Hown Hmap") as "[Hr Hmap]"; eauto.
        iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
        iExists NextIV,_. iFrame.
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
@@ -141,10 +140,9 @@ Section cap_lang_spec_rules.
        { destruct p; cbn in Hstep; eauto. }
        simplify_pair_eq.
 
-       iFrame.
        iMod ((regspec_heap_update_inSepM _ _ _ r1) with "Hown Hmap") as "[Hr Hmap]"; eauto.
        iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
        iExists NextIV,_. iFrame.
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.

@@ -42,8 +42,8 @@ Section cap_lang_spec_rules.
 
     rewrite /update_reg /= Hr_r0 /= in Hstep. simplify_pair_eq.
     simplify_eq.
-    iMod (@regspec_mapsto_update with "Hown HPC") as "[Hown HPC]". 
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+    iMod (@regspec_pointsto_update with "Hown HPC") as "[Hown HPC]". 
+    iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. 
@@ -79,8 +79,8 @@ Section cap_lang_spec_rules.
 
     rewrite /update_reg /= Hr_PC /= in Hstep. simplify_pair_eq.
     simplify_eq.
-    iMod (@regspec_mapsto_update with "Hown HPC") as "[Hown HPC]". 
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+    iMod (@regspec_pointsto_update with "Hown HPC") as "[Hown HPC]". 
+    iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. 

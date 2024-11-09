@@ -51,7 +51,7 @@ Section base_program.
       there is 2 types of ressources:
       - the register /reg/ maps to the word /w/, reg ↦ᵣ w
       - the address /a/ maps to the word /w/, a ↦ₐ w.
-      The notation [[a1, a2]] ↦ₐ [[lw]] maps the list of words /lw/ to the
+      The notation [[a1, a2]] ↦ₐ [[lw]] maps the list of String.words /lw/ to the
       contiguous fragment of memory between the adresses /a1/ and /a2/.
 
       To write the specification, we need to have the separation logic
@@ -171,9 +171,9 @@ Section base_program.
     (* Lea *)
     iInstr "Hprog".
 
-    (* Store requires the resource (b_mem ^+ 1), we need to destruct the region_mapsto.
+    (* Store requires the resource (b_mem ^+ 1), we need to destruct the region_pointsto.
        This essentially the same as destructing a list into (first element)::(rest of list). *)
-    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
+    iDestruct (region_pointsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
     { (* We simplify the subgoal first *)
       transitivity (Some (b_mem ^+ 1)%a).
       2: reflexivity.
@@ -185,7 +185,7 @@ Section base_program.
     { solve_addr +. (* `solve_addr` is invoked with only the "required" environment *) }
 
     (* We do it twice since we need the second element (b_mem ^+ 1). *)
-    iDestruct (region_mapsto_cons with "Hmem1") as "(Hmem1 & _)".
+    iDestruct (region_pointsto_cons with "Hmem1") as "(Hmem1 & _)".
     { transitivity (Some (b_mem ^+ (1 + 1))%a); [ solve_addr +Hmem_bounds | reflexivity ]. }
     { solve_addr +. }
 
@@ -196,19 +196,19 @@ Section base_program.
     iApply "Hcont".
 
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
     { solve_addr +. }
 
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+ (1 + 1))%a); solve_addr +Hmem_bounds. }
     { solve_addr +. }
 
     iFrame.
     replace (b_mem ^+ (1 + 1))%a with (b_mem ^+ 2)%a by solve_addr +.
 
-    unfold region_mapsto.
+    unfold region_pointsto.
     rewrite finz_seq_between_empty.
     { simpl; iPureIntro. exact I. }
     { solve_addr +. }
@@ -266,11 +266,11 @@ Section base_program.
     codefrag_facts "Hprog"; simpl in *.
 
     (* Prepare the memory resource for the Store *)
-    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
+    iDestruct (region_pointsto_cons with "Hmem") as "(Hmem0 & Hmem1)".
     { transitivity (Some (b_mem ^+ 1)%a); solve_addr +Hmem_bounds. }
     { solve_addr +. }
 
-    iDestruct (region_mapsto_single with "Hmem1") as "Hmem1".
+    iDestruct (region_pointsto_single with "Hmem1") as "Hmem1".
     { transitivity (Some (b_mem ^+ (1 + 1))%a); solve_addr +Hmem_bounds. }
 
     iDestruct "Hmem1" as (v) "(Hmem1 & %Hr)".

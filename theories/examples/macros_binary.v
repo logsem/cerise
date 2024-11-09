@@ -437,8 +437,8 @@ Section macros.
     rewrite !(insert_commute _ r_t4 r_t2) // !insert_insert.
     repeat (rewrite -(delete_insert_ne _ r_t3);[|done]); rewrite insert_delete_insert.
     repeat (rewrite -(delete_insert_ne _ r_t3);[|done]); rewrite insert_delete_insert.
-    iFrame.
-    iExists b,e. iFrame. auto. auto.
+    iFrame; auto.
+    auto.
   Qed.
 
 
@@ -554,7 +554,7 @@ Section macros.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
-    unfold region_mapsto_spec.
+    unfold region_pointsto_spec.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
     { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
@@ -1001,7 +1001,7 @@ Section macros.
         ∗ [[b_cls, e_cls]]↣ₐ[[ activation_instrs wcode wenv ]].
   Proof.
     iIntros (Hrpc Hvpc HnpcE Hnclose) "(#Hspec & Hj & HPC & Hr1 & Hrenv & Hcls)".
-    rewrite /region_mapsto_spec.
+    rewrite /region_pointsto_spec.
     iDestruct (big_sepL2_length with "Hcls") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
     { rewrite finz_seq_between_length /finz.dist in Hcls_len.

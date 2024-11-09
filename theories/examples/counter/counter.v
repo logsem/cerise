@@ -95,7 +95,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hincr & #Hregs_val) Hφ".
@@ -228,7 +228,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc Hcont Hwb Hlink Hd Hdom Hι12 Haι1 Haι2 φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hread & #Hlink & #Hassert_inv & #Hregs_val) Hφ".
@@ -410,7 +410,7 @@ Section counter.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc Hcont Hd Hdom φ) "(HPC & Hr_t0 & Hr_env & Hr_t1 & Hregs & Hinv & Hown & #Hcallback & #Hreset & #Hregs_val) Hφ".

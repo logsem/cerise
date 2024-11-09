@@ -25,16 +25,15 @@ Section fundamental.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; repeat split; auto; try congruence.
     - destruct H1. inv H7; try congruence.
     - destruct H1. inv X; try congruence.
-      rewrite H5 in H1; inv H1. by exfalso.  destruct H3; destruct H6; congruence.
-    - destruct H1. inv X; try congruence.
-      rewrite H5 in H1; inv H1. inversion H6.
       destruct H3; destruct H6; congruence.
     - destruct H1. inv X; try congruence.
-      rewrite H5 in H1; inv H1. inversion H6. destruct H3; destruct H6; congruence.
+      destruct H3; destruct H6; congruence.
+    - destruct H1. inv X; try congruence.
+      destruct H3; destruct H6; congruence.
     - destruct H3; inv X; try congruence.
-      rewrite H3 in H0; inv H0. inversion H5. destruct H1; destruct H5; congruence.
+      destruct H1; destruct H5; congruence.
     - destruct H3; inv X; try congruence.
-      rewrite H3 in H0; inv H0. inversion H5. destruct H1; destruct H5; congruence.
+      destruct H1; destruct H5; congruence.
   Qed.
 
   (* The necessary resources to close the region again, except for the points to predicate, which we will store separately *)
@@ -87,7 +86,6 @@ Section fundamental.
       iDestruct ("Hreg" $! r1 _ _ n Hrinr Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
       { iApply (write_allowed_inv with "Hvsrc"); auto. }
-      iFrame "∗ #".
       iMod (inv_acc with "Hinva") as "[Hinv Hcls']";[solve_ndisj|].
       iDestruct "Hinv" as (w w') "[>Ha [>Ha' #Hinv] ]".
       iExists w. iFrame. iDestruct (interp_eq with "Hinv") as ">%". subst w'.

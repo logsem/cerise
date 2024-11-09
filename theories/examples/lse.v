@@ -121,7 +121,7 @@ Section roe.
     iSplitR;[iNext;auto|].
     iNext. iIntros "(HPC & Hmalloc_prog & Hpc_b & Ha_entry & Hbe & Hr_t0 & Hown & Hregs)".
     iDestruct "Hbe" as (b e Hincr) "(Hr_t1 & Hbe)".
-    iDestruct (region_mapsto_single with "Hbe") as (cellv) "(Hbe & _)". revert Hincr; clear; solve_addr.
+    iDestruct (region_pointsto_single with "Hbe") as (cellv) "(Hbe & _)". revert Hincr; clear; solve_addr.
 
     (* extract r_env and r_t7 *)
     assert (is_Some (rmap !! r_env)) as [wenv Hwenv].
@@ -297,13 +297,13 @@ Section roe.
       iEpilogue "(HPC & Hprog_done & Hr_t2)".
       (* load r_env r_t2 *)
       apply finz_seq_between_singleton in Hbl_next.
-      rewrite /region_mapsto Hbl_next.
+      rewrite /region_pointsto Hbl_next.
       iDestruct "Hbel'" as "[Hbel' _]".
       destruct ai_rest';[inversion Hlength_rest'|].
       iPrologue "Hprog".
       iAssert (⌜(b_l =? f3)%a = false⌝)%I as %Hfalse.
       { destruct (decide (b_l = f3)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
-        iDestruct (mapsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
+        iDestruct (pointsto_valid_2 with "Hi Hbel'") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hr_env $Hr_t2 Hbel']");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 1|..].
       { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hlea. solve_addr. }
@@ -315,7 +315,7 @@ Section roe.
       iInv (logN.@b) as (wd) ">[Hd %]" "Hcls''". subst wd.
       iAssert (⌜(b =? f4)%a = false⌝)%I as %Hfalse'.
       { destruct (decide (b = f4)%Z); [subst|iPureIntro;apply Z.eqb_neq,finz_neq_to_z;auto].
-        iDestruct (mapsto_valid_2 with "Hi Hd") as %[? _]. done. }
+        iDestruct (pointsto_valid_2 with "Hi Hd") as %[? _]. done. }
       iApply (wp_load_success with "[$HPC $Hi $Hr_t4 $Hr_env Hd]");
         [apply decode_encode_instrW_inv|iCorrectPC a_call_end a_last| |iContiguous_next Hcont_rest' 2|..].
       { split;auto. rewrite andb_true_iff Z.leb_le Z.ltb_lt. clear -Hincr. solve_addr. }

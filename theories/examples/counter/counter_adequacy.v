@@ -255,11 +255,11 @@ Section Adequacy.
     iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare with "[$Hassert]") as ">Hassert". by apply assert_code_size.
     iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /finz.dist. clear.
+    { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hadv]") as ">Hadv". rewrite app_length /=. by apply adv_size.
+    iDestruct (mkregion_prepare with "[$Hadv]") as ">Hadv". rewrite length_app /=. by apply adv_size.
     iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
       by apply counter_preamble_size.
     iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
@@ -376,7 +376,7 @@ Section Adequacy.
 
     iSpecialize ("HE" with "[Hreg Hna]").
     { iFrame. iSplit; cycle 1.
-      { iFrame. rewrite /registers_mapsto. by rewrite insert_id. }
+      { iFrame. rewrite /registers_pointsto. by rewrite insert_id. }
       { iSplit. iPureIntro; intros; by apply initial_registers_full_map.
         (* All capabilities in registers are valid! *)
         iIntros (r v HrnPC Hsv).

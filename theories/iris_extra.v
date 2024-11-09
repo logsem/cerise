@@ -74,7 +74,7 @@ Proof.
   rewrite -Heqa -Heqb.
   iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]".
   { apply lookup_lt_Some in Hsome.
-    do 2 (rewrite take_length_le;[|lia]). left; auto.
+    do 2 (rewrite length_take_le;[|lia]). left; auto.
   }
   apply take_drop_middle in Hsome as Hcons.
   assert (ai :: drop (S i) a = drop i a) as Hh.
@@ -101,7 +101,7 @@ Proof.
   rewrite -Heqa -Heqb.
   iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]".
   { apply lookup_lt_Some in Hsome.
-    do 2 (rewrite take_length_le;[|lia]). left; auto.
+    do 2 (rewrite length_take_le;[|lia]). left; auto.
   }
   apply take_drop_middle in Hsome as Hcons.
   assert (ai :: drop (S i) a = drop i a) as Hh.
@@ -119,7 +119,7 @@ Proof.
     enough (b0 :: drop (S i) b = b0 :: l) as He by (inversion He; auto).
     eapply (app_inv_head (take i b)). rewrite HH //.
     rewrite -Heqb. apply list_lookup_middle.
-    rewrite take_length_le //. enough (i < length b) by lia.
+    rewrite length_take_le //. enough (i < length b) by lia.
     rewrite -Hlength. apply lookup_lt_is_Some. eauto. }
   rewrite Hb. iFrame.
 Qed.
@@ -136,7 +136,7 @@ Proof.
   rewrite -Heqa -Heqb.
   iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]".
   { apply lookup_lt_Some in Hsome.
-    do 2 (rewrite take_length_le;[|lia]). auto.
+    do 2 (rewrite length_take_le;[|lia]). auto.
   }
   apply take_drop_middle in Hsome as Hcons.
   apply take_drop_middle in Hsome' as Hcons'.
@@ -161,9 +161,9 @@ Proof.
   iDestruct (big_sepL2_length with "Hl") as %Hlength.
   repeat rewrite delete_take_drop.
   apply lookup_lt_Some in Hsome as Hlt.
-  assert (i < strings.length b) as Hlt';[lia|].
+  assert (i < length b) as Hlt';[lia|].
   iDestruct (big_sepL2_app_inv with "Hl") as "[Htake Hdrop]".
-  { repeat rewrite take_length. lia. }
+  { repeat rewrite length_take. lia. }
   apply take_drop_middle in Hsome as Hcons.
   assert (ai :: drop (S i) a = drop i a) as Hh.
   { apply app_inv_head with (take i a). rewrite Hcons. by rewrite take_drop. }
@@ -198,7 +198,7 @@ Proof.
       destruct ws;[by iApply bi.False_elim|].
       iDestruct "Ha" as "[Ha0 Ha]".
       iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto.
-      iFrame. eauto.
+      iFrame.
 Qed.
 
 Lemma region_addrs_exists_zip `{Σ : gFunctors} {A B C: Type} (a : list A) (φ : A → B → C -> iProp Σ) :
@@ -220,7 +220,7 @@ Proof.
       destruct ws;[by iApply bi.False_elim|].
       iDestruct "Ha" as "[Ha0 Ha]".
       iDestruct ("IHn" with "[Ha]") as "Ha'"; eauto.
-      iFrame. eauto.
+      iFrame.
 Qed.
 
 Lemma region_addrs_exists2 `{Σ : gFunctors} {A B C: Type} (a : list A) (b : list B) (φ : A → B → C -> iProp Σ) :
@@ -300,7 +300,7 @@ Lemma big_sepL2_app'
       (l1' l2' : list B) :
   (length l1) = (length l1') →
   (([∗ list] k↦y1;y2 ∈ l1;l1', Φ k y1 y2)
-     ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (strings.length l1 + k) y1 y2))%I
+     ∗ ([∗ list] k↦y1;y2 ∈ l2;l2', Φ (length l1 + k) y1 y2))%I
    ≡ ([∗ list] k↦y1;y2 ∈ (l1 ++ l2);(l1' ++ l2'), Φ k y1 y2)%I.
 Proof.
   intros Hlenl1.
@@ -310,7 +310,7 @@ Proof.
     iAssert (∃ l0' l0'' : list A,
                 ⌜(l1 ++ l2) = l0' ++ l0''⌝
                 ∧ ([∗ list] k↦y1;y2 ∈ l0';l1', Φ k y1 y2)
-                    ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (strings.length l1' + k) y1 y2))%I
+                    ∗ ([∗ list] k↦y1;y2 ∈ l0'';l2', Φ (length l1' + k) y1 y2))%I
       with "[Happ]" as (l0' l0'') "(% & Happl0' & Happl0'')".
     { by iApply (big_sepL2_app_inv_r with "Happ"). }
     iDestruct (big_sepL2_length with "Happl0'") as %Hlen1.
@@ -330,7 +330,7 @@ Proof.
   iDestruct (big_sepL2_length with "H") as %?.
   rewrite -{1}(take_drop k l1) -{1}(take_drop k l2).
   iDestruct (big_sepL2_app' with "H") as "[? ?]".
-  { rewrite !take_length. lia. }
+  { rewrite !length_take. lia. }
   iFrame.
 Qed.
 
@@ -451,7 +451,6 @@ Proof.
       iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete|auto|].
       iApply big_sepM_insert;auto.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
-      iExists ρ. iFrame.
 Qed.
 
 Lemma big_sepL2_to_big_sepL_replicate {Σ : gFunctors} {A B: Type} (l1: list A) (b : B) (Φ: A -> B -> iProp Σ) :

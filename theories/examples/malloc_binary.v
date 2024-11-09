@@ -127,7 +127,7 @@ Section SimpleMalloc.
     iDestruct (big_sepM_delete _ _ r_t4 with "Hsmap") as "[Hs4 Hsmap]".
       by rewrite !lookup_delete_ne //.
 
-    rewrite /(region_mapsto b b_m) /(region_mapsto_spec b b_m).
+    rewrite /(region_pointsto b b_m) /(region_pointsto_spec b b_m).
     set ai := finz.seq_between b b_m.
     assert (Hai: finz.seq_between b b_m = ai) by reflexivity.
     iDestruct (big_sepL2_length with "Hprog") as %Hprog_len.
@@ -580,14 +580,14 @@ Section SimpleMalloc.
       rewrite andb_true_iff !Z.leb_le in Ha_m'_within.
       revert Ha_m' Ha_m'_within Hsize; clear. solve_addr. }
     rewrite (region_addrs_zeroes_split _ a_m') //;[].
-    iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]"; auto.
-    { rewrite replicate_length //. }
-    iDestruct (region_mapsto_split_spec _ _ a_m' with "Hsmem") as "[Hsmem_fresh Hsmem]"; auto.
-    { rewrite replicate_length //. }
+    iDestruct (region_pointsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]"; auto.
+    { rewrite length_replicate //. }
+    iDestruct (region_pointsto_split_spec _ _ a_m' with "Hsmem") as "[Hsmem_fresh Hsmem]"; auto.
+    { rewrite length_replicate //. }
     iDestruct ("Hinv_close" with "[Hprog_done Hsprog_done Hsmemptr Hmemptr Hsmem Hmem $Hna]") as ">Hna".
     { iNext. iExists b_m, a_m'. iFrame.
       rewrite /malloc_subroutine_instrs /malloc_subroutine_instrs'.
-      unfold region_mapsto. unfold region_mapsto_spec. rewrite Hai. cbn.
+      unfold region_pointsto. unfold region_pointsto_spec. rewrite Hai. cbn.
       do 25 iDestruct "Hprog_done" as "[? Hprog_done]". iFrame.
       do 25 iDestruct "Hsprog_done" as "[? Hsprog_done]". iFrame.
       iPureIntro. unfold isWithin in Ha_m'_within. (* FIXME? *)
@@ -613,7 +613,7 @@ Section SimpleMalloc.
       rewrite !insert_delete_insert.
       rewrite !(insert_commute _ r_t3 r_t2) // !(insert_commute _ r_t4 r_t2) //.
       rewrite !(insert_commute _ r_t4 r_t3) //. iFrame.
-      iExists a_m, a_m', size. iFrame. auto. }
+      iExists size. auto. }
     { auto. }
   Qed.
 
@@ -631,7 +631,7 @@ Section SimpleMalloc.
   Proof.
     iIntros "[Hbae Hsbae]".
     iApply big_sepL_fupd.
-    rewrite /region_mapsto /region_mapsto_spec /region_addrs_zeroes -finz_seq_between_length.
+    rewrite /region_pointsto /region_pointsto_spec /region_addrs_zeroes -finz_seq_between_length.
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hbae") as "Hbae".
     iDestruct (big_sepL2_to_big_sepL_replicate with "Hsbae") as "Hsbae".
     iDestruct (big_sepL_sep with "[$Hbae $Hsbae]") as "Hbae".

@@ -88,10 +88,10 @@ Section cap_lang_spec_rules.
     eapply (incrementPC_success_updatePC _ σm) in Hregs'
       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->).
     eapply updatePC_success_incl with (m':=σm) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep.
-    simplify_pair_eq. iFrame.
+    simplify_pair_eq.
     iMod ((regspec_heap_update_inSepM _ _ _ dst) with "Hown Hmap") as "[Hr Hmap]"; eauto.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto.
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
+    iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
     iExists NextIV,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.

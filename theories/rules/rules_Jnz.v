@@ -49,13 +49,13 @@ Section cap_lang_rules.
         [∗ map] k↦y ∈ regs', k ↦ᵣ y }}}.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
-    iApply wp_lift_atomic_head_step_no_fork; auto.
+    iApply wp_lift_atomic_base_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
     iDestruct "Hσ1" as "[Hr Hm]".
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
     have ? := lookup_weaken _ _ _ _ HPC Hregs.
     iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto.
-    iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible.
+    iModIntro. iSplitR. by iPureIntro; apply normal_always_base_reducible.
     iNext. iIntros (e2 σ2 efs Hpstep).
     apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)).
     iIntros "_".

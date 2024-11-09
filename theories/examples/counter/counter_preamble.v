@@ -45,13 +45,13 @@ Section counter_example_preamble.
     move_r r_t2 r_t8;
     move_r r_t1 r_t9;
     (* closure for read *)
-    lea_z r_t1 (offset_to_counter + (strings.length (incr_instrs)))] ++
+    lea_z r_t1 (offset_to_counter + (length incr_instrs))] ++
     crtcls_instrs f_m ++
     [move_r r_t11 r_t1;
     move_r r_t2 r_t8;
     move_r r_t1 r_t9;
     (* closure for reset *)
-    lea_z r_t1 (offset_to_counter + (strings.length (incr_instrs)) + (strings.length (read_instrs 0)))] ++
+    lea_z r_t1 (offset_to_counter + (length incr_instrs) + (length (read_instrs 0)))] ++
     crtcls_instrs f_m ++
     (* cleanup *)
     [move_r r_t2 r_t10;
@@ -134,7 +134,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
 
-    rewrite /registers_mapsto.
+    rewrite /registers_pointsto.
     rewrite -insert_delete_insert.
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
@@ -213,7 +213,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
 
-    rewrite /registers_mapsto.
+    rewrite /registers_pointsto.
     rewrite -insert_delete_insert.
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
@@ -283,7 +283,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hcls'') & Hna & Hcls_close)";
       [auto..|].
 
-    rewrite /registers_mapsto.
+    rewrite /registers_pointsto.
     rewrite -insert_delete_insert.
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
     destruct (Hr'_full r_t1) as [r1v ?].
@@ -391,7 +391,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_alloc logrel_nais _ count_readN with "Hread") as ">#Hread".
     iDestruct (na_inv_alloc logrel_nais _ count_resetN with "Hreset") as ">#Hreset".
 
-    rewrite /registers_mapsto.
+    rewrite /registers_pointsto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
       by rewrite lookup_insert //. rewrite delete_insert_delete //.
     destruct (Hr_full r_t0) as [r0 Hr0].
@@ -422,7 +422,7 @@ Section counter_example_preamble.
     { rewrite !dom_delete_L Hdom_r difference_difference_l_L //. }
     iNext. iIntros "(HPC & Hmalloc & Hpc_b & Ha_entry & HH & Hr0 & HnaI & Hregs)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hcell)".
-    iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
+    iDestruct (region_pointsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
     2: { iIntros (?) "[HH | ->]". iApply "HH". iIntros (Hv). inversion Hv. }
 

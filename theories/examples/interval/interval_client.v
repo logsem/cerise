@@ -80,10 +80,10 @@ Section interval_client.
         inv Heq. auto.
       + destruct l1;[inversion Hin1|]. destruct l2;[inversion Hin2|].
         destruct p as [a0 b0]. destruct p0 as [a0' b0'].
-        simpl in *. inv Hl1. inv Hl2.
-        eapply IHl3. apply Hdup. apply H2. 3: reflexivity.
-        apply elem_of_cons in Hin2 as [Hcontr | Hin2];auto. inv Hcontr. done.
-        apply elem_of_cons in Hin1 as [Hcontr | Hin1];auto. inv Hcontr. done.
+        simpl in *. inv Hl1.
+        eapply IHl3. apply Hdup. apply H0. 3: reflexivity.
+        apply elem_of_cons in Hin2 as [Hcontr | Hin2];auto. inv Hcontr.
+        apply elem_of_cons in Hin1 as [Hcontr | Hin1];auto. inv Hcontr.
   Qed.
 
   (* the interval library environment must contain:
@@ -173,7 +173,7 @@ Section interval_client.
        ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc Hbounds Hwb Ha_r' Hdom Hι0 Hι1 Hι2 Hι3 Hι4 Hι5 Hι6 ? ? Φ)
@@ -274,10 +274,10 @@ Section interval_client.
     iDestruct (know_pref with "Hexact Hpref'") as %Hprefix'.
     iAssert (▷ ⌜NoDup awvals.*1⌝)%I as "#>%HnoDup".
     { iNext. iApply isList_NoDup. iFrame. }
-    rewrite Hincr in Hincr'. inv Hincr'.
-    pose proof (elem_of_prefix_eq b01 w w' pbvals pbvals' awvals Hin Hin' Hprefix Hprefix' HnoDup) as <-.
+    inv Hincr.
+    pose proof (elem_of_prefix_eq b' w w' pbvals pbvals' awvals Hin Hin' Hprefix Hprefix' HnoDup) as <-.
     iMod ("Hcls" with "[$Hown Hll HisList Hexact]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame. auto. }
+    { iNext. iExists _. iFrame; auto. }
     (* next, we can use isInterval property to conclude that z1 = z0 and z2 = z3 *)
     iDestruct (intervals_agree with "His_int His_int'") as %(Heq & Heq'). subst z0 z3.
 

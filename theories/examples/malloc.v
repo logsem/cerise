@@ -184,8 +184,8 @@ Section SimpleMalloc.
     iGo "Hprog".
     (* continuation *)
     rewrite (region_addrs_zeroes_split _ a_m') //; [| solve_addr].
-    iDestruct (region_mapsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]".
-    solve_addr. by rewrite replicate_length //.
+    iDestruct (region_pointsto_split _ _ a_m' with "Hmem") as "[Hmem_fresh Hmem]".
+    solve_addr. by rewrite length_replicate //.
     iDestruct ("Hinv_close" with "[Hprog Hmemptr Hmem $Hna]") as ">Hna".
     { iNext. iExists b_m, a_m'. iFrame. iSplitR. iPureIntro.
       by unfold malloc_subroutine_instrs_length. iPureIntro; solve_addr. }
@@ -202,7 +202,7 @@ Section SimpleMalloc.
       rewrite insert_delete_insert.
       rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
-      iExists a_m, a_m', size. iFrame. auto. }
+      iExists size. auto. }
     { auto. }
   Qed.
 

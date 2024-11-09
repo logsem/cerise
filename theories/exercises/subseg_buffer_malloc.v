@@ -153,7 +153,7 @@ Section malloc_program.
                        Add r_t2 r_t2 (secret_off+1); Subseg r_t1 r_t2 r_t3; Jmp r_t30]) ).
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_prog.
     iAssert (codefrag link1 prog_instrs) with "[Hprog]" as "Hprog".
-    { rewrite /codefrag. simpl. rewrite /region_mapsto.
+    { rewrite /codefrag. simpl. rewrite /region_pointsto.
       simpl in *.
       replace rest1 with (finz.seq_between link1 (link1 ^+ 7%nat)%a).
       done.
@@ -187,7 +187,7 @@ Section malloc_program.
             with "[Hprog Hmalloc]"
       as "Hprog'" .
     {iApply (big_sepL2_app with "[Hmalloc]") ; [done|].
-      simpl. rewrite /region_mapsto.
+      simpl. rewrite /region_pointsto.
       simpl in *.
       replace rest1 with (finz.seq_between link1 (link1 ^+ 7%nat)%a).
       done.
@@ -244,7 +244,7 @@ Section malloc_program.
             ∗ interp w0
             )
           -∗ WP Seq (Instr Executable) {{λ v,
-                  (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                  (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I
                   ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
     intros *.
@@ -344,7 +344,7 @@ Qed.
     iIntros "(Hrsafe& Hregs& Hna)".
     iDestruct "Hrsafe" as "[%Hrfull #Hrsafe]".
     rewrite /interp_conf.
-    rewrite {1}/registers_mapsto.
+    rewrite {1}/registers_pointsto.
 
     (* Extract the registers from the map *)
     apply regmap_full_dom in Hrfull as Hrfull'.
@@ -359,7 +359,7 @@ Qed.
                     (λ v0 : language.val cap_lang,
                         (⌜v0 = HaltedV⌝ →
                          ∃ r : Reg, full_map r
-                                    ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)
+                                    ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)
                         ∨ ⌜v0 = FailedV⌝)%I
              with "[-]").
     2:{ iIntros (v) "Hv"; iDestruct "Hv" as "[Hv|->]" ; auto.

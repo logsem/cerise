@@ -204,7 +204,7 @@ Section SimpleSalloc.
       rewrite insert_delete_insert.
       rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
-      iExists a_s, a_s', size. iFrame. auto. }
+      iExists size. auto. }
     { auto. }
   Qed.
 

@@ -49,7 +49,7 @@ Section interval_closure.
                   (* prepare to create a closure around imin *)
                   Mov r_t2 r_temp1;
                   Mov r_t1 r_temp2;
-                  Lea r_t1 (strings.length (makeint f_m));
+                  Lea r_t1 (length (makeint f_m));
                   Mov r_temp2 r_t1] ++
     (* create closure around imin and the seal environment *)
     crtcls_instrs f_m ++
@@ -58,7 +58,7 @@ Section interval_closure.
                   (* prepare to create a closure around imax *)
                   Mov r_t2 r_temp1;
                   Mov r_t1 r_temp2;
-                  Lea r_t1 (strings.length imin)] ++
+                  Lea r_t1 (length imin)] ++
     (* create closure around imin and the seal environment *)
     crtcls_instrs f_m ++
     (* cleanup *)
@@ -230,9 +230,9 @@ Section interval_closure.
     assert (is_Some (benv0 + 1)%a) as [benv1 Henvincr];[solve_addr+Henvsize|].
     rewrite /region_addrs_zeroes /finz.dist.
     assert (Z.to_nat (eenv - benv0) = 2) as ->;[solve_addr+Henvsize|]. iSimpl in "Hbeenv".
-    iDestruct (region_mapsto_cons with "Hbeenv") as "[Hbenv0 Hbeenv]";
+    iDestruct (region_pointsto_cons with "Hbeenv") as "[Hbenv0 Hbeenv]";
       [eauto|solve_addr+Henvincr Henvsize|..].
-    rewrite /region_mapsto finz_seq_between_singleton;[|solve_addr+Henvsize Henvincr].
+    rewrite /region_pointsto finz_seq_between_singleton;[|solve_addr+Henvsize Henvincr].
     iDestruct "Hbeenv" as "[Hbenv1 _]".
     unfocus_block "Hblock" "Hcont" as "Hcode".
 
@@ -318,9 +318,9 @@ Section interval_closure.
     (* We can now allocate the seal environment invariant *)
     iMod (na_inv_alloc logrel_nais _ sealN (seal_env benv0 eenv ll ll' RX s_b s_e s_first b_m e_m b_rs e_rs)
             with "[Hact1 Hact2 Hb_rs Hs_b Hbenv0 Hbenv1 Hseal]") as "#Hseal_env".
-    { iNext. iFrame. iExists _,_,_,_,_. iFrame. repeat iSplit;eauto.
+    { iNext. iFrame. repeat iSplit;eauto.
       all: iPureIntro. by constructor. inversion Hbounds_seal;auto. solve_addr+.
-      destruct Hbounds_seal as (?&?&Hle). rewrite 3!app_length /=. solve_addr+Hle. }
+      destruct Hbounds_seal as (?&?&Hle). rewrite 3!length_app /=. solve_addr+Hle. }
     instantiate (3 := sealLLN). instantiate (2 := isInterval). Unshelve. 2: apply _.
 
     focus_block 4 "Hcode" as a_mid3 Ha_mid3 "Hblock" "Hcont".
@@ -409,8 +409,8 @@ Section interval_closure.
     repeat rewrite -(delete_insert_ne _ r_t2)//.
 
     (* continuation *)
-    iApply "HΦ". unfold rmapfinal. iFrame. iExists _,_,_,_,_,_,_,_.
-    iExists _,_,_,_,_. iFrame. iFrame "#". auto.
+    iApply "HΦ". unfold rmapfinal. iFrame.
+    iExists _,_,_. iFrame "#"; auto.
   Qed.
 
 

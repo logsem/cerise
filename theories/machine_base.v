@@ -8,7 +8,7 @@ From iris.proofmode Require Import proofmode.
    The [solve_cap_pure] tactic automates the proof of some of these facts (see
    solve_cap_pure.v on how to extend it). *)
 
-(* Definitions: capabilities, machine words, machine instructions *)
+(* Definitions: capabilities, machine String.words, machine instructions *)
 
 Inductive Perm: Type :=
 | O
@@ -66,7 +66,7 @@ Definition cst : Z → (Z+RegName)%type := inl.
 Coercion regn : RegName >-> sum.
 Coercion cst : Z >-> sum.
 
-(* Registers and memory: maps from register names/addresses to words *)
+(* Registers and memory: maps from register names/addresses to String.words *)
 
 Definition Reg := gmap RegName Word.
 Definition Mem := gmap Addr Word.
@@ -89,7 +89,7 @@ Ltac destruct_word w :=
   let sd := fresh "sd" in
   destruct w as [ z | [c | sr] | sd].
 
-(***** Identifying parts of words *****)
+(***** Identifying parts of String.words *****)
 
 (* Z <-> Word *)
 Definition is_z (w : Word) : bool :=

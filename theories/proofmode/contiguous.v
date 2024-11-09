@@ -261,19 +261,19 @@ Section Contiguous.
   Proof.
     iIntros (Ha) "Hprog".
     iDestruct (big_sepL2_length with "Hprog") as %Hlength.
-    rewrite app_length in Hlength.
+    rewrite length_app in Hlength.
     set (n1 := length prog1) in *.
     set (n2 := length prog2) in *.
     rewrite -(take_drop n1 a). set (k := (i ^+ n1)%a).
     iExists (take n1 a), (drop n1 a), k.
     iDestruct (big_sepL2_app' with "Hprog") as "[Hprog1 Hprog2]".
-    { subst n1. rewrite take_length. lia. }
+    { subst n1. rewrite length_take. lia. }
     iFrame. iPureIntro.
     pose proof (contiguous_between_length _ _ _ Ha).
     destruct (contiguous_between_app a (take n1 a) (drop n1 a) i j k); auto.
     by rewrite take_drop.
-    { rewrite take_length Hlength. subst k. solve_addr. }
-    rewrite take_length. repeat split; eauto. rewrite Nat.min_l; subst k; solve_addr.
+    { rewrite length_take Hlength. subst k. solve_addr. }
+    rewrite length_take. repeat split; eauto. rewrite Nat.min_l; subst k; solve_addr.
   Qed.
 
   Lemma contiguous_between_inj l:
@@ -284,7 +284,7 @@ Section Contiguous.
   Proof.
     induction l; intros.
     - inv H; inv H0; auto.
-    - inv H; inv H0. rewrite H2 in H3; inv H3.
+    - inv H; inv H0.
       eapply IHl; eauto.
   Qed.
 
