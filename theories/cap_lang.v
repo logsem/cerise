@@ -26,6 +26,11 @@ Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg'
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
 Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
+Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
+   match φ with
+   | {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} =>
+     {| reg := reg; mem := mem; etable := (delete i etable); enumcur := enumcur |}
+   end.
 
 (* global freshness, alt: axiomatize a freshness function
    -- keeps it implementation independent *)
@@ -492,8 +497,7 @@ Section opsem.
   Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
   Notation "a |>> f" := (f a) (at level 10, only parsing, left associativity).
 
-  Definition exec_opt (i: instr) (φ: ExecConf): option Conf.
-  refine(
+  Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
     | Fail => Some (Failed, φ)
     | Halt => Some (Halted, φ)
@@ -699,13 +703,10 @@ Section opsem.
       σ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
       eid ← has_seal σ;
       i   ← tindex_of_eid (etable φ) eid;
-      deinit_enum ← finz.of_z 0; (* Remove this and simply remove from the gmap *)
 
       (* UPDATE THE MACHINE STATE *)
-      φ |>> update_etable i eid deinit_enum (* @TODO: should this actually remove from the gmap or
-                                               do we just mark the entry as invalid/deinitialized?
-                                               June says: delete from gmap (easier option) *)
-        |>> update_reg rd (WInt 1) (* write 1 (success) to rd reg *)
+      φ |>> remove_from_etable i
+        |>> update_reg rd (WInt 1) (* write 1 (success) to rd reg *) (* Denis says: no longer needed since machine either fails or ends up in this state *)
         |>> updatePC
 
     (* enclave local attestation *)
@@ -714,7 +715,7 @@ Section opsem.
       enum          ← has_seal σ;
       id            ← eid_of_enum (etable φ) enum;
       wrs2          ← (reg φ) !! rs2;
-      '(p, b, e, a) ← wrs2;
+      '(p, b, e, a) ← get_wcap wrs2;
 
       (* UPDATE THE MACHINE STATE *)
       when (writeAllowed p && withinBounds b e a) then
@@ -731,10 +732,7 @@ Section opsem.
          *)
       φ |>> update_reg dst (WInt 1%Z)
         |>> updatePC
-  end).
-  Unshelve.
-
-  Admitted.
+  end.
 
   Definition exec (i : instr) (φ : ExecConf) : Conf :=
     match exec_opt i φ with

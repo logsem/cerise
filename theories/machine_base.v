@@ -81,8 +81,10 @@ Definition Mem := gmap Addr Word.
 Definition MaxENum: nat := 256.
 Global Opaque MaxENum.
 (* Definition TIndex := (finz TableSize). *)
-Definition TIndex := (finz MaxENum).
+(* Definition TIndex := (finz MaxENum). *)
+Definition TIndex := Z.
 Definition EId := Z. (* For now, we assume the hash to be unbounded *)
+(* Definition ENum := (finz MaxENum). *)
 Definition ENum := Z. (* The max # of supported enclaves *)
 Definition ETable := gmap TIndex (EId * ENum). (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
 
