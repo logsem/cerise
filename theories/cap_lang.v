@@ -989,6 +989,19 @@ Section opsem.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
     all: simplify_eq; try by exfalso.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: repeat (
+             destruct (mem _ !! _); cbn in *; repeat case_match
+             ; simplify_eq
+             ; cbn in *
+             ; case_match).
+    all: repeat destruct (finz.of_z _); cbn in *
+    ; repeat destruct (has_seal _); cbn in *
+    ; repeat destruct (tindex_of_eid _); cbn in *
+    ; repeat destruct (eid_of_enum _); cbn in *
+    ; repeat destruct (get_wcap_scap _); cbn in *.
+    all: repeat destruct p.
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: simplify_eq; try by exfalso.
   Qed.
 
 End opsem.
@@ -1064,6 +1077,6 @@ Proof.
             {| reg := gmap_empty ;
               mem := gmap_empty ;
               etable := gmap_empty ;
-              enumcur := _ |}).
-  eexists. Unshelve. 3: exact 0%Z. all: solve_finz.
+              enumcur := 0%Z |}).
+  (* eexists. Unshelve. 3: exact 0%Z. all: solve_finz. *)
 Defined.
