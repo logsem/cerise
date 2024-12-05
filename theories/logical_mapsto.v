@@ -854,7 +854,7 @@ Lemma state_corresponds_unique_in_registers
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
-  unique_in_registers phr src (lword_get_word lwsrc) ->
+  unique_in_registers phr (lword_get_word lwsrc) (Some src) ->
   unique_in_registersL lr src lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
@@ -873,7 +873,7 @@ Lemma state_corresponds_unique_in_memory
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
-  unique_in_memory phm (lword_get_word lwsrc) ->
+  unique_in_memory phm (lword_get_word lwsrc) None ->
   unique_in_memoryL lm vmap lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
@@ -893,13 +893,13 @@ Lemma sweep_true_specL
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap →
   lr !! src = Some lwsrc →
-  sweep phm phr src = true →
+  sweep_reg phm phr src = true →
   unique_in_machineL lr lm vmap src lwsrc.
 Proof.
   intros HLinv Hlr_src Hsweep.
   assert (Hphr_src : phr !! src = Some (lword_get_word lwsrc))
     by (by eapply state_corresponds_reg_get_word).
-  apply sweep_spec with (wsrc := (lword_get_word lwsrc)) in Hsweep ; auto.
+  apply sweep_reg_spec with (wsrc := (lword_get_word lwsrc)) in Hsweep ; auto.
   specialize (Hsweep Hphr_src).
   destruct Hsweep as [Hunique_reg Hunique_mem].
   intros _.

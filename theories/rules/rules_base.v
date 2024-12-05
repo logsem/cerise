@@ -1076,7 +1076,7 @@ Proof.
   rewrite (lookup_weaken _ _ _ _ HrpPC Hincl) in Hi.
   destruct w; try easy.
   destruct sb; try easy.
-  now destruct (f1 + 1)%a.
+  now destruct (a + 1)%a.
 Qed.
 
 (* todo: instead, define updatePC on top of incrementPC *)
@@ -1158,7 +1158,7 @@ Proof.
   unfold update_reg, update_regs.
   destruct w; try now cbn.
   destruct sb; try now cbn.
-  destruct (f1 + 1)%a; try now cbn.
+  destruct (a + 1)%a; try now cbn.
 Qed.
 
 (*--- incrementLPC ---*)
