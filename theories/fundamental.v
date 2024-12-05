@@ -276,7 +276,7 @@ Section fundamental.
     iFrame.
   Qed.
 
-  (* TODO @Bastien Which formulation ?
+  (* TODO @June Which formulation ?
      1) ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw)
      2) ([∗ list] a;lw ∈ finz.seq_between b e;l, (a,v) ↦ₐ lw)
      3) Both

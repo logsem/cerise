@@ -16,7 +16,7 @@ Section fundamental.
   Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  (* TODO @Bastien redo the proof in the same style as Load or Store *)
+  (* TODO @June redo the proof in the same style as Load or Store *)
   Lemma isunique_case (lregs : leibnizO LReg)
     (p : Perm) (b e a : Addr) (v : Version)
     (lw : LWord) (dst src : RegName) (P : D):

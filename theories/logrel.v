@@ -776,7 +776,7 @@ Section logrel.
   Definition compute_mask_range (E : coPset) (b e : Addr) (v : Version) : coPset :=
     (compute_mask E (logical_range_set b e v)).
 
-  (* TODO @Bastien is there a way to generalize the opening of the list of invariant ? *)
+  (* TODO @June is there a way to generalize the opening of the list of invariant ? *)
   (* Lemma for opening invariants of a region *)
   Lemma open_region_inv
     (E : coPset)
