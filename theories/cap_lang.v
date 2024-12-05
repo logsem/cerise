@@ -689,12 +689,11 @@ Section opsem.
     let identity := measure (mem φ) incr_b e in
 
     fresh_idx ← gen_fresh_idx (etable φ); (* generate a fresh index in the ETable *)
-    let incr_ec := ((enumcur φ)+1)%Z in
 
     (* UPDATE THE MACHINE STATE *)
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
        |>> update_etable fresh_idx identity ec (* create a new index in the ETable *)
-       |>> update_enumcur incr_ec  (* EC := EC + 1 *)
+       |>> update_enumcur ((enumcur φ)+1)%Z  (* EC := EC + 1 *)
        |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
        |>> updatePC
 
