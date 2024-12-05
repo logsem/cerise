@@ -25,14 +25,14 @@ Definition permit_unseal (s : SealPerms) :=
   s.2.
 
 Inductive Sealable: Type :=
-| SCap: Perm -> Addr -> Addr -> Addr -> Sealable
-| SSealRange: SealPerms -> OType -> OType -> OType -> Sealable.
+| SCap       (p : Perm) (b e a : Addr)
+| SSealRange (sp : SealPerms) (ob oe oa : OType).
 
 (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
 Inductive Word: Type :=
 | WInt (z : Z)
 | WSealable (sb : Sealable)
-| WSealed: OType → Sealable → Word.
+| WSealed (ot : OType) (sb : Sealable).
 
 Notation WCap p b e a := (WSealable (SCap p b e a)).
 Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
@@ -76,14 +76,14 @@ Definition Reg := gmap RegName Word.
 Definition Mem := gmap Addr Word.
 
 (* State involved in supporting enclaves *)
-Definition TableSize: nat := 128.
-Global Opaque TableSize.
-Definition MaxENum: nat := 1024.
+(* Definition TableSize: nat := 128. *)
+(* Global Opaque TableSize. *)
+Definition MaxENum: nat := 256.
 Global Opaque MaxENum.
 (* Definition TIndex := (finz TableSize). *)
 Definition TIndex := (finz MaxENum).
 Definition EId := Z. (* For now, we assume the hash to be unbounded *)
-Definition ENum := (finz MaxENum). (* The max # of supported enclaves *)
+Definition ENum := Z. (* The max # of supported enclaves *)
 Definition ETable := gmap TIndex (EId * ENum). (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
 
 (* EqDecision instances *)
@@ -752,7 +752,7 @@ Qed.
 Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
 Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
-Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl).
+(* Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl). *)
 (* Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl). *)
 Global Instance etable_inhabited: Inhabited ETable. Proof. solve [typeclasses eauto]. Defined.
 

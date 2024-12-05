@@ -30,7 +30,7 @@ Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): E
 (* global freshness, alt: axiomatize a freshness function
    -- keeps it implementation independent *)
 Definition gen_fresh_idx {K V} `{EqDecision K} `{Countable K} (m : gmap K V) : option ENum :=
-  finz.of_z (map_fold (λ (_ : K) (_ : V) (n : nat), 1 + n) 1 m).
+  Some (map_fold (λ _ _ n, 1 + n) 1 m)%Z.
 
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
 
@@ -251,7 +251,7 @@ Proof.
   destruct s ; last solve_decision.
   destruct (get_scap w2); last solve_decision.
   destruct s ; last solve_decision.
-  destruct (f <? f2)%a; solve_decision.
+  destruct (b <? b0)%a; solve_decision.
 Defined.
 
 Definition unique_in_registers (regs : Reg) (wsrc : Word) (exclsrc : option RegName) : Prop :=
@@ -427,28 +427,58 @@ Section opsem.
   Definition no_cap (mem : Mem) (b: Addr) (e : Addr) : bool :=
     bool_decide (not (contains_cap mem b e)).
 
-  Definition has_seal (σ : TIndex) (tb : ETable) : option EId.
-  refine(tb !! σ ≫= fst).
-  (* is this eta expansion nonsense? *)
-  Restart.
-  refine (
-    match (tb !! σ) with
+  Definition retrieve_eid (i : TIndex) (tb : ETable) : option EId :=
+    match (tb !! i) with
     | Some p => Some (fst p)
     | None => None
-    end).
+    end.
+
+  Definition retrieve_enum (i : TIndex) (tb : ETable) : option ENum :=
+    match (tb !! i) with
+    | Some p => Some (snd p)
+    | None => None
+    end.
+
+  Definition finz_div_nat {bound} (f : finz bound) (off : nat) : option (finz bound).
+    refine (
+    match off with
+    | Coq.Init.Datatypes.O => None
+    | _ => let z := (finz.to_z f / off)%Z in
+           match (Z_lt_dec z bound) with
+           | left _ =>
+               match (Z_le_dec 0%Z z) with
+               | left _ => Some (finz.FinZ z _ _)
+               | right _ => None
+               end
+           | right _ => None
+           end
+    end). apply Z.ltb_lt. auto. apply Z.leb_le. auto.
   Defined.
 
-  Definition eid_of_word : Word -> option EId :=
+  Definition seal_of_oa (oa : OType) : option ENum :=
+    finz.to_z <$> if (Z.even (finz.to_z oa))
+                  then (finz_div_nat oa 2)
+                  else finz_div_nat (oa^-1)%f 2.
+
+  Definition has_seal : Word -> option ENum :=
     λ σ, (match σ with
-              | WSealRange p b e a => let za := finz.to_z a in
-                                      Some (if Z.even za then (za/2)%Z
-                                                         else ((za-1)%Z/2)%Z)
-              | _ => None (* rs does not contain seals *)
-              end).
+          | WSealRange _ _ _ oa => seal_of_oa oa
+          | _ => None (* rs does not contain seals *)
+          end).
 
   Axiom measure : Mem -> Addr -> Addr -> Z.
 
-  Definition retrieve_index (etable : ETable) (eid : EId) : option TIndex :=
+  Definition eid_of_enum (etable : ETable) (enum : ENum) : option EId :=
+   map_fold
+     (λ idx p oi,
+       match oi with
+       | Some i => Some i
+       | None => if decide (enum = p.2) then Some p.1 else None
+       end)
+     None
+     etable.
+
+  Definition tindex_of_eid (etable : ETable) (eid : EId) : option TIndex :=
    map_fold
      (λ idx p oi,
        match oi with
@@ -637,7 +667,6 @@ Section opsem.
     when (readAllowed p' && writeAllowed p') then
 
     (* MEMORY SWEEP *)
-    (* @TODO maybe update Opsem to return 0 in rd to signal failure instead of returning None? *)
     when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
            (sweep_reg (mem φ) (reg φ) rs) && (* sweep the registers excluding the code cap in register rs *)
            (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
@@ -656,77 +685,81 @@ Section opsem.
     let identity := measure (mem φ) incr_b e in
 
     fresh_idx ← gen_fresh_idx (etable φ); (* generate a fresh index in the ETable *)
-    incr_ec   ← finz.of_z ((enumcur φ)+2);
+    let incr_ec := ((enumcur φ)+1)%Z in
 
     (* UPDATE THE MACHINE STATE *)
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
        |>> update_etable fresh_idx identity ec (* create a new index in the ETable *)
-       |>> update_enumcur incr_ec  (* EC := EC + 2 *)
-       |>> update_reg rd (WCap E b e a) (* @Denis which cursor position should we use:
-                                           a or b+1 or ? *)
+       |>> update_enumcur incr_ec  (* EC := EC + 1 *)
+       |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
        |>> updatePC
 
     (* enclave deinitialization *)
   | EDeInit rd rs =>
       σ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
-      eid ← eid_of_word σ;
-      i   ← retrieve_index (etable φ) eid;
-      deinit_enum ← finz.of_z 0; (* @TODO: using ENum 0 as placeholder for a deinitialized enclave *)
+      eid ← has_seal σ;
+      i   ← tindex_of_eid (etable φ) eid;
+      deinit_enum ← finz.of_z 0; (* Remove this and simply remove from the gmap *)
 
       (* UPDATE THE MACHINE STATE *)
       φ |>> update_etable i eid deinit_enum (* @TODO: should this actually remove from the gmap or
-                                               do we just mark the entry as invalid/deinitialized? *)
+                                               do we just mark the entry as invalid/deinitialized?
+                                               June says: delete from gmap (easier option) *)
         |>> update_reg rd (WInt 1) (* write 1 (success) to rd reg *)
         |>> updatePC
 
     (* enclave local attestation *)
   | EStoreId rd rs1 rs2 =>
       σ             ← (reg φ) !! rs1;
-      eid           ← eid_of_word σ;
-      i             ← retrieve_index (etable φ) eid;
-      '(ident, _)   ← (etable φ) !! i; (* retrieve the first projection, i.e. the hash *)
+      enum          ← has_seal σ;
+      id            ← eid_of_enum (etable φ) enum;
       wrs2          ← (reg φ) !! rs2;
       '(p, b, e, a) ← wrs2;
 
       (* UPDATE THE MACHINE STATE *)
       when (writeAllowed p && withinBounds b e a) then
-      φ |>> update_mem a ident
+      φ |>> update_mem a (WInt id)
         |>> update_reg rd (WInt 1)
         |>> updatePC
 
     (* memory sweep *)
   | IsUnique dst src =>
        (* exclude registers, but also the address a itself !! *)
-      wsrc ← (reg φ) !! src;
+      wsrc          ← (reg φ) !! src;
       '(p, b, e, a) ← get_wcap_scap wsrc; (* TODO ask: does IsUnique also work with sealed cap ? *)
            (* cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
          *)
-      when (sweep_reg (mem φ) (reg φ) src) then
-
       φ |>> update_reg dst (WInt 1%Z)
         |>> updatePC
   end).
   Unshelve.
+
   Admitted.
 
-  Definition exec (i: instr) (φ: ExecConf) : Conf :=
-     match exec_opt i φ with
-     | None =>
-         match i with
-         | EInit _ _ => (* failure retains initial machine state @TODO: what happens to PC? *)
-             match (φ |>> updatePC) with
-             | Some conf => conf
-             | None => (Failed, φ)
-             end
-         | EDeInit rd _ | EStoreId rd _ _ | IsUnique rd _ =>
-             match (φ |>> update_reg rd (WInt 0) |>> updatePC) with (* write 0 to RD register *)
-             | Some conf => conf
-             | None => (Failed, φ)
-             end
-         | _ => (Failed, φ)
-                  end
-     | Some conf => conf
-     end .
+  Definition exec (i : instr) (φ : ExecConf) : Conf :=
+    match exec_opt i φ with
+    | None => (Failed, φ)
+    | Some conf => conf
+    end.
+
+  (* Definition exec (i: instr) (φ: ExecConf) : Conf := *)
+  (*    match exec_opt i φ with *)
+  (*    | None => *)
+  (*        match i with *)
+  (*        | EInit _ _ => (* failure retains initial machine state @TODO: what happens to PC? *) *)
+  (*            match (φ |>> updatePC) with *)
+  (*            | Some conf => conf *)
+  (*            | None => (Failed, φ) *)
+  (*            end *)
+  (*        | EDeInit rd _ | EStoreId rd _ _ | IsUnique rd _ => *)
+  (*            match (φ |>> update_reg rd (WInt 0) |>> updatePC) with (* write 0 to RD register *) *)
+  (*            | Some conf => conf *)
+  (*            | None => (Failed, φ) *)
+  (*            end *)
+  (*        | _ => (Failed, φ) *)
+  (*                 end *)
+  (*    | Some conf => conf *)
+  (*    end . *)
 
   Lemma exec_opt_exec_some :
     forall φ i c,
