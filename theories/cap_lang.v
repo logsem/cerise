@@ -727,10 +727,11 @@ Section opsem.
        (* exclude registers, but also the address a itself !! *)
       wsrc          ← (reg φ) !! src;
       '(p, b, e, a) ← get_wcap_scap wsrc; (* TODO ask: does IsUnique also work with sealed cap ? *)
-           (* cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
-         *)
-      φ |>> update_reg dst (WInt 1%Z)
+      let uniqueb := (sweep_reg (mem φ) (reg φ) src) in
+      φ |>> update_reg dst (WInt (if uniqueb then 1%Z else 0%Z))
         |>> updatePC
+      (* cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
+       *)
   end.
 
   Definition exec (i : instr) (φ : ExecConf) : Conf :=

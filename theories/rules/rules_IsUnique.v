@@ -284,27 +284,27 @@ Section cap_lang_rules.
     }
     destruct (get_is_lcap_inv lsrcv Hlsrcv) as (p & b & e & a & v & Hget_lsrcv).
 
-    set (lregs' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]>
-                      (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) )
+    set (lregs' := (<[ dst := LInt (if (sweep_reg mem reg src) then 1 else 0) ]>
+                      (if (andb (sweep_reg mem reg src) (negb (is_sealed lsrcv)) )
                        then (<[ src := next_version_lword lsrcv]> lregs)
                        else lregs))).
-    set (lr' := (<[ dst := LInt (if (sweep mem reg src) then 1 else 0) ]>
-                   (if (andb (sweep mem reg src) (negb (is_sealed lsrcv)) )
+    set (lr' := (<[ dst := LInt (if (sweep_reg mem reg src) then 1 else 0) ]>
+                   (if (andb (sweep_reg mem reg src) (negb (is_sealed lsrcv)) )
                     then (<[ src := next_version_lword lsrcv]> lr)
                     else lr))).
     assert (lreg_strip lregs' ⊆ lreg_strip lr') as Hlregs'_in_lr'.
     { subst lregs' lr'.
       apply map_fmap_mono, insert_mono.
-      destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto.
+      destruct (sweep_reg mem reg src); destruct (is_sealed lsrcv); cbn; auto.
       apply insert_mono; auto.
     }
 
     assert ( (lreg_strip lr') =
-               (<[ dst := WInt (if (sweep mem reg src) then 1 else 0) ]> reg))
+               (<[ dst := WInt (if (sweep_reg mem reg src) then 1 else 0) ]> reg))
       as Hstrip_lr'.
     { subst lr'.
       destruct HLinv as [ [Hstrips Hcurreg] _].
-      destruct (sweep mem reg src); destruct (is_sealed lsrcv); cbn; auto.
+      destruct (sweep_reg mem reg src); destruct (is_sealed lsrcv); cbn; auto.
       all: rewrite -Hstrips /lreg_strip !fmap_insert -/(lreg_strip lr) //=.
       rewrite lword_get_word_next_version insert_lcap_lreg_strip; cycle 1 ; eauto.
     }
@@ -324,7 +324,7 @@ Section cap_lang_rules.
         subst lregs' lr'.
         apply fmap_is_Some.
         destruct (decide (dst = PC)); simplify_map_eq ; auto.
-        destruct (sweep mem reg src) ; simplify_map_eq ; auto.
+        destruct (sweep_reg mem reg src) ; simplify_map_eq ; auto.
         destruct (is_sealed lsrcv) ; simplify_map_eq ; auto.
         destruct (decide (src = PC)) ; simplify_map_eq ; auto.
       }
@@ -341,7 +341,7 @@ Section cap_lang_rules.
       iSplitR "Hφ Hmap Hmem"
       ; [ iExists lr, lm, vmap; iFrame; auto
         | iApply "Hφ" ; iFrame].
-      destruct (sweep mem reg src)
+      destruct (sweep_reg mem reg src)
       ; destruct (is_sealed lsrcv)
       ; subst lregs'
       ; cbn in *
@@ -372,7 +372,7 @@ Section cap_lang_rules.
 
     (* Start the different cases now *)
     (* sweep success or sweep fail *)
-    destruct (sweep mem reg src) as [|] eqn:Hsweep; cycle 1.
+    destruct (sweep_reg mem reg src) as [|] eqn:Hsweep; cycle 1.
     { (* sweep is false *)
       iMod ((gen_heap_update_inSepM _ _ dst ) with "Hr Hmap") as "[Hr Hmap]"; eauto.
       iMod ((gen_heap_update_inSepM _ _ PC ) with "Hr Hmap") as "[Hr Hmap]"; eauto
