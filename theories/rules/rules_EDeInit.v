@@ -19,8 +19,8 @@ Section cap_lang_rules.
   Implicit Types lmem : LMem.
 
   (* TODO @Denis *)
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r1 r2 :
-    decodeInstrWL lw = EDeInit r1 r2 →
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw src :
+    decodeInstrWL lw = EDeInit src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}
