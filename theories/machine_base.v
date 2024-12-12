@@ -57,9 +57,9 @@ Inductive instr: Type :=
 | GetOType (dst r: RegName)
 | Seal (dst r1 r2: RegName)
 | UnSeal (dst r1 r2: RegName)
-| EInit (dst r: RegName)
-| EDeInit (dst r: RegName)
-| EStoreId (dst r1 r2: RegName)
+| EInit (dst src: RegName)
+| EDeInit (r: RegName)
+| EStoreId (dst src: RegName)
 | IsUnique (dst src: RegName)
 | Fail
 | Halt.
@@ -782,9 +782,9 @@ Proof.
       | GetWType dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | EInit dst r => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | EDeInit dst r => GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | EStoreId dst r1 r2 => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | EInit dst src => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)]
+      | EDeInit r => GenNode 20 [GenLeaf (inl r)]
+      | EStoreId dst src => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)]
       | IsUnique dst src => GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)]
       | Fail => GenNode 23 []
       | Halt => GenNode 24 []
@@ -810,9 +810,9 @@ Proof.
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetWType dst r
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] => EInit dst r
-      | GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)] => EDeInit dst r
-      | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => EStoreId dst r1 r2
+      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)] => EInit dst src
+      | GenNode 20 [GenLeaf (inl r)] => EDeInit r
+      | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)] => EStoreId dst src
       | GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)] => IsUnique dst src
       | GenNode 23 [] => Fail
       | GenNode 24 [] => Halt

@@ -418,6 +418,14 @@ Section opsem.
     fun w => match  w with WCap p b e a | WSealed _ (SCap p b e a) => Some (p, b, e, a)
                          | _ => None end.
 
+  Definition get_sealing_cap : Word -> option (SealPerms * OType * OType  * OType) :=
+    fun w => match  w with WSealRange p b e a  => Some (p, b, e, a)
+                   | _ => None end.
+
+  Definition get_sealed_otype : Word -> option OType :=
+    fun w => match  w with WSealed ot _  => Some ot
+                   | _ => None end.
+
   Definition contains_cap (mem : Mem) (b : Addr) (e : Addr) : Prop :=
     map_Forall (λ (a : Addr) (wa : Word),
         if decide ((a <= b)%a ∧ (b <= e)%a)
@@ -460,20 +468,20 @@ Section opsem.
     end). apply Z.ltb_lt. auto. apply Z.leb_le. auto.
   Defined.
 
-  Definition seal_of_oa (oa : OType) : option ENum :=
+  Definition eid_of_otype (oa : OType) : option ENum :=
     finz.to_z <$> if (Z.even (finz.to_z oa))
                   then (finz_div_nat oa 2)
                   else finz_div_nat (oa^-1)%f 2.
 
-  Definition has_seal : Word -> option ENum :=
-    λ σ, (match σ with
-          | WSealRange _ _ _ oa => seal_of_oa oa
-          | _ => None (* rs does not contain seals *)
-          end).
+  (* Definition has_seal : Word -> option ENum := *)
+  (*   λ σ, (match σ with *)
+  (*         | WSealRange _ _ _ oa => seal_of_oa oa *)
+  (*         | _ => None (* rs does not contain seals *) *)
+  (*         end). *)
 
   Axiom measure : Mem -> Addr -> Addr -> Z.
 
-  Definition eid_of_enum (etable : ETable) (enum : ENum) : option EId :=
+  Definition id_of_eid (etable : ETable) (enum : ENum) : option EId :=
    map_fold
      (λ idx p oi,
        match oi with
@@ -483,7 +491,7 @@ Section opsem.
      None
      etable.
 
-  Definition tindex_of_eid (etable : ETable) (eid : EId) : option TIndex :=
+  Definition tindex_of_id (etable : ETable) (eid : EId) : option TIndex :=
    map_fold
      (λ idx p oi,
        match oi with
@@ -698,28 +706,26 @@ Section opsem.
        |>> updatePC
 
     (* enclave deinitialization *)
-  | EDeInit rd rs =>
-      σ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
-      eid ← has_seal σ;
-      i   ← tindex_of_eid (etable φ) eid;
+  | EDeInit rs =>
+      wσ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
+      '(p,σb,σe,σa) ← get_sealing_cap wσ;
+      when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
+      eid ← eid_of_otype σb;
+      i   ← tindex_of_id (etable φ) eid;
 
       (* UPDATE THE MACHINE STATE *)
       φ |>> remove_from_etable i
-        |>> update_reg rd (WInt 1) (* write 1 (success) to rd reg *) (* Denis says: no longer needed since machine either fails or ends up in this state *)
         |>> updatePC
 
     (* enclave local attestation *)
-  | EStoreId rd rs1 rs2 =>
-      σ             ← (reg φ) !! rs1;
-      enum          ← has_seal σ;
-      id            ← eid_of_enum (etable φ) enum;
-      wrs2          ← (reg φ) !! rs2;
-      '(p, b, e, a) ← get_wcap wrs2;
+  | EStoreId rd rs =>
+      wσ  ← (reg φ) !! rs;
+      σa  ← get_sealed_otype wσ;
+      eid ← eid_of_otype σa;
+      id  ← id_of_eid (etable φ) eid;
 
       (* UPDATE THE MACHINE STATE *)
-      when (writeAllowed p && withinBounds b e a) then
-      φ |>> update_mem a (WInt id)
-        |>> update_reg rd (WInt 1)
+      φ |>> update_reg rd (WInt id)
         |>> updatePC
 
     (* memory sweep *)
@@ -995,11 +1001,18 @@ Section opsem.
              ; cbn in *
              ; case_match).
     all: repeat destruct (finz.of_z _); cbn in *
-    ; repeat destruct (has_seal _); cbn in *
-    ; repeat destruct (tindex_of_eid _); cbn in *
-    ; repeat destruct (eid_of_enum _); cbn in *
-    ; repeat destruct (get_wcap_scap _); cbn in *.
+    ; repeat destruct (get_sealing_cap _); cbn in *
+    ; repeat destruct (get_sealed_otype _); cbn in *
+    ; repeat destruct (tindex_of_id _); cbn in *
+    ; repeat destruct (eid_of_otype _); cbn in *
+    ; repeat destruct (get_wcap_scap _); cbn in *
+    ; repeat destruct (id_of_eid _); cbn in *.
     all: repeat destruct p.
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: simplify_eq; try by exfalso.
+    all: repeat destruct (eid_of_otype _); cbn in *
+    ; repeat destruct (tindex_of_id _); cbn in *.
+    all: destruct (_ && _).
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: simplify_eq; try by exfalso.
   Qed.
