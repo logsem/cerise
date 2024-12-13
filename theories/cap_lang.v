@@ -34,8 +34,8 @@ Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
 
 (* global freshness, alt: axiomatize a freshness function
    -- keeps it implementation independent *)
-Definition gen_fresh_idx {K V} `{EqDecision K} `{Countable K} (m : gmap K V) : option ENum :=
-  Some (map_fold (λ _ _ n, 1 + n) 1 m)%Z.
+Definition gen_fresh_idx (φ: ExecConf) : option ENum :=
+  Some (enumcur φ).
 
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
 
@@ -473,8 +473,9 @@ Section opsem.
                   then (finz_div_nat oa 2)
                   else finz_div_nat (oa^-1)%f 2.
 
-  (* measure m b e : hash (b || m[b+1::e])*)
+  (* TODO *)
   Axiom measure: Mem -> Addr -> Addr -> Z.
+  (* incr_b ← finz.of_z (b+1); *)
   (* Axiom measure (m : Mem) (b e: Addr) : Z. *)
     (* hash_concat (hash b) (hash (b^+1::e)). *)
 
@@ -690,10 +691,9 @@ Section opsem.
     let seals := (WSealRange (true, true) s_b s_e s_b) in (* permitSeal & permitUnseal *)
 
     (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
-    (* incr_b ← finz.of_z (b+1); *)
     let identity := measure (mem φ) b e in
 
-    fresh_idx ← gen_fresh_idx (etable φ); (* generate a fresh index in the ETable *)
+    fresh_idx ← gen_fresh_idx φ; (* generate a fresh index in the ETable *)
 
     (* UPDATE THE MACHINE STATE *)
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
