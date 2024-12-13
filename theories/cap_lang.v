@@ -473,13 +473,10 @@ Section opsem.
                   then (finz_div_nat oa 2)
                   else finz_div_nat (oa^-1)%f 2.
 
-  (* Definition has_seal : Word -> option ENum := *)
-  (*   λ σ, (match σ with *)
-  (*         | WSealRange _ _ _ oa => seal_of_oa oa *)
-  (*         | _ => None (* rs does not contain seals *) *)
-  (*         end). *)
-
-  Axiom measure : Mem -> Addr -> Addr -> Z.
+  (* measure m b e : hash (b || m[b+1::e])*)
+  Axiom measure: Mem -> Addr -> Addr -> Z.
+  (* Axiom measure (m : Mem) (b e: Addr) : Z. *)
+    (* hash_concat (hash b) (hash (b^+1::e)). *)
 
   Definition id_of_eid (etable : ETable) (enum : ENum) : option EId :=
    map_fold
@@ -693,8 +690,8 @@ Section opsem.
     let seals := (WSealRange (true, true) s_b s_e s_b) in (* permitSeal & permitUnseal *)
 
     (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
-    incr_b ← finz.of_z (b+1);
-    let identity := measure (mem φ) incr_b e in
+    (* incr_b ← finz.of_z (b+1); *)
+    let identity := measure (mem φ) b e in
 
     fresh_idx ← gen_fresh_idx (etable φ); (* generate a fresh index in the ETable *)
 
