@@ -473,11 +473,14 @@ Section opsem.
                   then (finz_div_nat oa 2)
                   else finz_div_nat (oa^-1)%f 2.
 
-  (* TODO *)
-  Axiom measure: Mem -> Addr -> Addr -> Z.
-  (* incr_b ← finz.of_z (b+1); *)
-  (* Axiom measure (m : Mem) (b e: Addr) : Z. *)
-    (* hash_concat (hash b) (hash (b^+1::e)). *)
+  (* Axiom measure: Mem -> Addr -> Addr -> Z. *)
+  Definition measure (m : Mem) (b e: Addr) :=
+    let instructions : list Word :=
+      map snd
+        ((map_to_list
+            (filter (fun '(a, _) => a ∈ (finz.seq_between (b^+1)%a e)) m)))
+    in
+    hash_concat (hash b) (hash instructions).
 
   Definition id_of_eid (etable : ETable) (enum : ENum) : option EId :=
    map_fold
