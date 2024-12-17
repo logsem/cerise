@@ -25,7 +25,7 @@ Definition Conf: Type := ConfFlag * ExecConf.
 Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg' (mem φ) (etable φ) (enumcur φ).
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
-Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
+Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) : ExecConf := MkExecConf (reg φ) (mem φ) (<[i := eid]> (etable φ)) (enumcur φ).
 Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
    match φ with
    | {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} =>
@@ -34,7 +34,7 @@ Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
 
 (* global freshness, alt: axiomatize a freshness function
    -- keeps it implementation independent *)
-Definition gen_fresh_idx (φ: ExecConf) : option ENum :=
+Definition gen_fresh_tid (φ: ExecConf) : option TIndex :=
   Some (enumcur φ).
 
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
@@ -442,38 +442,15 @@ Section opsem.
 
   Definition retrieve_eid (i : TIndex) (tb : ETable) : option EId :=
     match (tb !! i) with
-    | Some p => Some (fst p)
+    | Some p => Some p
     | None => None
     end.
 
-  Definition retrieve_enum (i : TIndex) (tb : ETable) : option ENum :=
-    match (tb !! i) with
-    | Some p => Some (snd p)
-    | None => None
-    end.
+  Definition tid_of_otype (oa : OType) : option TIndex :=
+      if (Z.even (finz.to_z oa))
+      then Some (Nat.div (Z.to_nat oa) 2)
+      else Some (Nat.div (Z.to_nat (oa^-1)%f) 2).
 
-  Definition finz_div_nat {bound} (f : finz bound) (off : nat) : option (finz bound).
-    refine (
-    match off with
-    | Coq.Init.Datatypes.O => None
-    | _ => let z := (finz.to_z f / off)%Z in
-           match (Z_lt_dec z bound) with
-           | left _ =>
-               match (Z_le_dec 0%Z z) with
-               | left _ => Some (finz.FinZ z _ _)
-               | right _ => None
-               end
-           | right _ => None
-           end
-    end). apply Z.ltb_lt. auto. apply Z.leb_le. auto.
-  Defined.
-
-  Definition eid_of_otype (oa : OType) : option ENum :=
-    finz.to_z <$> if (Z.even (finz.to_z oa))
-                  then (finz_div_nat oa 2)
-                  else finz_div_nat (oa^-1)%f 2.
-
-  (* Axiom measure: Mem -> Addr -> Addr -> Z. *)
   Definition measure (m : Mem) (b e: Addr) :=
     let instructions : list Word :=
       map snd
@@ -481,26 +458,6 @@ Section opsem.
             (filter (fun '(a, _) => a ∈ (finz.seq_between (b^+1)%a e)) m)))
     in
     hash_concat (hash b) (hash instructions).
-
-  Definition id_of_eid (etable : ETable) (enum : ENum) : option EId :=
-   map_fold
-     (λ idx p oi,
-       match oi with
-       | Some i => Some i
-       | None => if decide (enum = p.2) then Some p.1 else None
-       end)
-     None
-     etable.
-
-  Definition tindex_of_id (etable : ETable) (eid : EId) : option TIndex :=
-   map_fold
-     (λ idx p oi,
-       match oi with
-       | Some i => Some i
-       | None => if decide (eid = p.1) then Some idx else None
-       end)
-     None
-     etable.
 
   (* cannot stand the nested indentation *)
   Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
@@ -688,20 +645,23 @@ Section opsem.
     (* IIUC: the EC register acts as a bump allocator for enclave otypes *)
     (* therefore, to generate the seals for the enclave, it is sufficient to use the value of the EC register
        and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
-    let ec := enumcur φ in
-    s_b ← finz.of_z (2*ec); (* coerce seal base and end addresses into the finZ ONum type *)
-    s_e ← finz.of_z (2*ec + 2);
+    let ec : nat := enumcur φ in
+    let ecz : Z := (Z.of_nat ec) in
+    s_b ← finz.of_z (2*ecz)%Z; (* coerce seal base and end addresses into the finZ ONum type *)
+    s_e ← finz.of_z (2*ecz + 2)%Z;
     let seals := (WSealRange (true, true) s_b s_e s_b) in (* permitSeal & permitUnseal *)
 
     (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
-    let identity := measure (mem φ) b e in
+    let eid := measure (mem φ) b e in
 
-    fresh_idx ← gen_fresh_idx φ; (* generate a fresh index in the ETable *)
+    fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
 
     (* UPDATE THE MACHINE STATE *)
-    φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
-       |>> update_etable fresh_idx identity ec (* create a new index in the ETable *)
-       |>> update_enumcur ((enumcur φ)+1)%Z  (* EC := EC + 1 *)
+      (* φ |>> updatePC *)
+    φ
+      (* |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*) *)
+       |>> update_etable fresh_tid eid (* create a new index in the ETable *)
+       |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
        |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
        |>> updatePC
 
@@ -710,22 +670,21 @@ Section opsem.
       wσ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
       '(p,σb,σe,σa) ← get_sealing_cap wσ;
       when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
-      eid ← eid_of_otype σb;
-      i   ← tindex_of_id (etable φ) eid;
+      tid ← tid_of_otype σb;
 
       (* UPDATE THE MACHINE STATE *)
-      φ |>> remove_from_etable i
+      φ |>> remove_from_etable tid
         |>> updatePC
 
     (* enclave local attestation *)
   | EStoreId rd rs =>
       wσ  ← (reg φ) !! rs;
       σa  ← get_sealed_otype wσ;
-      eid ← eid_of_otype σa;
-      id  ← id_of_eid (etable φ) eid;
+      tid ← tid_of_otype σa;
+      eid  ← (etable φ) !! tid;
 
       (* UPDATE THE MACHINE STATE *)
-      φ |>> update_reg rd (WInt id)
+      φ |>> update_reg rd (WInt eid)
         |>> updatePC
 
     (* memory sweep *)
@@ -1003,18 +962,16 @@ Section opsem.
     all: repeat destruct (finz.of_z _); cbn in *
     ; repeat destruct (get_sealing_cap _); cbn in *
     ; repeat destruct (get_sealed_otype _); cbn in *
-    ; repeat destruct (tindex_of_id _); cbn in *
-    ; repeat destruct (eid_of_otype _); cbn in *
-    ; repeat destruct (get_wcap_scap _); cbn in *
-    ; repeat destruct (id_of_eid _); cbn in *.
+    ; repeat destruct (get_wcap_scap _); cbn in *.
     all: repeat destruct p.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: simplify_eq; try by exfalso.
-    all: repeat destruct (eid_of_otype _); cbn in *
-    ; repeat destruct (tindex_of_id _); cbn in *.
-    all: destruct (_ && _).
+    all: repeat destruct (tid_of_otype _); cbn in *.
+    all: try destruct (_ && _).
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: simplify_eq; try by exfalso.
+    all: repeat (destruct (etable _ !! _); cbn in * ; simplify_eq; cbn in * ).
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
   Qed.
 
 End opsem.
@@ -1090,6 +1047,5 @@ Proof.
             {| reg := gmap_empty ;
               mem := gmap_empty ;
               etable := gmap_empty ;
-              enumcur := 0%Z |}).
-  (* eexists. Unshelve. 3: exact 0%Z. all: solve_finz. *)
+              enumcur := 0 |}).
 Defined.
