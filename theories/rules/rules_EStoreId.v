@@ -5,7 +5,7 @@ From iris.algebra Require Import frac gmap.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
+  Context `{memG Σ, regG Σ, enclavesG Σ}.
   Context `{MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -25,20 +25,6 @@ Section cap_lang_rules.
     EStoreId_spec FailedV.
 
   Axiom has_lseal : LWord -> ENum -> Prop.
-
-  Print dfrac.
-
-  Print excl.excl.
-
-  Context `{!inG Σ (gmapR nat (agreeR EId))} {mygname : gname}.
-
-  Search gmapR.
-
-  Print gmapR.
-
-  Eval compute in cmra_car (gmapR nat (agreeR EId)).
-  Definition enclave_q (e : ENum) (id : EId) : iProp Σ :=
-    own (A := gmapR nat (agreeR EId)) mygname (empty : gmap nat _).
 
   (* TODO @Denis *)
   Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rs1 rs2 rd seal p b e a v any x :
@@ -62,7 +48,7 @@ Section cap_lang_rules.
           ∗ rd ↦ᵣ (LWInt 1)
           ∗ ∃ (id : EId), ∃ (enum : ENum),
             (a, v) ↦ₐ (LWInt id)
-            ∗ (enclave_q enum id)
+            ∗ (enclave_all enum id)
             ∗ ⌜ has_lseal seal enum ⌝
         ) ∨ (
           ⌜ retv = FailedV ⌝

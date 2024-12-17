@@ -2396,21 +2396,11 @@ Definition enclave_all (eid : TIndex) (id : EId) `{enclaveG Σ} : iProp Σ :=
 (* Notations for fragmental resources *)
 (* @TODO: denis *)
 
-
-Axiom σ : cap_lang.state.
-Check snd <$> σ.(etable).
-
-Print TIndex. (* @TODO: should be nat *)
-
-Print seq.
-
-Print ENum. (* @TODO: should also be a nat *)
-
 Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ, !enclaveG Σ} : iProp Σ :=
   ∃ lr lm vmap cur_tb prev_tb all_tb ,
     gen_heap_interp lr ∗
     gen_heap_interp lm ∗
-    ⌜cur_tb = snd <$> σ.(etable)⌝ ∗
+    ⌜cur_tb = σ.(etable)⌝ ∗
     enclaves_cur cur_tb ∗
     enclaves_prev prev_tb ∗
     enclaves_all all_tb ∗
@@ -2421,7 +2411,7 @@ Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ, !enc
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
+Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ, !enclaveG Σ} : irisGS cap_lang Σ := {
   iris_invGS := mem_invG;
   state_interp σ _ κs _ := state_interp_logical σ;
   fork_post _ := True%I;
