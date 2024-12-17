@@ -2348,18 +2348,13 @@ Qed.
 
 (** Instantiation of the program logic *)
 
-(* @CLEANUP: remove duplication of invGS in the next two classes *)
-(* CMRΑ for memory *)
-Class memG Σ := MemG {
-  mem_invG : invGS Σ;
-  mem_gen_memG :: gen_heapGS LAddr LWord Σ}.
-
-(* CMRA for registers *)
-Class regG Σ := RegG {
-  reg_invG : invGS Σ;
-  reg_gen_regG :: gen_heapGS RegName LWord Σ; }.
-
-Class enclaveG Σ := EnclaveG {
+(* CMRΑ for Cerise *)
+Class ceriseG Σ := CeriseG {
+  cerise_invG : invGS Σ;
+  (* Heap for memory *)
+  mem_gen_memG :: gen_heapGS LAddr LWord Σ;
+  (* Heap for registers *)
+  reg_gen_regG :: gen_heapGS RegName LWord Σ;
   (* The ghost resource of all enclaves that have ever existed *)
   enclaves_hist :: inG Σ (authR (gmapR TIndex (agreeR EId)));
   (* The ghost resource of current, known alive enclaves *)
@@ -2372,32 +2367,32 @@ Class enclaveG Σ := EnclaveG {
 
  (* Assertions over enclaves *)
 
-Definition enclaves_cur (tbl : gmap TIndex EId) `{enclaveG Σ} :=
+Definition enclaves_cur (tbl : gmap TIndex EId) `{ceriseG Σ} :=
   own (inG0 := enclaves_live) enclaves_name_cur (● (Excl <$> tbl)).
 
-Definition enclaves_prev (tbl : gmap TIndex EId) `{enclaveG Σ} :=
+Definition enclaves_prev (tbl : gmap TIndex EId) `{ceriseG Σ} :=
   own (inG0 := enclaves_hist) enclaves_name_prev (● (to_agree <$> tbl)).
 
-Definition enclaves_all (tbl : gmap TIndex EId) `{enclaveG Σ} :=
+Definition enclaves_all (tbl : gmap TIndex EId) `{ceriseG Σ} :=
   own (inG0 := enclaves_hist) enclaves_name_all (● (to_agree <$> tbl)).
 
 (* Fragmental resources *)
 
-Definition enclave_cur (eid : TIndex) (identity : EId) `{enclaveG Σ} :=
+Definition enclave_cur (eid : TIndex) (identity : EId) `{ceriseG Σ} :=
   own (inG0 := enclaves_live) enclaves_name_cur (auth_frag {[eid := Excl identity]}).
 
-Definition enclave_prev (eid : TIndex) `{enclaveG Σ} : iProp Σ :=
+Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
   ∃ id ,
   own (inG0 := enclaves_hist) enclaves_name_prev (auth_frag {[eid := to_agree id]}).
 
-Definition enclave_all (eid : TIndex) (id : EId) `{enclaveG Σ} : iProp Σ :=
+Definition enclave_all (eid : TIndex) (id : EId) `{ceriseG Σ} : iProp Σ :=
   own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
 (* Notations for fragmental resources *)
 (* @TODO: denis *)
 
-Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ, !enclaveG Σ} : iProp Σ :=
-  ∃ lr lm vmap cur_tb prev_tb all_tb ,
+Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
+  ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EId) ,
     gen_heap_interp lr ∗
     gen_heap_interp lm ∗
     ⌜cur_tb = σ.(etable)⌝ ∗
@@ -2405,14 +2400,14 @@ Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ, !enc
     enclaves_prev prev_tb ∗
     enclaves_all all_tb ∗
     ⌜dom cur_tb ## dom prev_tb⌝ ∗
-    (* ⌜dom cur_tb ∪ dom prev_tb = seq 0 σ.(enumcur)⌝ *) (* TODO: needs to go to nats... *)
+    ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (* TODO: needs to go to nats... *)
     ⌜cur_tb ##ₘ prev_tb⌝ ∗
     ⌜cur_tb ∪ prev_tb = all_tb⌝ ∗
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ, !enclaveG Σ} : irisGS cap_lang Σ := {
-  iris_invGS := mem_invG;
+Global Instance memG_irisG `{MachineParameters} `{!ceriseG Σ} : irisGS cap_lang Σ := {
+  iris_invGS := cerise_invG;
   state_interp σ _ κs _ := state_interp_logical σ;
   fork_post _ := True%I;
   num_laters_per_step _ := 0;

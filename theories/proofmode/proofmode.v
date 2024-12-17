@@ -14,7 +14,7 @@ From Ltac2 Require Option Bool Constr.
 Set Default Proof Mode "Classic".
 
 Section codefrag.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
     `{MP: MachineParameters}.
 
 Lemma codefrag_lookup_acc a v (cs: list LWord) (i: nat) w:
@@ -146,7 +146,7 @@ Proof. unfold NthSubBlock. intros -> ->. rewrite app_assoc //. Qed.
 #[export] Hint Resolve NthSubBlock_S : proofmode_focus.
 
 Section codefrag_subblock.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   Lemma codefrag_block0_acc a0 v (l1 l2: list LWord):
@@ -354,17 +354,17 @@ Instance FramableCodefrag_default a v l :
   FramableCodefrag a v l
 | 100. Qed.
 
-Instance FramableMachineResource_reg `{regG Σ} r lw :
+Instance FramableMachineResource_reg `{ceriseG Σ} r lw :
   FramableRegisterPointsto r lw →
   FramableMachineResource (r ↦ᵣ lw).
 Qed.
 
-Instance FramableMachineResource_mem `{memG Σ} a v dq w :
+Instance FramableMachineResource_mem `{ceriseG Σ} a v dq w :
   FramableMemoryPointsto a v dq w →
   FramableMachineResource ((a,v) ↦ₐ{dq} w).
 Qed.
 
-Instance FramableMachineResource_codefrag `{memG Σ} a v l :
+Instance FramableMachineResource_codefrag `{ceriseG Σ} a v l :
   FramableCodefrag a v l →
   FramableMachineResource (codefrag a v l).
 Qed.

@@ -6,8 +6,8 @@ From cap_machine Require Export rules_base.
 From cap_machine.proofmode Require Export region register_tactics.
 
 Section cap_lang_rules.
-  Context `{HmemG : memG Σ, HregG : regG Σ}.
-  Context `{Hparam : MachineParameters}.
+  Context `{ceriseg: ceriseG Σ}.
+  Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -243,7 +243,12 @@ Section cap_lang_rules.
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
 
     (* Derive necessary register values in r *)
     iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs.
@@ -278,7 +283,7 @@ Section cap_lang_rules.
       destruct_lword lsrcv; cbn in * ; try congruence; clear Hlsrcv.
       all: simplify_map_eq.
       all: (iSplitR "Hφ Hmap Hmem"
-            ; [ iExists lr, lm, vmap; iFrame; auto
+            ; [ iExists lr, lm, vmap,_,_,_; iFrame; auto
               | iApply "Hφ" ; iFrame ; iFailCore IsUnique_fail_cap
            ]).
     }
@@ -339,7 +344,7 @@ Section cap_lang_rules.
       subst lr'.
 
       iSplitR "Hφ Hmap Hmem"
-      ; [ iExists lr, lm, vmap; iFrame; auto
+      ; [ iExists lr, lm, vmap,_,_,_; iFrame; auto
         | iApply "Hφ" ; iFrame].
       destruct (sweep_reg mem reg src)
       ; destruct (is_sealed lsrcv)
@@ -381,11 +386,13 @@ Section cap_lang_rules.
       iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
       ; [| iApply "Hφ" ; iFrame; iPureIntro; eapply IsUnique_success_false ; eauto].
 
-      iExists _, lm, vmap; iFrame; auto
+      iExists _, lm, vmap,_,_,_; iFrame; auto
       ; iPureIntro; econstructor; eauto
+      ; repeat (split ; first done)
       ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
       ; cbn in *
       ; last (split;eauto)
+      ; last done
       .
       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
       { eapply lookup_weaken in HPC'' ; eauto.
@@ -409,11 +416,13 @@ Section cap_lang_rules.
       ; [| iApply "Hφ" ; iFrame; iPureIntro ; eapply IsUnique_success_true_is_sealed; eauto]
       ; last (by destruct Hsweep as [ ? _ ]; eauto ; eapply unique_in_registersL_mono).
 
-      iExists _, lm, vmap; iFrame; auto
+      iExists _, lm, vmap,_,_,_; iFrame; auto
       ; iPureIntro; econstructor; eauto
+      ; repeat (split ; first done)
       ; destruct HLinv as [ [Hstrips Hcur_reg] [Hdom Hroot] ]
       ; cbn in *
-      ; last (split;eauto).
+      ; last (split;eauto)
+      ; last done.
 
       assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap ) as Hcur_PC.
       { eapply lookup_weaken in HPC'' ; eauto.
@@ -464,8 +473,10 @@ Section cap_lang_rules.
           | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
           ].
 
-        iExists _, lm', vmap'; iFrame; auto
-        ; iPureIntro; econstructor; eauto ; cbn in *
+        iExists _, lm', vmap',_,_,_; iFrame; auto
+        ; iPureIntro
+        ; repeat (split ; first done)
+        ; econstructor; eauto ; cbn in *
         ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
         ; destruct HLinv as [Hreg_inv Hmem_inv]
         ; last done.
@@ -495,9 +506,10 @@ Section cap_lang_rules.
         { eapply update_cur_version_region_valid; eauto. }
         { by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono. }
         { by rewrite insert_insert in H'lregs' |- *. }
-        iExists _, lm', vmap'; iFrame; auto
-        ; iPureIntro; econstructor; eauto
-        ; cbn in *
+        iExists _, lm', vmap',_,_,_; iFrame; auto
+        ; iPureIntro
+        ; repeat (split ; first done)
+        ; econstructor; eauto ; cbn in *
         ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
         ; destruct HLinv as [Hreg_inv Hmem_inv]
         ; last done.
@@ -523,8 +535,10 @@ Section cap_lang_rules.
       ; [| eapply update_cur_version_region_valid; eauto
         | by destruct Hsweep as [ Hunique_reg _ ]; eauto ; eapply unique_in_registersL_mono
         ].
-      iExists _, lm', vmap'; iFrame; auto
-      ; iPureIntro; econstructor; eauto ; cbn in *
+      iExists _, lm', vmap',_,_,_; iFrame; auto
+      ; iPureIntro
+      ; repeat (split ; first done)
+      ; econstructor; eauto ; cbn in *
       ; last (eapply update_cur_version_region_lmem_corresponds
             with (src := PC) ; eauto ; done)
       ; destruct HLinv as [Hreg_inv Hmem_inv].
@@ -540,13 +554,13 @@ Section cap_lang_rules.
       eapply lreg_corresponds_insert_respects; eauto; done.
   Qed.
 
-  (* Because I don't know the whole content of the memory (only a local view),
-     any sucessful IsUnique wp-rule can have 2 outcomes:
-     either the sweep success or the sweep fails.
+  (* Because I don't know the whole content of the memory (only a local view), *)
+  (*    any sucessful IsUnique wp-rule can have 2 outcomes: *)
+  (*    either the sweep success or the sweep fails. *)
 
-    Importantly, we cannot derive any sweep success rule, because we would need
-    the entire footprint of the registers/memory.
-   *)
+  (*   Importantly, we cannot derive any sweep success rule, because we would need *)
+  (*   the entire footprint of the registers/memory. *)
+  (*  *)
   Hint Resolve finz_seq_between_NoDup NoDup_logical_region : core.
   Lemma wp_isunique_success
     (Ep : coPset)

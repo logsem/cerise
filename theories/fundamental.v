@@ -7,9 +7,9 @@ From cap_machine Require Export logrel.
 From cap_machine.rules Require Import rules_EInit rules_EDeInit rules_EStoreId rules_IsUnique. (* temporarily *)
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{MP: MachineParameters}.
+          `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -54,7 +54,7 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctLPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
-      { inversion i. inversion H1; cbn in *; simplify_eq. auto. }
+      { inversion i. inversion H2; cbn in *; simplify_eq. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
       iInv (logN.@(a, v)) as (lw) "[>Ha HP]" "Hcls".
@@ -138,13 +138,14 @@ Section fundamental.
         iIntros (Hcontr); inversion Hcontr.
 
       + (* TODO @Denis EStoreId *)
-        iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame.
-        iNext. iIntros "[HPC Ha] /=".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
-        iNext ; iIntros "_".
-        iApply wp_value.
-        iIntros (Hcontr); inversion Hcontr.
+        admit.
+        (* iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame. *)
+        (* iNext. iIntros "[HPC Ha] /=". *)
+        (* iApply wp_pure_step_later; auto. *)
+        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
+        (* iNext ; iIntros "_". *)
+        (* iApply wp_value. *)
+        (* iIntros (Hcontr); inversion Hcontr. *)
 
       + iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.

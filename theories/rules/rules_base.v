@@ -22,8 +22,8 @@ Ltac inv_head_step :=
          end.
 
 Section cap_lang_rules.
-  Context `{MachineParameters}.
-  Context `{memG Σ, regG Σ}.
+  Context `{ceriseg: ceriseG Σ}.
+  Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -50,7 +50,7 @@ Section cap_lang_rules.
   Proof.
     iIntros "Hr1 Hr2".
     iDestruct (mapsto_valid_2 with "Hr1 Hr2") as %?.
-    destruct H2. eapply dfrac_full_exclusive in H2. auto.
+    destruct H. eapply dfrac_full_exclusive in H. auto.
   Qed.
 
   Lemma regname_neq r1 r2 lw1 lw2 :
@@ -146,7 +146,7 @@ Section cap_lang_rules.
   Proof.
     iIntros "Ha1 Ha2".
     iDestruct (mapsto_valid_2 with "Ha1 Ha2") as %?.
-    destruct H2. eapply dfrac_full_exclusive in H2.
+    destruct H. eapply dfrac_full_exclusive in H.
     auto.
   Qed.
 
@@ -308,7 +308,7 @@ Section cap_lang_rules.
     rewrite lookup_insert //.
   Qed.
 
-  Lemma gen_heap_lmem_version_update `{HmemG : memG Σ, HregG : regG Σ} :
+  Lemma gen_heap_lmem_version_update :
     ∀ (lmem lm lmem' lm': LMem) (vmap vmap': VMap)
       (la : list Addr) ( v : Version ),
       NoDup la ->
@@ -394,15 +394,20 @@ Section cap_lang_rules.
                                                               (* ∗ ⌜ lreg_strip regs ⊆ reg σ ⌝. *)
   Proof.
     iIntros "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
     iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
     iModIntro.
-    iSplitL "Hr Hm".
-    { iExists _, _, _. now iFrame. }
+    iSplitR "Hregs Hmem".
+    { iExists _, _, _, _, _, _. now iFrame. }
     iFrame.
     iPureIntro; cbn.
-    exists lr, lm, cur_map.
+    exists lr, lm, vmap.
     do 2 (split ; auto).
   Qed.
 
@@ -731,11 +736,11 @@ Section cap_lang_rules.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         iApply big_sepM_insert.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom lmem)) dq !! la);auto; rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom lmem)) dq !! la);auto; rewrite H;auto. }
         iFrame. iApply "IH". iFrame.
       + iIntros "Hmem". iDestruct (big_sepM_insert with "Hmem") as "[Ha Hmem]";auto.
         { rewrite lookup_merge /prod_op /=.
-          destruct (create_gmap_default (elements (dom lmem)) dq !! la);auto; rewrite H2;auto. }
+          destruct (create_gmap_default (elements (dom lmem)) dq !! la);auto; rewrite H;auto. }
         iApply big_sepM_insert. auto.
         iFrame. iApply "IH". iFrame.
   Qed.
@@ -800,7 +805,12 @@ Section cap_lang_rules.
     iIntros (ϕ) "HPC Hϕ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 nt l1 l2 ns) "Hσ1 /="; destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)".
+    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iDestruct (@gen_heap_valid with "Hr HPC") as %?.
     iApply fupd_frame_l.
     iSplit. by iPureIntro; apply normal_always_head_reducible.
@@ -812,7 +822,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hϕ HPC"; last by iApply "Hϕ".
-    iExists lr, lm, vmap.
+    iExists lr, lm, vmap,_,_,_.
     iFrame; auto.
   Qed.
 
@@ -858,7 +868,12 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -873,7 +888,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, vmap.
+    iExists lr, lm, vmap,_,_,_.
     iFrame; auto.
   Qed.
 
@@ -890,7 +905,12 @@ Section cap_lang_rules.
     iIntros (φ) "[Hpc Hpca] Hφ".
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iDestruct (@gen_heap_valid with "Hr Hpc") as %?.
     iDestruct (@gen_heap_valid with "Hm Hpca") as %?.
     iModIntro.
@@ -905,7 +925,7 @@ Section cap_lang_rules.
     iNext. iIntros "_".
     iModIntro. iSplitR; auto. iFrame. cbn.
     iSplitR "Hφ Hpc Hpca"; last (iApply "Hφ" ; iFrame).
-    iExists lr, lm, vmap.
+    iExists lr, lm, vmap,_,_,_.
     iFrame; auto.
    Qed.
 
@@ -1276,7 +1296,7 @@ Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):=
 
 Section cap_lang_rules_opt.
   Context `{MachineParameters}.
-  Context `{memG Σ, regG Σ}.
+  Context `{ceriseg: ceriseG Σ}.
 
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -1432,17 +1452,22 @@ Section cap_lang_rules_opt.
     iApply wp_instr_exec.
     iIntros (σ1) "Hσ1".
     destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iModIntro.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregsincl".
     have Hregs_pc := lookup_weaken _ _ _ _ Hregspc Hregsincl.
     iDestruct (@gen_heap_valid with "Hm Hcode") as %Hlcode; auto.
     iModIntro.
     iIntros (e2 σ2 Hstep) "Hcred".
-    iMod ("H" $! {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} with "[Hr Hm $Hregs $Hcode]") as "H".
-    { iExists _, _, _. iFrame. iPureIntro. cbn.
+    iMod ("H" $! {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} with
+           "[Hr Hm Htbl_cur Htbl_prev Htbl_all $Hregs $Hcode]") as "H".
+    { iExists _, _, _,_,_,_. now iFrame.
       (* TODO: allow changing cur_map? *)
-      eassumption.
     }
 
     eapply step_exec_inv in Hstep; eauto; cbn.
@@ -1658,13 +1683,19 @@ Section cap_lang_rules_opt.
                 ([∗ map] k↦y ∈ <[ dst := lw2 ]> lregs, k ↦ᵣ y).
   Proof.
     iIntros (Hdst Hcur) "(Hσ & Hregs)".
-    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
     iMod ((gen_heap_update_inSepM _ _ dst lw2) with "Hr Hregs") as "[Hr Hregs]"; eauto.
     { now apply elem_of_dom. }
     iModIntro. iFrame.
-    iExists _,_,cur_map; iFrame.
+    iExists _,_,vmap,_,_,_; iFrame.
     iPureIntro.
+    repeat (split ; first done).
     apply state_phys_log_corresponds_update_reg; try easy.
     eapply Hcur.
     eapply (is_cur_regs_mono Hregs_incl).
@@ -1750,14 +1781,20 @@ Section cap_lang_rules_opt.
   .
   Proof.
     iIntros (Hdst Hr Hinbounds Ha) "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
     iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
     iMod ((gen_heap_update_inSepM _ _ dst lw2) with "Hr Hregs") as "[Hr Hregs]"; eauto.
     { now apply elem_of_dom. }
     iModIntro. iFrame.
-    iExists _,_,cur_map; iFrame.
+    iExists _,_,vmap,_,_,_; iFrame.
     iPureIntro.
+    repeat (split ; first done).
     eapply lookup_weaken in Ha ; eauto.
     apply state_phys_log_corresponds_update_reg; try easy.
     destruct HLinv as [Hinv_reg Hinv_mem].
@@ -1813,14 +1850,20 @@ Section cap_lang_rules_opt.
             ∗ ([∗ map] la↦dw ∈ <[laddr := (DfracOwn 1, lwnew) ]> lmem, la ↦ₐ{dw.1} dw.2).
   Proof.
     iIntros (Hcurw Hcura Hladdr) "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm cur_map) "(Hr & Hm & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
+        "(Hr & Hm
+         & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
+         & %HLinv)"
+    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
     iPoseProof (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hlregs_incl".
     iPoseProof (gen_heap_valid_inclSepM_general with "Hm Hmem") as "%Hlmem_incl".
     iFrame.
     iMod ((@gen_heap_update_inSepM_general LAddr _ _ _ _ _ _ _ laddr lwnew) with "Hm Hmem") as "[Hm Hmem]"; eauto.
     iModIntro. iFrame.
-    iExists _,_,cur_map; iFrame.
+    iExists _,_,vmap,_,_,_; iFrame.
     iPureIntro.
+    repeat (split ; first done).
     destruct HLinv as [[? Hregscur] Hinv_mem].
     apply state_phys_log_corresponds_update_mem; try easy.
     1: apply Hcura.
