@@ -1445,6 +1445,49 @@ Proof.
     ; by destruct (m2 !! k) as [v2|] eqn:Hk_m2; simplify_map_eq.
 Qed.
 
+Lemma list_remove_elem_cons
+  `{A : Type} `{EqDecision A} (a : A) (la : list A) :
+  a ∉ la ->
+  (list_remove_elem a (a::la)) = (list_remove_elem a la).
+Proof.
+  intros Hnotin.
+  apply list_remove_elem_notin in Hnotin.
+  assert (a ∈ a::la) as Hin by set_solver.
+  apply list_remove_elem_in in Hin.
+  destruct Hin as (la' & Hla' & Hin).
+  rewrite Hnotin Hla'.
+  cbn in Hin.
+  rewrite decide_True /= in Hin ; [done|].
+  by inversion Hin.
+Qed.
+
+Lemma list_remove_elem_idem
+  `{A : Type} `{EqDecision A} (a : A) (la : list A) :
+  NoDup la ->
+  (list_remove_elem a (list_remove_elem a la)) =
+  (list_remove_elem a la).
+Proof.
+  intros HNoDup.
+  rewrite list_remove_elem_notin; last done.
+  by apply not_elemof_list_remove_elem.
+Qed.
+
+Lemma list_remove_elem_neq
+  `{A : Type} `{EqDecision A} (a a' : A) (la : list A) :
+  NoDup la ->
+  a' ∈ la ->
+  a ∈ list_remove_elem a' la ->
+  a ≠ a'.
+Proof.
+  intros HnoDup Hin Hrem.
+  pose proof (Hin' := Hin).
+  apply list_remove_elem_in in Hin.
+  destruct Hin as (la' & Hla' & Hrem'); subst.
+  apply not_elemof_list_remove_list in Hrem'; auto.
+  set_solver.
+Qed.
+
+
 Lemma prod_merge_none_l
   {K A B} `{Countable K} (m1 : gmap K A) (m2 : gmap K B) (k : K) :
   m2 !! k = None ->
@@ -1493,6 +1536,9 @@ Proof.
     2:{ by rewrite lookup_fmap. }
     rewrite lookup_delete_ne in Hprod; auto.
 Qed.
+
+Lemma not_or {P Q : Prop} : ¬(P \/ Q) ↔ ¬P /\ ¬Q.
+Proof. tauto. Qed.
 
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :

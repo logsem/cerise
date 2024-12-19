@@ -451,7 +451,10 @@ Section logrel.
   Qed.
 
   (* Get the validity of a region containing only valid words *)
-  Lemma region_valid_alloc E (b e a: Addr) v l p  :
+  Lemma region_valid_alloc
+    (E : coPset)
+    (p : Perm) (b e a : Addr ) (v : Version)
+    (l : list LWord) :
     PermFlowsTo RO p →
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
@@ -478,8 +481,9 @@ Section logrel.
   Qed.
 
   Lemma region_valid_alloc'
-    (E : coPset) ( b e a : Addr ) (la: list Addr)
-    (v : Version) (l : list LWord) (p : Perm) :
+    (E : coPset)
+    (p : Perm) ( b e a : Addr ) (v : Version)
+    (la: list Addr) (l : list LWord) :
     PermFlowsTo RO p →
     finz.seq_between b e ⊆+ la ->
     ([∗ list] w ∈ l, interp w) -∗

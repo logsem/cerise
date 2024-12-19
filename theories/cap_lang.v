@@ -142,10 +142,7 @@ Qed.
 (*--- addr_of_argument ---*)
 
 Definition addr_of_argument regs src :=
-  match z_of_argument regs src with
-  | Some n => z_to_addr n
-  | None => None
-  end.
+  n ← z_of_argument regs src ; z_to_addr n.
 
 Lemma addr_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (a:Addr) :
   addr_of_argument regs arg = Some a →
@@ -174,17 +171,14 @@ regs ⊆ r
 Proof.
   intros.
   unfold addr_of_argument, z_of_argument in *.
-  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  destruct arg; auto. destruct (regs !! _) eqn:Heq; cbn in * ; [| congruence].
   eapply lookup_weaken in Heq as ->; auto.
 Qed.
 
 (*--- otype_of_argument ---*)
 
 Definition otype_of_argument regs src : option OType :=
-  match z_of_argument regs src with
-  | Some n => (z_to_otype n) : option OType
-  | None => None : option OType
-  end.
+  n ← z_of_argument regs src ; z_to_otype n.
 
 Lemma otype_of_argument_Some_inv (regs: Reg) (arg: Z + RegName) (o:OType) :
   otype_of_argument regs arg = Some o →
@@ -213,7 +207,7 @@ regs ⊆ r
 Proof.
   intros.
   unfold otype_of_argument, z_of_argument in *.
-  destruct arg; auto. destruct (_ !! _)  eqn:Heq; [| congruence].
+  destruct arg; auto. destruct (_ !! _)  eqn:Heq ; cbn in *; [| congruence].
   eapply lookup_weaken in Heq as ->; auto.
 Qed.
 
@@ -515,6 +509,7 @@ Section opsem.
           end
       | _ => None
       end
+
     | Restrict dst ρ =>
       n ← z_of_argument (reg φ) ρ ;
       wdst ← (reg φ) !! dst;
@@ -619,7 +614,8 @@ Section opsem.
     wr2 ← (reg φ) !! r2;
     match wr1, wr2 with
     | WSealRange p b e a, WSealed a' sb =>
-        if decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a) then updatePC (update_reg φ dst (WSealable sb))
+        if decide (permit_unseal p = true ∧ withinBounds b e a = true ∧ a' = a)
+        then updatePC (update_reg φ dst (WSealable sb))
         else None
     | _,_ => None
     end

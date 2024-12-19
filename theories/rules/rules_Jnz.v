@@ -36,6 +36,22 @@ Section cap_lang_rules.
       nonZeroL lw = true →
       Jnz_spec lregs dst src (<[PC := updatePcPermL lw' ]> lregs) NextIV.
 
+  Definition exec_optL_Jnz
+    (lregs : LReg) (dst src: RegName) : option _ :=
+      lwsrc ← lregs !! src;
+      lwdst ← lregs !! dst;
+      if nonZeroL lwsrc
+      then
+        Some (NextI, ( <[PC := (updatePcPermL lwdst) ]> lregs) )
+      else
+        lregs' ← incrementLPC lregs ; Some (NextI , lregs').
+
+  Lemma nonZeroL_spec (lw : LWord) :
+    nonZeroL lw = nonZero (lword_get_word lw).
+  Proof.
+    by rewrite /nonZeroL /nonZero ; destruct lw ; cbn.
+  Qed.
+
   Lemma wp_Jnz Ep pc_p pc_b pc_e pc_a pc_v lw dst src lregs :
     decodeInstrWL lw = Jnz dst src ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -50,46 +66,63 @@ Section cap_lang_rules.
         (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
-  (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
-  (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
-  (*   iDestruct "Hσ1" as "[Hr Hm]". *)
-  (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
-  (*   have ? := lookup_weaken _ _ _ _ HPC Hregs. *)
-  (*   iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto. *)
-  (*   iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-  (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
-  (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-  (*   iIntros "_". *)
-  (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+    cbn in Dregs.
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hmap Hφ]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) Hcred".
 
-  (*   specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. *)
-  (*   unfold regs_of in Hri, Dregs. *)
-  (*   destruct (Hri src) as [wsrc [H'src Hsrc]]. by set_solver+. *)
-  (*   destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. *)
-  (*   unfold exec in Hstep; cbn in Hstep. *)
+    iApply (wp_wp2 (φ1 := exec_optL_Jnz lregs dst src)).
 
-  (*   destruct (nonZero wsrc) eqn:Hnz; pose proof Hnz as H'nz; *)
-  (*     cbn in Hstep; rewrite Hsrc Hdst /= Hnz in Hstep. *)
-  (*   { inv Hstep. simplify_pair_eq. *)
-  (*     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 3; eauto. } *)
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
 
-  (*   destruct (incrementPC regs) eqn:HX; pose proof HX as H'X; cycle 1. *)
-  (*   { eapply incrementPC_fail_updatePC with (m:=mem) in HX. *)
-  (*     eapply updatePC_fail_incl with (m':=mem) in HX; eauto. *)
-  (*     rewrite HX in Hstep. inv Hstep. *)
-  (*     iFrame. iApply "Hφ". iFrame. iPureIntro; econstructor; eauto. } *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (lwsrc) "Hσ %HsrcL %Hsrc".
 
-  (*   destruct (incrementPC_success_updatePC _ mem etable enumcur _ HX) *)
-  (*     as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-  (*   eapply updatePC_success_incl with (m':=mem) in HuPC; eauto. rewrite HuPC in Hstep. *)
-  (*   simplify_pair_eq. *)
-  (*   iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*   iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 2; eauto. *)
-  (*   Unshelve. all: eassumption. *)
-  (* Qed. *)
-  Admitted.
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (lwdst) "Hσ %HdstL %Hdst".
+    rewrite <- nonZeroL_spec.
+    destruct (nonZeroL lwsrc) eqn:Hnz.
+    + (* non zero *)
+    iDestruct (update_state_interp_transient_from_regs_mod (dst:= PC) (lw2 := updatePcPermL lwdst) with "Hσ") as "Hσ".
+    { rewrite elem_of_dom; eexists; eauto. }
+    { intros.
+      eapply is_cur_updatePcPermL; eauto.
+    }
+    iApply wp2_val; cbn.
+    rewrite updatePcPermL_spec.
+    iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+    cbn.
+    iModIntro.
+    change (language.to_val (Instr NextI)) with (Some NextIV); cbn.
+    iApply ("Hφ" with "[$Hpc_a $Hregs]").
+    iPureIntro; by eapply Jnz_spec_success2.
+
+    + (* zero *)
+      rewrite updatePC_incrementPC.
+      iApply (wp_opt2_bind (k1 := fun x => Some (NextI, x))).
+      iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := lregs)).
+      { rewrite elem_of_dom; eexists; eauto. }
+      iFrame "Hσ".
+      iSplit; cbn.
+      * iIntros (φt' lrt') "Hσ %Hin %Hlin".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; by eapply Jnz_spec_failure.
+      * iIntros (lrt' rs') "Hσ %Hlis %His".
+        cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; by eapply Jnz_spec_success1.
+  Qed.
 
   Lemma wp_jnz_success_jmp E r1 r2 pc_p pc_b pc_e pc_a pc_v lw lw1 lw2 :
     decodeInstrWL lw = Jnz r1 r2 →

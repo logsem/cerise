@@ -125,3 +125,6 @@ Ltac iContiguous_le Ha index :=
 
 Ltac consider_next_reg r1 r2 :=
   destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto].
+
+Ltac iCorrectLPC i j :=
+  apply isCorrectPC_isCorrectLPC; cbn; iCorrectPC i j.

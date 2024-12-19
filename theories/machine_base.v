@@ -446,6 +446,11 @@ Qed.
 Definition isWithin {z} (n1 n2 b e: finz z) : bool :=
   ((b <=? n1) && (n2 <=? e))%f.
 
+Lemma isWithin_refl {z} (b e : finz z) : isWithin b e b e.
+Proof.
+  rewrite /isWithin Is_true_true; solve_finz.
+Qed.
+
 Definition isWithinCap (c: Word) (b e: finz MemNum) : bool :=
   match c with
   | WCap _ n1 n2 _ => isWithin n1 n2 b e
@@ -833,3 +838,14 @@ Proof. apply (finite.enc_finite (λ r : RegName, match r with
          destruct (Nat.le_dec i RegNum);auto.
          lia.
 Defined.
+
+Lemma rewrite_invert_match_E {prop: Type} (P1 P2 : prop) (p : Perm) :
+  p ≠ E ->
+  (match p with
+   | E => P1
+   | _ => P2
+   end) = P2.
+Proof.
+  intros.
+  destruct p ; cbn in *; done.
+Qed.

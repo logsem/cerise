@@ -87,6 +87,33 @@ Section cap_lang_rules.
       Subseg_failure lregs dst src1 src2 lregs' →
       Subseg_spec lregs dst src1 src2 lregs' FailedV.
 
+  Definition exec_optL_Subseg
+    (lregs : LReg) (dst: RegName) (src1 src2: Z + RegName) : option LReg :=
+    lwdst ← lregs !! dst ;
+    match lwdst with
+    | LCap p b e a v =>
+        a1 ← addr_of_argumentL lregs src1 ;
+        a2 ← addr_of_argumentL lregs src2 ;
+        match p with
+        | E => None
+        | _ =>
+            (if isWithin a1 a2 b e
+              then
+                lregs' ← incrementLPC ( <[dst := (LCap p a1 a2 a v) ]> lregs) ;
+                Some lregs'
+              else None)
+        end
+    | LSealRange p b e a =>
+        o1 ← otype_of_argumentL lregs src1 ;
+        o2 ← otype_of_argumentL lregs src2 ;
+        if isWithin o1 o2 b e
+        then
+          lregs' ← incrementLPC ( <[dst := (LSealRange p o1 o2 a) ]> lregs) ;
+          Some lregs'
+        else None
+    | _ => None
+    end.
+
   Lemma wp_Subseg Ep pc_p pc_b pc_e pc_a pc_v lw dst src1 src2 lregs :
     decodeInstrWL lw = Subseg dst src1 src2 ->
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -101,175 +128,152 @@ Section cap_lang_rules.
         (pc_a, pc_v) ↦ₐ lw ∗
         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-  (*   iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ". *)
-  (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
-  (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
-  (*   iDestruct "Hσ1" as "[Hr Hm]". *)
-  (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hregs. *)
-  (*   have ? := lookup_weaken _ _ _ _ HPC Hregs. *)
-  (*   iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto. *)
-  (*   iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-  (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
-  (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-  (*   iIntros "_". *)
-  (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
 
-  (*   specialize (indom_regs_incl _ _ _ Dregs Hregs) as Hri. *)
-  (*   unfold regs_of in Hri, Dregs. *)
-  (*   destruct (Hri dst) as [wdst [H'dst Hdst]]. by set_solver+. *)
+    cbn in Dregs.
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hmap Hφ]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) Hcred".
 
-  (*   rewrite /exec /= Hdst /= in Hstep. *)
+    iApply (wp_wp2 (φ1 := exec_optL_Subseg lregs dst src1 src2)).
 
-  (*   destruct (is_mutable_range wdst) eqn:Hwdst. *)
-  (*    2: { (* Failure: wdst is not of the right type *) *)
-  (*      unfold is_mutable_range in Hwdst. *)
-  (*      assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*      { destruct wdst as [ | [p b e a | ] | ]; try by inversion Hwdst. *)
-  (*        all: try by simplify_pair_eq. *)
-  (*        destruct p; try congruence. *)
-  (*        repeat destruct (addr_of_argument reg _); cbn in Hstep; simplify_pair_eq; auto. } *)
-  (*      iFailWP "Hφ" Subseg_fail_allowed. } *)
+    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    { by rewrite big_sepM_empty. }
 
-  (*   (* Now the proof splits depending on the type of value in wdst *) *)
-  (*   destruct wdst as [ | [p b e a | p b e a] | ]. *)
-  (*   1,4: inversion Hwdst. *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iIntros (lwdst) "Hσ %HdstL %Hdst".
+    destruct lwdst; cbn in * ; simplify_eq; cycle 2.
+    1,2: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+    1,2: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+    1,2: iPureIntro; eapply Subseg_spec_failure.
+    1,2: by econstructor.
 
-  (*   (* First, the case where r1v is a capability *) *)
-  (*   + destruct (perm_eq_dec p E); [ subst p |]. *)
-  (*      { rewrite /is_mutable_range in Hwdst; congruence. } *)
+    destruct sb as [ p b e a v|p b e a]; cbn in * ; simplify_eq.
+    - (* case LCap *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_addr_of_argument with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iSplit.
+    { iIntros "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro; eapply Subseg_spec_failure; by econstructor.
+    }
+    iIntros ( b' ) "Hσ %Hsrc1L %Hsrc1".
 
-  (*     destruct (addr_of_argument regs src1) as [a1|] eqn:Ha1; *)
-  (*       pose proof Ha1 as H'a1; cycle 1. *)
-  (*     { destruct src1 as [| r1] eqn:?; cbn in Ha1, Hstep. *)
-  (*       { rewrite Ha1 /= in Hstep. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { repeat case_match; inv Hstep; auto. } *)
-  (*         iFailWP "Hφ" Subseg_fail_src1_nonaddr. } *)
-  (*       subst src1. destruct (Hri r1) as [r1v [Hr'1 Hr1]]. *)
-  (*         by unfold regs_of_argument; set_solver+. *)
-  (*         rewrite /addr_of_argument /= Hr'1 in Ha1. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { destruct r1v ; simplify_pair_eq. *)
-  (*           all: unfold addr_of_argument, z_of_argument at 2 in Hstep. *)
-  (*           all: rewrite /= Hr1 ?Ha1 /= in Hstep. *)
-  (*           all: inv Hstep; auto. *)
-  (*         } *)
-  (*         repeat case_match; try congruence. *)
-  (*         all: iFailWP "Hφ" Subseg_fail_src1_nonaddr. } *)
-  (*     apply (addr_of_arg_mono _ reg) in Ha1; auto. rewrite Ha1 /= in Hstep. *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_addr_of_argument with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+     iSplit.
+     { iIntros "Hσ %Heqn1 %Heqn2".
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro.
+       eapply Subseg_spec_failure.
+       by econstructor.
+     }
+     iIntros ( e' ) "Hσ %Hsrc2L %Hsrc2".
+     destruct (decide (p = E)) as [HpE|HpnE]; subst.
+     {
+       iModIntro.
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro; econstructor; by eapply Subseg_fail_allowed.
+     }
+     rewrite !rewrite_invert_match_E; eauto.
 
-  (*     destruct (addr_of_argument regs src2) as [a2|] eqn:Ha2; *)
-  (*       pose proof Ha2 as H'a2; cycle 1. *)
-  (*     { destruct src2 as [| r2] eqn:?; cbn in Ha2, Hstep. *)
-  (*       { rewrite Ha2 /= in Hstep. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { repeat case_match; inv Hstep; auto. } *)
-  (*         iFailWP "Hφ" Subseg_fail_src2_nonaddr. } *)
-  (*       subst src2. destruct (Hri r2) as [r2v [Hr'2 Hr2]]. *)
-  (*         by unfold regs_of_argument; set_solver+. *)
-  (*         rewrite /addr_of_argument /= Hr'2 in Ha2. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { destruct r2v ; simplify_pair_eq. *)
-  (*           all: unfold addr_of_argument, z_of_argument  in Hstep. *)
-  (*           all: rewrite /= Hr2 ?Ha2 /= in Hstep. *)
-  (*           all: inv Hstep; auto. *)
-  (*         } *)
-  (*         repeat case_match; try congruence. *)
-  (*         all: iFailWP "Hφ" Subseg_fail_src2_nonaddr. } *)
-  (*     apply (addr_of_arg_mono _ reg) in Ha2; auto. rewrite Ha2 /= in Hstep. *)
-  (*     rewrite /update_reg /= in Hstep. *)
+     destruct (isWithin b' e' b e) eqn:Hwithin; cycle 1.
+     {
+       iModIntro.
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro; econstructor; by eapply Subseg_fail_not_iswithin_cap.
+     }
 
-  (*     destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1. *)
-  (*     { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Subseg_fail_not_iswithin_cap. } *)
 
-  (*     destruct (incrementPC (<[ dst := (WCap p a1 a2 a) ]> regs)) eqn:Hregs'; *)
-  (*       pose proof Hregs' as H'regs'; cycle 1. *)
-  (*     { assert (incrementPC (<[ dst := (WCap p a1 a2 a) ]> reg) = None) as HH. *)
-  (*       { eapply incrementPC_overflow_mono; first eapply Hregs'. *)
-  (*           by rewrite lookup_insert_is_Some'; eauto. *)
-  (*             by apply insert_mono; eauto. } *)
-  (*       eapply (incrementPC_fail_updatePC _ mem) in HH. rewrite HH in Hstep. *)
-  (*       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->) *)
-  (*           by (destruct p; inversion Hstep; auto). *)
-  (*       iFailWP "Hφ" Subseg_fail_incrPC_cap. } *)
+     iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LCap p b' e' a v) with "Hσ") as "Hσ".
+     { now set_solver. }
+     { intros.
+       eapply is_cur_lword_lea; eauto; eauto.
+     }
 
-  (*     eapply (incrementPC_success_updatePC _ mem) in Hregs' *)
-  (*       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-  (*     eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep. *)
-  (*     eassert ((c, σ2) = (NextI, _)) as HH. *)
-  (*     { destruct p; cbn in Hstep; eauto. congruence. } *)
-  (*     simplify_pair_eq. iFrame. *)
-  (*     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor; eauto. *)
-  (*    (* Now, the case where wsrc is a capability *) *)
-  (*   + destruct (otype_of_argument regs src1) as [a1|] eqn:Ha1; *)
-  (*       pose proof Ha1 as H'a1; cycle 1. *)
-  (*     { destruct src1 as [| r1] eqn:?; cbn in Ha1, Hstep. *)
-  (*       { rewrite Ha1 /= in Hstep. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { repeat case_match; inv Hstep; auto. } *)
-  (*         iFailWP "Hφ" Subseg_fail_src1_nonotype. } *)
-  (*       subst src1. destruct (Hri r1) as [r1v [Hr'1 Hr1]]. *)
-  (*         by unfold regs_of_argument; set_solver+. *)
-  (*         rewrite /otype_of_argument /= Hr'1 in Ha1. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { destruct r1v ; simplify_pair_eq. *)
-  (*           all: unfold otype_of_argument, z_of_argument at 2 in Hstep. *)
-  (*           all: rewrite /= Hr1 ?Ha1 /= in Hstep. *)
-  (*           all: inv Hstep; auto. *)
-  (*         } *)
-  (*         repeat case_match; try congruence. *)
-  (*         all: iFailWP "Hφ" Subseg_fail_src1_nonotype. } *)
-  (*     apply (otype_of_arg_mono _ reg) in Ha1; auto. rewrite Ha1 /= in Hstep. *)
+      rewrite updatePC_incrementPC.
+      iApply (wp_opt2_bind (k1 := fun x => Some x)).
+      iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := <[ dst := LCap p b' e' a v]> lregs)).
+      { now rewrite elem_of_dom (lookup_insert_dec HPC). }
+      iFrame "Hσ".
+      iSplit; cbn.
+      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; constructor ; by eapply Subseg_fail_incrPC_cap.
+      + iIntros (lrt' rs') "Hσ %Hlis %His".
+        cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; by eapply Subseg_spec_success_cap.
 
-  (*     destruct (otype_of_argument regs src2) as [a2|] eqn:Ha2; *)
-  (*       pose proof Ha2 as H'a2; cycle 1. *)
-  (*     { destruct src2 as [| r2] eqn:?; cbn in Ha2, Hstep. *)
-  (*       { rewrite Ha2 /= in Hstep. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { repeat case_match; inv Hstep; auto. } *)
-  (*         iFailWP "Hφ" Subseg_fail_src2_nonotype. } *)
-  (*       subst src2. destruct (Hri r2) as [r2v [Hr'2 Hr2]]. *)
-  (*         by unfold regs_of_argument; set_solver+. *)
-  (*         rewrite /otype_of_argument /= Hr'2 in Ha2. *)
-  (*         assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->). *)
-  (*         { destruct r2v ; simplify_pair_eq. *)
-  (*           all: unfold otype_of_argument, z_of_argument  in Hstep. *)
-  (*           all: rewrite /= Hr2 ?Ha2 /= in Hstep. *)
-  (*           all: inv Hstep; auto. *)
-  (*         } *)
-  (*         repeat case_match; try congruence. *)
-  (*         all: iFailWP "Hφ" Subseg_fail_src2_nonotype. } *)
-  (*     apply (otype_of_arg_mono _ reg) in Ha2; auto. rewrite Ha2 /= in Hstep. *)
-  (*     rewrite /update_reg /= in Hstep. *)
+    - (* case LSealRange *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_otype_of_argument with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+    iSplit.
+    { iIntros "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+      iApply ("Hφ" with "[$Hpc_a $Hregs]").
+      iPureIntro; eapply Subseg_spec_failure; by econstructor.
+    }
+    iIntros ( b' ) "Hσ %Hsrc1L %Hsrc1".
 
-  (*     destruct (isWithin a1 a2 b e) eqn:Hiw; cycle 1. *)
-  (*     { destruct p; try congruence; inv Hstep ; iFailWP "Hφ" Subseg_fail_not_iswithin_sr. } *)
+    iApply wp_opt2_bind.
+    iApply wp_opt2_eqn_both.
+    iApply (wp2_otype_of_argument with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+     iSplit.
+     { iIntros "Hσ %Heqn1 %Heqn2".
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro.
+       eapply Subseg_spec_failure.
+       by econstructor.
+     }
+     iIntros ( e' ) "Hσ %Hsrc2L %Hsrc2".
 
-  (*     destruct (incrementPC (<[ dst := (WSealRange p a1 a2 a) ]> regs)) eqn:Hregs'; *)
-  (*       pose proof Hregs' as H'regs'; cycle 1. *)
-  (*     { assert (incrementPC (<[ dst := (WSealRange p a1 a2 a) ]> reg) = None) as HH. *)
-  (*       { eapply incrementPC_overflow_mono; first eapply Hregs'. *)
-  (*           by rewrite lookup_insert_is_Some'; eauto. *)
-  (*             by apply insert_mono; eauto. } *)
-  (*       eapply (incrementPC_fail_updatePC _ mem) in HH. rewrite HH in Hstep. *)
-  (*       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->) *)
-  (*           by (destruct p; inversion Hstep; auto). *)
-  (*       iFailWP "Hφ" Subseg_fail_incrPC_sr. } *)
+     destruct (@isWithin ONum b' e' b e ) eqn:Hwithin; cycle 1.
+     {
+       iModIntro.
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro; econstructor; by eapply Subseg_fail_not_iswithin_sr.
+     }
 
-  (*     eapply (incrementPC_success_updatePC _ mem) in Hregs' *)
-  (*       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-  (*     eapply updatePC_success_incl with (m':=mem) in HuPC. 2: by eapply insert_mono; eauto. rewrite HuPC in Hstep. *)
-  (*     eassert ((c, σ2) = (NextI, _)) as HH. *)
-  (*     { destruct p; cbn in Hstep; eauto. } *)
-  (*     simplify_pair_eq. iFrame. *)
-  (*     iMod ((gen_heap_update_inSepM _ _ dst) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-  (*     iFrame. iApply "Hφ". iFrame. iPureIntro. econstructor 2; eauto. *)
-  (*     Unshelve. all: auto. *)
-  (* Qed. *)
-  Admitted.
+
+     iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LSealRange p b' e' a) with "Hσ") as "Hσ".
+     { now set_solver. }
+     { intros; by cbn. }
+
+      rewrite updatePC_incrementPC.
+      iApply (wp_opt2_bind (k1 := fun x => Some x)).
+      iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := <[ dst := LSealRange p b' e' a]> lregs)).
+      { now rewrite elem_of_dom (lookup_insert_dec HPC). }
+      iFrame "Hσ".
+      iSplit; cbn.
+      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; constructor ; by eapply Subseg_fail_incrPC_sr.
+      + iIntros (lrt' rs') "Hσ %Hlis %His".
+        cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro.
+        by eapply Subseg_spec_success_sr.
+  Qed.
 
   Lemma wp_subseg_success E pc_p pc_b pc_e pc_a pc_v lw dst r1 r2 p b e a v n1 n2 a1 a2 pc_a' :
     decodeInstrWL lw = Subseg dst (inr r1) (inr r2) →

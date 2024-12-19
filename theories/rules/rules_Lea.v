@@ -74,159 +74,173 @@ Section cap_lang_rules.
     Lea_failure lregs r1 rv ->
     Lea_spec lregs r1 rv lregs' FailedV.
 
-   Lemma wp_lea Ep pc_p pc_b pc_e pc_a pc_v pca_v r1 lw arg (lregs: LReg) :
-     decodeInstrWL lw = Lea r1 arg →
-     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
-     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
-     regs_of (Lea r1 arg) ⊆ dom lregs →
-     {{{ ▷ (pc_a, pca_v) ↦ₐ lw ∗
-         ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
-       Instr Executable @ Ep
-     {{{ lregs' retv, RET retv;
-         ⌜ Lea_spec lregs r1 arg lregs' retv ⌝ ∗
-         (pc_a, pca_v) ↦ₐ lw ∗
-         [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
-   Proof.
-   (*   iIntros (Hinstr Hvpc HPC Dlregs φ) "(>Hpc_a & >Hmap) Hφ". *)
-   (*   iApply wp_lift_atomic_head_step_no_fork; auto. *)
-   (*   iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl. *)
-   (*   iDestruct "Hσ1" as "[Hr Hm]". *)
-   (*   iDestruct (gen_heap_valid_inclSepM with "Hr Hmap") as %Hlregs. *)
-   (*   pose proof (lookup_weaken _ _ _ _ HPC Hlregs). *)
-   (*   iDestruct (@gen_heap_valid with "Hm Hpc_a") as %Hpc_a; auto. *)
-   (*   iModIntro. iSplitR. by iPureIntro; apply normal_always_head_reducible. *)
-   (*   iNext. iIntros (e2 σ2 efs Hpstep). *)
-   (*   apply prim_step_exec_inv in Hpstep as (-> & -> & (c & -> & Hstep)). *)
-   (*   iIntros "_". *)
-   (*   iSplitR; auto. eapply step_exec_inv in Hstep; eauto. *)
-   (*   unfold exec in Hstep; simpl in Hstep. *)
+  Definition exec_optL_Lea
+    (lregs : LReg) (dst: RegName) (src: Z + RegName) : option LReg :=
+    n ← z_of_argumentL lregs src;
+    lwdst ← lregs !! dst ;
+    match lwdst with
+    | LCap p b e a v =>
+        match p with
+        | E => None
+        | _ => match (a + n)%a with
+              | Some a' =>
+                  lregs' ← incrementLPC (<[dst := (LCap p b e a' v) ]> lregs);
+                  Some lregs'
+              | None => None
+              end
+        end
+    | LSealRange p b e a =>
+        match (a + n)%ot with
+        | Some a' =>
+                  lregs' ← incrementLPC (<[dst := (LSealRange p b e a' ) ]> lregs);
+                  Some lregs'
+        | None => None
+        end
+    | _ => None
+    end.
 
-   (*   specialize (indom_lregs_incl _ _ _ Dlregs Hlregs) as Hri. unfold lregs_of in Hri. *)
+  Lemma wp_lea Ep pc_p pc_b pc_e pc_a pc_v dst lw src (lregs: LReg) :
+    decodeInstrWL lw = Lea dst src →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
+    regs_of (Lea dst src) ⊆ dom lregs →
+    {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
+        ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
+      Instr Executable @ Ep
+      {{{ lregs' retv, RET retv;
+          ⌜ Lea_spec lregs dst src lregs' retv ⌝ ∗
+          (pc_a, pc_v) ↦ₐ lw ∗
+          [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
+  Proof.
+     iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hpc_a & >Hmap) Hφ".
+     cbn in Dregs.
+     iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpc_a $Hmap Hφ]").
+     iModIntro.
+     iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
+     iModIntro.
+     iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) Hcred".
 
-   (*   odestruct (Hri r1) as [r1v [Hr'1 Hr1]]. by set_solver+. *)
-   (*   rewrite Hr1 /= in Hstep. *)
+     iApply (wp_wp2 (φ1 := exec_optL_Lea lregs dst src)).
 
-   (*   destruct (z_of_argument lregs arg) as [ argz |] eqn:Harg; *)
-   (*     pose proof Harg as Harg'; cycle 1. *)
-   (*   { (* Failure: argument is not a constant (z_of_argument lregs arg = None) *) *)
-   (*     unfold z_of_argument in Harg, Hstep. destruct arg as [| r0]; [ congruence |]. *)
-   (*     odestruct (Hri r0) as [r0v [Hr'0 Hr0]]. *)
-   (*     { unfold lregs_of_argument. set_solver+. } *)
-   (*     rewrite Hr0 Hr'0 in Harg Hstep. *)
-   (*     assert (c = Failed ∧ *)
-   (*               σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) *)
-   (*       as (-> & ->). *)
-   (*     { destruct_word r0v; cbn in Hstep; try congruence; by simplify_pair_eq. } *)
-   (*     iFailWP "Hφ" Lea_fail_rv_nonconst. } *)
-   (*   apply (z_of_arg_mono _ reg) in Harg; auto. rewrite Harg in Hstep; cbn in Hstep. *)
+     iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+     { by rewrite big_sepM_empty. }
 
-   (*   destruct (is_mutable_range r1v) eqn:Hr1v. *)
-   (*   2: { (* Failure: r1v is not of the right type *) *)
-   (*     unfold is_mutable_range in Hr1v. *)
-   (*     assert (c = Failed ∧ *)
-   (*               σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) *)
-   (*       as (-> & ->). *)
-   (*     { destruct r1v as [ | [p b e a | ] | ]; try by inversion Hr1v. *)
-   (*       all: try by simplify_pair_eq. *)
-   (*       destruct p; try congruence. *)
-   (*       simplify_pair_eq; auto. } *)
-   (*     iFailWP "Hφ" Lea_fail_allowed. } *)
+     iApply wp_opt2_bind.
+     iApply wp_opt2_eqn_both.
+     iApply (wp2_z_of_argument with "[Hφ Hpc_a Hcred $Hσ]"); first set_solver.
+     iSplit.
+     { iIntros "Hσ %Heqn1 %Heqn2".
+       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       iPureIntro.
+       eapply Lea_spec_failure.
+       by constructor.
+     }
+     iIntros ( z ) "Hσ %HsrcL %Hsrc".
 
-   (*   (* Now the proof splits depending on the type of value in r1v *) *)
-   (*   destruct r1v as [ | [p b e a | p b e a] | ]. *)
-   (*   1,4: inversion Hr1v. *)
+     iApply wp_opt2_bind.
+     iApply wp_opt2_eqn_both.
+     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
+     iIntros (lwdst) "Hσ %HdstL %Hdst".
 
-   (*   (* First, the case where r1v is a capability *) *)
-   (*   + destruct (perm_eq_dec p E); [ subst p |]. *)
-   (*     { rewrite /is_mutable_range in Hr1v; congruence. } *)
+     destruct (decide (is_mutable_rangeL lwdst = true)) as [HmutRange|HmutRange]
+     ; cycle 1.
+     (* case LInt or LSealed : fail *)
+     {
+       rewrite not_true_iff_false in HmutRange.
+       destruct_lword lwdst ; [ |  destruct p | | |] ; cbn in * ; simplify_eq.
+       all: iModIntro.
+       all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+       all: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+       all: iPureIntro; econstructor; by eapply Lea_fail_allowed.
+     }
 
-   (*     destruct (a + argz)%a as [ a' |] eqn:Hoffset; cycle 1. *)
-   (*     { (* Failure: offset is too large *) *)
-   (*       assert (c = Failed ∧ *)
-   (*                 σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) *)
-   (*         as (-> & ->) *)
-   (*           by (destruct p; inversion Hstep; auto). *)
-   (*       iFailWP "Hφ" Lea_fail_overflow_cap. } *)
+     destruct_lword lwdst ; cbn in * ; simplify_eq.
+     - (* case LCap *)
+       destruct (decide (p = E)) as [HpE|HnpE]; subst; first done.
+       rewrite !rewrite_invert_match_E //=.
+       destruct (a + z)%a eqn:Ha ; cycle 1.
+       {
+         destruct p ; cbn in * ; simplify_eq.
+         all: iModIntro.
+         all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+         all: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+         all: iPureIntro; econstructor; by eapply Lea_fail_overflow_cap.
+       }
 
-   (*     rewrite /update_reg /= in Hstep. *)
-   (*     destruct (incrementPC (<[ r1 := WCap p b e a' ]> lregs)) as [ lregs' |] eqn:Hlregs'; *)
-   (*       pose proof Hlregs' as Hlregs'2; cycle 1. *)
-   (*     { (* Failure: incrementing PC overflows *) *)
-   (*       assert (incrementPC (<[ r1 := WCap p b e a' ]> reg) = None) as HH. *)
-   (*       { eapply incrementPC_overflow_mono; first eapply Hlregs'. *)
-   (*           by rewrite lookup_insert_is_Some'; eauto. *)
-   (*             by apply insert_mono; eauto. } *)
-   (*       apply (incrementPC_fail_updatePC _ mem etable enumcur) in HH. rewrite HH in Hstep. *)
-   (*       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->) *)
-   (*           by (destruct p; inversion Hstep; auto). *)
-   (*       iFailWP "Hφ" Lea_fail_overflow_PC_cap. } *)
+       iDestruct (update_state_interp_transient_from_regs_mod (dst := dst) (lw2 := LCap p b e f v) with "Hσ") as "Hσ".
+       { now set_solver. }
+       { intros.
+         eapply is_cur_lword_lea; eauto; eauto.
+         apply isWithin_refl.
+       }
 
-   (*     (* Success *) *)
-   (*     eapply (incrementPC_success_updatePC _ mem) in Hlregs' *)
-   (*       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-   (*     eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto. *)
-   (*     rewrite HuPC in Hstep; clear HuPC. *)
-   (*     eassert ((c, σ2) = (NextI, _)) as HH. *)
-   (*     { destruct p; cbn in Hstep; eauto. congruence. } *)
-   (*     simplify_pair_eq. *)
+      rewrite updatePC_incrementPC.
+      iApply (wp_opt2_bind (k1 := fun x => Some x)).
+      iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := <[ dst := LCap p b e f v]> lregs)).
+      { now rewrite elem_of_dom (lookup_insert_dec HPC). }
+      iFrame "Hσ".
+      iSplit; cbn.
+      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; constructor ; by eapply Lea_fail_overflow_PC_cap.
+      + iIntros (lrt' rs') "Hσ %Hlis %His".
+        cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro.
+        by eapply Lea_spec_success_cap.
 
-   (*     iFrame. *)
-   (*     iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-   (*     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-   (*     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. *)
-   (*     eapply Lea_spec_success_cap; eauto. *)
-   (*  (* Now, the case where r1v is a sealrange *) *)
-   (*   + destruct (a + argz)%ot as [ a' |] eqn:Hoffset; cycle 1. *)
-   (*     { (* Failure: offset is too large *) *)
-   (*       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->) *)
-   (*           by (destruct p; inversion Hstep; auto). *)
-   (*       iFailWP "Hφ" Lea_fail_overflow_sr. } *)
+    - (* case LSealable *)
+      destruct (a + z)%f eqn:Ha ; cycle 1.
+      {
+        destruct p ; cbn in * ; simplify_eq.
+        all: iModIntro.
+        all: iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        all: iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        all: iPureIntro; econstructor; by eapply Lea_fail_overflow_sr.
+      }
 
-   (*     rewrite /update_reg /= in Hstep. *)
-   (*     destruct (incrementPC (<[ r1 := WSealRange p b e a' ]> lregs)) as [ lregs' |] eqn:Hlregs'; *)
-   (*       pose proof Hlregs' as Hlregs'2; cycle 1. *)
-   (*     { (* Failure: incrementing PC overflows *) *)
-   (*       assert (incrementPC (<[ r1 := WSealRange p b e a' ]> reg) = None) as HH. *)
-   (*       { eapply incrementPC_overflow_mono; first eapply Hlregs'. *)
-   (*           by rewrite lookup_insert_is_Some'; eauto. *)
-   (*             by apply insert_mono; eauto. } *)
-   (*       eapply (incrementPC_fail_updatePC _ mem) in HH. rewrite HH in Hstep. *)
-   (*       assert (c = Failed ∧ σ2 = {| reg := reg ; mem := mem ; etable := etable ; enumcur := enumcur |}) as (-> & ->) *)
-   (*           by (destruct p; inversion Hstep; auto). *)
-   (*       iFailWP "Hφ" Lea_fail_overflow_PC_sr. } *)
+      iDestruct (update_state_interp_transient_from_regs_mod (dst := dst)
+                   (lw2 := LSealRange p b e f) with "Hσ") as "Hσ".
+      { now set_solver. }
+      { by intros; cbn. }
 
-   (*     (* Success *) *)
-   (*     eapply (incrementPC_success_updatePC _ mem) in Hlregs' *)
-   (*       as (p' & g' & b' & e' & a'' & a_pc' & HPC'' & HuPC & ->). *)
-   (*     eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono; eauto. *)
-   (*     rewrite HuPC in Hstep; clear HuPC. *)
-   (*     eassert ((c, σ2) = (NextI, _)) as HH. *)
-   (*     { destruct p; cbn in Hstep; eauto. } *)
-   (*     simplify_pair_eq. *)
+      rewrite updatePC_incrementPC.
+      iApply (wp_opt2_bind (k1 := fun x => Some x)).
+      iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC (φ := σ1) (lr := lregs) (lrt := <[ dst := LSealRange p b e f]> lregs)).
+      { now rewrite elem_of_dom (lookup_insert_dec HPC). }
+      iFrame "Hσ".
+      iSplit; cbn.
+      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro; constructor ; by eapply Lea_fail_overflow_PC_sr.
+      + iIntros (lrt' rs') "Hσ %Hlis %His".
+        cbn.
+        iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+        iApply ("Hφ" with "[$Hpc_a $Hregs]").
+        iPureIntro.
+        by eapply Lea_spec_success_sr.
+  Qed.
 
-   (*     iFrame. *)
-   (*     iMod ((gen_heap_update_inSepM _ _ r1) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-   (*     iMod ((gen_heap_update_inSepM _ _ PC) with "Hr Hmap") as "[Hr Hmap]"; eauto. *)
-   (*     iFrame. iModIntro. iApply "Hφ". iFrame. iPureIntro. *)
-   (*     eapply Lea_spec_success_sr; eauto. *)
-   (* Unshelve. all: auto. *)
-   (* Qed. *)
-   Admitted.
-
-   Lemma wp_lea_success_reg_PC Ep pc_p pc_b pc_e pc_a pc_v pca_v pc_a' lw rv z a' :
-     decodeInstrWL lw = Lea PC (inr rv) →
-     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
-     (a' + 1)%a = Some pc_a' →
-     (pc_a + z)%a = Some a' →
-     pc_p ≠ E →
+  Lemma wp_lea_success_reg_PC Ep pc_p pc_b pc_e pc_a pc_v pc_a' lw rv z a' :
+    decodeInstrWL lw = Lea PC (inr rv) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (a' + 1)%a = Some pc_a' →
+    (pc_a + z)%a = Some a' →
+    pc_p ≠ E →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ rv ↦ᵣ LInt z }}}
        Instr Executable @ Ep
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ rv ↦ᵣ LInt z }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep φ) "(>HPC & >Hpc_a & >Hrv) Hφ".
@@ -251,7 +265,7 @@ Section cap_lang_rules.
     Unshelve. all: auto.
    Qed.
 
-   Lemma wp_lea_success_reg Ep pc_p pc_b pc_e pc_a pc_a' pc_v pca_v lw r1 rv p b e a v z a' :
+   Lemma wp_lea_success_reg Ep pc_p pc_b pc_e pc_a pc_a' pc_v lw r1 rv p b e a v z a' :
      decodeInstrWL lw = Lea r1 (inr rv) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
@@ -259,13 +273,13 @@ Section cap_lang_rules.
      p ≠ E →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LCap p b e a v
            ∗ ▷ rv ↦ᵣ LInt z }}}
        Instr Executable @ Ep
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ rv ↦ᵣ LInt z
               ∗ r1 ↦ᵣ LCap p b e a' v}}}.
    Proof.
@@ -293,7 +307,7 @@ Section cap_lang_rules.
     Unshelve. all: auto.
    Qed.
 
-   Lemma wp_lea_success_z_PC Ep pc_p pc_b pc_e pc_a pc_a' pc_v pca_v lw z a' :
+   Lemma wp_lea_success_z_PC Ep pc_p pc_b pc_e pc_a pc_a' pc_v lw z a' :
      decodeInstrWL lw = Lea PC (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (a' + 1)%a = Some pc_a' →
@@ -301,11 +315,11 @@ Section cap_lang_rules.
      pc_p ≠ E →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw }}}
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw }}}
        Instr Executable @ Ep
      {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-            ∗ (pc_a, pca_v) ↦ₐ lw }}}.
+            ∗ (pc_a, pc_v) ↦ₐ lw }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a) Hφ".
      iDestruct (map_of_regs_1 with "HPC") as "Hmap".
@@ -327,7 +341,7 @@ Section cap_lang_rules.
      Unshelve. all: auto.
    Qed.
 
-   Lemma wp_lea_success_z Ep pc_p pc_b pc_e pc_a pc_a' pc_v pca_v lw r1 p b e a v z a' :
+   Lemma wp_lea_success_z Ep pc_p pc_b pc_e pc_a pc_a' pc_v lw r1 p b e a v z a' :
      decodeInstrWL lw = Lea r1 (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
@@ -335,12 +349,12 @@ Section cap_lang_rules.
      p ≠ E →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LCap p b e a v }}}
        Instr Executable @ Ep
      {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-            ∗ (pc_a, pca_v) ↦ₐ lw
+            ∗ (pc_a, pc_v) ↦ₐ lw
             ∗ r1 ↦ᵣ LCap p b e a' v }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
@@ -368,20 +382,20 @@ Section cap_lang_rules.
 
    (* Similar rules in case we have a SealRange instead of a capability, where some cases are impossible, because a SealRange is not a valid PC *)
 
-   Lemma wp_lea_success_reg_sr Ep pc_p pc_b pc_e pc_a pc_a' pc_v pca_v lw r1 rv p (b e a : OType) z (a': OType) :
+   Lemma wp_lea_success_reg_sr Ep pc_p pc_b pc_e pc_a pc_a' pc_v lw r1 rv p (b e a : OType) z (a': OType) :
      decodeInstrWL lw = Lea r1 (inr rv) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%ot = Some a' →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LSealRange p b e a
            ∗ ▷ rv ↦ᵣ LInt z }}}
        Instr Executable @ Ep
        {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-              ∗ (pc_a, pca_v) ↦ₐ lw
+              ∗ (pc_a, pc_v) ↦ₐ lw
               ∗ rv ↦ᵣ LInt z
               ∗ r1 ↦ᵣ LSealRange p b e a' }}}.
    Proof.
@@ -408,19 +422,19 @@ Section cap_lang_rules.
     Unshelve. all: auto.
    Qed.
 
-  Lemma wp_lea_success_z_sr Ep pc_p pc_b pc_e pc_a pc_a' pc_v pca_v lw r1 p (b e a : OType) z (a': OType) :
+  Lemma wp_lea_success_z_sr Ep pc_p pc_b pc_e pc_a pc_a' pc_v lw r1 p (b e a : OType) z (a': OType) :
      decodeInstrWL lw = Lea r1 (inl z) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (pc_a + 1)%a = Some pc_a' →
      (a + z)%ot = Some a' →
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LSealRange p b e a }}}
        Instr Executable @ Ep
      {{{ RET NextIV;
            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-            ∗ (pc_a, pca_v) ↦ₐ lw
+            ∗ (pc_a, pc_v) ↦ₐ lw
             ∗ r1 ↦ᵣ LSealRange p b e a' }}}.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' ϕ) "(>HPC & >Hpc_a & >Hr1) Hφ".
@@ -445,13 +459,13 @@ Section cap_lang_rules.
      Unshelve. all:auto.
    Qed.
 
-   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a pc_v pca_v lw r1 rv p b e a v z :
+   Lemma wp_Lea_fail_none Ep pc_p pc_b pc_e pc_a pc_v lw r1 rv p b e a v z :
      decodeInstrWL lw = Lea r1 (inr rv) →
      isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
      (a + z)%a = None ->
 
      {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
-           ∗ ▷ (pc_a, pca_v) ↦ₐ lw
+           ∗ ▷ (pc_a, pc_v) ↦ₐ lw
            ∗ ▷ r1 ↦ᵣ LCap p b e a v
            ∗ ▷ rv ↦ᵣ LInt z }}}
        Instr Executable @ Ep

@@ -35,6 +35,10 @@ Section reclaim_buffer_example.
     let len_code := length reclaim_buffer_code in
     ContiguousRegion a_first len_code →
     (b + 1)%a = Some (b ^+1)%a ->
+    (* TODO assumes that
+       [a_first;a_first+len_code)
+       and [b;b+1)
+       do not overlap ! *)
 
     ⊢ (( PC ↦ᵣ LCap RWX a_first (a_first ^+ len_code)%a a_first pc_v
            ∗ r_t0 ↦ᵣ w0
@@ -66,8 +70,7 @@ Section reclaim_buffer_example.
       rewrite /region_mapsto finz_seq_between_empty //=; last solve_addr.
     }
     iApply (wp_isunique_success with "[HPC Hr1 Hr0 Hbuf Hi]"); try iFrame; try solve_pure.
-    { admit. } (* TODO add an hypothesis ?
-                  annoying because I would expect to derive it from SL... *)
+    { admit. } (* cf hypothesis*)
     { cbn.
       rewrite finz_dist_S; last solve_addr.
       rewrite finz_dist_0; solve_addr.

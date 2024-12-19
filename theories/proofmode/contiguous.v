@@ -338,3 +338,68 @@ Lemma isCorrectPC_range_restrict p b e a0 an a0' an' :
 Proof.
   intros HR [? ?] a' [? ?]. apply HR. solve_addr.
 Qed.
+
+
+Section ContiguousL.
+
+  Inductive contiguous_betweenL : list Addr -> Addr -> Addr -> Version -> Prop :=
+    | contiguous_betweenL_nil : ∀ a v,
+        contiguous_betweenL [] a a v
+    | contiguous_betweenL_cons : ∀ a a' b l v,
+        (a + 1)%a = Some a' ->
+        contiguous_betweenL l a' b v ->
+        contiguous_betweenL (a :: l) a b v.
+
+  Lemma contiguous_betweenL_contiguous_between l b e v :
+    contiguous_betweenL l b e v <-> contiguous_between l b e.
+  Proof.
+    generalize dependent b.
+    generalize dependent e.
+    induction l.
+    - split; intros; inversion H ; simplify_eq; constructor.
+    - split; intros; inversion H ; simplify_eq; econstructor; eauto; by apply IHl.
+  Qed.
+
+  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}.
+  Lemma contiguous_betweenL_program_split
+    (prog1 prog2 : list LWord) (φ : LAddr → LWord → iProp Σ)
+    (a : list Addr) (i j : Addr) (v : Version) :
+    contiguous_between a i j →
+    ⊢ (([∗ list] a_i;w_i ∈ a;prog1 ++ prog2, φ (a_i,v) w_i) -∗
+       ∃ (a1 a2 : list Addr) (k: Addr),
+         ([∗ list] a_i;w_i ∈ a1;prog1, φ (a_i,v) w_i)
+         ∗ ([∗ list] a_i;w_i ∈ a2;prog2, φ (a_i,v) w_i)
+         ∗ ⌜contiguous_between a1 i k
+         ∧ contiguous_between a2 k j
+         ∧ a = a1 ++ a2
+         ∧ (i + length a1 = Some k)%a⌝)%I.
+  Proof.
+    iIntros (Ha) "Hprog".
+    iDestruct (big_sepL2_length with "Hprog") as %Hlength.
+    rewrite app_length in Hlength.
+    set (n1 := length prog1) in *.
+    set (n2 := length prog2) in *.
+    rewrite -(take_drop n1 a). set (k := (i ^+ n1)%a).
+    iExists (take n1 a), (drop n1 a), k.
+    iDestruct (big_sepL2_app' with "Hprog") as "[Hprog1 Hprog2]".
+    { subst n1. rewrite take_length. lia. }
+    iFrame. iPureIntro.
+    pose proof (contiguous_between_length _ _ _ Ha).
+    destruct (contiguous_between_app a (take n1 a) (drop n1 a) i j k); auto.
+    by rewrite take_drop.
+    { rewrite take_length Hlength. subst k. solve_addr. }
+    rewrite take_length. repeat split; eauto. rewrite Nat.min_l; subst k; solve_addr.
+  Qed.
+
+End ContiguousL.
+
+Definition isCorrectLPC_range p b e a0 an v :=
+  ∀ ai, (a0 <= ai)%a ∧ (ai < an)%a → isCorrectLPC (LCap p b e ai v).
+
+Lemma isCorrectLPC_range_isCorrectPC_range p b e ai v:
+  isCorrectLPC (LCap p b e ai v) <->
+  isCorrectPC (WCap p b e ai).
+Proof.
+  split; intros Hpc; inversion Hpc; cbn in * ; simplify_eq; first done.
+  by econstructor; cbn.
+Qed.

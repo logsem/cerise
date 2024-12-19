@@ -220,15 +220,19 @@ Proof.
 Qed.
 
 Lemma is_cur_lword_lea
-  (vmap : VMap) (p p' : Perm) (b e a a' : Addr) (v : Version) (lw lw' : LWord) :
+  (vmap : VMap) (p p' : Perm) (b b' e e' a a' : Addr) (v : Version) (lw lw' : LWord) :
+  isWithin b' e' b e ->
   get_lcap lw = Some (LSCap p b e a v) ->
-  get_lcap lw' = Some (LSCap p' b e a' v) ->
+  get_lcap lw' = Some (LSCap p' b' e' a' v) ->
   is_cur_word lw vmap ->
   is_cur_word lw' vmap.
 Proof.
   intros Hlw Hlw'.
   destruct_lword lw ; destruct_lword lw' ; cbn in * ; simplify_eq
-  ; rewrite /is_cur_word; intros Hcur; auto.
+  ; rewrite /is_cur_word; intros Hcur; auto ; simplify_eq.
+  all: intros Hin a0 Ha0in ; apply Hin.
+  all: rewrite !elem_of_finz_seq_between in Ha0in |- *.
+  all: apply Is_true_true in Hlw; apply isWithin_implies in Hlw; solve_addr.
 Qed.
 
 Lemma is_cur_addr_insert_ne
@@ -463,6 +467,7 @@ Proof.
   apply withinBounds_in_seq_2 in Ha'.
   eapply cur_lword_cur_addr; eauto.
   rewrite /is_lword_version //=.
+  by apply isWithin_refl.
 Qed.
 
 (* Lemmas about lmem_corresponds *)
@@ -940,9 +945,9 @@ Proof.
   apply Forall_forall; move=> a' Ha'.
   destruct_lword lw ; cbn in Hlw ; simplify_eq.
   1: assert (is_cur_word (LCap p b e a' v) vmap)
-    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto).
+    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto; apply isWithin_refl).
   2: assert (is_cur_word (LSealedCap o p b e a' v) vmap)
-    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto).
+    by (eapply is_cur_lword_lea with (lw := LCap p b e a v); eauto; apply isWithin_refl).
   all: assert (Hcur_a': is_cur_addr (a',v) vmap).
   1: { eapply cur_lword_cur_addr; [|eauto|].
     by rewrite /is_lword_version.
@@ -1565,7 +1570,7 @@ Lemma lreg_corresponds_insert_respects_updated_vmap
   is_cur_word lw' vmap'.
 Proof.
   intros.
-  eapply is_cur_lword_lea with (lw := lw); eauto.
+  eapply is_cur_lword_lea with (lw := lw); eauto; first apply isWithin_refl.
   eapply update_cur_version_notin_is_cur_word; cycle 1 ; eauto.
   eapply unique_in_machineL_not_overlap_word with (r := r); eauto.
   eapply lreg_corresponds_read_iscur; eauto.
@@ -2251,6 +2256,13 @@ Proof.
   destruct_lword lw; auto; destruct p ; auto.
 Qed.
 
+Lemma updatePcPermL_cap_non_E p b e a v :
+  p ≠ E →
+  updatePcPermL (LCap p b e a v) = LCap p b e a v.
+Proof.
+  intros HnE. cbn. destruct p; done.
+Qed.
+
 Lemma is_cur_updatePcPermL (lw : LWord) vmap:
   is_cur_word lw vmap -> is_cur_word (updatePcPermL lw) vmap.
 Proof.
@@ -2282,13 +2294,10 @@ Definition word_of_argumentL (lregs: LReg) (a: Z + RegName): option LWord :=
   | inr r => lregs !! r
   end.
 
-Definition addr_of_argumentL lregs src :=
-  match z_of_argumentL lregs src with
-  | Some n => z_to_addr n
-  | None => None
-  end.
+Definition addr_of_argumentL (lregs: LReg) (src: Z + RegName): option Addr :=
+  n ← z_of_argumentL lregs src ; z_to_addr n.
 
-Definition otype_of_argumentL lregs src : option OType :=
+Definition otype_of_argumentL (lregs: LReg) (src: Z + RegName) : option OType :=
   match z_of_argumentL lregs src with
   | Some n => (z_to_otype n) : option OType
   | None => None : option OType
@@ -2427,7 +2436,7 @@ Notation "la ↦ₐ lw" := (mapsto (L:=LAddr) (V:=LWord) la (DfracOwn 1) lw) (at
 Declare Scope LAddr_scope.
 Delimit Scope LAddr_scope with la.
 
-Notation eqb_laddr := (λ (a1 a2: LAddr), (Z.eqb a1.1 a2.1) && (a1.2 =? a2.2)).
+Notation eqb_laddr := (λ (a1 a2: LAddr), (a1.1 =? a2.1)%a && (a1.2 =? a2.2)).
 Notation "a1 =? a2" := (eqb_laddr a1 a2) : LAddr_scope.
 
 Section machine_param.
@@ -2445,7 +2454,78 @@ Section machine_param.
   Definition encodeInstrsLW : list instr → list LWord :=
     map encodeInstrWL.
 
+  Definition encodeLWordType (lw : LWord) : Z :=
+    encodeWordType (lword_get_word lw).
+
+  (* Definition decodeLWordType (z : Z) : LWord := *)
+  (*   (decodeWordType i). *)
+
+  Lemma encodeLWordType_correct (w w' : LWord) :
+    match w,w' with
+    | LCap _ _ _ _ _, LCap _ _ _ _ _ => encodeLWordType w = encodeLWordType w'
+    | LSealRange _ _ _ _, LSealRange _ _ _ _ => encodeLWordType w = encodeLWordType w'
+    | LWSealed _ _, LWSealed _ _ => encodeLWordType w = encodeLWordType w'
+    | LInt _, LInt _ => encodeLWordType w = encodeLWordType w'
+    | _, _ => encodeLWordType w <> encodeLWordType w'
+    end.
+  Proof.
+    pose proof (encodeWordType_correct (lword_get_word w) (lword_get_word w')).
+    destruct w, w'; cbn in *; try done
+    ; destruct sb; cbn in *; try done
+    ; destruct sb0; cbn in *; try done.
+  Qed.
+
+
+  Definition lwt_cap := LCap O 0%a 0%a 0%a 0.
+  Definition lwt_sealrange := LSealRange (false, false) 0%ot 0%ot 0%ot.
+  Definition lwt_sealed := LWSealed 0%ot (LSCap O 0%a 0%a 0%a 0).
+  Definition lwt_int := LInt 0.
+
 End machine_param.
+
+Ltac solve_encodeLWordType :=
+  match goal with
+  | H: _ |- encodeLWordType ?x = encodeLWordType ?y =>
+      try reflexivity
+      ; pose proof (encodeLWordType_correct x y) as Heq
+      ; unfold wt_cap, wt_int, wt_sealrange, wt_cap ; simpl in Heq ; auto
+  end.
+
+Ltac simpl_encodeLWordType :=
+  match goal with
+  | H: _ |- context G [encodeLWordType (LCap ?p ?b ?e ?a ?v)] =>
+      rewrite (_: encodeLWordType (LCap p b e a v) = encodeLWordType lwt_cap) ; last solve_encodeLWordType
+
+  | H: _ |- context G [encodeLWordType (LSealRange ?p ?b ?e ?a)] =>
+      rewrite (_: encodeLWordType (LSealRange p b e a) = encodeLWordType lwt_sealrange) ; last solve_encodeLWordType
+
+  | H: _ |- context G [encodeLWordType (LInt ?n)] =>
+      rewrite (_: encodeLWordType (LInt n) = encodeLWordType lwt_int) ; last solve_encodeLWordType
+
+  | H: _ |- context G [encodeLWordType (LWSealed ?o ?s)] =>
+      rewrite (_: encodeLWordType (LWSealed o s) = encodeLWordType lwt_sealed) ; last solve_encodeLWordType
+  end.
+
+Lemma encodeLWordType_correct_cap `{MachineParameters} : forall p b e a v p' b' e' a' v',
+  encodeLWordType (LCap p b e a v) = encodeLWordType (LCap p' b' e' a' v').
+  intros; solve_encodeLWordType.
+Qed.
+
+Lemma encodeLWordType_correct_int `{MachineParameters} : forall z z',
+  encodeLWordType (LInt z) = encodeLWordType (LInt z').
+  intros; solve_encodeLWordType.
+Qed.
+
+Lemma encodeLWordType_correct_sealrange `{MachineParameters} : forall p b e a p' b' e' a',
+  encodeLWordType (LSealRange p b e a) = encodeLWordType (LSealRange p' b' e' a').
+Proof.
+  intros; solve_encodeLWordType.
+Qed.
+
+Lemma encodeLWordType_correct_sealed `{MachineParameters} : forall o s o' s',
+  encodeLWordType (LWSealed o s) = encodeLWordType (LWSealed o' s').
+  intros; solve_encodeLWordType.
+Qed.
 
 
 (** Miscellaneous about logical regions *)
@@ -2608,3 +2688,10 @@ Proof.
   apply logical_region_map_inv; eauto.
   eapply finz_seq_between_NoDup.
 Qed.
+
+(* TODO where to move that ? *)
+Definition isPermLWord (w : LWord) (p : Perm): bool :=
+  match w with
+  | LCap p' _ _ _ _  => isPerm p p'
+  | _ => false
+  end.
