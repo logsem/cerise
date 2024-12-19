@@ -7,7 +7,7 @@ From cap_machine Require Import proofmode.
 Open Scope Z_scope.
 
 Section counter.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealg:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

@@ -26,7 +26,7 @@ Section base_program.
       are the registers and the memory. Moreover, we need the machine parameters
       in the context, which abstract the encoding and the decoding function
       (for instance, to encode the instructions). *)
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   (** The program is a list of instructions. As the machine has a Von Neumann

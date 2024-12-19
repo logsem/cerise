@@ -8,7 +8,7 @@ From cap_machine Require Import macros_new.
 Open Scope Z_scope.
 
 Section trusted_compute_example.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ} `{MP: MachineParameters}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ} `{MP: MachineParameters}.
 
   (* Data part, following the directly the main code *)
   Definition trusted_compute_data (linking_table_cap : LWord) : list LWord :=

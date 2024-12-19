@@ -8,7 +8,7 @@ From cap_machine.examples Require Import dynamic_sealing keylist malloc.
 From cap_machine.examples.interval Require Import interval.
 
 Section interval_closure.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
           `{MP: MachineParameters}.
 

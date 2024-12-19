@@ -11,7 +11,7 @@ Open Scope Z_scope.
 (** Exercise - the region is already allocated and the capability pointing to this
     region is in R1. As a first step, the adversary code is known and just halts. *)
 Section base_program.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   (** `r_mem` is the register that contains the capability pointing to
@@ -164,7 +164,7 @@ End base_program.
     resources. *)
 Section base_program_CPS.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
           `{MP: MachineParameters}.
 
   (* For a clearer context, we will use these following notations *)

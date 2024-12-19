@@ -6,7 +6,7 @@ From cap_machine Require Import ftlr_base_binary.
 From cap_machine.rules_binary Require Import rules_binary_base rules_binary_Mov.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MachineParameters}.
 

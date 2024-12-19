@@ -340,7 +340,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        (* FIXME: fragile *)
-       destruct H5 as [Hrr2 _]. simplify_map_eq.
+       destruct H2 as [Hrr2 _]. simplify_map_eq.
        iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
        { iExists lmem,dfracs; iSplitL; eauto.
          iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v).
@@ -354,7 +354,7 @@ Section cap_lang_rules.
              rewrite andb_true_iff ; split; [solve_addr | by rewrite Nat.eqb_refl].
            }
            rewrite Heq in Hmem, Hdfracs ; simplify_map_eq.
-           rewrite prod_merge_insert prod_merge_empty_l in H6.
+           rewrite prod_merge_insert prod_merge_empty_l in H3.
            by simplify_map_eq.
          - rewrite not_and_r in Heq.
            assert (((a0 =? pc_a)%f && (v0 =? pc_v)) = false) as Hneq.
@@ -365,7 +365,7 @@ Section cap_lang_rules.
            assert ((pc_a,pc_v) ≠ (a0,v0)).
            { intro ; simplify_eq. destruct Heq ; congruence. }
            rewrite Hneq in Hmem, Hdfracs ; simplify_map_eq.
-           rewrite !prod_merge_insert prod_merge_empty_l in H6.
+           rewrite !prod_merge_insert prod_merge_empty_l in H3.
            by simplify_map_eq.
        }
        pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem Hload) as Hloadv; eauto.
@@ -487,7 +487,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ".
-       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       destruct H0 as [Hrr2 _]. simplify_map_eq.
        iDestruct (memMap_resource_2gen_d_dq with "[Hmem]") as "[Hpc_a Ha]"; cbn in *.
        { iExists lmem,dfracs; iSplitL; eauto.
          iPureIntro. Unshelve. 3: exact (a0, v0). 2: exact (pc_a, pc_v).
@@ -501,7 +501,7 @@ Section cap_lang_rules.
              rewrite andb_true_iff ; split; [solve_addr | by rewrite Nat.eqb_refl].
            }
            rewrite Heq in Hmem, Hfracs ; simplify_map_eq.
-           rewrite prod_merge_insert prod_merge_empty_l in H4.
+           rewrite prod_merge_insert prod_merge_empty_l in H1.
            by simplify_map_eq.
          - rewrite not_and_r in Heq.
            assert (((a0 =? pc_a)%f && (v0 =? pc_v)) = false) as Hneq.
@@ -512,7 +512,7 @@ Section cap_lang_rules.
            assert ((pc_a,pc_v) ≠ (a0,v0)).
            { intro ; simplify_eq. destruct Heq ; congruence. }
            rewrite Hneq in Hmem, Hfracs ; simplify_map_eq.
-           rewrite !prod_merge_insert prod_merge_empty_l in H4.
+           rewrite !prod_merge_insert prod_merge_empty_l in H1.
            by simplify_map_eq.
        }
        pose proof (mem_implies_loadv _ _ _ _ _ _ _ _ Hmem Hload) as Hloadv; eauto.
@@ -619,7 +619,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ".
-       destruct H4 as [Hrr2 _]. simplify_map_eq.
+       destruct H1 as [Hrr2 _]. simplify_map_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementLPC_inv; simplify_map_eq.
        rewrite insert_insert insert_insert.
@@ -666,7 +666,7 @@ Section cap_lang_rules.
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        iApply "Hφ".
-       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       destruct H0 as [Hrr2 _]. simplify_map_eq.
        rewrite -memMap_resource_1_dq.
        incrementLPC_inv.
        simplify_map_eq.
@@ -675,7 +675,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementLPC_inv; simplify_map_eq; eauto.
        apply isCorrectLPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [Hra Hwb].
-       destruct o; apply Is_true_false in H3. all: try congruence. done.
+       destruct o; apply Is_true_false in H0. all: try congruence. done.
      }
   Qed.
 

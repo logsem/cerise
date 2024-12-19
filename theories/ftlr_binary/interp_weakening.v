@@ -6,7 +6,7 @@ From cap_machine Require Import ftlr_base_binary region.
 From cap_machine Require Import addr_reg.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MachineParameters}.
 

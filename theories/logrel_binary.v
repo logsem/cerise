@@ -25,7 +25,7 @@ Ltac solve_proper ::= (repeat intros ?; simpl; auto_equiv_binary).
 
 (** interpb : is a binary logical relation. *)
 Section logrel.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MachineParameters}.
 

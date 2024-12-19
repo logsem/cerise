@@ -8,7 +8,7 @@ From cap_machine Require Import proofmode.
 Open Scope Z_scope.
 
 Section buffer.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           `{MP: MachineParameters}.
 
   Definition buffer_code (off: Z) : list LWord :=

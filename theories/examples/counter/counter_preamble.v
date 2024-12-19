@@ -9,7 +9,7 @@ From cap_machine.proofmode Require Import tactics_helpers.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

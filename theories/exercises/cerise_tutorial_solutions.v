@@ -10,7 +10,7 @@ From cap_machine.proofmode Require Import proofmode tactics_helpers contiguous.
 Open Scope Z_scope.
 
 Section base_program.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   Definition prog_instrs : list Word :=

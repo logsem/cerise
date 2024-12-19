@@ -7,7 +7,7 @@ From cap_machine Require Import proofmode.
 Open Scope Z_scope.
 
 Section reclaim_buffer_example.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           `{MP: MachineParameters}.
 
   Definition reclaim_buffer_code : list LWord :=

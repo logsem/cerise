@@ -5,7 +5,7 @@ From cap_machine.ftlr_binary Require Export Mov_binary Load_binary AddSubLt_bina
 From cap_machine Require Export logrel_binary.
 
 Section bin_log_def.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MP: MachineParameters}.
   Notation D := ((prodO (leibnizO Word) (leibnizO Word)) -n> iProp Σ).
@@ -15,7 +15,7 @@ Section bin_log_def.
 End bin_log_def.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MP: MachineParameters}.
 

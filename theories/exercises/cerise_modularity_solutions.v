@@ -13,7 +13,7 @@ From cap_machine.proofmode Require Import proofmode tactics_helpers register_tac
 Open Scope Z_scope.
 
 Section increment_macro.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   (** The increment macro is a macro that takes a register r (r ≠ r_env), which
@@ -184,7 +184,7 @@ Section increment_macro.
 End increment_macro.
 
 Section rclear_macro.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   (** In this section, we will use a pre-defined macro in Cerise, `rclear`.
@@ -330,7 +330,7 @@ Section rclear_macro.
 End rclear_macro.
 
 Section linking_table.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
   (* Demo with incr_macro for the setup *)

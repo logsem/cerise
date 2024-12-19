@@ -360,7 +360,7 @@ Section ContiguousL.
     - split; intros; inversion H ; simplify_eq; econstructor; eauto; by apply IHl.
   Qed.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}.
   Lemma contiguous_betweenL_program_split
     (prog1 prog2 : list LWord) (φ : LAddr → LWord → iProp Σ)
     (a : list Addr) (i j : Addr) (v : Version) :

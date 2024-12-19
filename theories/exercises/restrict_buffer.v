@@ -10,7 +10,7 @@ Open Scope Z_scope.
 (** Variant of the `subseg_buffer` where we don't restrict the range
     of the buffer, but we restrict the permission *)
 Section program_ro.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
 
@@ -249,7 +249,7 @@ End program_ro.
 
 Section program_closure_ro.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
   Definition closure_roN : namespace := nroot .@ "closure_ro".
