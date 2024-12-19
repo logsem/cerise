@@ -689,7 +689,7 @@ Section opsem.
   | IsUnique dst src =>
        (* exclude registers, but also the address a itself !! *)
       wsrc          ← (reg φ) !! src;
-      '(p, b, e, a) ← get_wcap_scap wsrc; (* TODO ask: does IsUnique also work with sealed cap ? *)
+      '(p, b, e, a) ← get_wcap_scap wsrc;
       let uniqueb := (sweep_reg (mem φ) (reg φ) src) in
       φ |>> update_reg dst (WInt (if uniqueb then 1%Z else 0%Z))
         |>> updatePC
@@ -702,25 +702,6 @@ Section opsem.
     | None => (Failed, φ)
     | Some conf => conf
     end.
-
-  (* Definition exec (i: instr) (φ: ExecConf) : Conf := *)
-  (*    match exec_opt i φ with *)
-  (*    | None => *)
-  (*        match i with *)
-  (*        | EInit _ _ => (* failure retains initial machine state @TODO: what happens to PC? *) *)
-  (*            match (φ |>> updatePC) with *)
-  (*            | Some conf => conf *)
-  (*            | None => (Failed, φ) *)
-  (*            end *)
-  (*        | EDeInit rd _ | EStoreId rd _ _ | IsUnique rd _ => *)
-  (*            match (φ |>> update_reg rd (WInt 0) |>> updatePC) with (* write 0 to RD register *) *)
-  (*            | Some conf => conf *)
-  (*            | None => (Failed, φ) *)
-  (*            end *)
-  (*        | _ => (Failed, φ) *)
-  (*                 end *)
-  (*    | Some conf => conf *)
-  (*    end . *)
 
   Lemma exec_opt_exec_some :
     forall φ i c,
