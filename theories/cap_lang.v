@@ -25,7 +25,7 @@ Definition Conf: Type := ConfFlag * ExecConf.
 Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg' (mem φ) (etable φ) (enumcur φ).
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
-Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) : ExecConf := MkExecConf (reg φ) (mem φ) (<[i := eid]> (etable φ)) (enumcur φ).
+Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EIdentity) : ExecConf := MkExecConf (reg φ) (mem φ) (<[i := eid]> (etable φ)) (enumcur φ).
 Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
    match φ with
    | {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} =>
@@ -440,7 +440,7 @@ Section opsem.
   Definition no_cap (mem : Mem) (b: Addr) (e : Addr) : bool :=
     bool_decide (not (contains_cap mem b e)).
 
-  Definition retrieve_eid (i : TIndex) (tb : ETable) : option EId :=
+  Definition retrieve_eid (i : TIndex) (tb : ETable) : option EIdentity :=
     match (tb !! i) with
     | Some p => Some p
     | None => None

@@ -77,9 +77,9 @@ Definition Mem := gmap Addr Word.
 
 (* State involved in supporting enclaves *)
 Definition TIndex := nat.
-Definition EId := Z. (* For now, we assume the hash to be unbounded *)
+Definition EIdentity := Z. (* For now, we assume the hash to be unbounded *)
 Definition ENum := nat. (* The max # of supported enclaves *)
-Definition ETable := gmap TIndex EId. (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
+Definition ETable := gmap TIndex EIdentity. (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
 
 (* EqDecision instances *)
 

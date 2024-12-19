@@ -42,7 +42,7 @@ Section cap_lang_rules.
         ∗ rs ↦ᵣ LWInt otype
         ∗ (
           ⌜ retv = NextIV ⌝
-          ∗ ∃ (id : EId), ∃ (enum : ENum),
+          ∗ ∃ (id : EIdentity), ∃ (enum : ENum),
               rd ↦ᵣ (LWInt id)
               ∗ (enclave_all enum id)
             ∗ ⌜ has_lseal otype enum ⌝

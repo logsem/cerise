@@ -2356,9 +2356,9 @@ Class ceriseG Σ := CeriseG {
   (* Heap for registers *)
   reg_gen_regG :: gen_heapGS RegName LWord Σ;
   (* The ghost resource of all enclaves that have ever existed *)
-  enclaves_hist :: inG Σ (authR (gmapR TIndex (agreeR EId)));
+  enclaves_hist :: inG Σ (authR (gmapR TIndex (agreeR EIdentity)));
   (* The ghost resource of current, known alive enclaves *)
-  enclaves_live :: inG Σ (authR (gmapR TIndex (exclR EId)));
+  enclaves_live :: inG Σ (authR (gmapR TIndex (exclR EIdentity)));
   (* ghost names for the resources *)
   enclaves_name_prev : gname;
   enclaves_name_cur : gname;
@@ -2367,32 +2367,32 @@ Class ceriseG Σ := CeriseG {
 
  (* Assertions over enclaves *)
 
-Definition enclaves_cur (tbl : gmap TIndex EId) `{ceriseG Σ} :=
+Definition enclaves_cur (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
   own (inG0 := enclaves_live) enclaves_name_cur (● (Excl <$> tbl)).
 
-Definition enclaves_prev (tbl : gmap TIndex EId) `{ceriseG Σ} :=
+Definition enclaves_prev (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
   own (inG0 := enclaves_hist) enclaves_name_prev (● (to_agree <$> tbl)).
 
-Definition enclaves_all (tbl : gmap TIndex EId) `{ceriseG Σ} :=
+Definition enclaves_all (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
   own (inG0 := enclaves_hist) enclaves_name_all (● (to_agree <$> tbl)).
 
 (* Fragmental resources *)
 
-Definition enclave_cur (eid : TIndex) (identity : EId) `{ceriseG Σ} :=
+Definition enclave_cur (eid : TIndex) (identity : EIdentity) `{ceriseG Σ} :=
   own (inG0 := enclaves_live) enclaves_name_cur (auth_frag {[eid := Excl identity]}).
 
 Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
   ∃ id ,
   own (inG0 := enclaves_hist) enclaves_name_prev (auth_frag {[eid := to_agree id]}).
 
-Definition enclave_all (eid : TIndex) (id : EId) `{ceriseG Σ} : iProp Σ :=
+Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
   own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
 (* Notations for fragmental resources *)
 (* @TODO: denis *)
 
 Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
-  ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EId) ,
+  ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,
     gen_heap_interp lr ∗
     gen_heap_interp lm ∗
     ⌜cur_tb = σ.(etable)⌝ ∗
