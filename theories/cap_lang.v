@@ -629,12 +629,12 @@ Section opsem.
     (* obtain RX_ permissions for code section *)
     ccap          ← (reg φ) !! rs; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
-    when (readAllowed p && executeAllowed p) then
+    when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
 
     (* obtain RW_ permissions for data section *)
     dcap              ← (mem φ) !! b;
     '(p', b', e', a') ← get_wcap dcap;
-    when (readAllowed p' && writeAllowed p') then
+    when (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
 
     (* MEMORY SWEEP *)
     when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
