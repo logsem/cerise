@@ -657,9 +657,7 @@ Section opsem.
     fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
 
     (* UPDATE THE MACHINE STATE *)
-      (* φ |>> updatePC *)
-    φ
-      (* |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*) *)
+    φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
        |>> update_etable fresh_tid eid (* create a new index in the ETable *)
        |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
        |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
