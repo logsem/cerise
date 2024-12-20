@@ -24,36 +24,43 @@ Section cap_lang_rules.
   |EStoreId_spec_failure:
     EStoreId_spec FailedV.
 
-  Axiom has_lseal : Z -> ENum -> Prop.
+  Definition has_seal (ot : Z) (tid : TIndex) : Prop :=
+    match finz.of_z ot with
+    | Some ot => tid_of_otype ot = Some tid
+    | None => False
+    end.
 
   (* TODO @Denis *)
-  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs otype any :
+  Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
     {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ (pc_a, pc_v) ↦ₐ lw
         ∗ rs ↦ᵣ LWInt otype
         ∗ rd ↦ᵣ any
     }}}
       Instr Executable @ E
-    {{{ retv, RET retv;
-        (pc_a, pc_v) ↦ₐ lw
-        (* something with the pc increment *)
-        ∗ rs ↦ᵣ LWInt otype
-        ∗ (
-          ⌜ retv = NextIV ⌝
-          ∗ ∃ (id : EIdentity), ∃ (enum : ENum),
-              rd ↦ᵣ (LWInt id)
-              ∗ (enclave_all enum id)
-            ∗ ⌜ has_lseal otype enum ⌝
-        ) ∨ (
-          ⌜ retv = FailedV ⌝
-          ∗ rd ↦ᵣ any
-        )
+      {{{ retv, RET retv;
+          (pc_a, pc_v) ↦ₐ lw
+          ∗ rs ↦ᵣ LWInt otype
+          ∗ ((⌜ retv = NextIV ⌝
+              ∗ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+              ∗ ∃ (I : EIdentity), ∃ (tid : TIndex),
+                  rd ↦ᵣ (LWInt I)
+                  ∗ (enclave_all tid I)
+                  ∗ ⌜ has_seal otype tid ⌝
+             )
+             ∨
+               (⌜ retv = FailedV ⌝
+                ∗ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+                ∗ rd ↦ᵣ any
+               )
+            )
 
     }}}.
   Proof.
-    iIntros (Hinstr Hvpc φ) "(Hpc & Hpca & Hrs & Hrd) Hφ".
+    iIntros (Hinstr Hvpc Hpca' φ) "(Hpc & Hpca & Hrs & Hrd) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
