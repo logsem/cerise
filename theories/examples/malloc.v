@@ -17,7 +17,7 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
    studies. *)
 
 Section SimpleMalloc.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

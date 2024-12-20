@@ -355,7 +355,7 @@ Proof.
 Qed.
 
 Section int_client_adequacy.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealg:sealStoreG Σ}
           {nainv: logrel_na_invs Σ} {sealLLG: keylist.sealLLG Σ}
           `{memlayout: memory_layout}.
 

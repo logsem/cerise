@@ -9,7 +9,7 @@ From cap_machine.examples Require Import arch_sealing malloc.
 From cap_machine.examples.interval_arch Require Import interval_arch.
 
 Section interval_closure.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

@@ -4,7 +4,7 @@ From stdpp Require Import base.
 From cap_machine Require Export logrel_binary.
 
 Section fundamental.
- Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+ Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MachineParameters}.
 

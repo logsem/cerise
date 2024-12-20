@@ -25,14 +25,14 @@ Definition permit_unseal (s : SealPerms) :=
   s.2.
 
 Inductive Sealable: Type :=
-| SCap: Perm -> Addr -> Addr -> Addr -> Sealable
-| SSealRange: SealPerms -> OType -> OType -> OType -> Sealable.
+| SCap       (p : Perm) (b e a : Addr)
+| SSealRange (sp : SealPerms) (ob oe oa : OType).
 
 (* Having different syntactic categories here simplifies the definition of instructions later, but requires some duplication in defining bounds changes and lea on sealing ranges *)
 Inductive Word: Type :=
 | WInt (z : Z)
 | WSealable (sb : Sealable)
-| WSealed: OType → Sealable → Word.
+| WSealed (ot : OType) (sb : Sealable).
 
 Notation WCap p b e a := (WSealable (SCap p b e a)).
 Notation WSealRange p b e a := (WSealable (SSealRange p b e a)).
@@ -57,9 +57,9 @@ Inductive instr: Type :=
 | GetOType (dst r: RegName)
 | Seal (dst r1 r2: RegName)
 | UnSeal (dst r1 r2: RegName)
-| EInit (dst r: RegName)
-| EDeInit (dst r: RegName)
-| EStoreId (dst r1 r2: RegName)
+| EInit (dst src: RegName)
+| EDeInit (r: RegName)
+| EStoreId (dst src: RegName)
 | IsUnique (dst src: RegName)
 | Fail
 | Halt.
@@ -70,21 +70,16 @@ Definition cst : Z → (Z+RegName)%type := inl.
 Coercion regn : RegName >-> sum.
 Coercion cst : Z >-> sum.
 
-
 (* Registers and memory: maps from register names/addresses to words *)
 
 Definition Reg := gmap RegName Word.
 Definition Mem := gmap Addr Word.
 
 (* State involved in supporting enclaves *)
-Definition TableSize: nat := 128.
-Global Opaque TableSize.
-Definition MaxENum: nat := 1024.
-Global Opaque MaxENum.
-Definition TIndex := (finz TableSize).
-Definition EId := Z. (* For now, we assume the hash to be unbounded *)
-Definition ENum := (finz MaxENum). (* The max # of supported enclaves *)
-Definition ETable := gmap TIndex (EId * ENum).
+Definition TIndex := nat.
+Definition EIdentity := Z. (* For now, we assume the hash to be unbounded *)
+Definition ENum := nat. (* The max # of supported enclaves *)
+Definition ETable := gmap TIndex EIdentity. (* Check sail impl. of CHERi-TrEE for how to get table index ? They don't have a table but a distinct memory region *)
 
 (* EqDecision instances *)
 
@@ -757,8 +752,8 @@ Qed.
 Global Instance word_inhabited: Inhabited Word := populate (WInt 0).
 Global Instance addr_inhabited: Inhabited Addr := populate (@finz.FinZ MemNum 0%Z eq_refl eq_refl).
 Global Instance otype_inhabited: Inhabited OType := populate (@finz.FinZ ONum 0%Z eq_refl eq_refl).
-Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl).
-Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl).
+(* Global Instance enum_inhabited: Inhabited ENum := populate (@finz.FinZ MaxENum 0%Z eq_refl eq_refl). *)
+(* Global Instance tindex_inhabited: Inhabited TIndex := populate (@finz.FinZ TableSize 0%Z eq_refl eq_refl). *)
 Global Instance etable_inhabited: Inhabited ETable. Proof. solve [typeclasses eauto]. Defined.
 
 Global Instance instr_countable : Countable instr.
@@ -785,9 +780,9 @@ Proof.
       | GetWType dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | EInit dst r => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | EDeInit dst r => GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)]
-      | EStoreId dst r1 r2 => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
+      | EInit dst src => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)]
+      | EDeInit r => GenNode 20 [GenLeaf (inl r)]
+      | EStoreId dst src => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)]
       | IsUnique dst src => GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)]
       | Fail => GenNode 23 []
       | Halt => GenNode 24 []
@@ -813,9 +808,9 @@ Proof.
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetWType dst r
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl r)] => EInit dst r
-      | GenNode 20 [GenLeaf (inl dst); GenLeaf (inl r)] => EDeInit dst r
-      | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => EStoreId dst r1 r2
+      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)] => EInit dst src
+      | GenNode 20 [GenLeaf (inl r)] => EDeInit r
+      | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)] => EStoreId dst src
       | GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)] => IsUnique dst src
       | GenNode 23 [] => Fail
       | GenNode 24 [] => Halt

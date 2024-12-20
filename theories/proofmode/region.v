@@ -8,7 +8,7 @@ From machine_utils Require Import finz_interval.
 From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug related to imports *)
 
 Section region.
-  Context `{MachineParameters, memG Σ, regG Σ, cfg: cfgSG Σ}.
+  Context `{MachineParameters, ceriseG Σ, cfg: cfgSG Σ}.
 
   Lemma isWithin_finz_seq_between_decomposition {z} (a0 a1 b e : finz z):
     (b <= a0 /\ a1 <= e /\ a0 <= a1)%f ->
@@ -72,9 +72,9 @@ Section region.
       + auto.
       + iDestruct "HA2" as "[HA2 HA3]".
         iDestruct "HB2" as "[HB2 HB3]".
-        generalize (drop_S' _ _ _ _ _ H3). intros Hdws.
-        rewrite <- H3. rewrite HWS. rewrite Hdws.
-        iExists w. iFrame. by rewrite <- H3.
+        generalize (drop_S' _ _ _ _ _ H2). intros Hdws.
+        rewrite <- H2. rewrite HWS. rewrite Hdws.
+        iExists w. iFrame. by rewrite <- H2.
     - iIntros "A". iDestruct "A" as (w Hws) "[A1 [B1 [A2 [B2 AB]]]]".
       unfold region_mapsto. rewrite (finz_seq_between_decomposition b a e) // map_app.
       iDestruct "AB" as "[A3 B3]".
@@ -374,7 +374,7 @@ Global Notation "a ∈ₐ [[ b , e ]]" := (in_range a b e)
 
 
 Section codefrag.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
 
 Definition codefrag (a: Addr) (v : Version) (cs: list LWord) :=

@@ -11,7 +11,7 @@ Open Scope Z_scope.
 (** Secondly, the other approach is to dynamically allocate the region with
     the `malloc` macro. *)
 Section malloc_program.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

@@ -10,7 +10,7 @@ Import uPred. (* exist_persistent *)
 
 (* Architectural variant of the sealing/unsealing functionality in the dynamic_sealing file. *)
 Section sealing.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters} .
 

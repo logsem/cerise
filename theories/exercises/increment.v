@@ -23,7 +23,7 @@ Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
 Section program_call.
   From cap_machine Require Import call callback.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
 

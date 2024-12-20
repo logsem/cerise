@@ -4,7 +4,7 @@ From cap_machine Require Import rules logrel macros fundamental call callback.
 From cap_machine.proofmode Require Import tactics_helpers.
 
 Section roe.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

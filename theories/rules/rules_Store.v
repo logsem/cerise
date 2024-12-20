@@ -5,8 +5,8 @@ From iris.algebra Require Import frac.
 From cap_machine Require Export rules_base stdpp_extra.
 
 Section cap_lang_rules.
-  Context `{memG Σ, regG Σ}.
-  Context `{MachineParameters}.
+  Context `{ceriseg: ceriseG Σ}.
+  Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
@@ -282,7 +282,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       destruct H0 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -292,7 +292,7 @@ Section cap_lang_rules.
        apply isCorrectLPC_ra_wb in Hvpc.
        apply andb_prop_elim in Hvpc as [_ Hwb].
        destruct X; try incrementLPC_inv; simplify_map_eq; eauto.
-       destruct o; last apply Is_true_false in H2. all:try congruence.
+       destruct o; last apply Is_true_false in H. all:try congruence.
        done.
      }
   Qed.
@@ -327,7 +327,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H4 as [Hrr2 _]. simplify_map_eq.
+       destruct H1 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -336,7 +336,7 @@ Section cap_lang_rules.
      { (* Failure (contradiction) *)
        destruct X; try incrementLPC_inv; simplify_map_eq; eauto.
        apply isCorrectLPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H3. congruence. done. congruence.
+       destruct o; last apply Is_true_false in H0. congruence. done. congruence.
      }
     Qed.
 
@@ -367,7 +367,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H3 as [Hrr2 _]. simplify_map_eq.
+       destruct H0 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -376,7 +376,7 @@ Section cap_lang_rules.
       { (* Failure (contradiction) *)
        destruct X; try incrementLPC_inv; simplify_map_eq; eauto.
        apply isCorrectLPC_ra_wb in Hvpc. apply andb_prop_elim in Hvpc as [_ Hwb].
-       destruct o; last apply Is_true_false in H2. congruence. done. congruence.
+       destruct o; last apply Is_true_false in H. congruence. done. congruence.
      }
     Qed.
 
@@ -411,7 +411,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H4 as [Hrr2 _]. simplify_map_eq.
+       destruct H1 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -464,7 +464,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H5 as [Hrr2 _]. simplify_map_eq.
+       destruct H2 as [Hrr2 _]. simplify_map_eq.
        destruct ((a0 =? pc_a)%Z && (v0 =? pc_v)) eqn:Heq; subst mem.
        - rewrite andb_true_iff in Heq.
          destruct Heq as [Heq_a Heq_v].
@@ -484,7 +484,7 @@ Section cap_lang_rules.
          rewrite insert_commute; last congruence. rewrite insert_insert.
          iDestruct (memMap_resource_2ne with "Hmem") as "[Ha0 Hpc_a]" ; first congruence.
          incrementLPC_inv.
-         rewrite lookup_insert_ne in H6; last congruence. simplify_map_eq. rewrite insert_insert.
+         rewrite lookup_insert_ne in H3; last congruence. simplify_map_eq. rewrite insert_insert.
          iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame.
      }
      { (* Failure (contradiction) *)
@@ -577,7 +577,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H4 as [Hrr2 _]. simplify_map_eq.
+       destruct H1 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -622,7 +622,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H6 as [Hrr2 _]. simplify_map_eq.
+       destruct H3 as [Hrr2 _]. simplify_map_eq.
        rewrite memMap_resource_1.
        incrementLPC_inv.
        simplify_map_eq.
@@ -664,7 +664,7 @@ Section cap_lang_rules.
     { eapply mem_neq_implies_allow_store_map with (a := a) (v := v)
                                                   (pc_a := pc_a) (pc_v := pc_v)
       ; eauto.
-      rewrite pair_eq in H5. apply not_and_l in H5. destruct H5 ; [left|right]; done.
+      rewrite pair_eq in H2. apply not_and_l in H2. destruct H2 ; [left|right]; done.
       by simplify_map_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
@@ -672,7 +672,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H7 as [Hrr2 _]. simplify_map_eq.
+       destruct H4 as [Hrr2 _]. simplify_map_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementLPC_inv.
@@ -713,7 +713,7 @@ Section cap_lang_rules.
     { eapply mem_neq_implies_allow_store_map with (a := a) (v := v)
                                                   (pc_a := pc_a) (pc_v := pc_v)
       ; eauto.
-      rewrite pair_eq in H3. apply not_and_l in H3. destruct H3 ; [left|right]; done.
+      rewrite pair_eq in H0. apply not_and_l in H0. destruct H0 ; [left|right]; done.
       by simplify_map_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
@@ -721,7 +721,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H5 as [Hrr2 _]. simplify_map_eq.
+       destruct H2 as [Hrr2 _]. simplify_map_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementLPC_inv.
@@ -762,7 +762,7 @@ Section cap_lang_rules.
     { eapply mem_neq_implies_allow_store_map with (a := a) (v := v)
                                                   (pc_a := pc_a) (pc_v := pc_v)
       ; eauto.
-      rewrite pair_eq in H3. apply not_and_l in H3. destruct H3 ; [left|right]; done.
+      rewrite pair_eq in H0. apply not_and_l in H0. destruct H0 ; [left|right]; done.
       by simplify_map_eq. }
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
     iDestruct "Hspec" as %Hspec.
@@ -770,7 +770,7 @@ Section cap_lang_rules.
     destruct Hspec.
      { (* Success *)
        iApply "Hφ".
-       destruct H5 as [Hrr2 _]. simplify_map_eq.
+       destruct H2 as [Hrr2 _]. simplify_map_eq.
        rewrite insert_commute // insert_insert.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementLPC_inv.

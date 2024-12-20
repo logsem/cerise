@@ -7,7 +7,7 @@ From cap_machine Require Import iris_extra logrel_binary fundamental_binary.
 From cap_machine.rules Require Import rules_base.
 
 Section SimpleMalloc.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfg : cfgSG Σ}
           `{MP: MachineParameters}.
 

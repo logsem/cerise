@@ -20,7 +20,7 @@ Ltac iEpilogue_s :=
    iSimpl in "Hj".
 
 Section macros.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfg : cfgSG Σ}
           `{MP: MachineParameters}.
 

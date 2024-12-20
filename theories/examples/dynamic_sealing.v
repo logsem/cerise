@@ -8,7 +8,7 @@ From cap_machine.proofmode Require Import tactics_helpers solve_pure proofmode c
 
 Section sealing.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}
           {seals:sealStoreG Σ}

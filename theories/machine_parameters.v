@@ -36,6 +36,9 @@ Class MachineParameters := {
             end;
     decode_encode_word_type_inv :
     forall w, decodeWordType (encodeWordType w) = w;
+    hash {A : Type} : A ->  Z;
+    hash_concat : Z -> Z -> Z;
+    (* TODO: injectivity and other axioms about hash *)
   }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify

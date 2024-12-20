@@ -4,7 +4,7 @@ From cap_machine Require Import logrel macros rules.
 From cap_machine.proofmode Require Import tactics_helpers proofmode.
 
 Section call.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

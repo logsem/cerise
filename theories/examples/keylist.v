@@ -10,7 +10,7 @@ Definition prefR (al al' : addrwordLO) := al `prefix_of` al'.
 Class sealLLG Σ := CCounterG { ccounter_inG :: inG Σ (authUR (monotoneUR prefR)) }.
 
 Section list.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}
           {mono : sealLLG Σ}.

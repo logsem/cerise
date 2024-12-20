@@ -8,7 +8,7 @@ From cap_machine.ftlr_binary Require Import interp_weakening.
 From cap_machine.rules_binary Require Import rules_binary_base.
 
 Section fundamental.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfgsg: cfgSG Σ}
           `{MachineParameters}.
 

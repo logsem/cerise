@@ -7,7 +7,7 @@ From cap_machine.proofmode Require Import tactics_helpers.
 
 
 Section counter.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfg : cfgSG Σ}
           `{MP: MachineParameters}.
 

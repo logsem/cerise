@@ -163,7 +163,7 @@ Next Obligation.
 Qed.
 
 Section roe_adequacy.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{memlayout: memory_layout}.
 

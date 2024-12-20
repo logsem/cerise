@@ -27,7 +27,7 @@ Open Scope Z_scope.
 
 Section program_call.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
 
@@ -1035,7 +1035,7 @@ Next Obligation.
 Qed.
 
 Section prog_call_correct.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg : sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{memlayout: memory_layout}.
 

@@ -159,7 +159,7 @@ Proof.
     iFrame. iApply (IHl with "H"). solve_addr. }
 Qed.
 
-Lemma mkregion_prepare `{memG Σ} (a e: Addr) l :
+Lemma mkregion_prepare `{ceriseG Σ} (a e: Addr) l :
   (a + length l)%a = Some e →
   ⊢ ([∗ map] k↦v ∈ mkregion a e l, k ↦ₐ v) ==∗ ([∗ list] k;v ∈ (finz.seq_between a e); l, k ↦ₐ v).
 Proof.

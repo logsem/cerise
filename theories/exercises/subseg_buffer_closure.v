@@ -15,7 +15,7 @@ Open Scope Z_scope.
  *)
 Section closure_program.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealsg: sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           `{MP: MachineParameters}.
   Context {nainv: logrel_na_invs Σ}.
   Definition Nclosure : namespace := nroot .@ "closure".

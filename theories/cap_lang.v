@@ -25,7 +25,18 @@ Definition Conf: Type := ConfFlag * ExecConf.
 Definition update_regs (φ: ExecConf) (reg' : Reg) : ExecConf := MkExecConf reg' (mem φ) (etable φ) (enumcur φ).
 Definition update_reg (φ: ExecConf) (r: RegName) (w: Word): ExecConf := update_regs φ (<[ r := w ]> (reg φ)).
 Definition update_mem (φ: ExecConf) (a: Addr) (w: Word): ExecConf := MkExecConf (reg φ) (<[a:=w]>(mem φ)) (etable φ) (enumcur φ).
-Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EId) (enum : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (<[i := (eid,enum)]>(etable φ)) (enumcur φ).
+Definition update_etable (φ: ExecConf) (i: TIndex) (eid : EIdentity) : ExecConf := MkExecConf (reg φ) (mem φ) (<[i := eid]> (etable φ)) (enumcur φ).
+Definition remove_from_etable (φ : ExecConf) (i : TIndex) : ExecConf :=
+   match φ with
+   | {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} =>
+     {| reg := reg; mem := mem; etable := (delete i etable); enumcur := enumcur |}
+   end.
+
+(* global freshness, alt: axiomatize a freshness function
+   -- keeps it implementation independent *)
+Definition gen_fresh_tid (φ: ExecConf) : option TIndex :=
+  Some (enumcur φ).
+
 Definition update_enumcur (φ: ExecConf) (enumcur : ENum): ExecConf := MkExecConf (reg φ) (mem φ) (etable φ) enumcur.
 
 (* Note that the `None` values here also undo any previous changes that were tentatively made in the same step. This is more consistent across the board. *)
@@ -239,85 +250,155 @@ Proof.
   destruct s ; last solve_decision.
   destruct (get_scap w2); last solve_decision.
   destruct s ; last solve_decision.
-  destruct (f <? f2)%a; solve_decision.
+  destruct (b <? b0)%a; solve_decision.
 Defined.
 
-Definition unique_in_registers (regs : Reg) (src : RegName) (wsrc : Word) : Prop :=
+Definition unique_in_registers (regs : Reg) (wsrc : Word) (exclsrc : option RegName) : Prop :=
   (map_Forall
-     (λ (r : RegName) (wr : Word), if decide (r = src) then True else ¬ overlap_word wsrc wr)
+     (λ (r : RegName) (wr : Word),
+       match exclsrc with
+       | None => ¬ overlap_word wsrc wr
+       | Some src => if decide (r = src) then True else ¬ overlap_word wsrc wr
+       end)
      regs).
 
-Global Instance unique_in_registers_dec (regs : Reg) (src : RegName) (wsrc : Word)
-  : Decision (unique_in_registers regs src wsrc).
+Global Instance unique_in_registers_dec (regs : Reg) (wsrc : Word) (src : option RegName)
+  : Decision (unique_in_registers regs wsrc src).
 Proof.
   apply map_Forall_dec.
   move=> r rw.
-  case_decide; solve_decision.
+  destruct src.
+  { case_decide; solve_decision. }
+  { solve_decision. }
 Defined.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep_registers (regs : Reg) (src : RegName) : bool :=
+Definition sweep_registers_reg (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => true (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc => (bool_decide (unique_in_registers regs src wsrc))
+  | Some wsrc => (bool_decide (unique_in_registers regs wsrc (Some src)))
   end.
 
-Lemma sweep_registers_spec (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep_registers regs src = true ->
+Definition sweep_registers_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  match mem !! a with
+  | None => true (* if we don't find the register src, then it cannot overlap *)
+  | Some wsrc => (bool_decide (unique_in_registers regs wsrc None))
+  end.
+
+Lemma sweep_registers_reg_spec (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_registers_reg regs src = true ->
   regs !! src = Some wsrc ->
-  unique_in_registers regs src wsrc.
+  unique_in_registers regs wsrc (Some src).
 Proof.
   move=> Hsweep Hsrc.
-  rewrite /sweep_registers Hsrc in Hsweep.
+  rewrite /sweep_registers_reg Hsrc in Hsweep.
   by apply bool_decide_eq_true in Hsweep.
 Qed.
 
-Definition unique_in_memory (mem : Mem) (wsrc : Word) : Prop :=
+Lemma sweep_registers_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wsrc : Word) :
+  sweep_registers_addr mem regs excla = true ->
+  mem !! excla = Some wsrc ->
+  unique_in_registers regs wsrc None.
+Proof.
+  move=> Hsweep Hsrc.
+  rewrite /sweep_registers_addr Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
+
+Definition unique_in_memory (mem : Mem) (wsrc : Word) (excla : option Addr) : Prop :=
   (map_Forall
-     (λ (a : Addr) (wa : Word), ¬ overlap_word wsrc wa)
+     (λ (a : Addr) (wa : Word),
+       match excla with
+       | None        => ¬ overlap_word wsrc wa
+       | Some wexcla => if decide (a = wexcla) then True else ¬ overlap_word wsrc wa
+       end)
      mem).
 
-Global Instance unique_in_memory_dec (mem : Mem) (wsrc : Word)
-  : Decision (unique_in_memory mem wsrc).
-Proof. solve_decision. Defined.
+Global Instance unique_in_memory_dec (mem : Mem) (wsrc : Word) (excla : option Addr)
+  : Decision (unique_in_memory mem wsrc excla).
+Proof.
+  apply map_Forall_dec.
+  move=> r rw.
+  destruct excla.
+  { case_decide; solve_decision. }
+  { solve_decision. }
+Defined.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep_memory (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+Definition sweep_memory_reg (mem : Mem) (regs : Reg) (src : RegName) : bool :=
   match regs !! src with
   | None => true (* if we don't find the register src, then it cannot overlap *)
-  | Some wsrc => (bool_decide (unique_in_memory mem wsrc))
+  | Some wsrc => (bool_decide (unique_in_memory mem wsrc None))
   end.
 
-Lemma sweep_memory_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep_memory mem regs src = true ->
+Definition sweep_memory_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  match mem !! a with
+  | None => true (* if we don't find the addr src, then it cannot overlap *)
+  | Some w => (bool_decide (unique_in_memory mem w (Some a)))
+  end.
+
+Lemma sweep_memory_reg_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_memory_reg mem regs src = true ->
   regs !! src = Some wsrc ->
-  unique_in_memory mem wsrc.
+  unique_in_memory mem wsrc None.
 Proof.
   intros Hsweep Hsrc.
-  rewrite /sweep_memory Hsrc in Hsweep.
+  rewrite /sweep_memory_reg Hsrc in Hsweep.
+  by apply bool_decide_eq_true in Hsweep.
+Qed.
+
+Lemma sweep_memory_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :
+  sweep_memory_addr mem regs excla = true ->
+  mem !! excla = Some wexcla ->
+  unique_in_memory mem wexcla (Some excla).
+Proof.
+  intros Hsweep Hsrc.
+  rewrite /sweep_memory_addr Hsrc in Hsweep.
   by apply bool_decide_eq_true in Hsweep.
 Qed.
 
 (* Returns [true] if [r] is unique. *)
-Definition sweep (mem : Mem) (regs : Reg) (src : RegName) : bool :=
-  let unique_mem := sweep_memory mem regs src in
-  let unique_reg := sweep_registers regs src in
+(* src is the register that is excluded in the sweeping *)
+Definition sweep_reg (mem : Mem) (regs : Reg) (src : RegName) : bool :=
+  let unique_mem := sweep_memory_reg mem regs src in
+  let unique_reg := sweep_registers_reg regs src in
   unique_mem && unique_reg
 .
 
-Definition unique_in_machine (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :=
-  regs !! src = Some wsrc ->
-  unique_in_registers regs src wsrc /\ unique_in_memory mem wsrc.
+Definition sweep_addr (mem : Mem) (regs : Reg) (a : Addr) : bool :=
+  let unique_mem := sweep_memory_addr mem regs a in
+  let unique_reg := sweep_registers_addr mem regs a in
+  unique_mem && unique_reg
+.
 
-Lemma sweep_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
-  sweep mem regs src = true →
+Definition unique_in_machine_reg (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :=
   regs !! src = Some wsrc ->
-  unique_in_machine mem regs src wsrc.
+  unique_in_registers regs wsrc (Some src) /\ unique_in_memory mem wsrc None.
+
+Definition unique_in_machine_addr (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :=
+  mem !! excla = Some wexcla ->
+  unique_in_registers regs wexcla None /\ unique_in_memory mem wexcla (Some excla).
+
+Lemma sweep_reg_spec (mem : Mem) (regs : Reg) (src : RegName) (wsrc : Word) :
+  sweep_reg mem regs src = true →
+  regs !! src = Some wsrc ->
+  unique_in_machine_reg mem regs src wsrc.
 Proof.
   move=> Hsweep Hsrc.
-  rewrite /sweep andb_true_iff in Hsweep.
+  rewrite /sweep_reg andb_true_iff in Hsweep.
   by destruct Hsweep; split
-  ; [eapply sweep_registers_spec | eapply sweep_memory_spec].
+  ; [eapply sweep_registers_reg_spec | eapply sweep_memory_reg_spec].
+Qed.
+
+Lemma sweep_addr_spec (mem : Mem) (regs : Reg) (excla : Addr) (wexcla : Word) :
+  sweep_addr mem regs excla = true →
+  mem !! excla = Some wexcla ->
+  unique_in_machine_addr mem regs excla wexcla.
+Proof.
+  move=> Hsweep Hsrc.
+  rewrite /sweep_reg andb_true_iff in Hsweep.
+  by destruct Hsweep; split
+  ; [eapply sweep_registers_addr_spec | eapply sweep_memory_addr_spec].
 Qed.
 
 Section opsem.
@@ -326,6 +407,55 @@ Section opsem.
   Definition get_wcap : Word -> option (Perm * Addr * Addr * Addr) :=
     fun w => match  w with WCap p b e a => Some (p, b, e, a)
                          | _ => None end.
+
+  Definition get_wcap_scap : Word -> option (Perm * Addr * Addr * Addr) :=
+    fun w => match  w with WCap p b e a | WSealed _ (SCap p b e a) => Some (p, b, e, a)
+                         | _ => None end.
+
+  Definition get_sealing_cap : Word -> option (SealPerms * OType * OType  * OType) :=
+    fun w => match  w with WSealRange p b e a  => Some (p, b, e, a)
+                   | _ => None end.
+
+  Definition get_sealed_otype : Word -> option OType :=
+    fun w => match  w with WSealed ot _  => Some ot
+                   | _ => None end.
+
+  Definition contains_cap (mem : Mem) (b : Addr) (e : Addr) : Prop :=
+    map_Forall (λ (a : Addr) (wa : Word),
+        if decide ((a <= b)%a ∧ (b <= e)%a)
+        then is_cap wa
+        else false)
+      mem.
+
+  Global Instance contains_cap_dec (mem : Mem) (b : Addr) (e : Addr)
+    : Decision (contains_cap mem b e).
+  Proof. apply map_Forall_dec. intros a w. destruct w; case_decide; solve_decision. Defined.
+
+  Definition no_cap (mem : Mem) (b: Addr) (e : Addr) : bool :=
+    bool_decide (not (contains_cap mem b e)).
+
+  Definition retrieve_eid (i : TIndex) (tb : ETable) : option EIdentity :=
+    match (tb !! i) with
+    | Some p => Some p
+    | None => None
+    end.
+
+  Definition tid_of_otype (oa : OType) : option TIndex :=
+      if (Z.even (finz.to_z oa))
+      then Some (Nat.div (Z.to_nat oa) 2)
+      else Some (Nat.div (Z.to_nat (oa^-1)%f) 2).
+
+  Definition measure (m : Mem) (b e: Addr) :=
+    let instructions : list Word :=
+      map snd
+        ((map_to_list
+            (filter (fun '(a, _) => a ∈ (finz.seq_between (b^+1)%a e)) m)))
+    in
+    hash_concat (hash b) (hash instructions).
+
+  (* cannot stand the nested indentation *)
+  Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
+  Notation "a |>> f" := (f a) (at level 10, only parsing, left associativity).
 
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
     match i with
@@ -489,26 +619,85 @@ Section opsem.
         else None
     | _,_ => None
     end
-  | EInit _ _ => None      (* TODO @Denis *)
-  | EDeInit _ _ => None    (* TODO @Denis *)
-  | EStoreId _ _ _ => None (* TODO @Denis *)
+    (* enclave initialization *)
+  | EInit rd rs =>
+
+    (* obtain RX_ permissions for code section *)
+    ccap          ← (reg φ) !! rs; (* get code capability *)
+    '(p, b, e, a) ← get_wcap ccap;
+    when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
+
+    (* obtain RW_ permissions for data section *)
+    dcap              ← (mem φ) !! b;
+    '(p', b', e', a') ← get_wcap dcap;
+    when (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
+
+    (* MEMORY SWEEP *)
+    when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
+           (sweep_reg (mem φ) (reg φ) rs) && (* sweep the registers excluding the code cap in register rs *)
+           (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
+
+    (* ALLOCATION OF THE ENCLAVE'S SEALS *)
+    (* IIUC: the EC register acts as a bump allocator for enclave otypes *)
+    (* therefore, to generate the seals for the enclave, it is sufficient to use the value of the EC register
+       and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
+    let ec : nat := enumcur φ in
+    let ecz : Z := (Z.of_nat ec) in
+    s_b ← finz.of_z (2*ecz)%Z; (* coerce seal base and end addresses into the finZ ONum type *)
+    s_e ← finz.of_z (2*ecz + 2)%Z;
+    let seals := (WSealRange (true, true) s_b s_e s_b) in (* permitSeal & permitUnseal *)
+
+    (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
+    let eid := measure (mem φ) b e in
+
+    fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
+
+    (* UPDATE THE MACHINE STATE *)
+    φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
+       |>> update_etable fresh_tid eid (* create a new index in the ETable *)
+       |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
+       |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
+       |>> updatePC
+
+    (* enclave deinitialization *)
+  | EDeInit rs =>
+      wσ   ← (reg φ) !! rs; (* σ should be a seal/unseal pair *)
+      '(p,σb,σe,σa) ← get_sealing_cap wσ;
+      when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
+      tid ← tid_of_otype σb;
+
+      (* UPDATE THE MACHINE STATE *)
+      φ |>> remove_from_etable tid
+        |>> updatePC
+
+    (* enclave local attestation *)
+  | EStoreId rd rs =>
+      wσ  ← (reg φ) !! rs;
+      σa  ← get_sealed_otype wσ;
+      tid ← tid_of_otype σa;
+      eid  ← (etable φ) !! tid;
+
+      (* UPDATE THE MACHINE STATE *)
+      φ |>> update_reg rd (WInt eid)
+        |>> updatePC
+
+    (* memory sweep *)
   | IsUnique dst src =>
-      wsrc ← (reg φ) !! src;
-      match wsrc with
-      | WCap p b e a
-      | WSealed _ (SCap p b e a)
-        (* TODO ask: does IsUnique also work with sealed cap ?
-           cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
-         *)
-        =>
-          let uniqueb := sweep (mem φ) (reg φ) src in
-          updatePC (update_reg φ dst (WInt (if uniqueb then 1%Z else 0%Z)))
-      | _ => None
-      end
+       (* exclude registers, but also the address a itself !! *)
+      wsrc          ← (reg φ) !! src;
+      '(p, b, e, a) ← get_wcap_scap wsrc;
+      let uniqueb := (sweep_reg (mem φ) (reg φ) src) in
+      φ |>> update_reg dst (WInt (if uniqueb then 1%Z else 0%Z))
+        |>> updatePC
+      (* cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
+       *)
   end.
 
-  Definition exec (i: instr) (φ: ExecConf) : Conf :=
-     match exec_opt i φ with | None => (Failed, φ) | Some conf => conf end .
+  Definition exec (i : instr) (φ : ExecConf) : Conf :=
+    match exec_opt i φ with
+    | None => (Failed, φ)
+    | Some conf => conf
+    end.
 
   Lemma exec_opt_exec_some :
     forall φ i c,
@@ -740,6 +929,24 @@ Section opsem.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
     all: simplify_eq; try by exfalso.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: repeat (
+             destruct (mem _ !! _); cbn in *; repeat case_match
+             ; simplify_eq
+             ; cbn in *
+             ; case_match).
+    all: repeat destruct (finz.of_z _); cbn in *
+    ; repeat destruct (get_sealing_cap _); cbn in *
+    ; repeat destruct (get_sealed_otype _); cbn in *
+    ; repeat destruct (get_wcap_scap _); cbn in *.
+    all: repeat destruct p.
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: simplify_eq; try by exfalso.
+    all: repeat destruct (tid_of_otype _); cbn in *.
+    all: try destruct (_ && _).
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
+    all: simplify_eq; try by exfalso.
+    all: repeat (destruct (etable _ !! _); cbn in * ; simplify_eq; cbn in * ).
+    all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
   Qed.
 
 End opsem.
@@ -815,6 +1022,5 @@ Proof.
             {| reg := gmap_empty ;
               mem := gmap_empty ;
               etable := gmap_empty ;
-              enumcur := _ |}).
-  eexists. Unshelve. 3: exact 0%Z. all: solve_finz.
+              enumcur := 0 |}).
 Defined.

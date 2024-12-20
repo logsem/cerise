@@ -7,7 +7,7 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
 (* Maintains a flag storing whether an assert has failed. *)
 
 Section Assert.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

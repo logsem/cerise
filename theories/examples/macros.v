@@ -6,7 +6,7 @@ From cap_machine.proofmode Require Import tactics_helpers map_simpl solve_pure.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc assert.
 
 Section macros.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
 

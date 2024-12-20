@@ -1,6 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
+From iris.algebra Require Import gmap excl agree.
 From cap_machine Require Export cap_lang iris_extra stdpp_extra machine_parameters.
 
 Definition Version := nat.
@@ -859,7 +860,7 @@ Lemma state_corresponds_unique_in_registers
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
-  unique_in_registers phr src (lword_get_word lwsrc) ->
+  unique_in_registers phr (lword_get_word lwsrc) (Some src) ->
   unique_in_registersL lr src lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
@@ -878,7 +879,7 @@ Lemma state_corresponds_unique_in_memory
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
-  unique_in_memory phm (lword_get_word lwsrc) ->
+  unique_in_memory phm (lword_get_word lwsrc) None ->
   unique_in_memoryL lm vmap lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
@@ -898,13 +899,13 @@ Lemma sweep_true_specL
   (src : RegName) (lwsrc : LWord):
   state_phys_log_corresponds phr phm lr lm vmap →
   lr !! src = Some lwsrc →
-  sweep phm phr src = true →
+  sweep_reg phm phr src = true →
   unique_in_machineL lr lm vmap src lwsrc.
 Proof.
   intros HLinv Hlr_src Hsweep.
   assert (Hphr_src : phr !! src = Some (lword_get_word lwsrc))
     by (by eapply state_corresponds_reg_get_word).
-  apply sweep_spec with (wsrc := (lword_get_word lwsrc)) in Hsweep ; auto.
+  apply sweep_reg_spec with (wsrc := (lword_get_word lwsrc)) in Hsweep ; auto.
   specialize (Hsweep Hphr_src).
   destruct Hsweep as [Hunique_reg Hunique_mem].
   intros _.
@@ -2356,23 +2357,66 @@ Qed.
 
 (** Instantiation of the program logic *)
 
-(* CMRΑ for memory *)
-Class memG Σ := MemG {
-  mem_invG : invGS Σ;
-  mem_gen_memG :: gen_heapGS LAddr LWord Σ}.
+(* CMRΑ for Cerise *)
+Class ceriseG Σ := CeriseG {
+  cerise_invG : invGS Σ;
+  (* Heap for memory *)
+  mem_gen_memG :: gen_heapGS LAddr LWord Σ;
+  (* Heap for registers *)
+  reg_gen_regG :: gen_heapGS RegName LWord Σ;
+  (* The ghost resource of all enclaves that have ever existed *)
+  enclaves_hist :: inG Σ (authR (gmapR TIndex (agreeR EIdentity)));
+  (* The ghost resource of current, known alive enclaves *)
+  enclaves_live :: inG Σ (authR (gmapR TIndex (exclR EIdentity)));
+  (* ghost names for the resources *)
+  enclaves_name_prev : gname;
+  enclaves_name_cur : gname;
+  enclaves_name_all : gname;
+}.
 
-(* CMRA for registers *)
-Class regG Σ := RegG {
-  reg_invG : invGS Σ;
-  reg_gen_regG :: gen_heapGS RegName LWord Σ; }.
+ (* Assertions over enclaves *)
 
-Definition state_interp_logical (σ : cap_lang.state) `{!memG Σ, !regG Σ} : iProp Σ :=
-  ∃ lr lm vmap , gen_heap_interp lr ∗ gen_heap_interp lm ∗
-                      ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
+Definition enclaves_cur (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
+  own (inG0 := enclaves_live) enclaves_name_cur (● (Excl <$> tbl)).
+
+Definition enclaves_prev (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
+  own (inG0 := enclaves_hist) enclaves_name_prev (● (to_agree <$> tbl)).
+
+Definition enclaves_all (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
+  own (inG0 := enclaves_hist) enclaves_name_all (● (to_agree <$> tbl)).
+
+(* Fragmental resources *)
+
+Definition enclave_cur (eid : TIndex) (identity : EIdentity) `{ceriseG Σ} :=
+  own (inG0 := enclaves_live) enclaves_name_cur (auth_frag {[eid := Excl identity]}).
+
+Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
+  ∃ id ,
+  own (inG0 := enclaves_hist) enclaves_name_prev (auth_frag {[eid := to_agree id]}).
+
+Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
+  own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
+
+(* Notations for fragmental resources *)
+(* @TODO: denis *)
+
+Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
+  ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,
+    gen_heap_interp lr ∗
+    gen_heap_interp lm ∗
+    ⌜cur_tb = σ.(etable)⌝ ∗
+    enclaves_cur cur_tb ∗
+    enclaves_prev prev_tb ∗
+    enclaves_all all_tb ∗
+    ⌜dom cur_tb ## dom prev_tb⌝ ∗
+    ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (* TODO: needs to go to nats... *)
+    ⌜cur_tb ##ₘ prev_tb⌝ ∗
+    ⌜cur_tb ∪ prev_tb = all_tb⌝ ∗
+    ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Global Instance memG_irisG `{MachineParameters} `{!memG Σ, !regG Σ} : irisGS cap_lang Σ := {
-  iris_invGS := mem_invG;
+Global Instance memG_irisG `{MachineParameters} `{!ceriseG Σ} : irisGS cap_lang Σ := {
+  iris_invGS := cerise_invG;
   state_interp σ _ κs _ := state_interp_logical σ;
   fork_post _ := True%I;
   num_laters_per_step _ := 0;

@@ -9,7 +9,7 @@ From cap_machine.proofmode Require Import
   contiguous tactics_helpers solve_pure proofmode map_simpl.
 
 Section interval_client.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {sealg : sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealg : sealStoreG Σ}
           {nainv: logrel_na_invs Σ} {sealG: sealLLG Σ}
           `{MP: MachineParameters}.
 

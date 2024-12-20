@@ -11,7 +11,7 @@ Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at lev
 
 Section interval.
 
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ} (* `{intg: intervalG Σ} *)
           `{MP: MachineParameters}
           {mono : sealLLG Σ}.

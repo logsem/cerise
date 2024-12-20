@@ -9,7 +9,7 @@ From cap_machine.examples.counter_binary Require Import counter_binary.
 From stdpp Require Import countable.
 
 Section counter_example_preamble.
-  Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ}
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ} {cfg : cfgSG Σ}
           `{MP: MachineParameters}.
 
