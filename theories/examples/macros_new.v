@@ -28,27 +28,27 @@ Section macros.
       Load r_t1 r_t1
     ].
 
-  Lemma fetch_spec f pc_p pc_b pc_e v a_first b_link e_link a_link entry_a wentry φ w1 w2 w3:
+  Lemma fetch_spec f pc_p pc_b pc_e pc_v a_first b_link e_link a_link v_link entry_a wentry φ w1 w2 w3:
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_instrs f))%a →
     withinBounds b_link e_link entry_a = true ->
     (a_link + f)%a = Some entry_a ->
 
-      ▷ codefrag a_first v (fetch_instrs f)
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
-    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-    ∗ ▷ (entry_a,v) ↦ₐ wentry
+      ▷ codefrag a_first pc_v (fetch_instrs f)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
+    ∗ ▷ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+    ∗ ▷ (entry_a,v_link) ↦ₐ wentry
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_instrs f))%a v
-         ∗ codefrag a_first v (fetch_instrs f)
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_instrs f))%a pc_v
+         ∗ codefrag a_first pc_v (fetch_instrs f)
          (* the newly allocated region *)
          ∗ r_t1 ↦ᵣ wentry ∗ r_t2 ↦ᵣ LInt 0%Z ∗ r_t3 ↦ᵣ LInt 0%Z
-         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-         ∗ (entry_a,v) ↦ₐ wentry
+         ∗ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+         ∗ (entry_a,v_link) ↦ₐ wentry
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -70,23 +70,23 @@ Section macros.
         Load r_lt r_lt (* r_lt := mem(b_tbl + f) *)
       ].
 
-  Lemma fetch_reg_spec f r_lt pc_p pc_b pc_e v a_first b_link e_link a_link entry_a wentry φ :
+  Lemma fetch_reg_spec f r_lt pc_p pc_b pc_e pc_v a_first b_link e_link a_link v_link entry_a wentry φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (fetch_reg_instrs f r_lt))%a →
     withinBounds b_link e_link entry_a = true ->
     (a_link + f)%a = Some entry_a ->
 
-      ▷ codefrag a_first v (fetch_reg_instrs f r_lt)
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
-    ∗ ▷ (entry_a,v) ↦ₐ wentry
-    ∗ ▷ r_lt ↦ᵣ LCap RO b_link e_link a_link v
+      ▷ codefrag a_first pc_v (fetch_reg_instrs f r_lt)
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
+    ∗ ▷ (entry_a,v_link) ↦ₐ wentry
+    ∗ ▷ r_lt ↦ᵣ LCap RO b_link e_link a_link v_link
     (* if the capability is global, we want to be able to continue *)
     (* if w is not a global capability, we will fail, and must now show that Phi holds at failV *)
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_reg_instrs f r_lt))%a v
-         ∗ codefrag a_first v (fetch_reg_instrs f r_lt)
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (fetch_reg_instrs f r_lt))%a pc_v
+         ∗ codefrag a_first pc_v (fetch_reg_instrs f r_lt)
          (* the newly allocated region *)
          ∗ r_lt ↦ᵣ wentry
-         ∗ (entry_a,v) ↦ₐ wentry
+         ∗ (entry_a,v_link) ↦ₐ wentry
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
       WP Seq (Instr Executable) {{ φ }}.
@@ -114,8 +114,8 @@ Section macros.
     ].
 
   (* Spec for assertion success *)
-  Lemma assert_success f_a pc_p pc_b pc_e v a_first
-        b_link e_link a_link a_entry ba a_flag ea w0 w1 w2 w3 assertN EN n1 n2 φ :
+  Lemma assert_success f_a pc_p pc_b pc_e pc_v a_first
+        b_link e_link a_link v_link a_entry ba a_flag ea v_assert w0 w1 w2 w3 assertN EN n1 n2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (assert_instrs f_a))%a →
     (* linking table assumptions *)
@@ -125,26 +125,26 @@ Section macros.
     (* condition for assertion success *)
     (n1 = n2) →
 
-    ▷ codefrag a_first v (assert_instrs f_a)
-    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v)
+    ▷ codefrag a_first pc_v (assert_instrs f_a)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v_assert)
     ∗ na_own logrel_nais EN
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
-    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-    ∗ ▷ (a_entry,v) ↦ₐ LCap E ba ea ba v
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
+    ∗ ▷ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+    ∗ ▷ (a_entry,v_link) ↦ₐ LCap E ba ea ba v_assert
     ∗ ▷ r_t0 ↦ᵣ w0
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t3 ↦ᵣ w3
     ∗ ▷ r_t4 ↦ᵣ LInt n1
     ∗ ▷ r_t5 ↦ᵣ LInt n2
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a v
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_instrs f_a))%a pc_v
          ∗ r_t0 ↦ᵣ w0
          ∗ r_t1 ↦ᵣ LInt 0%Z ∗ r_t2 ↦ᵣ LInt 0%Z ∗ r_t3 ↦ᵣ LInt 0%Z
          ∗ r_t4 ↦ᵣ LInt 0%Z ∗ r_t5 ↦ᵣ LInt 0%Z
-         ∗ codefrag a_first v (assert_instrs f_a)
+         ∗ codefrag a_first pc_v (assert_instrs f_a)
          ∗ na_own logrel_nais EN
-         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-         ∗ (a_entry,v) ↦ₐ LCap E ba ea ba v
+         ∗ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+         ∗ (a_entry,v_link) ↦ₐ LCap E ba ea ba v_assert
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -186,8 +186,8 @@ Section macros.
     ].
 
   (* Spec for assertion success *)
-  Lemma assert_reg_success f_a r_lt pc_p pc_b pc_e v a_first
-        b_link e_link a_link a_entry ba a_flag ea w0 w2 assertN EN n1 n2 φ :
+  Lemma assert_reg_success f_a r_lt pc_p pc_b pc_e pc_v a_first
+        b_link e_link a_link v_link a_entry ba a_flag ea v_assert w0 w2 assertN EN n1 n2 φ :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (assert_reg_instrs f_a r_lt))%a →
     (* linking table assumptions *)
@@ -197,23 +197,23 @@ Section macros.
     (* condition for assertion success *)
     (n1 = n2) →
 
-    ▷ codefrag a_first v (assert_reg_instrs f_a r_lt)
-    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v)
+    ▷ codefrag a_first pc_v (assert_reg_instrs f_a r_lt)
+    ∗ na_inv logrel_nais assertN (assert_inv ba a_flag ea v_assert)
     ∗ na_own logrel_nais EN
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
-    ∗ ▷ (a_entry,v) ↦ₐ LCap E ba ea ba v
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
+    ∗ ▷ (a_entry,v_link) ↦ₐ LCap E ba ea ba v_assert
     ∗ ▷ r_t0 ↦ᵣ w0
-    ∗ ▷ r_lt ↦ᵣ (LCap RO b_link e_link a_link v)
+    ∗ ▷ r_lt ↦ᵣ (LCap RO b_link e_link a_link v_link)
     ∗ ▷ r_t2 ↦ᵣ w2
     ∗ ▷ r_t4 ↦ᵣ LInt n1
     ∗ ▷ r_t5 ↦ᵣ LInt n2
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_reg_instrs f_a r_lt))%a v
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (assert_reg_instrs f_a r_lt))%a pc_v
          ∗ r_t0 ↦ᵣ w0
          ∗ r_lt ↦ᵣ LInt 0%Z ∗ r_t2 ↦ᵣ LInt 0%Z
          ∗ r_t4 ↦ᵣ LInt 0%Z ∗ r_t5 ↦ᵣ LInt 0%Z
-         ∗ codefrag a_first v (assert_reg_instrs f_a r_lt)
+         ∗ codefrag a_first pc_v (assert_reg_instrs f_a r_lt)
          ∗ na_own logrel_nais EN
-         ∗ (a_entry,v) ↦ₐ LCap E ba ea ba v
+         ∗ (a_entry,v_link) ↦ₐ LCap E ba ea ba v_assert
          -∗ WP Seq (Instr Executable) {{ φ }})
     ⊢
     WP Seq (Instr Executable) {{ φ }}.
@@ -258,8 +258,8 @@ Section macros.
   ].
 
   (* malloc spec *)
-  Lemma malloc_spec_alt φ ψ size cont pc_p pc_b pc_e v a_first
-        b_link e_link a_link f_m a_entry mallocN b_m e_m EN rmap :
+  Lemma malloc_spec_alt φ ψ size cont pc_p pc_b pc_e pc_v a_first
+        b_link e_link a_link v_link f_m a_entry v_malloc mallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
@@ -269,28 +269,28 @@ Section macros.
     (size > 0)%Z →
 
     (* malloc program and subroutine *)
-    ▷ codefrag a_first v (malloc_instrs f_m size)
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
+    ▷ codefrag a_first pc_v (malloc_instrs f_m size)
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v_malloc)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
+    ∗ ▷ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+    ∗ ▷ (a_entry,v_link) ↦ₐ LCap E b_m e_m b_m v_malloc
     (* register state *)
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* failure/continuation *)
     ∗ ▷ (∀ v, ψ v -∗ φ v)
     ∗ ▷ (φ FailedV)
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a v
-         ∗ codefrag a_first v (malloc_instrs f_m size)
-         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a pc_v
+         ∗ codefrag a_first pc_v (malloc_instrs f_m size)
+         ∗ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+         ∗ (a_entry,v_link) ↦ₐ LCap E b_m e_m b_m v_malloc
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ LCap RWX b e b v
-            ∗ [[b,e]] ↦ₐ{v} [[region_addrs_zeroesL b e v]])
+            ∗ r_t1 ↦ᵣ LCap RWX b e b v_malloc
+            ∗ [[b,e]] ↦ₐ{v_malloc} [[region_addrs_zeroesL b e v_malloc]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
          ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>
@@ -360,8 +360,8 @@ Section macros.
   Qed.
 
   (* malloc spec - alternative formulation *)
-  Lemma malloc_spec φ size cont pc_p pc_b pc_e v a_first
-        b_link e_link a_link f_m a_entry mallocN b_m e_m EN rmap :
+  Lemma malloc_spec φ size cont pc_p pc_b pc_e pc_v a_first
+        b_link e_link a_link v_link f_m a_entry v_malloc mallocN b_m e_m EN rmap :
     ExecPCPerm pc_p →
     SubBounds pc_b pc_e a_first (a_first ^+ length (malloc_instrs f_m size))%a →
     withinBounds b_link e_link a_entry = true →
@@ -371,26 +371,26 @@ Section macros.
     (size > 0)%Z →
 
     (* malloc program and subroutine *)
-    ▷ codefrag a_first v (malloc_instrs f_m size)
-    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v)
+    ▷ codefrag a_first pc_v (malloc_instrs f_m size)
+    ∗ na_inv logrel_nais mallocN (malloc_inv b_m e_m v_malloc)
     ∗ na_own logrel_nais EN
     (* we need to assume that the malloc capability is in the linking table at offset f_m *)
-    ∗ ▷ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-    ∗ ▷ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
+    ∗ ▷ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+    ∗ ▷ (a_entry,v_link) ↦ₐ LCap E b_m e_m b_m v_malloc
     (* register state *)
-    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first v
+    ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
     ∗ ▷ r_t0 ↦ᵣ cont
     ∗ ▷ ([∗ map] r_i↦w_i ∈ rmap, r_i ↦ᵣ w_i)
     (* continuation *)
-    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a v
-         ∗ codefrag a_first v (malloc_instrs f_m size)
-         ∗ (pc_b,v) ↦ₐ LCap RO b_link e_link a_link v
-         ∗ (a_entry,v) ↦ₐ LCap E b_m e_m b_m v
+    ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length (malloc_instrs f_m size))%a pc_v
+         ∗ codefrag a_first pc_v (malloc_instrs f_m size)
+         ∗ (pc_b,pc_v) ↦ₐ LCap RO b_link e_link a_link v_link
+         ∗ (a_entry,v_link) ↦ₐ LCap E b_m e_m b_m v_malloc
          (* the newly allocated region *)
          ∗ (∃ (b e : Addr),
             ⌜(b + size)%a = Some e⌝
-            ∗ r_t1 ↦ᵣ LCap RWX b e b v
-            ∗ [[b,e]] ↦ₐ{v} [[region_addrs_zeroesL b e v]])
+            ∗ r_t1 ↦ᵣ LCap RWX b e b v_malloc
+            ∗ [[b,e]] ↦ₐ{v_malloc} [[region_addrs_zeroesL b e v_malloc]])
          ∗ r_t0 ↦ᵣ cont
          ∗ na_own logrel_nais EN
          ∗ ([∗ map] r_i↦w_i ∈ (<[r_t2:=LInt 0%Z]>

@@ -2354,6 +2354,33 @@ Proof.
   destruct (decide (r1 = r2)); simplify_eq; auto.
 Qed.
 
+Lemma unique_in_registersL_pc_no_overlap
+  (pc_p : Perm) (pc_b pc_e pc_a : Addr) (pc_v : Version)
+  (p : Perm) (b e a : Addr) (v : Version)
+  (src : RegName) (regs : LReg) :
+  PC ≠ src ->
+  isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) ->
+  regs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) ->
+  unique_in_registersL regs src (LCap p b e a v) ->
+  pc_a ∉ finz.seq_between b e.
+Proof.
+  intros Hpc_neq_pc Hvpc Hpc Hunique_regs.
+  assert (pc_a ∈ finz.seq_between pc_b pc_e).
+  { rewrite isCorrectLPC_isCorrectPC_iff /=  in Hvpc.
+    apply isCorrectPC_withinBounds in Hvpc.
+    by apply withinBounds_in_seq.
+  }
+  intro contra.
+  rewrite /unique_in_registersL in Hunique_regs.
+  eapply map_Forall_lookup_1 in Hunique_regs; eauto.
+  destruct (decide (PC = src)); auto.
+  apply Hunique_regs.
+  rewrite /overlap_wordL /overlap_word //=.
+  apply elem_of_finz_seq_between in H,contra.
+  destruct H,contra.
+  destruct (b <? pc_b)%a eqn:Hb; solve_addr.
+Qed.
+
 
 (** Instantiation of the program logic *)
 

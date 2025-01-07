@@ -699,7 +699,6 @@ Section cap_lang_rules.
 
   Qed.
 
-
   Lemma wp_isunique_success'
     (Ep : coPset)
     (pc_p : Perm) (pc_b pc_e pc_a pc_a' : Addr) (pc_v : Version)
@@ -710,7 +709,6 @@ Section cap_lang_rules.
 
     decodeInstrWL lw = IsUnique dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
-    pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
     (pc_a + 1)%a = Some pc_a' →
     p ≠ E ->
 
@@ -733,7 +731,7 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca_notin Hpca Hp φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
+    iIntros (Hinstr Hvpc Hpca Hp φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmmap".
@@ -774,8 +772,10 @@ Section cap_lang_rules.
       iClear "Hrmap".
       iFrame.
 
+      assert ( Hpc_a : pc_a ∉ finz.seq_between b0 e0)
+               by (eapply unique_in_registersL_pc_no_overlap; eauto; by simplify_map_eq).
       assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
-      { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq. }
+      { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto ; last by simplify_map_eq. }
 
       assert (
           exists lws,
@@ -798,7 +798,6 @@ Section cap_lang_rules.
       by rewrite map_length.
   Qed.
 
-  (* TODO merge wp_opt from Dominique's branch and use it *)
   (* TODO extend proofmode, which means cases such as:
      dst = PC, src = PC, dst = stc *)
 
