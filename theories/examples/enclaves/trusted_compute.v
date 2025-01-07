@@ -7,25 +7,47 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import macros_new.
 Open Scope Z_scope.
 
+(* TODO move in finz *)
+Lemma finz_incr_minus_id
+  {finz_bound : Z}
+  (f : finz finz_bound) (z : Z)
+  (finz_lt : (z <? finz_bound)%Z = true)
+  (finz_nonneg : (0 <=? z)%Z = true) :
+  (f + (z - f))%f = Some (finz.FinZ z finz_lt finz_nonneg).
+Proof.
+  induction z; cbn in *; try done.
+  - replace (0 - f) with (-f); solve_finz.
+  - destruct (Z.pos p - f) eqn:H.
+    + assert ( Z.pos p = f ) by lia.
+      solve_finz.
+    + assert ( Z.pos p = f + Z.pos p0) by lia.
+      solve_finz.
+    + assert ( Z.pos p = f + Z.neg p0) by lia.
+      solve_finz.
+Qed.
+
+(* TODO move logical_mapsto? *)
+Definition sealable_to_lsealable (sb : Sealable) (v : Version) :=
+  match sb with
+  | SCap p b e a => LSCap p b e a v
+  | SSealRange p b e a => LSSealRange p b e a
+  end.
+
+Definition word_to_lword (w : Word) (v : Version) :=
+  match w with
+  | WInt z => LInt z
+  | WSealable sb => LWSealable (sealable_to_lsealable sb v)
+  | WSealed ot sb => LWSealed ot (sealable_to_lsealable sb v)
+  end.
+
+(* TODO move in common file for sealing *)
 (* This section redefines useful definitions from `arch_sealing` along with further explanations. *)
 Section invariants.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
-
-  (* `seal_pred` denotes that the sealed satisfies a predicate `Φ`, for a specific `τ` OType. *)
-  (* Note: `seal_pred` does not need to be put inside an invariant, because it is `Persistent`. *)
-  (* Definition seal_pred τ Φ {Hpers : ∀ w, Persistent (Φ w)} := seal_store.seal_pred τ Φ. *)
-
-  (* Note: `arch_sealing.seal_state` is the combination of `seal_pred` and a invariant. *)
-  (* > This invariant pins `WSealRange` in memory to retrieve an access to it. *)
-  (* For simplicity, `WSealRange` will be easily accessible (hidden in front of our instructions). *)
-
-  (* Fact that the value `w`, if `interp w`, has been validly sealed satisfying a `Φ` predicate. *)
   Definition valid_sealed w o (Φ : LWord -> iProp Σ) :=
     (∃ sb, ⌜w = LWSealed o sb⌝ ∗  ⌜∀ w : leibnizO LWord, Persistent (Φ w)⌝
                                                          ∗ seal_pred o Φ ∗ Φ (LWSealable sb))%I.
-
-  (* Lemma: If something is sealed, it is sufficient to know that the sealed satisfies a predicate `Φ`. *)
   Lemma interp_valid_sealed sb o:
     interp (LWSealed o sb) -∗ ∃ Φ, ▷ valid_sealed (LWSealed o sb) o Φ.
   Proof.
@@ -34,8 +56,6 @@ Section invariants.
     iExists P, sb; repeat iSplit; [auto | auto | iFrame.. ].
   Qed.
 
-  (* Lemma: Concludes that `Φ ≡ Φ'` if `seal_pred τ Φ` and `valid_sealed w τ Φ` have the same `τ` OType. *)
-  (* Note: This is a more generic version of `arch_sealing.sealLL_valid_sealed_pred_eq` *)
   Lemma seal_pred_valid_sealed_eq τ w Φ Φ' {Hpers : ∀ w, Persistent (Φ w)} :
     seal_pred τ Φ -∗ valid_sealed w τ Φ' -∗ (∀ w, ▷ (Φ w ≡ Φ' w)).
   Proof.
@@ -46,43 +66,30 @@ Section invariants.
 
 End invariants.
 
-(* The proof guideline for accessing the sealed predicate is as follows: *)
-
-(* We assume: *)
-(*  - `seal_pred τ φ`, for some known `φ` (e.g: `sealed_cap`) *)
-(*  - `interp w`, where `w = WSealed τ scap` for any given `scap` *)
-
-(* 1. Using `interp_valid_sealed`, we can get `▷ valid_sealed (WSealed τ scap) τ Φ`. *)
-(* 2. `Φ` is currently unknown, we have to use `seal_pred_valid_sealed_eq` to retrieve `φ`. *)
-
-Section invariants_cap.
+Section sealed_42.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
 
   Definition seal_capN : namespace := nroot .@ "seal_cap".
 
-  (* `sealed_cap` is the sealed predicate of a sealed buffer containing a capability. *)
-  (* The capability must be `interp`. *)
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
   Definition sealed_42 : LWord → iProp Σ :=
     λ w, (∃ b e v, ⌜w = LCap O b e f42 v⌝)%I.
+  Definition sealed_42_ne : (leibnizO LWord) -n> (iPropO Σ) :=
+      λne (w : leibnizO LWord), sealed_42 w%I.
 
-
-  (* Note: `sealed_cap` is not `Timeless` because of the use of the non-atomic invariant. *)
-  (* > In our case, any later can be stripped at time. *)
-  (* One could use `a_cap ↦ₐ{DFracDiscarded} w` to avoid using the non-atomic invariant. *)
-  (* > However, this denies the right to write to `a_cap` making it read-only. *)
-
-  (* Required by `seal_pred`: `sealed_cap` is `Persistent`. *)
   Instance sealed_42_persistent w : Persistent (sealed_42 w).
   Proof. apply _. Qed.
 
-  (* Capability-specific redefinitions *)
   Definition seal_pred_42 τ := seal_pred τ sealed_42.
   Definition valid_sealed_cap w τ := valid_sealed w τ sealed_42.
-
-End invariants_cap.
+  Lemma sealed_42_interp lw : sealed_42 lw -∗ fixpoint interp1 lw.
+  Proof.
+    iIntros "Hsealed". iDestruct "Hsealed" as (b e v) "->".
+    by rewrite fixpoint_interp1_eq /=.
+  Qed.
+End sealed_42.
 
 
 Section trusted_compute_example.
@@ -160,16 +167,19 @@ Section trusted_compute_example.
   Definition trusted_compute_main_data_len : Z :=
     Eval cbv in (length (trusted_compute_data (LInt 0%Z))).
 
-  Definition trusted_compute_enclave_code (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::
+  Definition trusted_compute_enclave_code : list LWord :=
     encodeInstrsLW [
       (* get signing sealing key *)
       Mov r_t1 PC;
       Lea r_t1 (-1)%Z;
       Load r_t1 r_t1;
+      GetB r_t2 r_t1;
+      GetA r_t3 r_t1;
+      Sub r_t2 r_t2 r_t3;
+      Lea r_t1 r_t2;
       Load r_t1 r_t1;
-      GetA r_t2 r_t1;
-      Add r_t3 r_t2 1;
+      GetE r_t3 r_t1;
+      Sub r_t2 r_t3 1;
       Subseg r_t1 r_t2 r_t3;
 
       (* store the result (42) in a O-permission capability and sign it *)
@@ -178,12 +188,16 @@ Section trusted_compute_example.
       Sub r_t3 42 r_t3;
       Lea r_t2 r_t3;
       Restrict r_t2 (encodePerm O);
-      Seal r_t2 r_t2 r_t1;
+      Lea r_t1 1;
+      Seal r_t2 r_t1 r_t2;
 
       (* share the signed value and the unsealing key to the adversary *)
       Restrict r_t1 (encodeSealPerms (false, true)); (* restrict r1 U *)
       Jmp r_t0
     ].
+
+  Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord :=
+    enclave_data_cap::trusted_compute_enclave_code.
 
   Axiom hash_trusted_compute_enclave : Z.
 
@@ -279,7 +293,7 @@ Section trusted_compute_example.
   Definition flag_inv a_flag v_flag :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
-  (* TODO: move somewhere else, this is not specific to trusted compute *)
+  (* TODO move in common file for custom enclave *)
   Record CustomEnclave :=
     MkCustomEnclave {
         code : list LWord;
@@ -305,33 +319,10 @@ Section trusted_compute_example.
           enclave_all tid I
           ∗ ⌜ cenclaves !! I = Some ce ⌝
           ∗ ⌜ has_seal ot tid ⌝ -∗
-          seal_pred ot (Penc ce)
-          ∗ seal_pred (ot ^+ 1)%ot (Psign ce)
+          if (Z.even (finz.to_z ot))
+          then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
+          else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
       ).
-
-  (* Trusted Compute Custom Predicates *)
-  Definition tc_enclave_pred tc_data_cap tc_addr : CustomEnclave :=
-   MkCustomEnclave
-     (trusted_compute_enclave_code tc_data_cap)
-     tc_addr
-     sealed_42 (* TODO: should be false ! *)
-     sealed_42.
-
-  Definition tcenclaves_map tc_data_cap tc_addr : custom_enclaves_map :=
-   {[hash_trusted_compute_enclave := tc_enclave_pred tc_data_cap tc_addr]}.
-
-  Definition sealable_to_lsealable (sb : Sealable) (v : Version) :=
-    match sb with
-    | SCap p b e a => LSCap p b e a v
-    | SSealRange p b e a => LSSealRange p b e a
-    end.
-
-  Definition word_to_lword (w : Word) (v : Version) :=
-    match w with
-    | WInt z => LInt z
-    | WSealable sb => LWSealable (sealable_to_lsealable sb v)
-    | WSealed ot sb => LWSealed ot (sealable_to_lsealable sb v)
-    end.
 
   Definition custom_enclave_contract
     (cenclaves : custom_enclaves_map)
@@ -346,18 +337,32 @@ Section trusted_compute_example.
     custom_enclaves_map_wf cenclaves ->
     cenclaves !! I = Some ce ->
     (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
-    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+1)%ot ot) ->
+    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
+    (ot + 2)%f = Some (ot ^+ 2)%f -> (* Well-formness: otype does not overflow *)
+    (* TODO I think we can derive following from [b',e'] -> .... *)
+    b' < e' -> (* Well-formness: data region contains at least one *)
+    b < e -> (* Well-formness: code region contains at all the code *)
     I = hash_concat (hash b) (hash (tail (code ce))) ->
     b = (code_region ce) ->
-    (* tid_of_otype ot = tid -> *)
+    e = (b ^+ (length (code ce)))%a ->
     (* TODO: either points-to in invariant, or upd modality in implication *)
     na_inv logrel_nais (trusted_computeN.@I)
       ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
-       [[ b' , e' ]] ↦ₐ{ v } [[ enclave_data ]])
+       [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
-    (*  TODO either record a in hash ; or always pick (b+1) *)
     interp (LCap E b e (b^+1)%a v).
+
+  (* Trusted Compute Custom Predicates *)
+  Definition tc_enclave_pred tc_data_cap tc_addr : CustomEnclave :=
+   MkCustomEnclave
+     (trusted_compute_enclave tc_data_cap)
+     tc_addr
+     (λ w, False%I)
+     sealed_42.
+
+  Definition tcenclaves_map tc_data_cap tc_addr : custom_enclaves_map :=
+   {[hash_trusted_compute_enclave := tc_enclave_pred tc_data_cap tc_addr]}.
 
 
   Lemma tc_contract tc_data_cap tc_addr :
@@ -365,7 +370,7 @@ Section trusted_compute_example.
   Proof.
     rewrite /custom_enclave_contract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hwf_cemap Hcode_ce Hdatacap Hdata_seal HIhash Hb)
+      Hwf_cemap Hcode_ce Hdatacap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
       "(#Htc_inv & #HPenc & #HPsign)".
     rewrite /tcenclaves_map in Hwf_cemap,Hcode_ce.
     rewrite /custom_enclaves_map_wf in Hwf_cemap.
@@ -376,21 +381,206 @@ Section trusted_compute_example.
     clear HIhash Hwf_hash.
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
-    iIntros "([%Hfullmap Hinterp_map] & Hrmap & Hna)".
+    iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
     simplify_map_eq.
     rewrite /interp_conf.
     iMod (na_inv_acc with "Htc_inv Hna") as "(>[Htc_code Htc_data]  & Hna & Hclose)"; [solve_ndisj ..|].
     rewrite /registers_mapsto.
-    iExtractList "Hrmap" [PC] as ["HPC"].
+    iExtract "Hrmap" PC as "HPC".
 
-    (* iAssert (codefrag tc_addr v (trusted_compute_enclave_code (LCap RW b' e' a' v'))) *)
-    (*   with "[Htc_code]" as "Htc_code". *)
-    (* { *)
-    (*   rewrite /codefrag. *)
-    (* } *)
+    (* Prepare the necessary resources *)
+    (* Registers *)
+    assert (exists w0, lregs !! r_t0 = Some w0) as Hrt0 by apply (Hfullmap r_t0).
+    destruct Hrt0 as [w0 Hr0].
+    replace (delete PC lregs)
+            with (<[r_t0:=w0]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w1, lregs !! r_t1 = Some w1) as Hrt1 by apply (Hfullmap r_t1).
+    destruct Hrt1 as [w1 Hr1].
+    replace (delete PC lregs)
+            with (<[r_t1:=w1]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w2, lregs !! r_t2 = Some w2) as Hrt2 by apply (Hfullmap r_t2).
+    destruct Hrt2 as [w2 Hr2].
+    replace (delete PC lregs)
+            with (<[r_t2:=w2]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w3, lregs !! r_t3 = Some w3) as Hrt3 by apply (Hfullmap r_t3).
+    destruct Hrt3 as [w3 Hr3].
+    replace (delete PC lregs)
+            with (<[r_t3:=w3]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"].
+
+    (* Code memory *)
+    iDestruct (region_mapsto_cons with "Htc_code") as "[Htc_addr Htc_code]"; last iFrame.
+    { transitivity (Some (tc_addr ^+ 1)%a); auto ; try solve_addr. }
+    { solve_addr. }
+    iAssert (codefrag (tc_addr ^+ 1%nat)%a v trusted_compute_enclave_code)
+      with "[Htc_code]" as "Htc_code".
+    {
+      rewrite /codefrag /=.
+      by replace ((tc_addr ^+ 1%nat) ^+ 20%nat)%a with (tc_addr ^+ 21%nat)%a by solve_addr.
+    }
+    codefrag_facts "Htc_code".
+
+    (* Data memory *)
+    assert (exists enclave_data', enclave_data = (LSealRange (true, true) ot (ot ^+ 2)%f ot)::enclave_data')
+    as Henclave_data.
+    { destruct enclave_data; cbn in *; first done.
+      eexists; inv Hdata_seal; f_equal.
+    }
+    destruct Henclave_data as [enclave_data' ->].
+    iDestruct (region_mapsto_cons with "Htc_data") as "[Htc_keys Htc_data]"; last iFrame.
+    { transitivity (Some (b' ^+ 1)%a); auto ; try solve_addr. }
+    { solve_addr. }
 
 
+    (* Prove the spec *)
+    iInstr "Htc_code". (* Mov r_t1 PC *)
+    admit.
+    iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
+    admit.
+    transitivity (Some tc_addr); auto ; solve_addr.
 
+    iInstr "Htc_code". (* Load r_t1 r_t1 *)
+    admit.
+    apply le_addr_withinBounds; solve_addr.
+    iInstr "Htc_code". (* GetB r_t2 r_t1 *)
+    admit.
+    iInstr "Htc_code". (* GetA r_t3 r_t1 *)
+    admit.
+    iInstr "Htc_code". (* Sub r_t2 r_t2 r_t3 *)
+    admit.
+    iInstr "Htc_code". (* Lea r_t1 r_t2 *)
+    admit.
+    transitivity (Some b'); auto ; solve_addr.
+
+    iInstr "Htc_code". (* Load r_t1 r_t1 *)
+    admit.
+    apply le_addr_withinBounds; solve_addr.
+    iInstr "Htc_code". (* GetE r_t3 r_t1 *)
+    admit.
+    iInstr "Htc_code". (* Sub r_t3 r_t2 1 *)
+    admit.
+    replace (((ot ^+ 2)%f - 1)) with (ot + 1) by solve_finz.
+    iInstr "Htc_code". (* Subseg r_t1 r_t2 r_t3 *)
+    admit.
+    transitivity (Some (ot ^+1)%ot); auto ; solve_finz.
+    apply isWithin_of_le; solve_finz.
+
+    iInstr "Htc_code". (* Mov r_t2 PC *)
+    admit.
+    iInstr "Htc_code". (* GetA r_t3 r_t2 *)
+    admit.
+    iInstr "Htc_code". (* Sub r_t3 42 r_t3 *)
+    admit.
+
+    assert (
+        ((tc_addr ^+ 1) ^+ 11 + (42 - ((tc_addr ^+ 1) ^+ 11)))%a = Some f42)
+      as Hoffset by (by rewrite finz_incr_minus_id).
+    iInstr "Htc_code". (* Lea r_t2 r_t3 *)
+    admit.
+    iInstr "Htc_code". (* Restrict r_t2 (encodePerm O) *)
+    admit.
+    by rewrite decode_encode_perm_inv.
+    rewrite decode_encode_perm_inv.
+    iInstr "Htc_code". (* Lea r_t1 1 *)
+    admit.
+    transitivity (Some (ot ^+ 1)%ot); auto ; solve_finz.
+    iInstr "Htc_code". (* Seal r_t2 r_t2 r_t1 *)
+    admit.
+    by cbn.
+    apply le_addr_withinBounds; solve_finz.
+
+    (* Restrict r_t1 (encodeSealPerms (false, true)) *)
+    iInstr_lookup "Htc_code" as "Hi" "Htc_code".
+    wp_instr.
+    iApply (wp_restrict_success_z_sr with "[HPC Hr1 Hi]")
+    ; try iFrame
+    ; try solve_pure
+    ; repeat (rewrite decode_encode_seal_perms_inv)
+    ; try done.
+    admit.
+    iNext; iIntros "(HPC & Hi & Hr1)".
+    all: wp_pure; iInstr_close "Htc_code".
+
+    (* Prepare the jump to adversary: prove all registers contain safe values *)
+    iAssert (interp w0) as "Hinterp_w0".
+    { iApply "Hinterp_map" ; eauto; done. }
+
+    iAssert (interp (LSealedCap (ot ^+ 1)%f O tc_addr (tc_addr ^+ 21%nat)%a f42 v))
+      as "Hinterp_sealed42".
+    {
+      iClear "Hinterp_map Hinterp_w0".
+      rewrite /= fixpoint_interp1_eq /= /interp_sb.
+      iExists sealed_42; iFrame "%#".
+      iSplit.
+      { iPureIntro; intro; apply sealed_42_persistent. }
+      { iNext; by iExists _,_,_. }
+    }
+
+    iAssert (interp (LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f))
+      as "Hinterp_sign".
+    {
+      iClear "Hinterp_map Hinterp_w0 Hinterp_sealed42".
+      rewrite /= fixpoint_interp1_eq /= /safe_to_unseal.
+      iSplit ; first done.
+      rewrite finz_seq_between_singleton; cbn ; last solve_finz.
+      iSplit ; last done.
+      iExists sealed_42_ne; iFrame "#".
+      iNext ; iModIntro; iIntros (lw) "Hlw".
+      by iApply sealed_42_interp.
+    }
+    (* Safe to jump to safe value *)
+    iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
+
+    iInstr "Htc_code". (* Jmp r_t0 *)
+    admit.
+
+    (* Close the opened invariant *)
+    iDestruct (region_mapsto_cons with "[Htc_addr Htc_code]") as "Htc_code"
+    ; try iFrame
+    ; try solve_addr.
+    iDestruct (region_mapsto_cons with "[Htc_keys Htc_data]") as "Htc_data"
+    ; try iFrame
+    ; try solve_addr.
+    replace ((tc_addr ^+ 1%nat)%a ^+ length trusted_compute_enclave_code)%a with
+      (tc_addr ^+ 21%nat)%a by solve_addr.
+    iMod ("Hclose" with "[$Hna $Htc_code $Htc_data]") as "Hna".
+
+    (* Wrap up the registers *)
+    iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3].
+    set ( rmap' := <[r_t3:=LInt (42 - ((tc_addr ^+ 1) ^+ 11)%a)]>
+                            (<[r_t2:=LSealedCap (ot ^+ 1)%f O tc_addr (tc_addr ^+ 21%nat)%a f42 v]>
+                               (<[r_t1:=LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f]>
+                                  (<[r_t0:=w0]> (delete PC lregs))))).
+    iAssert ([∗ map] k↦y ∈ rmap', k ↦ᵣ y ∗ interp y)%I with "[Hrmap]" as "Hrmap".
+    {
+      subst rmap'.
+      iApply (big_sepM_sep_2 with "[Hrmap]") ; first done.
+      iApply big_sepM_insert_2; first (iApply interp_int).
+      repeat (iApply big_sepM_insert_2; first done).
+
+      iApply big_sepM_intro.
+      iIntros "!>" (r w Hrr).
+      assert (is_Some (delete PC lregs !! r)) as His_some by auto.
+      rewrite lookup_delete_is_Some in His_some.
+      destruct His_some as [Hr _].
+      rewrite lookup_delete_ne in Hrr; auto.
+      iApply ("Hinterp_map" $! r w); auto.
+    }
+    assert (dom rmap' = all_registers_s ∖ {[PC]}).
+    {
+      repeat (rewrite dom_insert_L).
+      rewrite dom_delete_L.
+      rewrite regmap_full_dom; auto.
+    }
+    iApply ("Hjmp" with "[]") ; eauto ; iFrame.
   Admitted.
 
 
@@ -559,18 +749,34 @@ Section trusted_compute_example.
     wp_pure; iInstr_close "Hcode".
 
     iAssert (
-        seal_pred a (Penc (tc_enclave_pred tc_data_cap tc_addr))
-        ∗ seal_pred (a ^+ 1)%f (Psign (tc_enclave_pred tc_data_cap tc_addr))
-      )%I as "[Htc_Penc _]".
+        if Z.even a
+        then seal_pred a (Penc (tc_enclave_pred tc_data_cap tc_addr))
+             ∗ seal_pred (a ^+ 1)%f (Psign (tc_enclave_pred tc_data_cap tc_addr))
+        else seal_pred (a ^+ -1)%f (Penc (tc_enclave_pred tc_data_cap tc_addr))
+             ∗ seal_pred a (Psign (tc_enclave_pred tc_data_cap tc_addr))
+      )%I as "Htc".
     {
-      iApply "Hcemap"; iFrame "%#".
+      iApply "Hcemap"; iFrame "%#∗".
       iPureIntro.
       rewrite /tcenclaves_map.
       by simplify_map_eq.
     }
-    iEval (cbn) in "Htc_Penc".
 
-    iDestruct (seal_pred_valid_sealed_eq with "[$Htc_Penc] Hseal_valid") as "Heqv".
+    destruct (Z.even (finz.to_z a)) eqn:HEven_a
+    ; iDestruct "Htc" as "[Htc_Penc Htc_Psign]"
+    ; iEval (cbn) in "Htc_Penc"
+    ; iEval (cbn) in "Htc_Psign".
+    {
+      iDestruct (seal_pred_valid_sealed_eq with "[$Htc_Penc] Hseal_valid") as "Heqv".
+      iAssert (▷ False)%I as ">%Hcontra"; last done.
+      iDestruct "Hseal_valid" as (sb') "(%Heq & _ & _ & HΦ)".
+      inversion Heq; subst.
+      iSpecialize ("Heqv" $! (LWSealable sb')).
+      iNext.
+      by iRewrite "Heqv".
+    }
+
+    iDestruct (seal_pred_valid_sealed_eq with "[$Htc_Psign] Hseal_valid") as "Heqv".
     iAssert (▷ sealed_42 (LWSealable sb))%I as (fb fe fv) ">%Hseal42".
     { iDestruct "Hseal_valid" as (sb') "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
@@ -579,6 +785,7 @@ Section trusted_compute_example.
       iRewrite "Heqv".
       iFrame "HΦ". }
     destruct sb ; simplify_eq.
+    iClear "Heqv Htc_Penc Hcemap Hcemap_inv".
 
     iInstr "Hcode". (* Mov *)
     iInstr "Hcode". (* GetA *)
