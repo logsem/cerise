@@ -416,8 +416,8 @@ Section opsem.
     fun w => match  w with WSealRange p b e a  => Some (p, b, e, a)
                    | _ => None end.
 
-  Definition get_sealed_otype : Word -> option OType :=
-    fun w => match  w with WSealed ot _  => Some ot
+  Definition get_otype_from_wint : Word -> option OType :=
+    fun w => match  w with WInt ot  => finz.of_z ot
                    | _ => None end.
 
   Definition contains_cap (mem : Mem) (b : Addr) (e : Addr) : Prop :=
@@ -673,7 +673,7 @@ Section opsem.
     (* enclave local attestation *)
   | EStoreId rd rs =>
       wσ  ← (reg φ) !! rs;
-      σa  ← get_sealed_otype wσ;
+      σa  ← get_otype_from_wint wσ;
       tid ← tid_of_otype σa;
       eid  ← (etable φ) !! tid;
 
@@ -936,7 +936,7 @@ Section opsem.
              ; case_match).
     all: repeat destruct (finz.of_z _); cbn in *
     ; repeat destruct (get_sealing_cap _); cbn in *
-    ; repeat destruct (get_sealed_otype _); cbn in *
+    ; repeat destruct (get_otype_from_wint _); cbn in *
     ; repeat destruct (get_wcap_scap _); cbn in *.
     all: repeat destruct p.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
