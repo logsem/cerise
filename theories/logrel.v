@@ -1089,6 +1089,51 @@ Section custom_enclaves.
           else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
       ).
 
+  (** Two versions of the contract:
+     a general version `custom_enclave_contract_gen`,
+     that requires an update modality ;
+     and a more restrictive version `custom_enclave_contract`,
+     that requires the enclave to be in an invariant.
+
+     The FTLR will use the general version,
+     but we give the user the possibility to use
+     the restrictive but simpler version to prove the contract.
+   *)
+
+  Definition custom_enclave_contract_gen
+    (cenclaves : custom_enclaves_map)
+    (Ep : coPset)
+    :=
+    forall
+    (I : EIdentity)
+    (b e a : Addr) (v : Version)
+    (b' e' a' : Addr) (v' : Version)
+    (enclave_data : list LWord)
+    (ot : OType)
+    (ce : CustomEnclave),
+
+    custom_enclaves_map_wf cenclaves ->
+
+    cenclaves !! I = Some ce ->
+    (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
+    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
+
+    (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
+    (* TODO I think we can derive following from [b',e'] -> .... *)
+    (b' < e')%a -> (* Well-formness: data region contains at least one *)
+    (b < e)%a -> (* Well-formness: code region contains at all the code *)
+
+    I = hash_concat (hash b) (hash (tail (code ce))) ->
+    b = (code_region ce) ->
+    e = (b ^+ (length (code ce)))%a ->
+
+    [[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]
+    ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]]
+    ∗ seal_pred ot (Penc ce)
+    ∗ seal_pred (ot^+1)%ot (Psign ce)
+    ∗ na_own logrel_nais Ep
+    ={Ep}=∗ interp (LCap E b e (b^+1)%a v).
+
   (* TODO @June explanation of the contract *)
   Definition custom_enclave_contract
     (cenclaves : custom_enclaves_map)
@@ -1124,4 +1169,29 @@ Section custom_enclaves.
     ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
 
     interp (LCap E b e (b^+1)%a v).
+
+  (** The general version
+      `custom_enclave_contract_gen`
+      is implied by the restrictive version
+      `custom_enclave_contract`.
+   *)
+  Lemma custom_enclave_contract_inv
+    (cenclaves : custom_enclaves_map)
+    (Ep : coPset)
+    : custom_enclave_contract cenclaves
+    -> custom_enclave_contract_gen cenclaves Ep.
+  Proof.
+    intro Hcontract.
+    iIntros (I b e a v b' e' a' v' enclave_data ot ce
+               Hwf_cemap Hcode_ce Hdatacap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
+      "(Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
+
+    iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
+            ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
+             [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])%I
+           with "[$Htc_code $Htc_data]")
+      as "#Htc_inv".
+    iModIntro.
+    iApply Hcontract; eauto.
+  Qed.
 End custom_enclaves.
