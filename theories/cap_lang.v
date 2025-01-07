@@ -656,7 +656,7 @@ Section opsem.
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
        |>> update_etable fresh_tid eid (* create a new index in the ETable *)
        |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
-       |>> update_reg rd (WCap E b e a) (* Position cursor at address a: client specifies entry point *)
+       |>> update_reg rd (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
        |>> updatePC
 
     (* enclave deinitialization *)
