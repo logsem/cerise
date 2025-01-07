@@ -24,12 +24,6 @@ Section cap_lang_rules.
   |EStoreId_spec_failure:
     EStoreId_spec FailedV.
 
-  Definition has_seal (ot : Z) (tid : TIndex) : Prop :=
-    match finz.of_z ot with
-    | Some ot => tid_of_otype ot = Some tid
-    | None => False
-    end.
-
   (* TODO @Denis *)
   Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
     decodeInstrWL lw = EStoreId rd rs →

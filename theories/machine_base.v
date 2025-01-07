@@ -471,6 +471,25 @@ Proof.
   rewrite /isWithin. solve_addr.
 Qed.
 
+(* TODO move in finz *)
+Lemma finz_incr_minus_id
+  {finz_bound : Z}
+  (f : finz finz_bound) (z : Z)
+  (finz_lt : (z <? finz_bound)%Z = true)
+  (finz_nonneg : (0 <=? z)%Z = true) :
+  (f + (z - f))%f = Some (finz.FinZ z finz_lt finz_nonneg).
+Proof.
+  induction z; cbn in *; try done.
+  - replace (0 - f)%Z with (-f)%Z; solve_finz.
+  - destruct (Z.pos p - f)%Z eqn:H.
+    + assert ( Z.pos p = f ) by lia.
+      solve_finz.
+    + assert ( Z.pos p = f + Z.pos p0)%Z by lia.
+      solve_finz.
+    + assert ( Z.pos p = f + Z.neg p0)%Z by lia.
+      solve_finz.
+Qed.
+
 (* Some lemma's to link the implementations of finz.seq_between and withinBounds *)
 
 Lemma finz_0_dist (finz_bound : Z) (f1 f2 : finz finz_bound):

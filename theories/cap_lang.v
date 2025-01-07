@@ -445,6 +445,12 @@ Section opsem.
       then Some (Nat.div (Z.to_nat oa) 2)
       else Some (Nat.div (Z.to_nat (oa^-1)%f) 2).
 
+  Definition has_seal (ot : Z) (tid : TIndex) : Prop :=
+    match finz.of_z ot with
+    | Some ot => tid_of_otype ot = Some tid
+    | None => False
+    end.
+
   Definition measure (m : Mem) (b e: Addr) :=
     let instructions : list Word :=
       map snd

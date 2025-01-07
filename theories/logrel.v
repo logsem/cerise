@@ -33,7 +33,7 @@ Class logrel_na_invs Σ :=
 Section logrel.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{MachineParameters}.
+          `{MP: MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -1027,3 +1027,101 @@ Section logrel.
   Qed.
 
 End logrel.
+
+(* A couple of lemmas and definitions for reasoning about sealed capabilities *)
+Section sealing_reasoning.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+          {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+
+  Definition valid_sealed w o (Φ : LWord -> iProp Σ) :=
+    (∃ sb, ⌜w = LWSealed o sb⌝ ∗  ⌜∀ w : leibnizO LWord, Persistent (Φ w)⌝
+                                                         ∗ seal_pred o Φ ∗ Φ (LWSealable sb))%I.
+  Lemma interp_valid_sealed sb o:
+    interp (LWSealed o sb) -∗ ∃ Φ, ▷ valid_sealed (LWSealed o sb) o Φ.
+  Proof.
+    iIntros "Hsl /=". rewrite fixpoint_interp1_eq /= /valid_sealed.
+    iDestruct "Hsl" as (P) "(%Hpers & Hpred & HP)".
+    iExists P, sb; repeat iSplit; [auto | auto | iFrame.. ].
+  Qed.
+
+  Lemma seal_pred_valid_sealed_eq τ w Φ Φ' {Hpers : ∀ w, Persistent (Φ w)} :
+    seal_pred τ Φ -∗ valid_sealed w τ Φ' -∗ (∀ w, ▷ (Φ w ≡ Φ' w)).
+  Proof.
+    iIntros "Hsp Hvs".
+    iDestruct "Hvs" as (sb) "(_ & _ & Hsp' & _)".
+    iApply (seal_pred_agree with "Hsp Hsp'").
+  Qed.
+
+End sealing_reasoning.
+
+
+Section custom_enclaves.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+
+  Record CustomEnclave :=
+    MkCustomEnclave {
+        code : list LWord;
+        code_region : Addr;
+        Penc : LWord -> iProp Σ;
+        Psign : LWord -> iProp Σ;
+      }.
+
+  Definition custom_enclaves_map : Type :=
+    gmap EIdentity CustomEnclave.
+
+  Definition custom_enclaves_map_wf (cenclaves : custom_enclaves_map) :=
+    map_Forall
+      (fun I ce => I = hash_concat (hash (code_region ce)) (hash (code ce)))
+      cenclaves.
+
+  Definition custom_enclaveN := (nroot.@"custom_enclave").
+  Definition custom_enclave_inv (cenclaves : custom_enclaves_map) :=
+    inv custom_enclaveN
+      (
+        ⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
+        □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
+          enclave_all tid I
+          ∗ ⌜ cenclaves !! I = Some ce ⌝
+          ∗ ⌜ has_seal ot tid ⌝ -∗
+          if (Z.even (finz.to_z ot))
+          then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
+          else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
+      ).
+
+  (* TODO @June explanation of the contract *)
+  Definition custom_enclave_contract
+    (cenclaves : custom_enclaves_map)
+    :=
+    forall
+    (I : EIdentity)
+    (b e a : Addr) (v : Version)
+    (b' e' a' : Addr) (v' : Version)
+    (enclave_data : list LWord)
+    (ot : OType)
+    (ce : CustomEnclave),
+
+    custom_enclaves_map_wf cenclaves ->
+
+    cenclaves !! I = Some ce ->
+    (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
+    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
+
+    (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
+    (* TODO I think we can derive following from [b',e'] -> .... *)
+    (b' < e')%a -> (* Well-formness: data region contains at least one *)
+    (b < e)%a -> (* Well-formness: code region contains at all the code *)
+
+    I = hash_concat (hash b) (hash (tail (code ce))) ->
+    b = (code_region ce) ->
+    e = (b ^+ (length (code ce)))%a ->
+
+    na_inv logrel_nais (custom_enclaveN.@I)
+      ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
+       [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])
+
+    ∗ seal_pred ot (Penc ce)
+    ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
+
+    interp (LCap E b e (b^+1)%a v).
+End custom_enclaves.

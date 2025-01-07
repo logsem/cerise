@@ -76,11 +76,25 @@ Ltac destruct_lword lw :=
   let sd := fresh "sd" in
   destruct lw as [ z | [p b e a v | p b e a] | o [p b e a v | p b e a]].
 
-(* Getters lword and laddr *)
+(* Setters and Getters lword and laddr *)
+
+Definition sealable_to_lsealable (sb : Sealable) (v : Version) :=
+  match sb with
+  | SCap p b e a => LSCap p b e a v
+  | SSealRange p b e a => LSSealRange p b e a
+  end.
+
 Definition lsealable_get_sealable (lsb : LSealable) : Sealable :=
   match lsb with
   | LSCap p b e a v => SCap p b e a
   | LSSealRange p ob oe oa => SSealRange p ob oe oa
+  end.
+
+Definition word_to_lword (w : Word) (v : Version) :=
+  match w with
+  | WInt z => LInt z
+  | WSealable sb => LWSealable (sealable_to_lsealable sb v)
+  | WSealed ot sb => LWSealed ot (sealable_to_lsealable sb v)
   end.
 
 Definition lword_get_word (lw : LWord) : Word :=

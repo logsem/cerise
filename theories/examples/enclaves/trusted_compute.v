@@ -7,71 +7,11 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import macros_new.
 Open Scope Z_scope.
 
-(* TODO move in finz *)
-Lemma finz_incr_minus_id
-  {finz_bound : Z}
-  (f : finz finz_bound) (z : Z)
-  (finz_lt : (z <? finz_bound)%Z = true)
-  (finz_nonneg : (0 <=? z)%Z = true) :
-  (f + (z - f))%f = Some (finz.FinZ z finz_lt finz_nonneg).
-Proof.
-  induction z; cbn in *; try done.
-  - replace (0 - f) with (-f); solve_finz.
-  - destruct (Z.pos p - f) eqn:H.
-    + assert ( Z.pos p = f ) by lia.
-      solve_finz.
-    + assert ( Z.pos p = f + Z.pos p0) by lia.
-      solve_finz.
-    + assert ( Z.pos p = f + Z.neg p0) by lia.
-      solve_finz.
-Qed.
-
-(* TODO move logical_mapsto? *)
-Definition sealable_to_lsealable (sb : Sealable) (v : Version) :=
-  match sb with
-  | SCap p b e a => LSCap p b e a v
-  | SSealRange p b e a => LSSealRange p b e a
-  end.
-
-Definition word_to_lword (w : Word) (v : Version) :=
-  match w with
-  | WInt z => LInt z
-  | WSealable sb => LWSealable (sealable_to_lsealable sb v)
-  | WSealed ot sb => LWSealed ot (sealable_to_lsealable sb v)
-  end.
-
-(* TODO move in common file for sealing *)
-(* This section redefines useful definitions from `arch_sealing` along with further explanations. *)
-Section invariants.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
-          {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
-  Definition valid_sealed w o (Φ : LWord -> iProp Σ) :=
-    (∃ sb, ⌜w = LWSealed o sb⌝ ∗  ⌜∀ w : leibnizO LWord, Persistent (Φ w)⌝
-                                                         ∗ seal_pred o Φ ∗ Φ (LWSealable sb))%I.
-  Lemma interp_valid_sealed sb o:
-    interp (LWSealed o sb) -∗ ∃ Φ, ▷ valid_sealed (LWSealed o sb) o Φ.
-  Proof.
-    iIntros "Hsl /=". rewrite fixpoint_interp1_eq /= /valid_sealed.
-    iDestruct "Hsl" as (P) "(%Hpers & Hpred & HP)".
-    iExists P, sb; repeat iSplit; [auto | auto | iFrame.. ].
-  Qed.
-
-  Lemma seal_pred_valid_sealed_eq τ w Φ Φ' {Hpers : ∀ w, Persistent (Φ w)} :
-    seal_pred τ Φ -∗ valid_sealed w τ Φ' -∗ (∀ w, ▷ (Φ w ≡ Φ' w)).
-  Proof.
-    iIntros "Hsp Hvs".
-    iDestruct "Hvs" as (sb) "(_ & _ & Hsp' & _)".
-    iApply (seal_pred_agree with "Hsp Hsp'").
-  Qed.
-
-End invariants.
-
+(* TODO @June is there a way to define a typeclass or something
+   for helping with reasoning and modularity ? *)
 Section sealed_42.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
-
-
-  Definition seal_capN : namespace := nroot .@ "seal_cap".
 
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
   Definition sealed_42 : LWord → iProp Σ :=
@@ -93,7 +33,10 @@ End sealed_42.
 
 
 Section trusted_compute_example.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ} `{MP: MachineParameters}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
+    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+
+  Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
 
   (* Data part, following the directly the main code *)
   Definition trusted_compute_data (linking_table_cap : LWord) : list LWord :=
@@ -199,15 +142,17 @@ Section trusted_compute_example.
   Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord :=
     enclave_data_cap::trusted_compute_enclave_code.
 
-  Axiom hash_trusted_compute_enclave : Z.
+  (* TODO @june use measure! *)
+  Definition hash_trusted_compute_enclave (tc_addr : Addr) : Z :=
+    hash_concat (hash tc_addr) (hash trusted_compute_enclave_code).
 
-  Definition trusted_compute_main_code (assert_lt_offset : Z) : list LWord :=
+  Definition trusted_compute_main_code (assert_lt_offset : Z) (tc_addr : Addr ): list LWord :=
     let init     := 0%Z in
     let callback := trusted_compute_main_init_len in
     let data     := trusted_compute_main_init_len + trusted_compute_main_callback_len in
     let fails    := (data - 1)%Z in
     (trusted_compute_main_code_init0 init callback data) ++
-    (trusted_compute_main_code_callback0 callback fails hash_trusted_compute_enclave assert_lt_offset).
+    (trusted_compute_main_code_callback0 callback fails (hash_trusted_compute_enclave tc_addr) assert_lt_offset).
 
   Definition trusted_compute_main_code_len : Z :=
     Eval cbv in trusted_compute_main_init_len + trusted_compute_main_callback_len.
@@ -216,154 +161,17 @@ Section trusted_compute_example.
     Eval cbv in trusted_compute_main_code_len + trusted_compute_main_data_len.
 
 
-  (** Specification init code *)
-  Lemma trusted_compute_main_init_spec
-    (b_main : Addr)
-    (pc_v adv_v : Version)
-    (assert_lt_offset : Z)
-    (w0 w1 w2 w3 w4 wadv : LWord)
-    φ :
-
-    let e_main := (b_main ^+ trusted_compute_main_len)%a in
-    let a_callback := (b_main ^+ trusted_compute_main_init_len)%a in
-    let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
-
-    let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
-    ContiguousRegion b_main trusted_compute_main_len ->
-    ⊢ ((
-          codefrag b_main pc_v trusted_compute_main
-
-          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
-          ∗ r_t0 ↦ᵣ wadv
-          ∗ r_t1 ↦ᵣ w1
-          ∗ r_t2 ↦ᵣ w2
-          (* NOTE this post-condition stops after jumping to the adversary *)
-          ∗ ▷ ( codefrag b_main pc_v trusted_compute_main
-                ∗ PC ↦ᵣ updatePcPermL wadv
-                ∗ r_t0 ↦ᵣ wadv
-                ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
-                ∗ r_t2 ↦ᵣ LInt 0
-                  -∗ WP Seq (Instr Executable) {{ φ }}))
-         -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
-  Proof.
-
-    (* We define a local version of solve_addr, which subst and unfold every computed addresses  *)
-    Local Tactic Notation "solve_addr'" :=
-      repeat (lazymatch goal with x := _ |- _ => subst x end)
-      ; repeat (match goal with
-                  | H: ContiguousRegion _ _  |- _ =>
-                      rewrite /ContiguousRegion /trusted_compute_main_len in H
-                end)
-      ; rewrite !/trusted_compute_main_code_len /trusted_compute_main_len
-          /trusted_compute_main_init_len /trusted_compute_main_callback_len
-      ; solve_addr.
-
-    intros ???? Hregion.
-    iIntros "(Hcode & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
-    codefrag_facts "Hcode".
-    iGo "Hcode".
-    rewrite decode_encode_perm_inv; by cbn.
-    rewrite decode_encode_perm_inv.
-    iGo "Hcode".
-    iApply (wp_wand with "[-]"); last (iIntros (v) "H"; by iLeft).
-    iApply "Hφ".
-    iFrame.
-  Qed.
-
-  (** Specification callback code *)
-
-  Context {nainv: logrel_na_invs Σ} .
-  (* Define all the invariants *)
-  Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
-
-  (* Linking table invariant *)
-  Definition link_tableN := (trusted_computeN.@"link_table").
-  Definition link_table_inv
-    v_link
-    assert_entry b_assert e_assert v_assert :=
-    na_inv logrel_nais link_tableN
-         ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
-
-  (* Assert invariant *)
-  Definition assertN := (trusted_computeN.@"assert").
-  Definition assert_inv b_a a_flag e_a v_assert :=
-    na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
-
-  Definition flag_assertN := (trusted_computeN.@"flag_assert").
-  Definition flag_inv a_flag v_flag :=
-    inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
-
-  (* TODO move in common file for custom enclave *)
-  Record CustomEnclave :=
-    MkCustomEnclave {
-        code : list LWord;
-        code_region : Addr;
-        Penc : LWord -> iProp Σ;
-        Psign : LWord -> iProp Σ;
-      }.
-
-  Definition custom_enclaves_map : Type :=
-    gmap EIdentity CustomEnclave.
-
-  Definition custom_enclaves_map_wf (cenclaves : custom_enclaves_map) :=
-    map_Forall
-      (fun I ce => I = hash_concat (hash (code_region ce)) (hash (code ce)))
-      cenclaves.
-
-  Definition custom_enclaveN := (trusted_computeN.@"custom_enclave").
-  Definition custom_enclave_inv (cenclaves : custom_enclaves_map) :=
-    inv custom_enclaveN
-      (
-        ⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
-        □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
-          enclave_all tid I
-          ∗ ⌜ cenclaves !! I = Some ce ⌝
-          ∗ ⌜ has_seal ot tid ⌝ -∗
-          if (Z.even (finz.to_z ot))
-          then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
-          else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
-      ).
-
-  Definition custom_enclave_contract
-    (cenclaves : custom_enclaves_map)
-    :=
-    forall
-    (I : EIdentity)
-    (b e a : Addr) (v : Version)
-    (b' e' a' : Addr) (v' : Version)
-    (enclave_data : list LWord)
-    (ot : OType)
-    (ce : CustomEnclave),
-    custom_enclaves_map_wf cenclaves ->
-    cenclaves !! I = Some ce ->
-    (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
-    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
-    (ot + 2)%f = Some (ot ^+ 2)%f -> (* Well-formness: otype does not overflow *)
-    (* TODO I think we can derive following from [b',e'] -> .... *)
-    b' < e' -> (* Well-formness: data region contains at least one *)
-    b < e -> (* Well-formness: code region contains at all the code *)
-    I = hash_concat (hash b) (hash (tail (code ce))) ->
-    b = (code_region ce) ->
-    e = (b ^+ (length (code ce)))%a ->
-    (* TODO: either points-to in invariant, or upd modality in implication *)
-    na_inv logrel_nais (trusted_computeN.@I)
-      ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
-       [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])
-    ∗ seal_pred ot (Penc ce)
-    ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
-    interp (LCap E b e (b^+1)%a v).
-
   (* Trusted Compute Custom Predicates *)
-  Definition tc_enclave_pred tc_data_cap tc_addr : CustomEnclave :=
-   MkCustomEnclave
-     (trusted_compute_enclave tc_data_cap)
-     tc_addr
-     (λ w, False%I)
-     sealed_42.
+  Definition tc_enclave_pred
+    tc_data_cap tc_addr : CustomEnclave :=
+    @MkCustomEnclave Σ
+      (trusted_compute_enclave tc_data_cap)
+      tc_addr
+      (λ w, False%I)
+      sealed_42.
 
   Definition tcenclaves_map tc_data_cap tc_addr : custom_enclaves_map :=
-   {[hash_trusted_compute_enclave := tc_enclave_pred tc_data_cap tc_addr]}.
-
+   {[hash_trusted_compute_enclave tc_addr := tc_enclave_pred tc_data_cap tc_addr]}.
 
   Lemma tc_contract tc_data_cap tc_addr :
     custom_enclave_contract (tcenclaves_map tc_data_cap tc_addr).
@@ -377,7 +185,7 @@ Section trusted_compute_example.
     rewrite map_Forall_insert in Hwf_cemap; last by simplify_map_eq.
     destruct Hwf_cemap as [ Hwf_hash _ ].
     cbn in Hwf_hash.
-    destruct (decide (I = hash_trusted_compute_enclave)) as [->|] ; last by simplify_map_eq.
+    destruct (decide (I = hash_trusted_compute_enclave tc_addr)) as [->|] ; last by simplify_map_eq.
     clear HIhash Hwf_hash.
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
@@ -584,6 +392,80 @@ Section trusted_compute_example.
   Admitted.
 
 
+  (** Specification init code *)
+  Lemma trusted_compute_main_init_spec
+    (b_main : Addr)
+    (pc_v adv_v : Version)
+    (assert_lt_offset : Z)
+    (w0 w1 w2 w3 w4 wadv : LWord)
+    (tc_addr : Addr)
+    φ :
+
+    let e_main := (b_main ^+ trusted_compute_main_len)%a in
+    let a_callback := (b_main ^+ trusted_compute_main_init_len)%a in
+    let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
+
+    let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
+    ContiguousRegion b_main trusted_compute_main_len ->
+    ⊢ ((
+          codefrag b_main pc_v (trusted_compute_main tc_addr)
+
+          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+          ∗ r_t0 ↦ᵣ wadv
+          ∗ r_t1 ↦ᵣ w1
+          ∗ r_t2 ↦ᵣ w2
+          (* NOTE this post-condition stops after jumping to the adversary *)
+          ∗ ▷ ( codefrag b_main pc_v (trusted_compute_main tc_addr)
+                ∗ PC ↦ᵣ updatePcPermL wadv
+                ∗ r_t0 ↦ᵣ wadv
+                ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
+                ∗ r_t2 ↦ᵣ LInt 0
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+         -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
+  Proof.
+
+    (* We define a local version of solve_addr, which subst and unfold every computed addresses  *)
+    Local Tactic Notation "solve_addr'" :=
+      repeat (lazymatch goal with x := _ |- _ => subst x end)
+      ; repeat (match goal with
+                  | H: ContiguousRegion _ _  |- _ =>
+                      rewrite /ContiguousRegion /trusted_compute_main_len in H
+                end)
+      ; rewrite !/trusted_compute_main_code_len /trusted_compute_main_len
+          /trusted_compute_main_init_len /trusted_compute_main_callback_len
+      ; solve_addr.
+
+    intros ???? Hregion.
+    iIntros "(Hcode & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
+    codefrag_facts "Hcode".
+    iGo "Hcode".
+    rewrite decode_encode_perm_inv; by cbn.
+    rewrite decode_encode_perm_inv.
+    iGo "Hcode".
+    iApply (wp_wand with "[-]"); last (iIntros (v) "H"; by iLeft).
+    iApply "Hφ".
+    iFrame.
+  Qed.
+
+  (** Specification callback code *)
+
+  (* Define all the invariants *)
+  (* Linking table invariant *)
+  Definition link_tableN := (trusted_computeN.@"link_table").
+  Definition link_table_inv
+    v_link
+    assert_entry b_assert e_assert v_assert :=
+    na_inv logrel_nais link_tableN
+         ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
+
+  (* Assert invariant *)
+  Definition assertN := (trusted_computeN.@"assert").
+  Definition assert_inv b_a a_flag e_a v_assert :=
+    na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
+
+  Definition flag_assertN := (trusted_computeN.@"flag_assert").
+  Definition flag_inv a_flag v_flag :=
+    inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
   Lemma trusted_compute_callback_code_spec
     (b_main adv adv_end: Addr)
@@ -623,7 +505,7 @@ Section trusted_compute_example.
     ∗ interp w0
 
     ⊢ ((
-          codefrag b_main pc_v trusted_compute_main
+          codefrag b_main pc_v (trusted_compute_main tc_addr)
           ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
           ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
 
@@ -637,7 +519,7 @@ Section trusted_compute_example.
           ∗ na_own logrel_nais ⊤
 
           (* NOTE this post-condition stops after jumping to the adversary *)
-          ∗ ▷ ( codefrag b_main pc_v trusted_compute_main
+          ∗ ▷ ( codefrag b_main pc_v (trusted_compute_main tc_addr)
                 ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
                 ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
 
@@ -711,7 +593,7 @@ Section trusted_compute_example.
     2:{ wp_end; by iRight. }
 
     iInstr "Hcode". (* Sub *)
-    destruct (decide (I = hash_trusted_compute_enclave)) as [-> | HnI]
+    destruct (decide (I = hash_trusted_compute_enclave tc_addr)) as [-> | HnI]
     ; cycle 1.
     { (* Not the right enclave *)
       iInstr "Hcode". (* Jnz *)
@@ -719,8 +601,7 @@ Section trusted_compute_example.
       iInstr "Hcode". (* Fail *)
       wp_end; by iRight.
     }
-    replace (hash_trusted_compute_enclave - hash_trusted_compute_enclave)
-      with 0 by lia.
+    replace ( _ - _) with 0 by lia.
     iInstr "Hcode". (* Jnz *)
     iDestruct (interp_valid_sealed with "Hinterp_w0") as (Φ) "Hseal_valid".
     rewrite /custom_enclave_inv.
@@ -823,5 +704,9 @@ Section trusted_compute_example.
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
     Admitted.
+
+  (* TODO *)
+  (* Lemma trusted_compute_full_run_spec *)
+
 
 End trusted_compute_example.
