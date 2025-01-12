@@ -162,35 +162,114 @@ Section trusted_compute_example.
 
 
   (* Trusted Compute Custom Predicates *)
-  Definition tc_enclave_pred
-    tc_data_cap tc_addr : CustomEnclave :=
+  Definition tc_enclave_pred tc_addr : CustomEnclave :=
     @MkCustomEnclave Σ
-      (trusted_compute_enclave tc_data_cap)
+      trusted_compute_enclave_code
       tc_addr
       (λ w, False%I)
       sealed_42.
 
-  Definition tcenclaves_map tc_data_cap tc_addr : custom_enclaves_map :=
-   {[hash_trusted_compute_enclave tc_addr := tc_enclave_pred tc_data_cap tc_addr]}.
+  Definition tcenclaves_map tc_addr : custom_enclaves_map :=
+   {[hash_trusted_compute_enclave tc_addr := tc_enclave_pred tc_addr]}.
 
-  Lemma tc_contract tc_data_cap tc_addr :
-    custom_enclave_contract (tcenclaves_map tc_data_cap tc_addr).
+  Lemma hash_concat_inj `{A: Type} `{B: Type} (a a' : A) (b b' : B):
+    hash_concat (hash a) (hash b) =
+    hash_concat (hash a') (hash b') ->
+    a = a' /\ b = b'.
+  Admitted.
+
+  Lemma wf_tc_enclaves_map (tc_addr : Addr) :
+    custom_enclaves_map_wf (tcenclaves_map tc_addr).
+  Proof.
+    rewrite /custom_enclaves_map_wf /tcenclaves_map.
+    by rewrite map_Forall_singleton /hash_trusted_compute_enclave /=.
+  Qed.
+
+  Definition custom_enclave_contract
+    (cenclaves : custom_enclaves_map)
+    :=
+    forall
+    (I : EIdentity)
+    (b e a : Addr) (v : Version)
+    (b' e' a' : Addr) (v' : Version)
+    (enclave_data : list LWord)
+    (ot : OType)
+    (ce : CustomEnclave),
+
+    custom_enclaves_map_wf cenclaves ->
+
+    cenclaves !! I = Some ce ->
+
+    (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
+    (* TODO I think we can derive following from [b',e'] -> .... *)
+    (b' < e')%a -> (* Well-formness: data region contains at least one *)
+    (b < e)%a -> (* Well-formness: code region contains at all the code *)
+
+    I = hash_concat (hash b) (hash (tail (code ce))) ->
+    b = (code_region ce) ->
+    e = (b ^+ (length (code ce) + 1))%a ->
+
+    na_inv logrel_nais (custom_enclaveN.@I)
+      ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
+       [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
+
+    ∗ seal_pred ot (Penc ce)
+    ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
+
+    interp (LCap E b e (b^+1)%a v).
+
+  Lemma tc_contract tc_addr :
+    custom_enclave_contract (tcenclaves_map tc_addr).
   Proof.
     rewrite /custom_enclave_contract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hwf_cemap Hcode_ce Hdatacap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
+      Hwf_cemap Hcode_ce Hot Hb' Hwfbe HIhash Hb He)
       "(#Htc_inv & #HPenc & #HPsign)".
-    rewrite /tcenclaves_map in Hwf_cemap,Hcode_ce.
-    rewrite /custom_enclaves_map_wf in Hwf_cemap.
-    rewrite map_Forall_insert in Hwf_cemap; last by simplify_map_eq.
-    destruct Hwf_cemap as [ Hwf_hash _ ].
-    cbn in Hwf_hash.
-    destruct (decide (I = hash_trusted_compute_enclave tc_addr)) as [->|] ; last by simplify_map_eq.
-    clear HIhash Hwf_hash.
+    clear HIhash Hwf_cemap.
+
+    (* rewrite /tcenclaves_map in Hwf_cemap,Hcode_ce. *)
+    rewrite /tcenclaves_map in Hcode_ce.
+    simplify_map_eq.
+    (* exfalso. *)
+    (* rewrite /custom_enclaves_map_wf in Hwf_cemap. *)
+    (* rewrite map_Forall_singleton //= in Hwf_cemap. *)
+    (* rewrite Hwf_cemap //= in Hcode_ce. *)
+    (* clear Hwf_cemap. *)
+
+    (* assert (ce = tc_enclave_pred tc_addr) as Hce. *)
+    (* { *)
+    (*   pose proof (elem_of_dom_2 _ _ _ Hcode_ce) as Hcemap_tc. *)
+    (*   (* apply (elem_of_dom_2 *) *)
+    (*   (*          ({[hash_concat (hash tc_addr) (hash trusted_compute_enclave_code) *) *)
+    (*   (*             := tc_enclave_pred tc_addr]}) *) *)
+    (*   (*          (hash_concat (hash (code_region ce)) (hash (tail (code ce)))) *) *)
+    (*   (*          ce) *) *)
+    (*   (*   in Hcode_ce. *) *)
+    (*   rewrite dom_singleton_L elem_of_singleton in Hcemap_tc. *)
+    (*   rewrite Hcemap_tc in Hcode_ce. *)
+    (*   simplify_map_eq. *)
+    (*   (* apply hash_concat_inj in Hcemap_tc. *) *)
+    (*   (* destruct Hcode_ce as [Haddr_ce Hcode_ce_tail]. *) *)
+    (*   (* assert (code ce = (LCap RW b' e' a' v')::trusted_compute_enclave_code) *) *)
+    (*   (*   as Hcode_ce. *) *)
+    (*   (* { *) *)
+    (*   (*   rewrite /tail in Hcode_ce_tail. *) *)
+    (*   (*   destruct (code ce); by simplify_map_eq. *) *)
+    (*   (* } *) *)
+    (*   (* rewrite Haddr_ce in Hwfbe |- * ; clear Haddr_ce. *) *)
+    (*   (* rewrite Hcode_ce in Hwfbe |- * ; clear Hcode_ce Hcode_ce_tail Hdatacap. *) *)
+    (* } *)
+
+
+    (* simplify_map_eq. *)
+    (* rewrite map_Forall_insert in Hwf_cemap; last by simplify_map_eq. *)
+    (* destruct Hwf_cemap as [ Hwf_hash _ ]. *)
+    (* cbn in Hwf_hash. *)
+    (* destruct (decide (I = hash_trusted_compute_enclave tc_addr)) as [->|] ; last by simplify_map_eq. *)
+    (* clear HIhash Hwf_hash. *)
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
-    simplify_map_eq.
     rewrite /interp_conf.
     iMod (na_inv_acc with "Htc_inv Hna") as "(>[Htc_code Htc_data]  & Hna & Hclose)"; [solve_ndisj ..|].
     rewrite /registers_mapsto.
@@ -237,20 +316,21 @@ Section trusted_compute_example.
     codefrag_facts "Htc_code".
 
     (* Data memory *)
-    assert (exists enclave_data', enclave_data = (LSealRange (true, true) ot (ot ^+ 2)%f ot)::enclave_data')
-    as Henclave_data.
-    { destruct enclave_data; cbn in *; first done.
-      eexists; inv Hdata_seal; f_equal.
-    }
-    destruct Henclave_data as [enclave_data' ->].
     iDestruct (region_mapsto_cons with "Htc_data") as "[Htc_keys Htc_data]"; last iFrame.
     { transitivity (Some (b' ^+ 1)%a); auto ; try solve_addr. }
     { solve_addr. }
 
 
-    (* Prove the spec *)
+    (* TODO @June problem comes from the typeclass instance,
+       but I don't know how to fix it. *)
+    (* assert (ContiguousRegion tc_addr ((length trusted_compute_enclave_code) + 1)). *)
+    (* { *)
+    (*   rewrite /ContiguousRegion /=; solve_addr. *)
+    (* } *)
+   (* Prove the spec *)
     iInstr "Htc_code". (* Mov r_t1 PC *)
     admit.
+    clear H0.
     iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
     admit.
     transitivity (Some tc_addr); auto ; solve_addr.
@@ -360,7 +440,6 @@ Section trusted_compute_example.
     replace ((tc_addr ^+ 1%nat)%a ^+ length trusted_compute_enclave_code)%a with
       (tc_addr ^+ 21%nat)%a by solve_addr.
     iMod ("Hclose" with "[$Hna $Htc_code $Htc_data]") as "Hna".
-
     (* Wrap up the registers *)
     iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3].
     set ( rmap' := <[r_t3:=LInt (42 - ((tc_addr ^+ 1) ^+ 11)%a)]>
@@ -466,6 +545,7 @@ Section trusted_compute_example.
   Definition flag_assertN := (trusted_computeN.@"flag_assert").
   Definition flag_inv a_flag v_flag :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
+
 
   Lemma trusted_compute_callback_code_spec
     (b_main adv adv_end: Addr)
