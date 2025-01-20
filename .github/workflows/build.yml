@@ -22,7 +22,15 @@ jobs:
         with:
           submodules: true
 
+      - name: Cache opam
+        id: opam-cache
+        uses: actions/cache@v4
+        with:
+          path: "~/.opam"
+          key: opam-${{ hashFiles('opam') }}
+
       - name: Install OCaml
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         uses: avsm/setup-ocaml@v3
         with:
           ocaml-compiler: 4.14
@@ -31,6 +39,7 @@ jobs:
             default: https://github.com/ocaml/opam-repository.git
 
       - name: Install Coq and Iris
+        if: steps.cache-opam.outputs.cache-hit != 'true'
         run: opam install . --deps-only -y
 
       - name: Build
