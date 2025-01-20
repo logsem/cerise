@@ -57,7 +57,7 @@ Inductive instr: Type :=
 | GetOType (dst r: RegName)
 | Seal (dst r1 r2: RegName)
 | UnSeal (dst r1 r2: RegName)
-| EInit (dst src: RegName)
+| EInit (r: RegName)
 | EDeInit (r: RegName)
 | EStoreId (dst src: RegName)
 | IsUnique (dst src: RegName)
@@ -799,7 +799,7 @@ Proof.
       | GetWType dst r => GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)]
       | Seal dst r1 r2 => GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
       | UnSeal dst r1 r2 => GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)]
-      | EInit dst src => GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)]
+      | EInit r => GenNode 19 [GenLeaf (inl r)]
       | EDeInit r => GenNode 20 [GenLeaf (inl r)]
       | EStoreId dst src => GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)]
       | IsUnique dst src => GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)]
@@ -827,7 +827,7 @@ Proof.
       | GenNode 16 [GenLeaf (inl dst); GenLeaf (inl r)] => GetWType dst r
       | GenNode 17 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => Seal dst r1 r2
       | GenNode 18 [GenLeaf (inl dst); GenLeaf (inl r1); GenLeaf (inl r2)] => UnSeal dst r1 r2
-      | GenNode 19 [GenLeaf (inl dst); GenLeaf (inl src)] => EInit dst src
+      | GenNode 19 [GenLeaf (inl r)] => EInit r
       | GenNode 20 [GenLeaf (inl r)] => EDeInit r
       | GenNode 21 [GenLeaf (inl dst); GenLeaf (inl src)] => EStoreId dst src
       | GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)] => IsUnique dst src

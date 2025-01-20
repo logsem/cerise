@@ -626,10 +626,10 @@ Section opsem.
     | _,_ => None
     end
     (* enclave initialization *)
-  | EInit rd rs =>
+  | EInit r =>
 
     (* obtain RX_ permissions for code section *)
-    ccap          ← (reg φ) !! rs; (* get code capability *)
+    ccap          ← (reg φ) !! r; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
     when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
 
@@ -640,7 +640,7 @@ Section opsem.
 
     (* MEMORY SWEEP *)
     when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
-           (sweep_reg (mem φ) (reg φ) rs) && (* sweep the registers excluding the code cap in register rs *)
+           (sweep_reg (mem φ) (reg φ) r) && (* sweep the registers excluding the code cap in register rs *)
            (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
 
     (* ALLOCATION OF THE ENCLAVE'S SEALS *)
@@ -662,7 +662,7 @@ Section opsem.
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
        |>> update_etable fresh_tid eid (* create a new index in the ETable *)
        |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
-       |>> update_reg rd (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
+       |>> update_reg r (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
        |>> updatePC
 
     (* enclave deinitialization *)

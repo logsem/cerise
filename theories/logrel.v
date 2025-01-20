@@ -51,6 +51,7 @@ Section logrel.
    λne (lregs : leibnizO LReg), (full_map lregs ∧
                               ∀ (r : RegName) (lv : LWord), (⌜r ≠ PC⌝ → ⌜lregs !! r = Some lv⌝ → interp lv))%I.
 
+
   Definition interp_conf : iProp Σ :=
     (WP Seq (Instr Executable)
        {{ v, ⌜v = HaltedV⌝ →
