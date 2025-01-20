@@ -37,8 +37,6 @@ Definition updatePC (φ: ExecConf): option Conf :=
 
 (*--- z_of_argument ---*)
 
-Definition zzzz : Z := 0%Z.
-
 Definition z_of_argument (regs: Reg) (a: Z + RegName) : option Z :=
   match a with
   | inl z => Some z
