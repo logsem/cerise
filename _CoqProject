@@ -132,6 +132,10 @@ theories/examples/assert.v
 theories/examples/macros.v
 theories/examples/macros_new.v
 
+# Trusted Compute example
+theories/examples/enclaves/trusted_compute.v
+
+
 # Template Adequacy
 # theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v

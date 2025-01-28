@@ -49,14 +49,12 @@ Section trusted_compute_example.
     (* main: *)
     encodeInstrsLW [
         Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
-        Mov r_t2 r_t1;    (* rt2 := (RWX, main, main_end, main) *)
 
         (* Create callback sentry *)
         Lea r_t1 (callback - main)%Z;       (* rt1 := (RWX, main, main_end, callback) *)
         Restrict r_t1 (encodePerm E);       (* rt1 := (E, main, main_end, callback) *)
 
         (* Jump to adversary *)
-        Mov r_t2 0;
         Jmp r_t0
       ].
 
@@ -330,7 +328,6 @@ Section trusted_compute_example.
    (* Prove the spec *)
     iInstr "Htc_code". (* Mov r_t1 PC *)
     admit.
-    clear H0.
     iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
     admit.
     transitivity (Some tc_addr); auto ; solve_addr.
@@ -476,7 +473,7 @@ Section trusted_compute_example.
     (b_main : Addr)
     (pc_v adv_v : Version)
     (assert_lt_offset : Z)
-    (w0 w1 w2 w3 w4 wadv : LWord)
+    (w0 w1 w3 w4 wadv : LWord)
     (tc_addr : Addr)
     φ :
 
@@ -492,13 +489,11 @@ Section trusted_compute_example.
           ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
           ∗ r_t0 ↦ᵣ wadv
           ∗ r_t1 ↦ᵣ w1
-          ∗ r_t2 ↦ᵣ w2
           (* NOTE this post-condition stops after jumping to the adversary *)
           ∗ ▷ ( codefrag b_main pc_v (trusted_compute_main tc_addr)
                 ∗ PC ↦ᵣ updatePcPermL wadv
                 ∗ r_t0 ↦ᵣ wadv
                 ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
-                ∗ r_t2 ↦ᵣ LInt 0
                   -∗ WP Seq (Instr Executable) {{ φ }}))
          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
@@ -515,7 +510,7 @@ Section trusted_compute_example.
       ; solve_addr.
 
     intros ???? Hregion.
-    iIntros "(Hcode & HPC & Hr0 & Hr1 & Hr2 & Hφ)".
+    iIntros "(Hcode & HPC & Hr0 & Hr1 & Hφ)".
     codefrag_facts "Hcode".
     iGo "Hcode".
     rewrite decode_encode_perm_inv; by cbn.
@@ -555,7 +550,7 @@ Section trusted_compute_example.
     (assert_lt_offset : Z)
     (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
     (w0 w1 w2 w3 w4 w5 : LWord)
-    tc_data_cap tc_addr
+    tc_addr
     φ :
 
     let v_link := pc_v in
@@ -573,14 +568,14 @@ Section trusted_compute_example.
     withinBounds b_link e_link assert_entry = true ->
 
     (* TODO: should be proved *)
-    custom_enclaves_map_wf (tcenclaves_map tc_data_cap tc_addr) ->
+    custom_enclaves_map_wf (tcenclaves_map tc_addr) ->
 
     (link_table_inv
        v_link
        assert_entry b_assert e_assert v_assert
     ∗ assert_inv b_assert a_flag e_assert v_assert
     ∗ flag_inv a_flag v_assert)
-    ∗ custom_enclave_inv (tcenclaves_map tc_data_cap tc_addr)
+    ∗ custom_enclave_inv (tcenclaves_map tc_addr)
     ∗ interp w1
     ∗ interp w0
 
@@ -704,17 +699,17 @@ Section trusted_compute_example.
     iMod ("Hclose" with "Hcemap") as "_"; iModIntro.
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs'); simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
-    replace x with (b_main' ^+ 20)%a by solve_addr.
+    replace x with (b_main' ^+ 18)%a by solve_addr.
     clear Z.
     iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr0] ]"; eauto; iFrame.
     wp_pure; iInstr_close "Hcode".
 
     iAssert (
         if Z.even a
-        then seal_pred a (Penc (tc_enclave_pred tc_data_cap tc_addr))
-             ∗ seal_pred (a ^+ 1)%f (Psign (tc_enclave_pred tc_data_cap tc_addr))
-        else seal_pred (a ^+ -1)%f (Penc (tc_enclave_pred tc_data_cap tc_addr))
-             ∗ seal_pred a (Psign (tc_enclave_pred tc_data_cap tc_addr))
+        then seal_pred a (Penc (tc_enclave_pred tc_addr))
+             ∗ seal_pred (a ^+ 1)%f (Psign (tc_enclave_pred tc_addr))
+        else seal_pred (a ^+ -1)%f (Penc (tc_enclave_pred tc_addr))
+             ∗ seal_pred a (Psign (tc_enclave_pred tc_addr))
       )%I as "Htc".
     {
       iApply "Hcemap"; iFrame "%#∗".
