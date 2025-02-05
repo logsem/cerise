@@ -471,9 +471,9 @@ Section trusted_compute_example.
   (** Specification init code *)
   Lemma trusted_compute_main_init_spec
     (b_main : Addr)
-    (pc_v adv_v : Version)
+    (pc_v : Version)
     (assert_lt_offset : Z)
-    (w0 w1 w3 w4 wadv : LWord)
+    (w1 wadv : LWord)
     (tc_addr : Addr)
     φ :
 
@@ -495,7 +495,7 @@ Section trusted_compute_example.
                 ∗ r_t0 ↦ᵣ wadv
                 ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
                   -∗ WP Seq (Instr Executable) {{ φ }}))
-         -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
+         -∗ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
 
     (* We define a local version of solve_addr, which subst and unfold every computed addresses  *)
@@ -516,7 +516,6 @@ Section trusted_compute_example.
     rewrite decode_encode_perm_inv; by cbn.
     rewrite decode_encode_perm_inv.
     iGo "Hcode".
-    iApply (wp_wand with "[-]"); last (iIntros (v) "H"; by iLeft).
     iApply "Hφ".
     iFrame.
   Qed.
@@ -543,7 +542,8 @@ Section trusted_compute_example.
 
 
   Lemma trusted_compute_callback_code_spec
-    (b_main adv adv_end: Addr)
+    E
+    (b_main : Addr)
     (pc_v : Version)
 
     (b_link a_link e_link assert_entry : Addr) (* linking *)
@@ -563,12 +563,10 @@ Section trusted_compute_example.
     let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
     ContiguousRegion b_main trusted_compute_main_len ->
 
-
+    ↑link_tableN ⊆ E ->
+    ↑assertN ⊆ E ->
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
-
-    (* TODO: should be proved *)
-    custom_enclaves_map_wf (tcenclaves_map tc_addr) ->
 
     (link_table_inv
        v_link
@@ -591,7 +589,7 @@ Section trusted_compute_example.
           ∗ r_t3 ↦ᵣ w3
           ∗ r_t4 ↦ᵣ w4
           ∗ r_t5 ↦ᵣ w5
-          ∗ na_own logrel_nais ⊤
+          ∗ na_own logrel_nais E
 
           (* NOTE this post-condition stops after jumping to the adversary *)
           ∗ ▷ ( codefrag b_main pc_v (trusted_compute_main tc_addr)
@@ -605,7 +603,7 @@ Section trusted_compute_example.
                 ∗ r_t3 ↦ᵣ LInt 0
                 ∗ r_t4 ↦ᵣ LInt 0
                 ∗ r_t5 ↦ᵣ LInt 0
-                ∗ na_own logrel_nais ⊤
+                ∗ na_own logrel_nais E
 
                   -∗ WP (Instr Halted) {{ φ }}))
          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
@@ -622,7 +620,9 @@ Section trusted_compute_example.
           /trusted_compute_main_init_len /trusted_compute_main_callback_len
       ; solve_addr.
 
-    intros ?????? Hregion Hassert Hlink Hwf_cemap.
+    intros ?????? Hregion HE HE' Hassert Hlink.
+    pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap.
+
     iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv [ Hinterp_w1 Hinterp_w0]] ]
              (Hcode & Hlink_cap & Hdata1 & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna & Hcont)".
     codefrag_facts "Hcode".
@@ -778,10 +778,195 @@ Section trusted_compute_example.
 
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
-    Admitted.
+  Admitted.
 
-  (* TODO *)
-  (* Lemma trusted_compute_full_run_spec *)
+  Lemma trusted_compute_full_run_spec
+    (b_main : Addr)
+    (pc_v : Version)
+
+    (b_link a_link e_link assert_entry : Addr) (* linking *)
+    (assert_lt_offset : Z)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
+
+    (rmap : LReg)
+    (tc_addr : Addr)
+    (wadv w1 : LWord)
+    :
+
+    let v_link := pc_v in
+    let link_cap := LCap RO b_link e_link a_link v_link in
+
+    let e_main := (b_main ^+ trusted_compute_main_len)%a in
+    let a_callback := (b_main ^+ trusted_compute_main_init_len)%a in
+    let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
+
+    let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
+    ContiguousRegion b_main trusted_compute_main_len ->
+
+
+    (a_link + assert_lt_offset)%a = Some assert_entry →
+    withinBounds b_link e_link assert_entry = true ->
+
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+
+    (link_table_inv
+       v_link
+       assert_entry b_assert e_assert v_assert
+    ∗ assert_inv b_assert a_flag e_assert v_assert
+    ∗ flag_inv a_flag v_assert)
+    ∗ custom_enclave_inv (tcenclaves_map tc_addr)
+    ∗ interp wadv
+
+    ⊢ ( codefrag b_main pc_v (trusted_compute_main tc_addr)
+        ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
+        ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
+
+          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+          ∗ r_t0 ↦ᵣ wadv
+          ∗ r_t1 ↦ᵣ w1
+          ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+          ∗ na_own logrel_nais ⊤
+          -∗ WP Seq (Instr Executable) {{λ v,
+                  (⌜v = HaltedV⌝ → ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                  ∨ ⌜v = FailedV⌝ }})%I.
+  Proof.
+    intros ?????? Hregion Hassert Hlink Hrmap.
+
+    iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv Hinterp_wadv ] ]
+             (Hcode & Hadata & Hadata' & HPC & Hr0 & Hr1 & Hrmap & Hna)".
+
+    iDestruct (jmp_to_unknown with "Hinterp_wadv") as "Hjmp".
+
+    iApply (trusted_compute_main_init_spec with "[-]"); eauto; iFrame.
+    iNext; iIntros "(Hcode & HPC & Hr0 & Hr1)".
+
+    (* Show that the contents of unused registers is safe *)
+    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn.
+      iIntros "[Hr %Hw]". iFrame.
+      destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //.
+    }
+
+    (* Show the content of r1 is safe *)
+    iMod (na_inv_alloc logrel_nais _ (trusted_computeN.@"code")
+            (codefrag b_main pc_v (trusted_compute_main_code assert_lt_offset tc_addr)
+             ∗ (a_data, pc_v) ↦ₐ link_cap
+             ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ LCap RWX b_main e_main a_data pc_v
+            )%I
+           with "[$Hcode $Hadata $Hadata']")
+      as "#Hcode".
+
+    set ( wret :=
+        LCap E b_main (b_main ^+ trusted_compute_main_len)%a
+               (b_main ^+ trusted_compute_main_init_len)%a pc_v).
+    iAssert (interp wret) as "Hinterp_ret".
+    {
+      iEval (rewrite fixpoint_interp1_eq /=).
+      iIntros (regs); iNext ; iModIntro.
+      iIntros "( [%Hrmap_full #Hrmap_interp] & Hrmap & Hna)".
+      rewrite /registers_mapsto.
+      iExtract "Hrmap" PC as "HPC".
+      cbn in Hrmap_full.
+      destruct (Hrmap_full r_t0) as [w0 Hr0].
+      clear w1; destruct (Hrmap_full r_t1) as [w1 Hr1].
+      destruct (Hrmap_full r_t2) as [w2 Hr2].
+      destruct (Hrmap_full r_t3) as [w3 Hr3].
+      destruct (Hrmap_full r_t4) as [w4 Hr4].
+      destruct (Hrmap_full r_t5) as [w5 Hr5].
+      iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3;r_t4;r_t5]
+        as ["Hr0";"Hr1";"Hr2";"Hr3";"Hr4";"Hr5"].
+
+      rewrite /interp_conf.
+      iApply (wp_wand _ _ _
+                ( fun v =>
+                    ((⌜v = HaltedV⌝ →
+                     ∃ lregs : LReg, full_map lregs
+                                     ∧ registers_mapsto lregs
+                                     ∗ na_own logrel_nais ⊤)
+                      ∨ ⌜v = FailedV⌝
+                    )%I)
+               with "[-]").
+
+      - iAssert (interp w0) as "Hinterp_w0".
+        { iApply "Hrmap_interp";eauto;done. }
+        iAssert (interp w1) as "Hinterp_w1".
+        { iApply "Hrmap_interp";eauto;done. }
+
+        iMod (na_inv_acc with "Hcode Hna") as "[>(Hcode' & Hdata & Hdata') [Hna Hcls] ]"
+        ;[solve_ndisj|solve_ndisj|].
+        set (E := (⊤ ∖ ↑trusted_computeN.@"code")).
+        iApply ( (trusted_compute_callback_code_spec E)
+                 with "[$HlinkInv $HassertInv $HflagInv $Hcemap_inv Hinterp_w0 Hinterp_w1]
+                 [$HPC $Hr0 $Hr1 $Hr2 $Hr3 $Hr4 $Hr5 $Hcode' $Hdata $Hdata' $Hna Hcls Hrmap]")
+        ; eauto
+        ; try solve_ndisj
+        ; try iFrame "∗#".
+        iNext; iIntros "(Hcode' & Hadata & Hadata' & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna)".
+        iMod ("Hcls" with "[$Hcode' $Hadata $Hadata' $Hna]") as "Hna".
+        wp_end. iIntros (_).
+
+        (* Cannot use iInsert, because Qed is too long *)
+        iDestruct (big_sepM_insert _ _ r_t5 with "[$Hrmap $Hr5]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ r_t4 with "[$Hrmap $Hr4]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap $Hr3]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iDestruct (big_sepM_insert _ _ PC with "[$Hrmap $HPC]") as "Hrmap"
+        ; first (by rewrite lookup_delete).
+        rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
+        iExists _.
+        iFrame "∗".
+
+
+        iPureIntro; intros r; cbn.
+        destruct (decide (r=PC)); simplify_map_eq;first done.
+        destruct (decide (r=r_t5)); simplify_map_eq;first done.
+        destruct (decide (r=r_t4)); simplify_map_eq;first done.
+        destruct (decide (r=r_t3)); simplify_map_eq;first done.
+        destruct (decide (r=r_t2)); simplify_map_eq;first done.
+        destruct (decide (r=r_t1)); simplify_map_eq;first done.
+        destruct (decide (r=r_t0)); simplify_map_eq;first done.
+        apply Hrmap_full.
+      - iEval (cbn). iIntros (v) "H ->".
+        iDestruct "H" as "[H|%]"; last congruence.
+        by iApply "H".
+    }
+
+    (* Apply the result of the FTLR *)
+    iApply (wp_wand _ _ _
+              (λ v0 : val, ⌜v0 = HaltedV⌝ →
+                           ∃ lr : LReg, full_map lr
+                                        ∧ registers_mapsto lr
+                                        ∗ na_own logrel_nais ⊤)%I
+             with "[-]").
+    - iAssert (r_t0  ↦ᵣ wadv ∗ interp wadv)%I with "[$Hr0 $Hinterp_wadv]" as "Hr0".
+      iAssert (r_t1  ↦ᵣ wret ∗ interp wret)%I with "[$Hr1 $Hinterp_ret]" as "Hr1".
+
+      (* Cannot use iInsert, because Qed is too long *)
+      iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap"
+      ; first (apply not_elem_of_dom_1; rewrite Hrmap; set_solver).
+      iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap"
+      ; first (rewrite lookup_insert_ne //=; apply not_elem_of_dom_1; rewrite Hrmap; set_solver).
+      iApply ("Hjmp" with "[] [$HPC $Hrmap $Hna]") ;eauto.
+      iPureIntro.
+      rewrite !dom_insert_L Hrmap; set_solver.
+    - iIntros (v) "H". by iLeft.
+  Qed.
+
+
 
 
 End trusted_compute_example.
