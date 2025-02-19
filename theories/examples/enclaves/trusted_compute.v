@@ -272,6 +272,9 @@ Section trusted_compute_example.
     iMod (na_inv_acc with "Htc_inv Hna") as "(>[Htc_code Htc_data]  & Hna & Hclose)"; [solve_ndisj ..|].
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
+    remember tc_addr as pc_b in |- * at 10.
+    remember (tc_addr ^+ (20%nat + 1))%a as pc_e in |- * at 4.
+    assert (SubBounds pc_b pc_e tc_addr (tc_addr ^+ (20%nat + 1))%a) by (subst; solve_addr).
 
     (* Prepare the necessary resources *)
     (* Registers *)
@@ -327,7 +330,6 @@ Section trusted_compute_example.
     (* } *)
    (* Prove the spec *)
     iInstr "Htc_code". (* Mov r_t1 PC *)
-    admit.
     iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
     admit.
     transitivity (Some tc_addr); auto ; solve_addr.
