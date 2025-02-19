@@ -543,7 +543,7 @@ Section trusted_compute_example.
 
   Lemma trusted_compute_callback_code_spec
     E
-    (b_main : Addr)
+    (b_main pc_b pc_e : Addr)
     (pc_v : Version)
 
     (b_link a_link e_link assert_entry : Addr) (* linking *)
@@ -567,6 +567,7 @@ Section trusted_compute_example.
     ↑assertN ⊆ E ->
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
+    SubBounds pc_b pc_e b_main e_main ->
 
     (link_table_inv
        v_link
@@ -582,7 +583,7 @@ Section trusted_compute_example.
           ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
           ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
 
-          ∗ PC ↦ᵣ LCap RX b_main e_main a_callback pc_v
+          ∗ PC ↦ᵣ LCap RX pc_b pc_e a_callback pc_v
           ∗ r_t0 ↦ᵣ w0
           ∗ r_t1 ↦ᵣ w1
           ∗ r_t2 ↦ᵣ w2
@@ -596,7 +597,7 @@ Section trusted_compute_example.
                 ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
                 ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
 
-                ∗ PC ↦ᵣ LCap RX b_main e_main (a_data ^+ (-2))%a pc_v
+                ∗ PC ↦ᵣ LCap RX pc_b pc_e (a_data ^+ (-2))%a pc_v
                 ∗ r_t0 ↦ᵣ LInt 0
                 ∗ r_t1 ↦ᵣ LInt 0
                 ∗ r_t2 ↦ᵣ LInt 0
@@ -605,7 +606,7 @@ Section trusted_compute_example.
                 ∗ r_t5 ↦ᵣ LInt 0
                 ∗ na_own logrel_nais E
 
-                  -∗ WP (Instr Halted) {{ φ }}))
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
 
@@ -620,7 +621,7 @@ Section trusted_compute_example.
           /trusted_compute_main_init_len /trusted_compute_main_callback_len
       ; solve_addr.
 
-    intros ?????? Hregion HE HE' Hassert Hlink.
+    intros ?????? Hregion HE HE' Hassert Hlink Hpcbounds.
     pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap.
 
     iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv [ Hinterp_w1 Hinterp_w0]] ]
@@ -699,7 +700,7 @@ Section trusted_compute_example.
     iMod ("Hclose" with "Hcemap") as "_"; iModIntro.
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs'); simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
-    replace x with (b_main' ^+ 18)%a by solve_addr.
+    replace x with (b_main ^+ 18)%a by solve_addr.
     clear Z.
     iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr0] ]"; eauto; iFrame.
     wp_pure; iInstr_close "Hcode".
@@ -755,10 +756,11 @@ Section trusted_compute_example.
     subst a_callback.
     rewrite /trusted_compute_main_init_len.
 
+    subst e_main.
     focus_block 2%nat "Hcode" as addr_block2 Haddr_block2 "Hblock" "Hcode'".
     cbn in Haddr_block2.
     iMod (na_inv_acc with "HlinkInv Hna") as "(>Hassert_entry & Hna & Hclose)"; [ solve_ndisj.. |].
-    iApply assert_reg_success; last iFrame "#∗"; try solve_pure ; try solve_addr'.
+    iApply assert_reg_success; last iFrame "#∗"; try solve_pure ; try reflexivity.
     solve_ndisj.
     iIntros "!> (HPC & Hr0 & Hr1 & Hr2 & Hr4 & Hr5 & Hblock & Hna & Hassert_entry)".
     iMod ("Hclose" with "[$Hna $Hassert_entry]") as "Hna".
@@ -766,19 +768,14 @@ Section trusted_compute_example.
     unfocus_block "Hblock" "Hcode'" as "Hcode".
 
     focus_block 3%nat "Hcode" as addr_block3 Haddr_block3 "Hblock" "Hcode'".
-    cbn in Haddr_block3.
-    iInstr "Hblock". (* Mov *)
-    admit. (* TODO why automation doesn't work here? *)
-    iInstr "Hblock". (* Mov *)
-    admit. (* TODO why automation doesn't work here? *)
-    iInstr "Hblock". (* Halt *)
-    admit. (* TODO why automation doesn't work here? *)
+    iInstr "Hblock".
+    iInstr "Hblock".
     unfocus_block "Hblock" "Hcode'" as "Hcode".
     replace (addr_block3 ^+ 2)%a with (a_data ^+ -2)%a by solve_addr'.
 
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
-  Admitted.
+  Qed.
 
   Definition tc_mainN := (trusted_computeN.@"main").
   Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap
