@@ -331,56 +331,39 @@ Section trusted_compute_example.
    (* Prove the spec *)
     iInstr "Htc_code". (* Mov r_t1 PC *)
     iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
-    admit.
     transitivity (Some tc_addr); auto ; solve_addr.
 
     iInstr "Htc_code". (* Load r_t1 r_t1 *)
-    admit.
     apply le_addr_withinBounds; solve_addr.
     iInstr "Htc_code". (* GetB r_t2 r_t1 *)
-    admit.
     iInstr "Htc_code". (* GetA r_t3 r_t1 *)
-    admit.
     iInstr "Htc_code". (* Sub r_t2 r_t2 r_t3 *)
-    admit.
     iInstr "Htc_code". (* Lea r_t1 r_t2 *)
-    admit.
     transitivity (Some b'); auto ; solve_addr.
 
     iInstr "Htc_code". (* Load r_t1 r_t1 *)
-    admit.
     apply le_addr_withinBounds; solve_addr.
     iInstr "Htc_code". (* GetE r_t3 r_t1 *)
-    admit.
     iInstr "Htc_code". (* Sub r_t3 r_t2 1 *)
-    admit.
     replace (((ot ^+ 2)%f - 1)) with (ot + 1) by solve_finz.
     iInstr "Htc_code". (* Subseg r_t1 r_t2 r_t3 *)
-    admit.
     transitivity (Some (ot ^+1)%ot); auto ; solve_finz.
     apply isWithin_of_le; solve_finz.
 
     iInstr "Htc_code". (* Mov r_t2 PC *)
-    admit.
     iInstr "Htc_code". (* GetA r_t3 r_t2 *)
-    admit.
     iInstr "Htc_code". (* Sub r_t3 42 r_t3 *)
-    admit.
 
     assert (
         ((tc_addr ^+ 1) ^+ 11 + (42 - ((tc_addr ^+ 1) ^+ 11)))%a = Some f42)
       as Hoffset by (by rewrite finz_incr_minus_id).
     iInstr "Htc_code". (* Lea r_t2 r_t3 *)
-    admit.
     iInstr "Htc_code". (* Restrict r_t2 (encodePerm O) *)
-    admit.
     by rewrite decode_encode_perm_inv.
     rewrite decode_encode_perm_inv.
     iInstr "Htc_code". (* Lea r_t1 1 *)
-    admit.
     transitivity (Some (ot ^+ 1)%ot); auto ; solve_finz.
     iInstr "Htc_code". (* Seal r_t2 r_t2 r_t1 *)
-    admit.
     by cbn.
     apply le_addr_withinBounds; solve_finz.
 
@@ -392,7 +375,6 @@ Section trusted_compute_example.
     ; try solve_pure
     ; repeat (rewrite decode_encode_seal_perms_inv)
     ; try done.
-    admit.
     iNext; iIntros "(HPC & Hi & Hr1)".
     all: wp_pure; iInstr_close "Htc_code".
 
@@ -427,7 +409,6 @@ Section trusted_compute_example.
     iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
 
     iInstr "Htc_code". (* Jmp r_t0 *)
-    admit.
 
     (* Close the opened invariant *)
     iDestruct (region_mapsto_cons with "[Htc_addr Htc_code]") as "Htc_code"
@@ -448,6 +429,7 @@ Section trusted_compute_example.
     iAssert ([∗ map] k↦y ∈ rmap', k ↦ᵣ y ∗ interp y)%I with "[Hrmap]" as "Hrmap".
     {
       subst rmap'.
+      subst pc_b pc_e.
       iApply (big_sepM_sep_2 with "[Hrmap]") ; first done.
       iApply big_sepM_insert_2; first (iApply interp_int).
       repeat (iApply big_sepM_insert_2; first done).
@@ -467,7 +449,7 @@ Section trusted_compute_example.
       rewrite regmap_full_dom; auto.
     }
     iApply ("Hjmp" with "[]") ; eauto ; iFrame.
-  Admitted.
+  Qed.
 
 
   (** Specification init code *)
