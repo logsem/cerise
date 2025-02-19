@@ -225,46 +225,8 @@ Section trusted_compute_example.
       "(#Htc_inv & #HPenc & #HPsign)".
     clear HIhash Hwf_cemap.
 
-    (* rewrite /tcenclaves_map in Hwf_cemap,Hcode_ce. *)
     rewrite /tcenclaves_map in Hcode_ce.
     simplify_map_eq.
-    (* exfalso. *)
-    (* rewrite /custom_enclaves_map_wf in Hwf_cemap. *)
-    (* rewrite map_Forall_singleton //= in Hwf_cemap. *)
-    (* rewrite Hwf_cemap //= in Hcode_ce. *)
-    (* clear Hwf_cemap. *)
-
-    (* assert (ce = tc_enclave_pred tc_addr) as Hce. *)
-    (* { *)
-    (*   pose proof (elem_of_dom_2 _ _ _ Hcode_ce) as Hcemap_tc. *)
-    (*   (* apply (elem_of_dom_2 *) *)
-    (*   (*          ({[hash_concat (hash tc_addr) (hash trusted_compute_enclave_code) *) *)
-    (*   (*             := tc_enclave_pred tc_addr]}) *) *)
-    (*   (*          (hash_concat (hash (code_region ce)) (hash (tail (code ce)))) *) *)
-    (*   (*          ce) *) *)
-    (*   (*   in Hcode_ce. *) *)
-    (*   rewrite dom_singleton_L elem_of_singleton in Hcemap_tc. *)
-    (*   rewrite Hcemap_tc in Hcode_ce. *)
-    (*   simplify_map_eq. *)
-    (*   (* apply hash_concat_inj in Hcemap_tc. *) *)
-    (*   (* destruct Hcode_ce as [Haddr_ce Hcode_ce_tail]. *) *)
-    (*   (* assert (code ce = (LCap RW b' e' a' v')::trusted_compute_enclave_code) *) *)
-    (*   (*   as Hcode_ce. *) *)
-    (*   (* { *) *)
-    (*   (*   rewrite /tail in Hcode_ce_tail. *) *)
-    (*   (*   destruct (code ce); by simplify_map_eq. *) *)
-    (*   (* } *) *)
-    (*   (* rewrite Haddr_ce in Hwfbe |- * ; clear Haddr_ce. *) *)
-    (*   (* rewrite Hcode_ce in Hwfbe |- * ; clear Hcode_ce Hcode_ce_tail Hdatacap. *) *)
-    (* } *)
-
-
-    (* simplify_map_eq. *)
-    (* rewrite map_Forall_insert in Hwf_cemap; last by simplify_map_eq. *)
-    (* destruct Hwf_cemap as [ Hwf_hash _ ]. *)
-    (* cbn in Hwf_hash. *)
-    (* destruct (decide (I = hash_trusted_compute_enclave tc_addr)) as [->|] ; last by simplify_map_eq. *)
-    (* clear HIhash Hwf_hash. *)
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -302,8 +264,25 @@ Section trusted_compute_example.
             with (<[r_t3:=w3]> (delete PC lregs)).
     2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
 
-    iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"].
-
+    (* EXTRACT REGISTERS FROM RMAP *)
+    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
+    iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
+    { by simplify_map_eq. }
+    replace (delete r_t3 _) with
+      ( delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs))))).
+    2:{
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t0) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t1) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t2) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t3) //.
+      done.
+    }
     (* Code memory *)
     iDestruct (region_mapsto_cons with "Htc_code") as "[Htc_addr Htc_code]"; last iFrame.
     { transitivity (Some (tc_addr ^+ 1)%a); auto ; try solve_addr. }
@@ -322,13 +301,7 @@ Section trusted_compute_example.
     { solve_addr. }
 
 
-    (* TODO @June problem comes from the typeclass instance,
-       but I don't know how to fix it. *)
-    (* assert (ContiguousRegion tc_addr ((length trusted_compute_enclave_code) + 1)). *)
-    (* { *)
-    (*   rewrite /ContiguousRegion /=; solve_addr. *)
-    (* } *)
-   (* Prove the spec *)
+    (* Prove the spec *)
     iInstr "Htc_code". (* Mov r_t1 PC *)
     iInstr "Htc_code". (* Lea r_t1 (-1)%Z *)
     transitivity (Some tc_addr); auto ; solve_addr.
@@ -421,7 +394,20 @@ Section trusted_compute_example.
       (tc_addr ^+ 21%nat)%a by solve_addr.
     iMod ("Hclose" with "[$Hna $Htc_code $Htc_data]") as "Hna".
     (* Wrap up the registers *)
-    iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3].
+    (* iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3]. *)
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
+    { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 3 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
+    { do 2 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 2 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
+    { do 1 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 1 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap $Hr3]") as "Hrmap".
+    { do 0 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 0 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+
     set ( rmap' := <[r_t3:=LInt (42 - ((tc_addr ^+ 1) ^+ 11)%a)]>
                             (<[r_t2:=LSealedCap (ot ^+ 1)%f O tc_addr (tc_addr ^+ 21%nat)%a f42 v]>
                                (<[r_t1:=LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f]>
@@ -590,7 +576,7 @@ Section trusted_compute_example.
                 ∗ r_t5 ↦ᵣ LInt 0
                 ∗ na_own logrel_nais E
 
-                  -∗ WP Seq (Instr Executable) {{ φ }}))
+                  -∗ WP (Instr Halted) {{ φ }}))
          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
 
@@ -754,6 +740,7 @@ Section trusted_compute_example.
     focus_block 3%nat "Hcode" as addr_block3 Haddr_block3 "Hblock" "Hcode'".
     iInstr "Hblock".
     iInstr "Hblock".
+    iInstr "Hblock".
     unfocus_block "Hblock" "Hcode'" as "Hcode".
     replace (addr_block3 ^+ 2)%a with (a_data ^+ -2)%a by solve_addr'.
 
@@ -787,6 +774,8 @@ Section trusted_compute_example.
 
     let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
     ContiguousRegion b_main trusted_compute_main_len ->
+    SubBounds b_main (b_main ^+ trusted_compute_main_len)%a b_main
+      (b_main ^+ trusted_compute_main_len)%a ->
 
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
@@ -801,7 +790,7 @@ Section trusted_compute_example.
     ⊢ interp (LCap E b_main (b_main ^+ trusted_compute_main_len)%a
                 (b_main ^+ trusted_compute_main_init_len)%a pc_v).
   Proof.
-    intros ?????? Hregion Hassert Hlink.
+    intros ?????? HcontRegion HsubBounds Hassert Hlink.
     iIntros "[#(HlinkInv & HassertInv & HflagInv & HcodeInv) #Hcemap_inv]".
     iEval (rewrite fixpoint_interp1_eq /=).
     iIntros (regs); iNext ; iModIntro.
@@ -910,6 +899,8 @@ Section trusted_compute_example.
 
     let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
     ContiguousRegion b_main trusted_compute_main_len ->
+    SubBounds b_main (b_main ^+ trusted_compute_main_len)%a b_main
+      (b_main ^+ trusted_compute_main_len)%a ->
 
 
     (a_link + assert_lt_offset)%a = Some assert_entry →
@@ -939,7 +930,7 @@ Section trusted_compute_example.
                   (⌜v = HaltedV⌝ → ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                   ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
-    intros ?????? Hregion Hassert Hlink Hrmap.
+    intros ?????? Hregion HsubBounds Hassert Hlink Hrmap.
 
     iIntros "[  #(HlinkInv & HassertInv & HflagInv & HcodeInv) #[ Hcemap_inv Hinterp_wadv ] ]
              (Hadata & Hadata' & HPC & Hr0 & Hr1 & Hrmap & Hna)".
