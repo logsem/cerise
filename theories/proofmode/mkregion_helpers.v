@@ -49,7 +49,7 @@ Lemma mkregion_app l1 l2 b e :
   mkregion b e (l1 ++ l2) =
   mkregion b (b ^+ length l1)%a l1 ∪ mkregion (b ^+ length l1)%a e l2.
 Proof.
-  rewrite /mkregion. rewrite app_length. intros HH.
+  rewrite /mkregion. rewrite length_app. intros HH.
   rewrite (finz_seq_between_split _ (b ^+ length l1)%a). 2: split; solve_addr.
   rewrite zip_app. 2: rewrite finz_seq_between_length /finz.dist; solve_addr.
   rewrite list_to_map_app //.

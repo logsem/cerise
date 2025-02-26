@@ -47,7 +47,7 @@ Section cap_lang_spec_rules.
       cbn in Hstep; rewrite Hsrc Hdst /= Hnz in Hstep.
     { inv Hstep.
       iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hr Hmap]"; eauto.
-      iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
+      iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hr Hj") as "[Hown Hj]".
       iExists NextIV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
@@ -57,7 +57,7 @@ Section cap_lang_spec_rules.
     { apply incrementPC_fail_updatePC with (m:=σm) in HX.
       eapply updatePC_fail_incl with (m':=σm) in HX; eauto.
       rewrite HX in Hstep. inv Hstep.
-      iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
+      iMod (exprspec_pointsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
       iExists FailedV,_. iFrame.
       iMod ("Hclose" with "[Hown]") as "_".
       { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
@@ -69,7 +69,7 @@ Section cap_lang_spec_rules.
     eapply updatePC_success_incl with (m':=σm) in HuPC; eauto.
     rewrite HuPC in Hstep. simplify_pair_eq.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+    iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
     iExists NextIV,_. iFrame. iPureIntro. econstructor 2; eauto.

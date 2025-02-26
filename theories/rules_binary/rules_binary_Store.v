@@ -16,7 +16,7 @@ Section cap_lang_spec_rules.
   Implicit Types ms : gmap Addr Word.
 
   Ltac iFailStep_alt fail_type :=
-    iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
+    iMod (exprspec_pointsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
     iMod ("Hclose" with "[Hown]") as "_";
     [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|];
     iExists (FailedV),_,_; iFrame;iModIntro;iFailCore fail_type.
@@ -70,7 +70,7 @@ Section cap_lang_spec_rules.
          unfold is_cap in Hr1v.
          destruct_word r1v; by simplify_pair_eq.
        }
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
@@ -100,7 +100,7 @@ Section cap_lang_spec_rules.
       { eapply incrementPC_overflow_mono; first eapply Hregs'; eauto. }
       rewrite incrementPC_fail_updatePC /= in Hstep; auto.
       inversion Hstep. subst.
-      iMod (exprspec_mapsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
+      iMod (exprspec_pointsto_update _ _ (fill _ (Instr Failed)) with "Hown Hj") as "[Hown Hj]";
         iMod ("Hclose" with "[Hown]") as "_";
         [iNext;iExists _,_;iFrame;iPureIntro;eapply rtc_r;eauto;prim_step_from_exec|];
         iExists (FailedV),_,_; iFrame;iModIntro.
@@ -116,7 +116,7 @@ Section cap_lang_spec_rules.
     eapply (updatePC_success_incl _ (<[a:=storev]> σm)) in HuPC. 2: by eauto.
     rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
     iMod ((regspec_heap_update_inSepM _ _ _ PC) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-    iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+    iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
     iExists NextIV,_,_. iFrame.
     iMod ("Hclose" with "[Hown]") as "_".
     { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.

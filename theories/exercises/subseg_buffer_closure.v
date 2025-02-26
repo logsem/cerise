@@ -112,7 +112,6 @@ Section closure_program.
     iGo "Hprog".
     iMod ("Hinv_close" with "[Hcap Hna]") as "Hna" ; iFrame.
     iApply "Post". iFrame.
-    iSplitL "Hr2" ; iExists _ ; iFrame.
   Qed.
 
 
@@ -308,7 +307,7 @@ Section closure_program.
 
         -∗ WP Seq (Instr Executable)
               {{ v, ⌜v = HaltedV⌝
-                    → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
+                    → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤ }})%I.
   Proof.
     intros secret e_closure ; subst secret e_closure.
     iIntros (Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom)
@@ -405,7 +404,7 @@ Section closure_program.
    iIntros "(Hrsafe& Hregs& Hna)".
    iDestruct "Hrsafe" as "[%Hrfull #Hrsafe]".
    rewrite /interp_conf.
-   rewrite {1}/registers_mapsto.
+   rewrite {1}/registers_pointsto.
 
    (* 2 - prepare the registers for closure_full_run_spec *)
    apply regmap_full_dom in Hrfull.

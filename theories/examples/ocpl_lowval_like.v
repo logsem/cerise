@@ -24,7 +24,7 @@ Section rules.
     (ℓ ↦ₐ v)%I.
 
   (* Notice how this corresponds to the definition of [interp] for an RWX
-     capability. In other words, [lowloc l] corresponds to the validity of an
+     capability. In other String.words, [lowloc l] corresponds to the validity of an
      RWX capability pointing to address l. *)
   Definition lowloc ℓ :=
     inv (logN .@ ℓ) (∃ v, ℓ ↦ₐ v ∗ interp v)%I.

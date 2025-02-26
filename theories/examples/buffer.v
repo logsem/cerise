@@ -141,7 +141,7 @@ Proof.
   iAssert (codefrag (prog_start P) (buffer_code (prog_start P)) ∗
            [∗ map] a↦w ∈ (mkregion (prog_start P ^+ 4)%a (prog_start P ^+ 7)%a) (take 3%nat buffer_data), a ↦ₐ w)%I
     with "[Hprog]" as "[Hcode Hdata]".
-  { rewrite /codefrag /region_mapsto.
+  { rewrite /codefrag /region_pointsto.
     set M := filter _ _.
     set Mcode := mkregion (prog_start P) (prog_start P ^+ 4)%a (buffer_code (prog_start P)).
     set Mdata := mkregion (prog_start P ^+ 4)%a (prog_start P ^+ 7)%a (take 3%nat buffer_data).

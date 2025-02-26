@@ -64,7 +64,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
       [auto..|].
 
-    rewrite /registers_mapsto /spec_registers_mapsto.
+    rewrite /registers_pointsto /spec_registers_pointsto.
     rewrite -(insert_delete_insert r1') -(insert_delete_insert r2').
 
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
@@ -177,7 +177,7 @@ Section counter_example_preamble.
     iDestruct (na_inv_acc with "Hcls_inv HnaI") as ">(>(Hcls & Hcls' & Hscls & Hscls') & Hna & Hcls_close)";
       [auto..|].
 
-    rewrite /registers_mapsto /spec_registers_mapsto.
+    rewrite /registers_pointsto /spec_registers_pointsto.
     rewrite -(insert_delete_insert r1') -(insert_delete_insert r2').
 
     iDestruct (big_sepM_insert with "Hregs'") as "[HPC Hregs']". by apply lookup_delete.
@@ -342,7 +342,7 @@ Section counter_example_preamble.
     iDestruct "Hr_full" as %Hr_full.
     rewrite /full_map. rewrite /interp_conf.
 
-    rewrite /registers_mapsto /spec_registers_mapsto.
+    rewrite /registers_pointsto /spec_registers_pointsto.
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
       by rewrite lookup_insert //. rewrite delete_insert_delete //.
     iDestruct (big_sepM_delete _ _ PC with "Hsegs") as "[HsPC Hsegs]".
@@ -394,8 +394,8 @@ Section counter_example_preamble.
     { solve_ndisj. }
     iNext. iIntros "(Hj & HPC & HsPC & Hmalloc & Hsmalloc & Hpc_b & Hpcs_b & Ha_entry & Hs_entry & HH & Hr0 & Hs0 & HnaI & Hregs & Hsegs)".
     iDestruct "HH" as (b_cell e_cell Hbe_cell) "(Hr1 & Hs1 & Hcell & Hscell)".
-    iDestruct (region_mapsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
-    iDestruct (region_mapsto_single_spec with "Hscell") as (cellv') "(Hscell & _)". revert Hbe_cell; clear; solve_addr.
+    iDestruct (region_pointsto_single with "Hcell") as (cellv) "(Hcell & _)". revert Hbe_cell; clear; solve_addr.
+    iDestruct (region_pointsto_single_spec with "Hscell") as (cellv') "(Hscell & _)". revert Hbe_cell; clear; solve_addr.
     iDestruct (big_sepL2_length with "Hprog") as %Hlength_rest.
     iDestruct (big_sepL2_length with "Hsprog") as %Hlength_srest.
     2: { iIntros (?) "[HH | ->]". iApply "HH". iIntros (Hv). inversion Hv. }
@@ -484,17 +484,17 @@ Section counter_example_preamble.
         revert Hlink; clear; solve_addr. }
       revert HH Ha_lea. rewrite Hai_malloc_len. cbn. clear.
       unfold counter_preamble_move_offset. solve_addr. }
-    assert (as_move' = s_move) as ->.
+    assert (as_move' = a_move) as ->.
     { assert ((s_first + (length ais_malloc + 2))%a = Some as_move') as HH.
       { rewrite Hais_malloc_len /= in Hlink' |- *.
         generalize (contiguous_between_incr_addr_middle _ _ _ 0 2 _ _ Hcont_srest eq_refl eq_refl).
         revert Hlink'; clear; solve_addr. }
-      revert HH Ha_lea'. rewrite Hais_malloc_len. cbn. clear.
+      revert HH Ha_lea. rewrite Hais_malloc_len. cbn. clear.
       unfold counter_preamble_move_offset. solve_addr. }
 
     destruct l as [| ? l]; [by inversion Hlength_rest|]. destruct l' as [| ? l']; [by inversion Hlength_srest|].
     iPrologue_both "Hprog" "Hsprog".
-    iMod (step_lea_success_z _ [SeqCtx] _ _ _ _ _ _ _ _ _ _ _ _ counter_sfirst with "[$Hspec $Hj $HsPC $Hsi $Hs1]")
+    iMod (step_lea_success_z _ [SeqCtx] _ _ _ _ _ _ _ _ _ _ _ _ counter_first with "[$Hspec $Hj $HsPC $Hsi $Hs1]")
       as "(Hj & HsPC & Hsi & Hs1)";
       [eapply decode_encode_instrW_inv|iCorrectPC as_malloc_end s_end|iContiguous_next Hcont_srest 5
        |assumption|done|auto..].
@@ -627,8 +627,8 @@ Section counter_example_preamble.
     (* lea r_t1 offset_to_counter + length incr_instrs *)
     assert ((a_move + (offset_to_counter + (length incr_instrs)))%a = Some linkc) as H_counter_offset1.
     { revert Hlinkrestc H_counter_offset incr_length. clear. intros. solve_addr. }
-    assert ((s_move + (offset_to_counter + (length decr_instrs)))%a = Some linkc') as H_counter_offset1'.
-    { revert Hlinkrestc' H_counter_offset' decr_length. clear. intros. solve_addr. }
+    assert ((a_move + (offset_to_counter + (length decr_instrs)))%a = Some linkc') as H_counter_offset1'.
+    { revert Hlinkrestc' H_counter_offset decr_length. clear. intros. solve_addr. }
     destruct ai_rest as [| ? ai_rest]; [by inversion Hlength_rest1|]. destruct ais_rest as [| ? ais_rest]; [by inversion Hlength_rest1'|].
     iPrologue_both "Hprog" "Hsprog".
     iMod (step_lea_success_z _ [SeqCtx] _ _ _ _ _ _ _ _ _ _ _ _ linkc' with "[$Hspec $Hj $HsPC $Hsi $Hs1]")

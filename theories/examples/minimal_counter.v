@@ -216,7 +216,7 @@ Section counter.
       destruct (Hrfull r_t0) as [w0' Hr0'].
       destruct (Hrfull r_t1) as [w1' Hr1'].
       destruct (Hrfull r_t2) as [w2' Hr2'].
-      unfold registers_mapsto.
+      unfold registers_pointsto.
       rewrite -insert_delete_insert.
       iDestruct (big_sepM_insert with "Hrr") as "[HPC Hrr]".
         by rewrite lookup_delete.
@@ -327,7 +327,7 @@ Proof.
            codefrag a_code (counter_code a_code) ∗
            (∃ w, a_data ↦ₐ w))%I
     with "[Hprog]" as "(Hinit & Hcode & Hdat)".
-  { rewrite /codefrag /region_mapsto.
+  { rewrite /codefrag /region_pointsto.
     set M := filter _ _.
     set Minit := mkregion a_init a_code (counter_init a_init).
     set Mcode := mkregion a_code a_data (counter_code a_code).

@@ -55,10 +55,10 @@ Section base_program.
     simpl in *.
 
     (* Prepare the memory resource for the Store *)
-    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
+    iDestruct (region_pointsto_cons with "Hmem") as "(Hmem0& Hmem1)".
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
-    iDestruct (region_mapsto_single with "Hmem1") as "Hmem1".
+    iDestruct (region_pointsto_single with "Hmem1") as "Hmem1".
     { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr. }
     iDestruct "Hmem1" as (v) "(Hmem1& %Hr)".
     injection Hr ; intro Hr' ; subst ; clear Hr.
@@ -69,16 +69,16 @@ Section base_program.
     (* 3 - Continuation *)
     iApply "Hcont".
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
     iFrame.
     replace (b_mem ^+ (1 + 1))%a with (b_mem ^+ 2)%a by solve_addr.
-    unfold region_mapsto.
+    unfold region_pointsto.
     rewrite finz_seq_between_empty ; last solve_addr.
     done.
   Qed.
@@ -150,10 +150,10 @@ Section base_program.
     pose proof (contiguous_between_last _ _ _ a Hprog_addr eq_refl) as Hlast.
 
     (* Prepare the memory resource for the Store *)
-    iDestruct (region_mapsto_cons with "Hmem") as "(Hmem0& Hmem1)".
+    iDestruct (region_pointsto_cons with "Hmem") as "(Hmem0& Hmem1)".
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
-    iDestruct (region_mapsto_single with "Hmem1") as "Hmem1".
+    iDestruct (region_pointsto_single with "Hmem1") as "Hmem1".
     { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr. }
     iDestruct "Hmem1" as (v) "(Hmem1& %Hr)".
     injection Hr ; intro Hr' ; subst ; clear Hr.
@@ -180,16 +180,16 @@ Section base_program.
     iApply "Hcont".
     iDestruct "Hdone" as "[? ?]".
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+1)%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
     iFrame.
-    iApply region_mapsto_cons.
+    iApply region_pointsto_cons.
     { transitivity (Some (b_mem ^+(1+1))%a) ; auto ; by solve_addr.  }
     { by solve_addr. }
     iFrame.
     replace (b_mem ^+ (1 + 1))%a with (b_mem ^+ 2)%a by solve_addr.
-    unfold region_mapsto.
+    unfold region_pointsto.
     rewrite finz_seq_between_empty ; last solve_addr.
     done.
   Qed.

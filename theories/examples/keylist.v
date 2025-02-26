@@ -183,7 +183,6 @@ Section list.
     - apply elem_of_cons in Hin as [Heq | Hin];[inversion Heq;subst|].
       + simpl. iDestruct "Hlist" as (hd' p' p'' p''' (?&?&?&->)) "[Hd [Hd' Hlist] ]".
         iExists [],((p,w')::bvals'),p',p'''. simpl. iFrame. iSplit;auto.
-        iExists _,_,_,_. iFrame. eauto.
       + simpl. iDestruct "Hlist" as (hd' p' p'' p''' (?&?&?&->)) "[Hd [Hd' Hlist] ]".
         iDestruct ("IH" with "[] Hlist") as (l1 l2 a a'' (Heq&Hnext1&Hnext2)) "Hlist";auto.
         iExists ((p,w') :: l1),l2,a,a''. iFrame. rewrite !Heq. auto.
@@ -254,7 +253,7 @@ Section list.
     iIntros (Hin) "Hlist".
     apply elem_of_list_lookup in Hin as [i Hi].
     assert (∃ b, ptrs.*2 !! i = Some b) as [b Hj].
-    { apply lookup_lt_is_Some_2. rewrite fmap_length -(fmap_length fst). apply lookup_lt_is_Some_1. eauto. }
+    { apply lookup_lt_is_Some_2. rewrite length_fmap -(length_fmap fst). apply lookup_lt_is_Some_1. eauto. }
     iInduction (ptrs) as [|[p w] ptrs] "IH" forall (hd i Hi Hj).
     - inversion Hi.
     - destruct i.
@@ -352,7 +351,7 @@ Section list.
         simpl. iDestruct "Hlist" as "->".
         iExists p0''. iFrame. iSplit;auto. iPureIntro. solve_addr.
         iIntros "(Ha & Ha' & (%&%&%) & Hp & Hp')". iExists _,p0',p0'',p0'''. iFrame. simplify_eq.
-        subst; iSplit;auto. iExists _,_,_,_. iFrame. repeat iSplit;eauto.
+        subst; iSplit;auto. iExists _,_. iFrame. repeat iSplit;eauto.
         iPureIntro. solve_addr. iPureIntro. solve_addr.
       + iDestruct ("IH" with "[] Hlist") as (a' ?) "[Ha [Ha' Hcls] ]";auto.
         iExists _;iFrame. iSplit;auto.
@@ -524,7 +523,8 @@ Section list.
                    :(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX ; rewrite HX; clear HX.
       iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
       iApply "Hφ". simpl. iExists _, _,_. iFrame. iSplitR ; [iPureIntro; auto|].
-      iSplitL "Htemp1"; iExists _; eauto. }
+      eauto.
+      }
     { destruct Hhd' as [p [p' [p'' [Hp'' [Hp' [-> Hp] ] ] ] ] ].
       simpl is_cap.
       iInstr "Hprog".
@@ -534,7 +534,7 @@ Section list.
       iInstr "Hprog". generalize (updatePcPerm_cap_non_E pc_p pc_b pc_e a_first ltac:(destruct Hvpc; congruence)); rewrite /updatePcPerm; intros HX; rewrite HX; clear HX.
       iDestruct ("Hcls'" with "[$Ha' $Ha]") as "HisList".
       iApply ("IH" with "[] [] [] [] [] [$HPC $Hr_env $HisList $Hφ Htemp1 Htemp2 Hprog]");auto.
-      iFrame. iSplitL "Htemp1"; eauto. }
+      iFrame. }
   Qed.
 
   Lemma iterate_to_last_spec pc_p pc_b pc_e (* PC *)
@@ -665,7 +665,7 @@ Section list.
     rewrite /region_addrs_zeroes. assert (finz.dist bnew enew = 3) as Hbe_length;[clear -Hsize;rewrite /finz.dist;solve_addr|rewrite Hbe_length].
     assert (bnew <= enew)%a as Hle';[clear -Hsize;solve_addr|].
     pose proof (contiguous_between_region_addrs bnew enew Hle').
-    rewrite /region_mapsto. set (l:=(finz.seq_between bnew enew)). rewrite -/l in H1.
+    rewrite /region_pointsto. set (l:=(finz.seq_between bnew enew)). rewrite -/l in H1.
     iDestruct (big_sepL2_length with "Hbe'") as %Hlen_eq. simpl in Hlen_eq.
     destruct l;[inversion Hlen_eq|]. apply contiguous_between_cons_inv_first in H1 as Heq. subst f.
     destruct l;[inversion Hlen_eq|].
@@ -722,7 +722,8 @@ Section list.
       iMod (update_ll _ _ (pbvals' ++ [(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|].
 
       iMod ("Hcls'" with "[HisList Hll Hexact HΦw HΦ $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists _. iFrame "Hexact HisList HΦw". auto. }
+      { iNext. iExists _ ; iFrame "Hll".
+        iExists _; iFrame "Hexact HisList HΦw". auto. }
       unfocus_block "Hprog" "Hcont" as "Hprog".
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
       iSplitR "Hr_t1 Hprog Hbnew".
@@ -735,7 +736,8 @@ Section list.
         rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
         iFrameMapSolve+ Hdom "Hregs". }
       destruct Hpref. iFrame "∗".
-      iExists bnew,f,enew,x. rewrite H app_assoc. iFrame "Hpref' Hr_t1 Hbnew".
+      iExists x. rewrite H app_assoc.
+      iFrame "Hpref'".
       iPureIntro. split. iContiguous_next H1 0. eapply contiguous_between_length in H1. auto.
     }
     { iInstr "Hprog".
@@ -761,11 +763,12 @@ Section list.
       iMod (update_ll _ _ ([(f,w)]) with "Hexact") as "[Hexact #Hpref']";[exists [(f,w)];auto|].
       (* iMod ("HΦw" $! _ bnew with "[] HΦ") as "[HΦw HΨ]". iPureIntro. apply not_elem_of_nil. *)
       iMod ("Hcls'" with "[Ha Ha' Hll Hexact HΦw $Hown]") as "Hown".
-      { iNext. iExists _; iFrame. iExists [(f,w)]. iSimpl. iFrame "∗ #". iExists _,bnew,f0,enew.
+      { iNext. iExists _; iFrame.
+        iSimpl. iFrame "∗ #". iExists bnew,enew.
         repeat iSplit;eauto. iContiguous_next H1 0. iPureIntro.
         eapply contiguous_between_incr_addr_middle with (ai:=bnew) (i:=0) (j:=2) in H1; eauto. }
       iApply ("Hφ" with "[- $HPC $Hown $Hr_t0 $Hpc_b $Ha_r' $Hr_env]").
-      iFrame "∗". iSplitR "Hr_t1 Hbnew".
+      iFrame "∗". iSplitL.
       { iDestruct (big_sepM_insert with "[$Hregs $Hr_t3]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
         repeat (rewrite -delete_insert_ne//).
         iDestruct (big_sepM_insert with "[$Hregs $Hr_t2]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
@@ -774,7 +777,7 @@ Section list.
         do 3 (rewrite (delete_insert_ne) ; auto).
         rewrite delete_insert; [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
         iFrameMapSolve+ Hdom "Hregs". }
-      { iExists _,_,_,[]. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } }
+      { iExists []. iFrame. iFrame "Hpref'". iSplit;auto. iContiguous_next H1 0. } }
   Qed.
 
   (* ------------------------------------------------------------------------------------------------- *)
@@ -890,7 +893,7 @@ Section list.
       iGo "Hprog".
       iApply "Hφ". iFrame.
       iDestruct ("Hcls'" with "[$Ha $Ha']") as "HisList".
-      iSplitR "Hll HisList";[|iExists _;iFrame]. iExists d,d'',d',_. iFrame. iSplit;auto.
+      iSplitR "HisList";[|iFrame]. iSplit;auto.
       iPureIntro. assert (z_of d = b)%Z as <-;[clear -e;lia|]. apply finz_of_z_to_z. }
 
     iGo "Hprog". congruence.
@@ -974,14 +977,13 @@ Section list.
     { solve_addr+ H0. }
     { destruct Hhd as [ (->&_) | (?&?&?&?&?&?&->&?) ];auto. right.
       repeat eexists;auto. apply elem_of_list_fmap. exists (x0,x2). eauto. }
-    iSplitL "Hll HisList". iExists _;iFrame.
     iNext. iIntros "(Hprog & HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hna & Hlist)".
     iDestruct "Hres" as (b_a b'' b' w (Heq&Hincr&Hincr'&Hin)) "[Hr_t1 Hr_env]".
     iMod ("Hcls'" with "[Hlist $Hna]") as "Hown".
     { iNext. iDestruct "Hlist" as (hd') "[? [? ?] ]".
-      iExists _; iFrame. iExists _; iFrame. }
+      iExists _; iFrame. }
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    iApply "Hφ". iFrame. iExists _,_,_,_,_. iFrame "∗ #". repeat iSplit; auto.
+    iApply "Hφ". iFrame. iExists _. iFrame "∗ #". repeat iSplit; auto.
     iDestruct (big_sepL_elem_of with "HΦ") as "#HΦw";eauto.
   Qed.
 

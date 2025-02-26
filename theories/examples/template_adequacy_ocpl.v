@@ -214,7 +214,7 @@ Proof.
     iSplit;[auto|]. iDestruct (big_sepM_insert with "Hmid") as "[$ _]";auto.
     iSplit;[|iPureIntro;solve_addr+Hmalloc_size Hmalloc_memptr_size Hmalloc_mem_size].
     iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
-    rewrite finz_seq_between_length replicate_length /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
+    rewrite finz_seq_between_length length_replicate /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
 
   (* allocate the flag invariant *)
   iMod (na_inv_alloc logrel_nais ⊤ assertN (assertInv layout)

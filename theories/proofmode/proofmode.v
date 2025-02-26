@@ -153,11 +153,11 @@ Section codefrag_subblock.
   Proof.
     rewrite /codefrag. iIntros "H".
     iDestruct (codefrag_contiguous_region with "H") as %Hregion.
-    destruct Hregion as [an Han]. rewrite app_length in Han |- *.
-    iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
+    destruct Hregion as [an Han]. rewrite length_app in Han |- *.
+    iDestruct (region_pointsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
     by solve_addr. by rewrite /finz.dist; solve_addr.
     iFrame. iIntros "H1".
-    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
+    rewrite region_pointsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
   Qed.
 
   Lemma codefrag_block_acc (n: nat) a0 (cs: list Word) l1 l l2:
@@ -169,15 +169,15 @@ Section codefrag_subblock.
   Proof.
     unfold NthSubBlock. intros ->. rewrite /codefrag. iIntros "H".
     iDestruct (codefrag_contiguous_region with "H") as %[a1 Ha1].
-    rewrite !app_length in Ha1 |- *.
-    iDestruct (region_mapsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
+    rewrite !length_app in Ha1 |- *.
+    iDestruct (region_pointsto_split _ _ (a0 ^+ length l1)%a with "H") as "[H1 H2]".
     solve_addr. rewrite /finz.dist; solve_addr.
     iExists (a0 ^+ length l1)%a. iSplitR. iPureIntro; solve_addr.
-    iDestruct (region_mapsto_split _ _ ((a0 ^+ length l1) ^+ length l)%a with "H2") as "[H2 H3]".
+    iDestruct (region_pointsto_split _ _ ((a0 ^+ length l1) ^+ length l)%a with "H2") as "[H2 H3]".
     solve_addr. rewrite /finz.dist; solve_addr. iFrame.
     iIntros "H2".
-    rewrite region_mapsto_split. iFrame. 2: solve_addr. 2: rewrite /finz.dist; solve_addr.
-    rewrite region_mapsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
+    rewrite region_pointsto_split. iFrame. 2: solve_addr. 2: rewrite /finz.dist; solve_addr.
+    rewrite region_pointsto_split. iFrame. solve_addr. rewrite /finz.dist; solve_addr.
   Qed.
 
 End codefrag_subblock.

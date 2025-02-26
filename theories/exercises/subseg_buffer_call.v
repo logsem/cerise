@@ -153,7 +153,7 @@ Section program_call.
     ; iDestruct "Hr_mem'" as (wmem) "Hr_mem'".
 
     (* For more clarity, we split the fragments of the programs *)
-    rewrite /region_mapsto /prog_secret_instrs.
+    rewrite /region_pointsto /prog_secret_instrs.
     match goal with
     | h:_ |- context [codefrag _ (?l1 ++ ?l2 ++ ?l3)] =>
         set (copy_instrs := l1)
@@ -288,7 +288,7 @@ Section program_call.
         ∗ interp w0 ∗ interp wadv
 
        -∗ WP Seq (Instr Executable) {{λ v,
-               (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+               (⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I
                ∨ ⌜v = FailedV⌝ }})%I.
 
   Proof with (try solve_addr').
@@ -478,7 +478,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
     iAssert (codefrag a_prog (prog_secret_instrs r_t7 r_t8 secret_off secret_val))
       with "[Hprogi]" as "Hprogi".
-    { rewrite /codefrag. simpl. rewrite /region_mapsto.
+    { rewrite /codefrag. simpl. rewrite /region_pointsto.
       simpl in *.
       replace prog_addrs with (finz.seq_between a_prog (a_prog ^+ 11%nat)%a).
       done.
@@ -492,7 +492,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     iExtractList "Hrmap" [r_t2;r_t3] as ["Hr2";"Hr3"].
 
     (* Apply the base_prog_spec *)
-    iApply (prog_secret_spec with "[- $HPC $Hr2 $Hr3 $Hprogi]")
+    iApply (prog_secret_spec with "[- $HPC $Hr7 $Hr8 $Hprogi $Hr2 $Hr3]")
     ; auto
     ; try (iFrame ; iFrame "#")
     ; eauto...
@@ -500,7 +500,6 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       apply contiguous_between_length in Hcont_call, Hcont_end.
       solve_addr'.
     }
-    iSplitL "Hr8" ; first (iExists _ ; iFrame).
     iNext
     ; iIntros "(HPC & Hr7 & Hr8 & Hr2 & Hr3 & Hmem & Hsecret & Hmem' & Hprogi)"
     ; iHide "Cont" as cont
@@ -562,7 +561,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     (* ------------------ Jump to the adversary code ----------------- *)
     (** In order to jump to the adversary code, we have to prove that the context is safe,
        i.e. all the registers are safe to share.
-       We need to prove that all the registers contains safe-to-share words.
+       We need to prove that all the registers contains safe-to-share String.words.
        In particular the register that contains the activation code is a
        sentry-capability, which relies on persistent proposition only.
        Thus, we encapsulate the needed memory resources for the remaining code
@@ -635,7 +634,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
 
     (* We prove that the shared buffer is indeed safe to share
        (because it is given in param) *)
-    rewrite /region_mapsto.
+    rewrite /region_pointsto.
     iDestruct (region_integers_alloc' with "Hmem'") as ">#Hinterp_buffer".
     { by apply Forall_replicate. }
 
@@ -667,7 +666,7 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       iHide "Hinterp_buffer" as Hinterp_buffer.
       iHide "Hrmap_safe" as Hrmap_safe.
       iClear "Cont".
-      rewrite /interp_conf /registers_mapsto.
+      rewrite /interp_conf /registers_pointsto.
       apply regmap_full_dom in H as H'.
 
       (* get all the registers we need for the remaining code *)
@@ -715,13 +714,13 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       assert ( (b_local + 1)%a = Some e_locals ) as Hsize_locals.
       { rewrite finz_seq_between_length /= /finz.dist in Hlength_local.
         clear -Hlength_local. solve_addr. }
-      iDestruct (region_mapsto_single with "Hlocal") as "Hlocal" ; auto.
+      iDestruct (region_pointsto_single with "Hlocal") as "Hlocal" ; auto.
       iDestruct "Hlocal" as (?) "[Hlocal %Hv]".
       inversion Hv as [Hv'] ; clear Hv Hv' v.
       subst w8.
       (* The specification requires the codefrag assertions *)
       iAssert (codefrag a_prepa instrs_prepa) with "[Hprepa]" as "Hprepa".
-      { rewrite /codefrag /region_mapsto.
+      { rewrite /codefrag /region_pointsto.
         rewrite <- (region_addrs_of_contiguous_between prepa_addrs).
         done.
         replace (a_prepa ^+ length instrs_prepa)%a with a_assert by solve_addr.
@@ -752,13 +751,13 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
       (* + Cleaning + *)
       iAssert ( ([∗ list] a_i;w_i ∈ prepa_addrs;instrs_prepa, a_i ↦ₐ w_i)%I )
         with "[Hprepa]" as "Hprepa".
-      { rewrite /codefrag /region_mapsto. simpl.
+      { rewrite /codefrag /region_pointsto. simpl.
         replace (a_prepa ^+ 4%nat)%a with a_assert by solve_addr.
         rewrite <- (region_addrs_of_contiguous_between prepa_addrs) ; done.
       }
       iMod ("Hcls_secret" with "[$Ha_secret $Hna]") as "Hna".
       iMod ("Hcls'" with "[Hlocal $Hna]") as "Hna".
-      { iNext. rewrite /region_mapsto.
+      { iNext. rewrite /region_pointsto.
         rewrite finz_seq_between_singleton ; auto.
         by iFrame. }
 

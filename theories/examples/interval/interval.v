@@ -7,7 +7,7 @@ From cap_machine.examples Require Import keylist dynamic_sealing.
 From cap_machine.proofmode Require Import
   contiguous tactics_helpers solve_pure proofmode map_simpl.
 
-Notation "a ↪ₐ w" := (mapsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
+Notation "a ↪ₐ w" := (pointsto (L:=Addr) (V:=Word) a DfracDiscarded w) (at level 20) : bi_scope.
 
 Section interval.
 
@@ -130,8 +130,8 @@ Section interval.
     a0 ↦ₐ WInt z2 ==∗ isInterval_int z1 z2 (WCap RWX ib ie ib).
   Proof.
     iIntros (Hcond1 Hcond2 Hle) "Hi Hi'".
-    iMod (mapsto_persist with "Hi") as "#Hi".
-    iMod (mapsto_persist with "Hi'") as "#Hi'".
+    iMod (pointsto_persist with "Hi") as "#Hi".
+    iMod (pointsto_persist with "Hi'") as "#Hi'".
     iModIntro. iExists _,_,_. iFrame "#". eauto.
   Qed.
 
@@ -145,14 +145,14 @@ Section interval.
     iDestruct "Hi" as (b e a (Heq&He&Ha)) "(Hb & He & %Hle)".
     iDestruct "Hi'" as (b' e' a' (Heq'&He'&Ha')) "(Hb' & He' & %Hle')".
     simplify_eq.
-    iDestruct (mapsto_agree with "Hb Hb'") as %Heq. inv Heq.
-    iDestruct (mapsto_agree with "He He'") as %Heq. inv Heq.
+    iDestruct (pointsto_agree with "Hb Hb'") as %Heq. inv Heq.
+    iDestruct (pointsto_agree with "He He'") as %Heq. inv Heq.
     auto.
   Qed.
 
   Lemma makeint_spec pc_p pc_b pc_e (* PC *)
         wret (* return cap *)
-        w1 w2 (* input words. If they are not ints, the program crashes *)
+        w1 w2 (* input String.words. If they are not ints, the program crashes *)
         d d' (* dynamically allocated seal/unseal environment *)
         a_first (* special adresses *)
         ι0 ι1 ι2 ι3 ι4 γ (* invariant/gname names *)
@@ -300,7 +300,7 @@ Section interval.
     (* we are about to do the conditional jump. this can only be done manually. In each case, we will have to store *)
     (* z1 and z2 into the newly allocated pair *)
     (* we begin by preparing the resources for that store *)
-    rewrite /region_mapsto /region_addrs_zeroes.
+    rewrite /region_pointsto /region_addrs_zeroes.
     destruct (ib + 1)%a eqn:Hi;[|exfalso;solve_addr+Hibounds Hi].
     assert (finz.seq_between ib ie = [ib;f]) as ->.
     { rewrite (finz_seq_between_split _ f);[|solve_addr+Hi Hibounds].
@@ -511,7 +511,7 @@ Section interval.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hexec Hsub Hdom Hwb Hf_m Hdisj Hdisj2 Hsidj3 Hdisj4 Hdisj5 φ)
@@ -663,7 +663,6 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
     iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
-    iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
@@ -693,7 +692,7 @@ Section interval.
 
     (* lets begin by closing all our invariants *)
     iMod ("Hcls''" with "[Hll HisList Hexact $Hown]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame. iFrame "#". }
+    { iNext. iExists _. iFrame "∗ #". }
 
     iMod ("Hcls'" with "[Hunseal Hseal Hunsealseal_codefrag Hd Hd1 Hb Hb_t $Hown]") as "Hown".
     { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
@@ -704,7 +703,6 @@ Section interval.
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
     iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). auto.
-    iExists _,_,_. iFrame "#". eauto.
   Qed.
 
   Lemma imin_valid pc_p pc_b pc_e (* PC *)
@@ -757,7 +755,7 @@ Section interval.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
@@ -776,9 +774,7 @@ Section interval.
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
     iApply imin_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
-    iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
-    iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
-    iSplitL "Hr_t20";[eauto|]. iSplitR.
+    iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
     iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".
@@ -910,7 +906,6 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, ⌜v = FailedV⌝ ∨ Ψ v)%I with "[- Hfailed HΨ]").
     2: { iIntros (v) "[H1 | H1]";iApply "HΨ";iFrame. iSimplifyEq. iFrame. }
     iApply unseal_spec;iFrameAutoSolve;[|iFrame "∗ #"]. solve_ndisj.
-    iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|]. iSplitL "Hr_t4";[eauto|].
     iSplitR. iNext. iLeft. auto.
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & Hres & Hr_t3 & Hr_t4 & Hblock & Hown)".
     unfocus_block "Hblock" "Hcont" as "Hunsealseal_codefrag".
@@ -939,7 +934,7 @@ Section interval.
     iDestruct "Hbi" as "#Hbi". iDestruct "Hei" as "#Hei".
     iDestruct "Hintervals" as "#Hintervals".
     iMod ("Hcls''" with "[Hll HisList Hexact $Hown]") as "Hown".
-    { iNext. iExists _. iFrame. iExists _. iFrame "∗ #". }
+    { iNext. iExists _. iFrame "∗ #". }
 
     iMod ("Hcls'" with "[Hunseal Hseal Hb Hb_t Hunsealseal_codefrag Hd Hd1 $Hown]") as "Hown".
     { iExists _,_,_,_,_. iFrame "Hd Hd1". iFrame. iNext. eauto. }
@@ -949,7 +944,12 @@ Section interval.
     iApply (wp_wand _ _ _ (λ v, Ψ v) with "[-]").
     2: { iIntros (v) "Hφ". iRight. iFrame. }
     iApply "Hφ".
-    iExists _,_,_,_,_,_,_,_. iFrame "∗ #". repeat (iSplit;[|eauto]). eauto. iExists bi,ai,_. iFrame "#". eauto.
+    iExists _,_,_,_,_,_,_,_.
+    repeat (iSplit;[|eauto]).
+    eauto.
+    eauto.
+    iExists bi,_,_; repeat (iSplit;[|eauto]).
+    all: eauto; iFrame "∗ # %".
   Qed.
 
   Lemma imax_valid pc_p pc_b pc_e (* PC *)
@@ -1002,7 +1002,7 @@ Section interval.
     }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hexec Hsub Hdom Hdisj Hdisj2 Hsidj3 φ) "(HPC & Hr_t0 & Hr_env & Hr_t20 & Hregs & #Hseal_env & #HsealLL & Hown & #Hretval & #Hprog & #Hregs_val) Hφ".
@@ -1021,9 +1021,7 @@ Section interval.
     iDestruct "Hr_t20" as (w20) "Hr_t20".
 
     iApply imax_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
-    iSplitL "Hr_t2";[eauto|]. iSplitL "Hr_t3";[eauto|].
-    iSplitL "Hr_t4";[eauto|]. iSplitL "Hr_t5";[eauto|].
-    iSplitL "Hr_t20";[eauto|]. iSplitR.
+    iSplitR.
     { iNext. iIntros (Hcontr). done. }
 
     iDestruct (jmp_to_unknown _ with "Hretval") as "Hcallback_now".

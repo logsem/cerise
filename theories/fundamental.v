@@ -161,7 +161,7 @@ Section fundamental.
     all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
     all: iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
     all: iApply (wp_bind (fill [SeqCtx])); cbn.
-    all: unfold registers_mapsto; rewrite -insert_delete_insert.
+    all: unfold registers_pointsto; rewrite -insert_delete_insert.
     all: iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]"; first by rewrite lookup_delete.
     all: iApply (wp_notCorrectPC with "HPC"); first by inversion 1.
     all: iNext; iIntros; cbn; iApply wp_pure_step_later; auto.
@@ -220,14 +220,14 @@ Section fundamental.
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)
           ∗ na_own logrel_nais ⊤
           -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
-               ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }}).
+               ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤ }}).
   Proof.
     iIntros "#Hw". iDestruct (interp_updatePcPerm with "Hw") as "Hw'". iNext.
     iIntros (rmap Hrmap).
     set rmap' := <[ PC := (WInt 0%Z: Word) ]> rmap : gmap RegName Word.
     iSpecialize ("Hw'" $! rmap').
     iIntros "(HPC & Hr & Hna)". unfold interp_expression, interp_expr, interp_conf. cbn.
-    iApply "Hw'". iClear "Hw'". iFrame. rewrite /registers_mapsto.
+    iApply "Hw'". iClear "Hw'". iFrame. rewrite /registers_pointsto.
     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).

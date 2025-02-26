@@ -181,7 +181,7 @@ Program Definition int_client_prog `{memory_layout} : prog :=
 Next Obligation.
   intros. pose proof (interval_client_closure_size) as HH.
   pose proof (interval_client_body_size) as HHH.
-  rewrite app_length. solve_addr+HH HHH.
+  rewrite length_app. solve_addr+HH HHH.
 Qed.
 
 Definition adv_prog `{memory_layout} : prog :=
@@ -515,7 +515,7 @@ Section int_client_adequacy.
       iSplit;[auto|]. iDestruct (big_sepM_insert with "Hmid") as "[$ _]";auto.
       iSplit;[|iPureIntro;solve_addr+Hmalloc_size Hmalloc_memptr_size Hmalloc_mem_size].
       iApply big_sepM_to_big_sepL2. apply finz_seq_between_NoDup.
-      rewrite finz_seq_between_length replicate_length /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
+      rewrite finz_seq_between_length length_replicate /finz.dist. solve_addr +Hmalloc_mem_size. iFrame. }
     iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "#Hmalloc_val".
 
     iRename "Hsalloc" into "Hpubs".

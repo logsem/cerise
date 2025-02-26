@@ -141,7 +141,7 @@ Section interval_client.
        ∗ ([∗ map] _↦w_i ∈ rmap, interp w_i) }}}
       Seq (Instr Executable)
       {{{ v, RET v; ⌜v = HaltedV⌝ →
-                    ∃ r, full_map r ∧ registers_mapsto r
+                    ∃ r, full_map r ∧ registers_pointsto r
                          ∗ na_own logrel_nais ⊤ }}}.
   Proof.
     iIntros (Hvpc Hbounds Hwb Ha_r' Hdom Hι0 Hι1 Hι2 Hι3 Hι4 Hι5 Hι6 ? ? Φ)

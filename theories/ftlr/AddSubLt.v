@@ -28,7 +28,7 @@ Section fundamental.
     -> □ ▷ (∀ a0 a1 a2 a3 a4,
              full_map a0
           -∗ (∀ (r1 : RegName) v, ⌜r1 ≠ PC⌝ → ⌜a0 !! r1 = Some v⌝ → (fixpoint interp1) v)
-          -∗ registers_mapsto (<[PC:=WCap a1 a2 a3 a4]> a0)
+          -∗ registers_pointsto (<[PC:=WCap a1 a2 a3 a4]> a0)
           -∗ na_own logrel_nais ⊤
           -∗ □ (fixpoint interp1) (WCap a1 a2 a3 a4) -∗ interp_conf)
     -∗ (fixpoint interp1) (WCap p b e a)
@@ -46,7 +46,7 @@ Section fundamental.
         WP Instr Executable
         @ ⊤ ∖ ↑logN.@a {{ v, |={⊤ ∖ ↑logN.@a,⊤}=> WP Seq (of_val v)
                                                     {{ v0, ⌜v0 = HaltedV⌝
-                                                           → ∃ r1 : Reg, full_map r1 ∧ registers_mapsto r1
+                                                           → ∃ r1 : Reg, full_map r1 ∧ registers_pointsto r1
                                                                                                         ∗ na_own logrel_nais ⊤ }} }}.
   Proof.
     intros Hp Hsome i Hbae Hi.

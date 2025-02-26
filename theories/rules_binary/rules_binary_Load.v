@@ -55,7 +55,7 @@ Section cap_lang_spec_rules.
          unfold is_cap in Hr2v.
          destruct_word r2v; try by simplify_pair_eq.
        }
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
@@ -67,7 +67,7 @@ Section cap_lang_spec_rules.
      2 : { (* Failure: r2 is either not within bounds or doesnt allow reading *)
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        apply andb_false_iff in HRA.
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
          iPureIntro. eapply rtc_r;eauto. prim_step_from_exec. }
@@ -91,7 +91,7 @@ Section cap_lang_spec_rules.
        rewrite incrementPC_fail_updatePC /= in Hstep; auto.
        symmetry in Hstep; inversion Hstep; clear Hstep. subst c σ2.
        (* Update the heap resource, using the resource for r2 *)
-       iMod (exprspec_mapsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
+       iMod (exprspec_pointsto_update _ _ (fill K (Instr Failed)) with "Hown Hj") as "[Hown Hj]".
        (* iMod ((regspec_heap_update_inSepM _ _ _ r1 loadv) with "Hown Hmap") as "[Hown Hmap]"; eauto. *)
        iMod ("Hclose" with "[Hown]") as "_".
        { iNext. iExists _,_;iFrame.
@@ -106,10 +106,9 @@ Section cap_lang_spec_rules.
        as (p1 & b1 & e1 & a1 & a_pc1 & HPC'' & Ha_pc' & HuPC & ->).
      eapply updatePC_success_incl in HuPC. 2: by eapply insert_mono.
      rewrite HuPC in Hstep; clear HuPC; inversion Hstep; clear Hstep; subst c σ2. cbn.
-     iFrame.
      iMod ((regspec_heap_update_inSepM _ _ _ r1 loadv) with "Hown Hmap") as "[Hown Hmap]"; eauto.
      iMod ((regspec_heap_update_inSepM _ _ _ PC (WCap p1 b1 e1 a_pc1)) with "Hown Hmap") as "[Hown Hmap]"; eauto.
-     iMod (exprspec_mapsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
+     iMod (exprspec_pointsto_update _ _ (fill K (Instr NextI)) with "Hown Hj") as "[Hown Hj]".
      iExists NextIV,_. iFrame.
      iMod ("Hclose" with "[Hown]") as "_".
      { iNext. iExists _,_;iFrame. iPureIntro. eapply rtc_r;eauto.
@@ -188,7 +187,7 @@ Section cap_lang_spec_rules.
   Proof.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Ha)".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Ha Hpc_a") as %Hneq. done. }
+    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_pointsto_valid_2 with "Ha Hpc_a") as %Hneq. done. }
     iMod (step_load_success_same with "[$HPC $Hpc_a $Hr1 $Hown $Hj Ha]") as "(?&?&?&?&?)";eauto;try rewrite Hfalse;by iFrame.
   Qed.
 
@@ -266,7 +265,7 @@ Section cap_lang_spec_rules.
     iIntros (Hinstr Hvpc [Hra Hwb] Hpca' Hnclose)
             "(Hown & Hj & >HPC & >Hi & >Hr1 & >Hr2 & >Hr2a)".
     iAssert (⌜(a =? pc_a)%a = false⌝)%I as %Hfalse.
-    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_mapsto_valid_2 with "Hr2a Hi") as %Hneq. done. }
+    { rewrite Z.eqb_neq. iIntros (->%finz_to_z_eq). iDestruct (memspec_pointsto_valid_2 with "Hr2a Hi") as %Hneq. done. }
     iMod (step_load_success with "[$Hown $Hj $HPC $Hi $Hr1 $Hr2 Hr2a]");eauto;rewrite Hfalse;by iFrame. 
   Qed.
 

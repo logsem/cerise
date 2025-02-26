@@ -26,15 +26,7 @@ Section fundamental.
     inversion Hspec1; inversion Hspec2; subst; simplify_eq; split; auto; try congruence.
     all: match goal with
       | H : Restrict_failure _ _ _ |- _ => inv H; try congruence end.
-    (* TODO: make other determinism proofs less brittle in this fashion *)
-    Local Ltac mutable_range_contradiction dst p := match goal with
-      | H : ?r !! dst = _ |- _ =>
-          move H at top;
-          match goal with
-           | H' : r !! dst = _ |- _ =>
-               rewrite H in H'; inv H';
-               destruct p; by exfalso end end.
-    all: try mutable_range_contradiction dst p.
+    all: destruct p; by exfalso.
   Qed.
 
   Lemma restrict_case (r : prodO (leibnizO Reg) (leibnizO Reg)) (p : Perm)

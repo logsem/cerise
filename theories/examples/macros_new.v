@@ -242,8 +242,8 @@ Section macros.
     unfocus_block "Hprog" "Hcont" as "Hprog".
     (* continuation *)
     iApply "Hφ". changePCto (a_first ^+ 18%nat)%a.
-    iFrame. iSplitL "Hr_t1 Hbe".
-    { iExists _,_. iFrame. iPureIntro; eauto. }
+    iFrame. iSplitR.
+    { iPureIntro; eauto. }
     { iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
         simplify_map_eq. reflexivity.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -413,8 +413,8 @@ Section macros.
     unfocus_block "Hprog" "Hcont" as "Hprog".
     (* continuation *)
     iApply "Hφ". changePCto (a_first ^+ length (salloc_instrs f_m size)%nat)%a.
-    iFrame. iSplitL "Hr_t1 Hbe".
-    { iExists _,_. iFrame. iPureIntro; eauto. }
+    iFrame. iSplitR.
+    { iPureIntro; eauto. }
     { iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs".
         simplify_map_eq. reflexivity.
       iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
@@ -680,7 +680,7 @@ Section macros.
     iAssert (codefrag (a_first ^+ 1)%a (rclear_instrs r') ∗
              (codefrag (a_first ^+ 1)%a (rclear_instrs r') -∗ codefrag a_first (rclear_instrs (r0 :: r'))))%I
     with "[Hrclear]" as "[Hrclear Hcont]".
-    { cbn. unfold codefrag. rewrite (region_mapsto_cons _ (a_first ^+ 1)%a). 2,3: solve_addr.
+    { cbn. unfold codefrag. rewrite (region_pointsto_cons _ (a_first ^+ 1)%a). 2,3: solve_addr.
       iDestruct "Hrclear" as "[? Hr]".
       rewrite (_: ((a_first ^+ 1) ^+ (length (rclear_instrs r')))%a =
                     (a_first ^+ (S (length (rclear_instrs r'))))%a). 2: solve_addr.
@@ -790,7 +790,7 @@ Section macros.
        to avoid this *)
     assert (act_b < act_e)%a as Hlt;[solve_addr|].
     opose proof (contiguous_between_region_addrs act_b act_e _) as Hcont_act; first solve_addr.
-    unfold region_mapsto.
+    unfold region_pointsto.
     remember (finz.seq_between act_b act_e) as acta.
     assert (Hact_len_a : length acta = 8).
     { rewrite Heqacta finz_seq_between_length. by apply finz_incr_iff_dist. }
@@ -939,7 +939,7 @@ Section macros.
     unfocus_block "Hscrtcls" "Hcont" as "Hprog".
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
-    iExists _,_. iSplitR; [eauto|]. iFrame "∗".
+    iSplitR; [eauto|].
     rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
     rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
     clear -Hrmap_dom; iFrameMapSolve "Hregs".
@@ -1011,7 +1011,7 @@ Section macros.
       WP Seq (Instr Executable) {{ φ }}.
   Proof.
     iIntros (Hrpc) "(HPC & Hr1 & Hrenv & Hprog & Hcont)".
-    rewrite /region_mapsto.
+    rewrite /region_pointsto.
     iDestruct (big_sepL2_length with "Hprog") as %Hcls_len. simpl in Hcls_len.
     assert (b_cls + 8 = Some e_cls)%a as Hbe.
     { rewrite finz_seq_between_length /finz.dist in Hcls_len.

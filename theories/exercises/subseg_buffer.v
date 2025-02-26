@@ -115,18 +115,18 @@ Section base_program.
     rewrite (region_addrs_zeroes_split b_mem (b_mem ^+ secret_off)%a e_mem);
       [| solve_addr +Hlen_mem ].
 
-    iDestruct (region_mapsto_split
+    iDestruct (region_pointsto_split
                  b_mem e_mem (b_mem ^+ secret_off)%a
                  (region_addrs_zeroes b_mem (b_mem ^+ secret_off)%a)
                  (region_addrs_zeroes (b_mem ^+ secret_off)%a e_mem)
                 with "Hmem") as "[Hmem Hmem']".
     { solve_addr +Hlen_mem. }
-    { unfold region_addrs_zeroes. by rewrite replicate_length. }
+    { unfold region_addrs_zeroes. by rewrite length_replicate. }
 
     unfold region_addrs_zeroes at 2.
     rewrite finz_dist_S; [| solve_addr +Hlen_mem ].
     rewrite replicate_S.
-    iDestruct (region_mapsto_cons
+    iDestruct (region_pointsto_cons
                  (b_mem ^+ secret_off)%a _ e_mem (WInt 0)
                  (region_addrs_zeroes _ e_mem)
                 with "Hmem'") as "[Hsecret Hmem']".
@@ -218,7 +218,7 @@ Section base_program_CPS.
     intros e_prog a_secret Hpc_perm Hpc_bounds Hsecret_bounds Hp_mem.
     iIntros "(HPC & Hr_mem & Hr2 & Hr3 & Hmem & Hprog & Post)".
 
-    rewrite /region_mapsto.
+    rewrite /region_pointsto.
     codefrag_facts "Hprog".
 
     iGo' "Hprog".
@@ -226,18 +226,18 @@ Section base_program_CPS.
     { intros ->; simpl in Hp_mem; discriminate. }
 
     rewrite (region_addrs_zeroes_split b_mem a_secret e_mem)...
-    iDestruct (region_mapsto_split
+    iDestruct (region_pointsto_split
                  b_mem e_mem a_secret
                  (region_addrs_zeroes b_mem a_secret)
                  (region_addrs_zeroes a_secret e_mem)
                 with "Hmem") as "[Hmem Hmem']"...
-    { unfold region_addrs_zeroes. by rewrite replicate_length. }
+    { unfold region_addrs_zeroes. by rewrite length_replicate. }
 
     unfold region_addrs_zeroes at 4.
     rewrite finz_dist_S...
     rewrite replicate_S.
 
-    iDestruct (region_mapsto_cons
+    iDestruct (region_pointsto_cons
                  a_secret (a_secret ^+ 1)%a e_mem (WInt 0)
                  (region_addrs_zeroes _ e_mem)
                 with "Hmem'") as "[Hsecret Hmem']"...
@@ -368,7 +368,7 @@ Section base_program_CPS.
           -∗ WP Seq (Instr Executable)
                 {{ v, ⌜v = HaltedV⌝ → (* if the machine halts *)
                      (* we own all the registers *)
-                      ∃ r : Reg, full_map r ∧ registers_mapsto r
+                      ∃ r : Reg, full_map r ∧ registers_pointsto r
                       (* all the NA invariants are closed*)
                       ∗ na_own logrel_nais ⊤}})%I.
 
@@ -395,7 +395,7 @@ Section base_program_CPS.
     replace ((b_mem ^+ secret_off) ^+ 1)%a
       with (b_mem ^+ (secret_off + 1))%a by (subst secret; by solve_addr).
 
-    rewrite /region_mapsto.
+    rewrite /region_pointsto.
     iDestruct (region_integers_alloc' _ _ _ (b_mem ^+ secret_off)%a _ p_mem with "Hmem")
       as ">#Hmem_safe".
     { rewrite /region_addrs_zeroes. apply Forall_replicate. auto. }

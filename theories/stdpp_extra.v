@@ -899,13 +899,13 @@ Proof.
     + inversion Hl.
     + simpl in Hl. simpl. destruct l.
       { simpl in Hl. inversion Hl. auto. }
-      { apply IHl. rewrite lookup_app_l in Hl;[simpl;rewrite app_length /=;lia|]. auto. }
+      { apply IHl. rewrite lookup_app_l in Hl;[simpl;rewrite length_app /=;lia|]. auto. }
   - rewrite -last_lookup in Hl.
     induction l.
     + inversion Hl.
     + simpl. destruct l.
       { simpl. inversion Hl. auto. }
-      { rewrite lookup_app_l;[simpl;rewrite app_length /=;lia|]. apply IHl. auto. }
+      { rewrite lookup_app_l;[simpl;rewrite length_app /=;lia|]. apply IHl. auto. }
 Qed.
 
 Lemma rev_cons_inv {A} (l l' : list A) (a : A) :

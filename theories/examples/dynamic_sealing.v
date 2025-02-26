@@ -178,7 +178,7 @@ Section sealing.
 
     focus_block 4 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     iApply findb_spec; iFrameAutoSolve; eauto.
-    iFrame "# ∗". iSplitL "Hr_t2"; eauto. iSplitL "Hr_t3"; eauto.
+    iFrame "# ∗".
     iNext. iIntros "(HPC & Hr_t0 & Hr_t2 & HisList & Hr_t3 & Hprog & Hown)".
     iDestruct "HisList" as (b_a b' b'' w pbvals) "(%HX & Hpref & Hr_t1 & Hr_env & #HΦ)".
     destruct HX as (HA & HA1 & HB & HC).
@@ -192,8 +192,7 @@ Section sealing.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "# ∗".
-    iExists _,_,_,_,_. iFrame "∗ #".
-    iPureIntro. eauto.
+    iExists _,_,_. iPureIntro; eauto.
   Qed.
 
   Lemma seal_spec Φ (* client chosen seal predicate *)
@@ -286,15 +285,14 @@ Section sealing.
 
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
-    iSplitR "Hr_t1 Ha ".
-    - iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|].
-      map_simpl "Hregs".
-      iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|].
-      map_simpl "Hregs".
-      iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|].
-      map_simpl "Hregs".
-      repeat rewrite -(insert_commute _ _ r_t7)//.
-    - iExists _, _, _. iFrame. iSplit;eauto.
+    iSplit; eauto.
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|].
+    map_simpl "Hregs".
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|].
+    map_simpl "Hregs".
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|].
+    map_simpl "Hregs".
+    repeat rewrite -(insert_commute _ _ r_t7)//.
   Qed.
 
   Lemma sealLL_alloc ι ll Ep Φ {Hpers : ∀ w, Persistent (Φ w)} :
@@ -306,7 +304,7 @@ Section sealing.
     { eapply auth_auth_valid. repeat red. apply I. }
     iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ [∗ list] aw ∈ awvals, Φ aw.2)) with "[Hll Hown]")%I as "Hinv".
     { iNext. iExists (WInt 0%Z). iFrame.
-      iExists []. iFrame. iSplit;done. }
+      iSplit;done. }
     iExists γ. auto.
   Qed.
 
@@ -442,7 +440,7 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
     iMod (sealLL_alloc with "[Hll]") as (γ) "Hsealinv".
-    { rewrite /region_mapsto. rewrite finz_seq_between_singleton; auto.
+    { rewrite /region_pointsto. rewrite finz_seq_between_singleton; auto.
       rewrite /region_addrs_zeroes. rewrite (proj2 (proj1 (finz_incr_iff_dist ll ll' 1) ltac:(auto))).
       simpl replicate. iDestruct "Hll" as "(Hll & _)". iFrame. }
     iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [simplify_map_eq; auto|].
@@ -451,8 +449,7 @@ Section sealing.
     map_simpl "Hregs".
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hregs".
-    { iExists b2, e2, b1, e1, ll, ll'. iFrame "∗".
-      iFrame "%". iExists γ. iFrame. }
+    { iFrame "%". }
     { rewrite delete_commute //.
       rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //. }
   Qed.

@@ -174,7 +174,7 @@ Section program_ro.
          ∗ na_own logrel_nais ⊤
          ∗ interp w_adv)
        -∗ WP Seq (Instr Executable)
-             {{ v, ⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
+             {{ v, ⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤ }})%I.
   Proof.
     intros * Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom.
     iIntros "(#Hinv_prog & #Hinv_secret & #Hinv_mem & #Hinv_mem' & HPC & Hr1 & Hr30 & Hrmap & Hna & #Hinterp_adv)".
@@ -326,7 +326,6 @@ Section program_closure_ro.
     iGo "Hprog".
     iMod ("Hinv_close" with "[Hcap Hna]") as "Hna" ; iFrame.
     iApply "Post". iFrame.
-    iSplitL "Hr2" ; iExists _ ; iFrame.
   Qed.
 
 
@@ -403,7 +402,6 @@ Section program_closure_ro.
 
     iMod ("Hprog_close" with "[$Hprog $Hna]") as "Hna".
     iApply "Post" ; iFrame ; iFrame "#".
-    iSplitL "Hr2" ; iExists _ ; iFrame.
   Qed.
 
   Lemma closure_ro_spec_full
@@ -435,7 +433,7 @@ Section program_closure_ro.
          ∗ na_own logrel_nais ⊤
          ∗ interp w_adv)
        -∗ WP Seq (Instr Executable)
-             {{ v, ⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤ }})%I.
+             {{ v, ⌜v = HaltedV⌝ → ∃ r : Reg, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤ }})%I.
   Proof.
     intros * Hpc_perm Hpc_bounds Hvsecret Hp_mem Hrmap_dom.
     iIntros
@@ -534,7 +532,7 @@ Section program_closure_ro.
     rewrite fixpoint_interp1_eq /= /interp_conf.
     iIntros (regs) ; iNext ; iModIntro.
     iIntros "([%Hrfull #Hrsafe] & Hregs & Hna)".
-    rewrite /registers_mapsto.
+    rewrite /registers_pointsto.
 
     (* Prepare the resources for closure_ro_spec_full *)
 

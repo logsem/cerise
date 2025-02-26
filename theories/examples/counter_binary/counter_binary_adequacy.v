@@ -334,24 +334,24 @@ Section Adequacy.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
-  Lemma regspec_mapsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) r (w : Word) :
+  Lemma regspec_pointsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) r (w : Word) :
     σ.1 !! r = None →
     spec_res e σ ==∗ spec_res e (<[r:=w]> σ.1,σ.2) ∗ r ↣ᵣ w.
   Proof.
     iIntros (Hnone) "Hσ".
-    rewrite /spec_res /regspec_mapsto.
+    rewrite /spec_res /regspec_pointsto.
     iMod (own_update with "Hσ") as "[Hσ Hr]".
     { eapply auth_update_alloc,prod_local_update_2,prod_local_update_1.
       eapply (alloc_singleton_local_update (to_spec_map σ.1) r (1%Qp, to_agree w)).
       by rewrite lookup_fmap Hnone. done. }
     iModIntro. iFrame "Hr". rewrite -fmap_insert. iFrame.
   Qed.
-  Lemma memspec_mapsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) a (w : Word) :
+  Lemma memspec_pointsto_alloc {cfg: cfgSG Σ} e (σ : gmap RegName Word * gmap Addr Word) a (w : Word) :
     σ.2 !! a = None →
     spec_res e σ ==∗ spec_res e (σ.1,<[a:=w]> σ.2) ∗ a ↣ₐ w.
   Proof.
     iIntros (Hnone) "Hσ".
-    rewrite /spec_res /memspec_mapsto.
+    rewrite /spec_res /memspec_pointsto.
     iMod (own_update with "Hσ") as "[Hσ Hr]".
     { eapply auth_update_alloc,prod_local_update_2,prod_local_update_2.
       eapply (alloc_singleton_local_update (to_spec_map σ.2) a (1%Qp, to_agree w)).
@@ -368,7 +368,7 @@ Section Adequacy.
     iMod (IH with "Hσ") as "[Hσ'σ Hσ']"; first by eapply map_disjoint_insert_l.
     decompose_map_disjoint.
     rewrite !big_opM_insert // -insert_union_l //.
-    iMod (regspec_mapsto_alloc with "Hσ'σ") as "($ & $)".
+    iMod (regspec_pointsto_alloc with "Hσ'σ") as "($ & $)".
       by apply lookup_union_None. done.
   Qed.
   Lemma memspec_alloc_big {cfg: cfgSG Σ} e σ σ' σr :
@@ -383,7 +383,7 @@ Section Adequacy.
     rewrite !big_opM_insert //.
     assert (map_union (<[l:=v]> σ') σ = <[l:=v]> (map_union σ' σ)) as ->.
     { rewrite insert_union_l. auto. }
-    iMod (memspec_mapsto_alloc with "Hσ'σ") as "($ & $)".
+    iMod (memspec_pointsto_alloc with "Hσ'σ") as "($ & $)".
     simpl. rewrite lookup_union_None//. done.
   Qed.
 
@@ -542,7 +542,7 @@ Section Adequacy.
 
     iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /finz.dist. clear.
+    { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
       by apply malloc_code_size.
@@ -551,7 +551,7 @@ Section Adequacy.
     iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
     iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
     iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
-    { rewrite replicate_length /finz.dist. clear.
+    { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
       by apply malloc_code_size.
@@ -827,7 +827,7 @@ Section Adequacy.
 
     iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
     iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
-    { rewrite replicate_length /finz.dist. clear.
+    { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
       by apply malloc_code_size.
@@ -836,7 +836,7 @@ Section Adequacy.
     iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
     iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
     iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
-    { rewrite replicate_length /finz.dist. clear.
+    { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
     iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
       by apply malloc_code_size.

@@ -56,7 +56,7 @@ Definition mk_initial_memory `{memory_layout} (adv_val act_val : list Word) : gm
     mkregion g_start f_start (adder_g_instrs f_start f_end)
   ∪ mkregion f_start f_end adder_f_instrs
   ∪ list_to_map [(x, WInt 0%Z)] (* x: initially set to 0 (could be any positive number) *)
-  ∪ mkregion act_start act_end act_val (* the activation region can hold arbitrary words *)
+  ∪ mkregion act_start act_end act_val (* the activation region can hold arbitrary String.words *)
   ∪ mkregion adv_start adv_end adv_val
     (* adversarial code: any code or data, but no capabilities
        (see condition below) *)
