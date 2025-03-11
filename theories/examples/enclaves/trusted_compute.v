@@ -94,39 +94,6 @@ Section trusted_compute_example.
     by rewrite map_Forall_singleton /hash_trusted_compute_enclave /=.
   Qed.
 
-  Definition custom_enclave_contract
-    (cenclaves : custom_enclaves_map)
-    :=
-    forall
-    (I : EIdentity)
-    (b e a : Addr) (v : Version)
-    (b' e' a' : Addr) (v' : Version)
-    (enclave_data : list LWord)
-    (ot : OType)
-    (ce : CustomEnclave),
-
-    custom_enclaves_map_wf cenclaves ->
-
-    cenclaves !! I = Some ce ->
-
-    (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
-    (* TODO I think we can derive following from [b',e'] -> .... *)
-    (b' < e')%a -> (* Well-formness: data region contains at least one *)
-    (b < e)%a -> (* Well-formness: code region contains at all the code *)
-
-    I = hash_concat (hash b) (hash (tail (code ce))) ->
-    b = (code_region ce) ->
-    e = (b ^+ (length (code ce) + 1))%a ->
-
-    na_inv logrel_nais (custom_enclaveN.@I)
-      ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
-       [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
-
-    ∗ seal_pred ot (Penc ce)
-    ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
-
-    interp (LCap E b e (b^+1)%a v).
-
   Lemma tc_contract tc_addr :
     custom_enclave_contract (tcenclaves_map tc_addr).
   Proof.

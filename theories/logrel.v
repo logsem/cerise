@@ -1116,8 +1116,6 @@ Section custom_enclaves.
     custom_enclaves_map_wf cenclaves ->
 
     cenclaves !! I = Some ce ->
-    (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
-    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
 
     (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
     (* TODO I think we can derive following from [b',e'] -> .... *)
@@ -1126,10 +1124,10 @@ Section custom_enclaves.
 
     I = hash_concat (hash b) (hash (tail (code ce))) ->
     b = (code_region ce) ->
-    e = (b ^+ (length (code ce)))%a ->
+    e = (b ^+ (length (code ce) + 1))%a ->
 
-    [[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]
-    ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]]
+    [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
+    ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce)
     ∗ na_own logrel_nais Ep
@@ -1150,8 +1148,6 @@ Section custom_enclaves.
     custom_enclaves_map_wf cenclaves ->
 
     cenclaves !! I = Some ce ->
-    (code ce) !! 0%nat = Some (LCap RW b' e' a' v') ->
-    enclave_data !! 0%nat = Some (LSealRange (true,true) ot (ot^+2)%ot ot) ->
 
     (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
     (* TODO I think we can derive following from [b',e'] -> .... *)
@@ -1160,11 +1156,11 @@ Section custom_enclaves.
 
     I = hash_concat (hash b) (hash (tail (code ce))) ->
     b = (code_region ce) ->
-    e = (b ^+ (length (code ce)))%a ->
+    e = (b ^+ (length (code ce) + 1))%a ->
 
     na_inv logrel_nais (custom_enclaveN.@I)
-      ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
-       [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])
+      ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
+       [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
 
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce) -∗
@@ -1184,15 +1180,15 @@ Section custom_enclaves.
   Proof.
     intro Hcontract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
-               Hwf_cemap Hcode_ce Hdatacap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
+               Hwf_cemap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
       "(Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
-            ([[ b , e ]] ↦ₐ{ v } [[ (code ce) ]]  ∗
-             [[ b' , e' ]] ↦ₐ{ v' } [[ enclave_data ]])%I
+            ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
+             [[ b' , e' ]] ↦ₐ{ v' } [[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])%I
            with "[$Htc_code $Htc_data]")
       as "#Htc_inv".
     iModIntro.
-    iApply Hcontract; eauto.
+    iApply (Hcontract with "[$Htc_inv]"); eauto.
   Qed.
 End custom_enclaves.
