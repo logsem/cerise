@@ -36,9 +36,12 @@ Class MachineParameters := {
             end;
     decode_encode_word_type_inv :
     forall w, decodeWordType (encodeWordType w) = w;
+
     hash {A : Type} : A ->  Z;
     hash_concat : Z -> Z -> Z;
-    (* TODO: injectivity and other axioms about hash *)
+
+    hash_inj `{A : Type} : @Inj A Z eq eq hash;
+    hash_concat_inj: Inj2 eq eq eq hash_concat;
   }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify
@@ -60,6 +63,16 @@ Proof. apply decode_encode_instr_inv. Qed.
 
 Definition encodeInstrsW `{MachineParameters} : list instr → list Word :=
   map encodeInstrW.
+
+Lemma hash_concat_inj' `{MachineParameters} {A: Type} {B: Type} (a a' : A) (b b' : B) :
+  hash_concat (hash a) (hash b) = hash_concat (hash a') (hash b') ->
+  a =  a' /\ b = b'.
+Proof.
+  intros Heq.
+  destruct (hash_concat_inj (hash a) (hash b) (hash a') (hash b')) as [HeqA HeqB]; eauto.
+  edestruct (hash_inj a a'); eauto.
+  edestruct (hash_inj b b'); eauto.
+Qed.
 
 Section word_type_encoding.
   Definition wt_cap := WCap O 0%a 0%a 0%a.

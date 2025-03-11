@@ -36,77 +36,9 @@ Section trusted_compute_example.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
-  Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
-
-  (* Data part, following the directly the main code *)
-  Definition trusted_compute_data (linking_table_cap : LWord) : list LWord :=
-    [ linking_table_cap ].
-
-  (* Expect:
-     - PC := (RWX, main, main_end, main)
-     - R0 := (RWX, adv, adv_end, adv) *)
-  Definition trusted_compute_main_code_init0 (main callback data : Z) : list LWord :=
-    (* main: *)
-    encodeInstrsLW [
-        Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
-
-        (* Create callback sentry *)
-        Lea r_t1 (callback - main)%Z;       (* rt1 := (RWX, main, main_end, callback) *)
-        Restrict r_t1 (encodePerm E);       (* rt1 := (E, main, main_end, callback) *)
-
-        (* Jump to adversary *)
-        Jmp r_t0
-      ].
-
-  (* Expect PC := (RWX, main, main_end, callback) *)
-  Definition trusted_compute_main_code_callback0
-    (callback fails : Z)
-    (hash_enclave : Z)
-    (assert_lt_offset : Z)
-    : list LWord :=
-      (* callback: *)
-      encodeInstrsLW [
-        (* until the end, r3 contains the capability that bails out if something is wrong *)
-        Mov r_t3 PC ;                 (* r_t3 :=  (RX, main, main_end, callback) *)
-        Mov r_t4 r_t3 ;               (* r_t4 :=  (RX, main, main_end, callback) *)
-        Lea r_t3 (fails-callback)%Z;  (* r_t3 :=  (RX, main, main_end, fails) *)
-
-        (* sanity check: w_res is a sealed capability *)
-        GetOType r_t2 r_t0;
-        Sub r_t2 r_t2 (-1)%Z;
-        Mov r_t5 PC ;
-        Lea r_t5 4 ;
-        Jnz r_t5 r_t2;
-        Jmp r_t3;
-
-        (*  attestation *)
-        GetOType r_t2 r_t0;
-        EStoreId r_t4 r_t2;
-        (* check otype(w_res) against identity of the enclave *)
-        Sub r_t4 r_t4 hash_enclave;
-        Jnz r_t3 r_t4;
-
-        (* get returned value and assert it to be 42 *)
-        UnSeal r_t1 r_t1 r_t0;
-        Mov r_t0 r_t5;
-        GetA r_t4 r_t1;
-        Mov r_t5 42%Z;
-        Mov r_t1 r_t3%Z;
-        Lea r_t1 1;
-        Load r_t1 r_t1
-      ]
-      ++ assert_reg_instrs assert_lt_offset r_t1
-      ++ encodeInstrsLW [Mov r_t0 0 ; Mov r_t3 0 ; Halt]
-      ++ (* fails: *) encodeInstrsLW [Fail].
-
-  Definition trusted_compute_main_init_len : Z :=
-    Eval cbv in (length (trusted_compute_main_code_init0 0%Z 0%Z 0%Z)).
-
-  Definition trusted_compute_main_callback_len : Z :=
-    Eval cbv in (length (trusted_compute_main_code_callback0 0%Z 0%Z 0%Z 0%Z)).
-
-  Definition trusted_compute_main_data_len : Z :=
-    Eval cbv in (length (trusted_compute_data (LInt 0%Z))).
+  (* --------------------------------- *)
+  (* --- TRUSTED COMPUTE *ENCLAVE* --- *)
+  (* --------------------------------- *)
 
   Definition trusted_compute_enclave_code : list LWord :=
     encodeInstrsLW [
@@ -140,23 +72,8 @@ Section trusted_compute_example.
   Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord :=
     enclave_data_cap::trusted_compute_enclave_code.
 
-  (* TODO @june use measure! *)
   Definition hash_trusted_compute_enclave (tc_addr : Addr) : Z :=
     hash_concat (hash tc_addr) (hash trusted_compute_enclave_code).
-
-  Definition trusted_compute_main_code (assert_lt_offset : Z) (tc_addr : Addr ): list LWord :=
-    let init     := 0%Z in
-    let callback := trusted_compute_main_init_len in
-    let data     := trusted_compute_main_init_len + trusted_compute_main_callback_len in
-    let fails    := (data - 1)%Z in
-    (trusted_compute_main_code_init0 init callback data) ++
-    (trusted_compute_main_code_callback0 callback fails (hash_trusted_compute_enclave tc_addr) assert_lt_offset).
-
-  Definition trusted_compute_main_code_len : Z :=
-    Eval cbv in trusted_compute_main_init_len + trusted_compute_main_callback_len.
-
-  Definition trusted_compute_main_len :=
-    Eval cbv in trusted_compute_main_code_len + trusted_compute_main_data_len.
 
 
   (* Trusted Compute Custom Predicates *)
@@ -169,12 +86,6 @@ Section trusted_compute_example.
 
   Definition tcenclaves_map tc_addr : custom_enclaves_map :=
    {[hash_trusted_compute_enclave tc_addr := tc_enclave_pred tc_addr]}.
-
-  Lemma hash_concat_inj `{A: Type} `{B: Type} (a a' : A) (b b' : B):
-    hash_concat (hash a) (hash b) =
-    hash_concat (hash a') (hash b') ->
-    a = a' /\ b = b'.
-  Admitted.
 
   Lemma wf_tc_enclaves_map (tc_addr : Addr) :
     custom_enclaves_map_wf (tcenclaves_map tc_addr).
@@ -436,6 +347,93 @@ Section trusted_compute_example.
     }
     iApply ("Hjmp" with "[]") ; eauto ; iFrame.
   Qed.
+
+
+
+
+  (* ---------------------------------- *)
+  (* ----- TRUSTED COMPUTE *MAIN* ----- *)
+  (* ---------------------------------- *)
+
+  Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
+
+  (* Expect:
+     - PC := (RWX, main, main_end, main)
+     - R0 := (RWX, adv, adv_end, adv) *)
+  Definition trusted_compute_main_code_init0 (main callback data : Z) : list LWord :=
+    (* main: *)
+    encodeInstrsLW [
+        Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
+
+        (* Create callback sentry *)
+        Lea r_t1 (callback - main)%Z;       (* rt1 := (RWX, main, main_end, callback) *)
+        Restrict r_t1 (encodePerm E);       (* rt1 := (E, main, main_end, callback) *)
+
+        (* Jump to adversary *)
+        Jmp r_t0
+      ].
+
+  (* Expect PC := (RWX, main, main_end, callback) *)
+  Definition trusted_compute_main_code_callback0
+    (callback fails : Z)
+    (hash_enclave : Z)
+    (assert_lt_offset : Z)
+    : list LWord :=
+      (* callback: *)
+      encodeInstrsLW [
+        (* until the end, r3 contains the capability that bails out if something is wrong *)
+        Mov r_t3 PC ;                 (* r_t3 :=  (RX, main, main_end, callback) *)
+        Mov r_t4 r_t3 ;               (* r_t4 :=  (RX, main, main_end, callback) *)
+        Lea r_t3 (fails-callback)%Z;  (* r_t3 :=  (RX, main, main_end, fails) *)
+
+        (* sanity check: w_res is a sealed capability *)
+        GetOType r_t2 r_t0;
+        Sub r_t2 r_t2 (-1)%Z;
+        Mov r_t5 PC ;
+        Lea r_t5 4 ;
+        Jnz r_t5 r_t2;
+        Jmp r_t3;
+
+        (*  attestation *)
+        GetOType r_t2 r_t0;
+        EStoreId r_t4 r_t2;
+        (* check otype(w_res) against identity of the enclave *)
+        Sub r_t4 r_t4 hash_enclave;
+        Jnz r_t3 r_t4;
+
+        (* get returned value and assert it to be 42 *)
+        UnSeal r_t1 r_t1 r_t0;
+        Mov r_t0 r_t5;
+        GetA r_t4 r_t1;
+        Mov r_t5 42%Z;
+        Mov r_t1 r_t3%Z;
+        Lea r_t1 1;
+        Load r_t1 r_t1
+      ]
+      ++ assert_reg_instrs assert_lt_offset r_t1
+      ++ encodeInstrsLW [Mov r_t0 0 ; Mov r_t3 0 ; Halt]
+      ++ (* fails: *) encodeInstrsLW [Fail].
+
+  Definition trusted_compute_main_init_len : Z :=
+    Eval cbv in (length (trusted_compute_main_code_init0 0%Z 0%Z 0%Z)).
+
+  Definition trusted_compute_main_callback_len : Z :=
+    Eval cbv in (length (trusted_compute_main_code_callback0 0%Z 0%Z 0%Z 0%Z)).
+
+  Definition trusted_compute_main_code (assert_lt_offset : Z) (tc_addr : Addr ): list LWord :=
+    let init     := 0%Z in
+    let callback := trusted_compute_main_init_len in
+    let data     := trusted_compute_main_init_len + trusted_compute_main_callback_len in
+    let fails    := (data - 1)%Z in
+    (trusted_compute_main_code_init0 init callback data) ++
+    (trusted_compute_main_code_callback0 callback fails (hash_trusted_compute_enclave tc_addr) assert_lt_offset).
+
+  Definition trusted_compute_main_code_len : Z :=
+    Eval cbv in trusted_compute_main_init_len + trusted_compute_main_callback_len.
+
+  Definition trusted_compute_main_data_len : Z := 2.
+  Definition trusted_compute_main_len :=
+    Eval cbv in trusted_compute_main_code_len + trusted_compute_main_data_len.
 
 
   (** Specification init code *)
