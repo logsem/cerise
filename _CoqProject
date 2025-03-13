@@ -135,6 +135,8 @@ theories/examples/macros_new.v
 # Trusted Compute example
 theories/examples/enclaves/trusted_compute.v
 
+# Trusted Memory Readout example
+theories/examples/enclaves/trusted_memory_readout.v
 
 # Template Adequacy
 # theories/examples/template_adequacy.v
