@@ -23,6 +23,7 @@ Section cap_lang_rules.
     match i with
     | Add _ _ _ => (n1 + n2)%Z
     | Sub _ _ _ => (n1 - n2)%Z
+    | Mod _ _ _ => (n1 `mod` n2)%Z
     | Lt _ _ _ => (Z.b2z (n1 <? n2)%Z)
     | _ => 0%Z
     end.
@@ -30,6 +31,7 @@ Section cap_lang_rules.
   Definition is_AddSubLt (i: instr) (r: RegName) (arg1 arg2: Z + RegName) :=
     i = Add r arg1 arg2 ∨
     i = Sub r arg1 arg2 ∨
+    i = Mod r arg1 arg2 ∨
     i = Lt r arg1 arg2.
 
   Lemma exec_AddSubLt_eq {i r arg1 arg2 φ} :
@@ -38,7 +40,7 @@ Section cap_lang_rules.
                    z2 ← z_of_argument (reg φ) arg2 ;
                    updatePC (update_reg φ r (WInt (denote i z1 z2))).
   Proof.
-    destruct 1 as [-> | [-> | ->]]; done.
+    destruct 1 as [-> | [-> | [-> | ->] ]]; done.
   Qed.
 
 
@@ -581,7 +583,11 @@ Proof. intros; unfold is_AddSubLt; eauto. Qed.
 Lemma is_AddSubLt_Lt dst arg1 arg2 :
   is_AddSubLt (Lt dst arg1 arg2) dst arg1 arg2.
 Proof. intros; unfold is_AddSubLt; eauto. Qed.
+Lemma is_AddSubLt_Mod dst arg1 arg2 :
+  is_AddSubLt (Mod dst arg1 arg2) dst arg1 arg2.
+Proof. intros; unfold is_AddSubLt; eauto. Qed.
 
 Global Hint Resolve is_AddSubLt_Add : core.
 Global Hint Resolve is_AddSubLt_Sub : core.
 Global Hint Resolve is_AddSubLt_Lt : core.
+Global Hint Resolve is_AddSubLt_Mod : core.

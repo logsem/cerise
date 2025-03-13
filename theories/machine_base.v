@@ -46,6 +46,7 @@ Inductive instr: Type :=
 | Lt (dst: RegName) (r1 r2: Z + RegName)
 | Add (dst: RegName) (r1 r2: Z + RegName)
 | Sub (dst: RegName) (r1 r2: Z + RegName)
+| Mod (dst: RegName) (r1 r2: Z + RegName)
 | Lea (dst: RegName) (r: Z + RegName)
 | Restrict (dst: RegName) (r: Z + RegName)
 | Subseg (dst: RegName) (r1 r2: Z + RegName)
@@ -805,6 +806,7 @@ Proof.
       | IsUnique dst src => GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)]
       | Fail => GenNode 23 []
       | Halt => GenNode 24 []
+      | Mod dst r1 r2 => GenNode 25 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
       end).
   set (dec := fun e =>
       match e with
@@ -833,6 +835,7 @@ Proof.
       | GenNode 22 [GenLeaf (inl dst); GenLeaf (inl src)] => IsUnique dst src
       | GenNode 23 [] => Fail
       | GenNode 24 [] => Halt
+      | GenNode 25 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => Mod dst r1 r2
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).

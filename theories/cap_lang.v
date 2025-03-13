@@ -541,6 +541,10 @@ Section opsem.
     n1 ← z_of_argument (reg φ) ρ1;
     n2 ← z_of_argument (reg φ) ρ2;
     updatePC (update_reg φ dst (WInt (n1 - n2)%Z))
+    | Mod dst ρ1 ρ2 =>
+    n1 ← z_of_argument (reg φ) ρ1;
+    n2 ← z_of_argument (reg φ) ρ2;
+    updatePC (update_reg φ dst (WInt (n1 `mod` n2)%Z))
     | Lt dst ρ1 ρ2 =>
     n1 ← z_of_argument (reg φ) ρ1;
     n2 ← z_of_argument (reg φ) ρ2;

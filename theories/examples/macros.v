@@ -847,7 +847,8 @@ Section macros.
     iDestruct "Hprog" as "[Hi Hprog]".
     iApply (wp_bind (fill [SeqCtx])).
     iApply (wp_add_sub_lt_success_r_r _ rt3 _ _ _ a1 _ _ _  _ rt2 _ rt1 _ _
-      with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply decode_encode_instrLW_inv | | | ..]; eauto.
+      with "[Hi HPC Hr_t3 Hr_t1 Hr_t2]"); [apply decode_encode_instrLW_inv | | | | iFrame | ..]
+    ; eauto.
     iFrame.
     iEpilogue "(HPC & Ha1 & Hr_t2 & Hr_t1 & Hr_t3)".
     rewrite /region_mapsto /finz.seq_between.

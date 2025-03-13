@@ -26,6 +26,7 @@ Section fundamental.
     → (b <= a)%a ∧ (a < e)%a
     → (decodeInstrWL lw = Add dst r1 r2 \/
        decodeInstrWL lw = Sub dst r1 r2 \/
+       decodeInstrWL lw = Mod dst r1 r2 \/
        decodeInstrWL lw = Lt dst r1 r2)
     -> (□ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'

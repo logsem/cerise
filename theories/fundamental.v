@@ -85,6 +85,9 @@ Section fundamental.
       + (* Sub *)
         iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
+      + (* Mod *)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
       + (* Lea *)
         iApply (lea_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
