@@ -459,6 +459,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -897,6 +898,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -966,6 +968,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -1004,6 +1007,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -1106,6 +1110,7 @@
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#GetWType"><span class="id" title="constructor">GetWType</span></a> <span class="id" title="var">dst</span> <span class="id" title="var">src</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">dst</span><span class="id" title="notation">;</span> <span class="id" title="var">src</span> <span class="id" title="notation">]}</span><br/>
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Add"><span class="id" title="constructor">Add</span></a> <span class="id" title="var">r</span> <span class="id" title="var">arg1</span> <span class="id" title="var">arg2</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg1</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg2</span><br/>
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Sub"><span class="id" title="constructor">Sub</span></a> <span class="id" title="var">r</span> <span class="id" title="var">arg1</span> <span class="id" title="var">arg2</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg1</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg2</span><br/>
+&nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Mod"><span class="id" title="constructor">Mod</span></a> <span class="id" title="var">r</span> <span class="id" title="var">arg1</span> <span class="id" title="var">arg2</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg1</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg2</span><br/>
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Lt"><span class="id" title="constructor">Lt</span></a> <span class="id" title="var">r</span> <span class="id" title="var">arg1</span> <span class="id" title="var">arg2</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg1</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg2</span><br/>
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Mov"><span class="id" title="constructor">Mov</span></a> <span class="id" title="var">r</span> <span class="id" title="var">arg</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg</span><br/>
 &nbsp;&nbsp;| <a class="idref" href="cap_machine.machine_base.html#Restrict"><span class="id" title="constructor">Restrict</span></a> <span class="id" title="var">r1</span> <span class="id" title="var">arg</span> =&gt; <span class="id" title="notation">{[</span> <span class="id" title="var">r1</span> <span class="id" title="notation">]}</span> <span class="id" title="notation">∪</span> <a class="idref" href="cap_machine.rules.rules_base.html#regs_of_argument"><span class="id" title="definition">regs_of_argument</span></a> <span class="id" title="var">arg</span><br/>
@@ -1606,6 +1611,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -1616,7 +1622,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">e2</span> σ2 <span class="id" title="var">Hstep</span>) "Hcred".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"H" <span class="id" title="notation">$!</span> <span class="id" title="notation">{|</span> <a class="idref" href="cap_machine.cap_lang.html#reg"><span class="id" title="projection">reg</span></a> := <span class="id" title="var">reg</span>; <a class="idref" href="cap_machine.cap_lang.html#mem"><span class="id" title="projection">mem</span></a> := <span class="id" title="var">mem</span>; <a class="idref" href="cap_machine.cap_lang.html#etable"><span class="id" title="projection">etable</span></a> := <span class="id" title="var">etable</span>; <a class="idref" href="cap_machine.cap_lang.html#enumcur"><span class="id" title="projection">enumcur</span></a> := <span class="id" title="var">enumcur</span> <span class="id" title="notation">|}</span> <span class="id" title="notation">with</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"[Hr Hm Htbl_cur Htbl_prev Htbl_all $Hregs $Hcode]"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "H".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"[Hr Hm Htbl_cur Htbl_prev Htbl_all $HEC $Hregs $Hcode]"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "H".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iExists</span> <span class="id" title="var">_</span>, <span class="id" title="var">_</span>, <span class="id" title="var">_</span>,<span class="id" title="var">_</span>,<span class="id" title="var">_</span>,<span class="id" title="var">_</span>. <span class="id" title="var">now</span> <span class="id" title="var">iFrame</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;TODO:&nbsp;allow&nbsp;changing&nbsp;cur_map?&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
@@ -1850,6 +1856,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -1953,6 +1960,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
@@ -2024,6 +2032,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>

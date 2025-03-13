@@ -333,6 +333,7 @@ NOTE Proof strategy:
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hσ1" <span class="id" title="keyword">as</span> (<span class="id" title="var">lr</span> <span class="id" title="var">lm</span> <span class="id" title="var">vmap</span> <span class="id" title="var">tbl_cur</span> <span class="id" title="var">tbl_prev</span> <span class="id" title="var">tbl_all</span>)<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"(Hr &amp; Hm
          &amp; -&gt; &amp; Htbl_cur &amp; Htbl_prev &amp; Htbl_all
+         &amp; HEC
          &amp; %Hdom_tbl1 &amp; %Hdom_tbl2 &amp; %Hdom_tbl3 &amp; %Hdom_tbl4
          &amp; %HLinv)"<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HLinv</span>, <span class="id" title="var">Hdom_tbl1</span>, <span class="id" title="var">Hdom_tbl2</span>, <span class="id" title="var">Hdom_tbl3</span>, <span class="id" title="var">Hdom_tbl4</span>.<br/>
