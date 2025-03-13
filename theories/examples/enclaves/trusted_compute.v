@@ -100,7 +100,7 @@ Section trusted_compute_example.
     rewrite /custom_enclave_contract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
       Hwf_cemap Hcode_ce Hot Hb' Hwfbe HIhash Hb He)
-      "(#Htc_inv & #HPenc & #HPsign)".
+      "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
     clear HIhash Hwf_cemap.
 
     rewrite /tcenclaves_map in Hcode_ce.
@@ -112,7 +112,7 @@ Section trusted_compute_example.
     iMod (na_inv_acc with "Htc_inv Hna") as "(>[Htc_code Htc_data]  & Hna & Hclose)"; [solve_ndisj ..|].
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
-    remember tc_addr as pc_b in |- * at 10.
+    remember tc_addr as pc_b in |- * at 11.
     remember (tc_addr ^+ (20%nat + 1))%a as pc_e in |- * at 4.
     assert (SubBounds pc_b pc_e tc_addr (tc_addr ^+ (20%nat + 1))%a) by (subst; solve_addr).
 
@@ -599,7 +599,7 @@ Section trusted_compute_example.
     iNext.
     iIntros (retv) "H".
     iDestruct "H" as "(Hi & Hr2 & [(-> & HPC & H)|(-> & HPC & Hr4)])".
-    iDestruct "H" as (I tid) "(Hr4 & #Htc_env & %Hseal)".
+    1: iDestruct "H" as (I tid) "(Hr4 & #Htc_env & %Hseal)".
     all: wp_pure; iInstr_close "Hcode".
     2:{ wp_end; by iRight. }
 
@@ -620,7 +620,7 @@ Section trusted_compute_example.
 
     (* UnSeal *)
     wp_instr.
-    iMod (inv_acc with "Hcemap_inv") as "(#Hcemap & Hclose)"; first solve_ndisj.
+    iMod (inv_acc with "Hcemap_inv") as "(Hcemap & Hclose)"; first solve_ndisj.
 
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr0") as "[Hmap _]".
@@ -632,7 +632,10 @@ Section trusted_compute_example.
     { iMod ("Hclose" with "Hcemap") as "_". iModIntro.
       by wp_pure; wp_end; iRight.
     }
-    iMod ("Hclose" with "Hcemap") as "_"; iModIntro.
+
+    iDestruct "Hcemap" as (ECn) "(HEC & #Hcemap)".
+    iMod ("Hclose" with "[HEC Hcemap]") as "_"; iModIntro.
+    { iExists ECn. iFrame "HEC Hcemap". }
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs'); simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
     replace x with (b_main ^+ 18)%a by solve_addr.
@@ -649,9 +652,9 @@ Section trusted_compute_example.
       )%I as "Htc".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      iPureIntro.
-      rewrite /tcenclaves_map.
-      by simplify_map_eq.
+      + iPureIntro. admit.
+      + iPureIntro. rewrite /tcenclaves_map.
+        by simplify_map_eq.
     }
 
     destruct (Z.even (finz.to_z a)) eqn:HEven_a
@@ -711,7 +714,7 @@ Section trusted_compute_example.
 
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
-  Qed.
+  Admitted.
 
   Definition tc_mainN := (trusted_computeN.@"main").
   Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap

@@ -1082,16 +1082,18 @@ Section custom_enclaves.
       (
 
         ∃ (n : ENum), EC⤇ n ∗
+                      (* dom sealStore = (list_to_set seq 0 n : gset nat)*)
 
-        (⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
-        □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
-           ⌜(0 <= tid < n)⌝
-          ∗ enclave_all tid I
-          ∗ ⌜ cenclaves !! I = Some ce ⌝
-          ∗ ⌜ has_seal ot tid ⌝ -∗
-          if (Z.even (finz.to_z ot))
-          then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
-          else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
+        (
+          □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
+            ⌜(0 <= tid < n)⌝ -∗
+            ⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
+            enclave_all tid I
+            ∗ ⌜ cenclaves !! I = Some ce ⌝
+            ∗ ⌜ has_seal ot tid ⌝ -∗
+            if (Z.even (finz.to_z ot))
+            then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
+            else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
         )
       ).
 
