@@ -397,6 +397,7 @@ Section cap_lang_rules.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -808,6 +809,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -871,6 +873,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -908,6 +911,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1455,6 +1459,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1465,7 +1470,7 @@ Section cap_lang_rules_opt.
     iModIntro.
     iIntros (e2 σ2 Hstep) "Hcred".
     iMod ("H" $! {| reg := reg; mem := mem; etable := etable; enumcur := enumcur |} with
-           "[Hr Hm Htbl_cur Htbl_prev Htbl_all $Hregs $Hcode]") as "H".
+           "[Hr Hm Htbl_cur Htbl_prev Htbl_all $HEC $Hregs $Hcode]") as "H".
     { iExists _, _, _,_,_,_. now iFrame.
       (* TODO: allow changing cur_map? *)
     }
@@ -1686,6 +1691,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1784,6 +1790,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1853,6 +1860,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.

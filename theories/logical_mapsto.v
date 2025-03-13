@@ -2413,6 +2413,9 @@ Class ceriseG Σ := CeriseG {
   enclaves_name_prev : gname;
   enclaves_name_cur : gname;
   enclaves_name_all : gname;
+  (* Heap for EC register *)
+  EC_G :: inG Σ (authR ENum);
+  EC_name : gname;
 }.
 
  (* Assertions over enclaves *)
@@ -2426,6 +2429,9 @@ Definition enclaves_prev (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
 Definition enclaves_all (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
   own (inG0 := enclaves_hist) enclaves_name_all (● (to_agree <$> tbl)).
 
+Definition EC_auth `{ceriseG Σ} (n : ENum) :=
+  own (inG0 := EC_G) EC_name (● n).
+
 (* Fragmental resources *)
 
 Definition enclave_cur (eid : TIndex) (identity : EIdentity) `{ceriseG Σ} :=
@@ -2438,7 +2444,12 @@ Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
 Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
   own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
+Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
+  own (inG0 := EC_G) EC_name (auth_frag n).
+
 (* Notations for fragmental resources *)
+Notation "EC⤇ n" := (EC_frag n)
+                      (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
 (* @TODO: denis *)
 
 Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
@@ -2449,6 +2460,7 @@ Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ 
     enclaves_cur cur_tb ∗
     enclaves_prev prev_tb ∗
     enclaves_all all_tb ∗
+    EC_auth σ.(enumcur) ∗
     ⌜dom cur_tb ## dom prev_tb⌝ ∗
     ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (* TODO: needs to go to nats... *)
     ⌜cur_tb ##ₘ prev_tb⌝ ∗

@@ -1080,14 +1080,19 @@ Section custom_enclaves.
   Definition custom_enclave_inv (cenclaves : custom_enclaves_map) :=
     inv custom_enclaveN
       (
-        ⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
+
+        ∃ (n : ENum), EC⤇ n ∗
+
+        (⌜ custom_enclaves_map_wf cenclaves ⌝ -∗
         □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
-          enclave_all tid I
+           ⌜(0 <= tid < n)⌝
+          ∗ enclave_all tid I
           ∗ ⌜ cenclaves !! I = Some ce ⌝
           ∗ ⌜ has_seal ot tid ⌝ -∗
           if (Z.even (finz.to_z ot))
           then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
           else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
+        )
       ).
 
   (** Two versions of the contract:
@@ -1126,7 +1131,8 @@ Section custom_enclaves.
     b = (code_region ce) ->
     e = (b ^+ (length (code ce) + 1))%a ->
 
-    [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
+    custom_enclave_inv cenclaves
+    ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
     ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce)
@@ -1158,7 +1164,9 @@ Section custom_enclaves.
     b = (code_region ce) ->
     e = (b ^+ (length (code ce) + 1))%a ->
 
-    na_inv logrel_nais (custom_enclaveN.@I)
+    custom_enclave_inv cenclaves
+
+    ∗ na_inv logrel_nais (custom_enclaveN.@I)
       ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
        [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
 
@@ -1181,7 +1189,7 @@ Section custom_enclaves.
     intro Hcontract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
                Hwf_cemap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
-      "(Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
+      "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
             ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
