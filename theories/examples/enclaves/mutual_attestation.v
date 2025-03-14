@@ -223,24 +223,25 @@ Section mutual_attest_example.
       Add r_t5 r_t3 1;    (* r5 := data_b + 2 *)
       Subseg r_t4 r_t3 r_t5 (* r4 := (RW, data_b+1, data_b+2, data_b) *)
       ] ++ encodeInstrsLW [
-      (* if x%2 = 0 then mb=[42;1] else  mb=[1;42] *)
-      Mod r_t3 r_t2 2;      (* r3 := x%2 *)
-      Mov r_t5 PC;
-      Lea r_t5 8;
-      Jnz r_t5 r_t2;
+        (* if x%2 = 0 then mb=[42;1] else  mb=[1;42] *)
+        Mod r_t3 r_t2 2;
+        Mov r_t5 PC;
+        Lea r_t5 9;
+        Jnz r_t5 r_t3;
 
-      (* case x%2 == 0 *)
-      Sub r_t3 42 r_t2;
-      Lea r_t1 r_t3;        (*  r1 :=  (RW, data_b, data_b+1, 42) *)
-      Sub r_t3 1 r_t2;
-      Lea r_t4 r_t3;        (*  r4 :=  (RW, data_b+1, data_b+2, 1) *)
-      Lea r_t5 4;
-      Jmp r_t5;
-      (* case x%2 == 1 *)
-      Sub r_t3 1 r_t2;
-      Lea r_t1 r_t3;        (*  r1 :=  (RW, data_b, data_b+1, 1) *)
-      Sub r_t3 42 r_t2;
-      Lea r_t4 r_t3        (*  r4 :=  (RW, data_b+1, data_b+2, 42) *)
+        (* case x%2 == 0 *)
+        Sub r_t3 43 r_t2;
+        Lea r_t1 r_t3; (*  r1 :=  (RW, data_b, data_b+1, 42) *)
+        Sub r_t3 1 r_t2;
+        Lea r_t4 r_t3; (*  r4 :=  (RW, data_b+1, data_b+2, 1) *)
+        Lea r_t5 4;
+        Jmp r_t5;
+
+        (* case x%2 == 1 *)
+        Sub r_t3 1 r_t2;
+        Lea r_t1 r_t3; (*  r1 :=  (RW, data_b, data_b+1, 1) *)
+        Sub r_t3 43 r_t2;
+        Lea r_t4 r_t3 (*  r4 :=  (RW, data_b+1, data_b+2, 42) *)
       ] ++ encodeInstrsLW [
       (* continue here  *)
       Restrict r_t1 (encodePerm O);
@@ -397,6 +398,140 @@ Section mutual_attest_example.
     hash (la++la') = hash_concat (hash la) (hash la').
   Axiom hash_concat_assoc : Assoc eq hash_concat.
   Global Instance hash_concat_Assoc : Assoc eq hash_concat := hash_concat_assoc.
+
+
+  Lemma mod_code_spec
+    pc_b pc_e pc_a pc_v
+    b' v' φ
+    :
+
+    let code :=
+     (encodeInstrsLW
+                    [Mod r_t3 r_t2 2; Mov r_t5 PC; Lea r_t5 9; Jnz r_t5 r_t3;
+                     Sub r_t3 43 r_t2; Lea r_t1 r_t3; Sub r_t3 1 r_t2;
+                     Lea r_t4 r_t3; Lea r_t5 4; Jmp r_t5; Sub r_t3 1 r_t2;
+                     Lea r_t1 r_t3; Sub r_t3 43 r_t2; Lea r_t4 r_t3])
+    in
+
+    ContiguousRegion pc_a (length code) ->
+    SubBounds pc_b pc_e pc_a (pc_a ^+ length code)%a ->
+    (b' + 2)%a = Some (b' ^+ 2)%a ->
+
+   (PC ↦ᵣ LCap RX pc_b pc_e pc_a pc_v)
+   ∗ codefrag pc_a pc_v code
+   ∗ r_t1 ↦ᵣ LCap RW b' (b' ^+ 1)%a b' v'
+   ∗ r_t2 ↦ᵣ LInt b'
+   ∗ r_t3 ↦ᵣ LInt (b' + 1%nat)%Z
+   ∗ r_t4 ↦ᵣ LCap RW (b' ^+ 1)%a (b' ^+ 2)%a b' v'
+   ∗ r_t5 ↦ᵣ LInt (b' + 1%nat + 1%nat)%Z
+
+   ∗ ▷ ( (PC ↦ᵣ LCap RX pc_b pc_e (pc_a ^+ length code)%a pc_v
+          ∗ codefrag pc_a pc_v code
+          ∗ r_t1 ↦ᵣ LCap RW b' (b' ^+ 1)%a (prot_sealed_B b') v'
+          ∗ r_t2 ↦ᵣ LInt b'
+          ∗ (∃w3, r_t3 ↦ᵣ w3)
+          ∗ r_t4 ↦ᵣ LCap RW (b' ^+ 1)%a (b' ^+ 2)%a (prot_sealed_B (b' ^+ 1)%a) v'
+          ∗ (∃w5, r_t5 ↦ᵣ w5)
+         -∗ WP Seq (Instr Executable) {{ v, φ v }}
+       )
+   )
+   ⊢ WP Seq (Instr Executable) {{ v, φ v }}.
+  Proof.
+    intros code Hcont Hbounds Hb'2.
+    iIntros "(HPC & Hcode & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hφ)".
+    (* Mod r_t3 r_t2 2 *)
+    wp_instr.
+    iInstr_lookup "Hcode" as "Hi" "Hcode".
+    iApply (wp_add_sub_lt_success_r_z with "[$HPC $Hr2 $Hr3 $Hi]"); try solve_pure.
+    { done. }
+    iNext. iIntros "(HPC & Hi & Hr2 & Hr3)".
+    iEval (cbn) in "Hr3".
+    wp_pure; iInstr_close "Hcode".
+    (* Mov r_t5 PC *)
+    iInstr "Hcode".
+    (* Lea r_t5 8 *)
+    iInstr "Hcode".
+
+    destruct (decide ((b' `mod` 2%nat)%Z = 0)) as [Hmod | Hmod].
+    - (* Jnz r_t5 r_t3 *)
+      rewrite Hmod.
+      iInstr "Hcode".
+      (* case x%2 == 0 *)
+      (* Sub r_t3 43 r_t2 *)
+      iInstr "Hcode".
+      (* Lea r_t1 r_t3 *)
+      iInstr "Hcode".
+      { transitivity ( Some f43 ); try solve_addr.
+        admit.
+      }
+      (* Sub r_t3 1 r_t2 *)
+      iInstr "Hcode".
+      (* Lea r_t4 r_t3 *)
+      iInstr "Hcode".
+      { transitivity ( Some f1 ); try solve_addr.
+        admit.
+      }
+      (* Lea r_t5 4 *)
+      iInstr "Hcode".
+      (* Jmp r_t5 *)
+      iInstr "Hcode".
+      iApply "Hφ"; iFrame.
+      rewrite /prot_sealed_B.
+      cbn.
+      rewrite Hmod.
+      destruct (decide (((Z.of_nat 0%nat = 0%Z))%Z)); last lia.
+      iFrame "Hr1".
+      destruct (decide (((b' ^+ 1)%a `mod` 2%nat)%Z = 0%Z)); last iFrame.
+      { exfalso.
+        rewrite Zmod_even in Hmod.
+        rewrite Zmod_odd in e0.
+        destruct (Z.even b') eqn:Hb'; try done.
+        destruct (Z.odd (b' ^+ 1)%a) eqn:Hb''; try done.
+        rewrite -Z.odd_succ in Hb'.
+        assert ( (Z.succ b')%a = (z_of (b' ^+ 1)%a)) by solve_addr.
+        solve_addr.
+      }
+      iSplitL "Hr3" ; iExists _ ; iFrame.
+    - (* Jnz r_t5 r_t3 *)
+      iInstr "Hcode".
+      { by intro Hcontra ; inv Hcontra. }
+      (* case x%2 == 1 *)
+      (* (Sub r_t3 1 r_t2) *)
+      iInstr "Hcode".
+      (* Lea r_t1 r_t3 *)
+      iInstr "Hcode".
+      { transitivity ( Some f1 ); try solve_addr.
+        admit.
+      }
+      (* Sub r_t3 1 r_t2 *)
+      iInstr "Hcode".
+      (* Lea r_t4 r_t3 *)
+      iInstr "Hcode".
+      { transitivity ( Some f43 ); try solve_addr.
+        admit.
+      }
+      iApply "Hφ"; iFrame.
+      rewrite /prot_sealed_B.
+      assert ((b' `mod` 2%nat)%Z = 1) as Hmod'.
+      { admit. }
+      cbn.
+      rewrite Hmod'.
+      destruct (decide (((Z.of_nat 1%nat = 0%Z))%Z)); first lia.
+      iFrame "Hr1".
+      destruct (decide (((b' ^+ 1)%a `mod` 2%nat)%Z = 0%Z)); first iFrame.
+      { iSplitL "Hr3" ; (iExists _ ; iFrame). }
+      { exfalso.
+        rewrite Zmod_even in Hmod.
+        rewrite Zmod_odd in n0.
+        destruct (Z.even b') eqn:Hb'; try done.
+        destruct (Z.odd (b' ^+ 1)%a) eqn:Hb''; try done.
+        rewrite -Z.odd_succ in Hb'.
+        assert ( (Z.succ b')%a = (z_of (b' ^+ 1)%a)) by solve_addr.
+        solve_addr.
+      }
+  Admitted.
+
+
 
   Lemma mutual_attest_contract :
     custom_enclave_contract ma_enclaves_map.
@@ -918,54 +1053,59 @@ Section mutual_attest_example.
     ; subst hcont_code hma_code.
 
     focus_block 1 "Hma_code" as a_Mod Ha_Mod "Hma_code" "Hcont_code"
-    ; iHide "Hcont_code" as hcont_code
-    ; set (hma_code := encodeInstrsLW _).
+    ; iHide "Hcont_code" as hcont_code.
 
-    (* Mod r_t3 r_t2 2 *)
-    (* Mov r_t5 PC *)
-    (* Lea r_t5 8 *)
-    (* Jnz r_t5 r_t2 *)
+    iApply ( mod_code_spec with "[- $HPC $Hma_code $Hr1 $Hr2 $Hr3 $Hr4 $Hr5]" ); eauto.
+    iNext; iIntros "(HPC & Hma_code & Hr1 & Hr2 & Hr3 & Hr4 & Hr5)".
+    iDestruct "Hr3" as (w3') "Hr3".
+    iDestruct "Hr5" as (w5') "Hr5".
 
-    (* case x%2 == 0 *)
-    Sub r_t3 42 r_t2
-      Lea r_t1 r_t3
-      Sub r_t3 1 r_t2
-      Lea r_t4 r_t3
-      Lea r_t5 4
-      Jmp r_t5
-      (* case x%2 == 1 *)
-      Sub r_t3 1 r_t2
-      Lea r_t1 r_t3
-      Sub r_t3 42 r_t2
-      Lea r_t4 r_t3
+    unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
+    ; subst hcont_code.
 
-      (* continue here  *)
-      Restrict r_t1 (encodePerm O);
-      Restrict r_t4 (encodePerm O);
+    focus_block 2 "Hma_code" as a_block2 Ha_blobk2 "Hma_code" "Hcont_code"
+    ; iHide "Hcont_code" as hcont_code.
+    (* Restrict r_t1 (encodePerm O) *)
+    iInstr "Hma_code".
+    { rewrite decode_encode_perm_inv; solve_pure. }
+    (* Restrict r_t4 (encodePerm O) *)
+    iInstr "Hma_code".
+    { rewrite decode_encode_perm_inv; solve_pure. }
+    rewrite !decode_encode_perm_inv.
 
-      (* sign x and sign x+1 *)
-      Lea r_t6 1;            (* r6 := (SU, σ+1, σ+2, σ+1) *)
-      Seal r_t1 r_t6 r_t1;
-      Seal r_t2 r_t6 r_t4;
+    (* Lea r_t6 1 *)
+    iInstr "Hma_code".
+    { transitivity (Some (ot ^+ 1)%ot); solve_addr. }
+    (* Seal r_t1 r_t6 r_t1 *)
+    iInstr "Hma_code".
+    { done. }
+    { solve_addr. }
+    (* Seal r_t2 r_t6 r_t4 *)
+    iInstr "Hma_code".
+    { done. }
+    { solve_addr. }
 
-      GetA r_t3 r_t6;        (* r3 := σ+1 *)
-      Add r_t4 r_t3 1;       (* r4 := σ+2 *)
-      Subseg r_t6 r_t3 r_t4; (* r6 := (SU, σ+1, σ+2, σ+1) *)
-      Restrict r_t6 (encodeSealPerms (false,true));
+    (* GetA r_t3 r_t6 *)
+    iInstr "Hma_code".
+    (* Add r_t4 r_t3 1 *)
+    iInstr "Hma_code".
+    (* Subseg r_t6 r_t3 r_t4 *)
+    iInstr "Hma_code".
+    { transitivity (Some ( ((ot ^+ 2)%ot ))); solve_addr. }
+    { solve_addr. }
+    (* Restrict r_t6 (encodeSealPerms (false,true)) *)
+    (* TODO FROM HERE *)
+    (* iInstr "Hma_code". *)
 
       (* clear regs and jmp to adv *)
-      Mov r_t3 r_t6;
-      Mov r_t4 0;
-      Mov r_t5 0;
-      Mov r_t6 0;
-      Jmp r_t0
+    (*   Mov r_t3 r_t6; *)
+    (*   Mov r_t4 0; *)
+    (*   Mov r_t5 0; *)
+    (*   Mov r_t6 0; *)
+    (*   Jmp r_t0 *)
 
-    iInstr "Hma_code".
-    iInstr "Hma_code".
-
-
-    iInstr "Htc_code". (* Mov r_t1 PC *)
-      admit.
+    (* iInstr "Hma_code". *)
+    (* iInstr "Hma_code". *)
   Admitted.
 
 End mutual_attest_example.
