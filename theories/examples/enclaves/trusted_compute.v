@@ -99,9 +99,10 @@ Section trusted_compute_example.
   Proof.
     rewrite /custom_enclave_contract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hwf_cemap Hcode_ce Hot Hb' Hwfbe HIhash Hb He)
+      Hwf_cemap Hcode_ce Hot Hb' HIhash Hb He)
       "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
     clear HIhash Hwf_cemap.
+    assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
 
     rewrite /tcenclaves_map in Hcode_ce.
     simplify_map_eq.

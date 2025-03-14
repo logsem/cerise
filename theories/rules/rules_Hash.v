@@ -289,6 +289,31 @@ Section cap_lang_rules.
   Proof.
   Admitted.
 
+  Lemma wp_hash_success_same Ep
+    pc_p pc_b pc_e pc_a pc_a' pc_v
+    dst p b e a v ws lw
+    :
+
+    decodeInstrWL lw = Hash dst dst →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    readAllowed p = true →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+        ∗ ▷ dst ↦ᵣ LCap p b e a v
+        ∗ ▷ [[ b , e ]] ↦ₐ{ v } [[ ws ]]
+    }}}
+      Instr Executable @ Ep
+      {{{ RET NextIV;
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
+        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+          ∗ dst ↦ᵣ LWInt (hash ws)
+          ∗ [[ b , e ]] ↦ₐ{ v } [[ ws ]]
+      }}}.
+  Proof.
+  Admitted.
+
   Lemma wp_hash_success_overlapPC Ep
     pc_p pc_b pc_e pc_a pc_a' pc_v
     dst src

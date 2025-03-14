@@ -1127,11 +1127,10 @@ Section custom_enclaves.
     (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
     (* TODO I think we can derive following from [b',e'] -> .... *)
     (b' < e')%a -> (* Well-formness: data region contains at least one *)
-    (b < e)%a -> (* Well-formness: code region contains at all the code *)
 
     I = hash_concat (hash b) (hash (tail (code ce))) ->
     b = (code_region ce) ->
-    e = (b ^+ (length (code ce) + 1))%a ->
+    (b + (length (code ce) + 1))%a = Some e ->
 
     custom_enclave_inv cenclaves
     ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
@@ -1160,11 +1159,10 @@ Section custom_enclaves.
     (ot + 2)%ot = Some (ot ^+ 2)%ot -> (* Well-formness: otype does not overflow *)
     (* TODO I think we can derive following from [b',e'] -> .... *)
     (b' < e')%a -> (* Well-formness: data region contains at least one *)
-    (b < e)%a -> (* Well-formness: code region contains at all the code *)
 
     I = hash_concat (hash b) (hash (tail (code ce))) ->
     b = (code_region ce) ->
-    e = (b ^+ (length (code ce) + 1))%a ->
+    (b + (length (code ce) + 1))%a = Some e ->
 
     custom_enclave_inv cenclaves
 
@@ -1190,7 +1188,7 @@ Section custom_enclaves.
   Proof.
     intro Hcontract.
     iIntros (I b e a v b' e' a' v' enclave_data ot ce
-               Hwf_cemap Hdata_seal Hot Hb' Hwfbe HIhash Hb He)
+               Hwf_cemap Hdata_seal Hot Hb' HIhash Hb He)
       "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
