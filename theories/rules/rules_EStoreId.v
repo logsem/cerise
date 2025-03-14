@@ -25,6 +25,13 @@ Section cap_lang_rules.
     EStoreId_spec FailedV.
 
   (* TODO @Denis *)
+  (* The EStoreId instruction fetches the machine's stored hash for a given OType.
+     It is used by the client of an enclave to verify that a value signed by a given OType originates from code with a known hash `I`. *)
+  (* Logically, the crux of this contract is that the post-condition contains a duplicable resource `enclave_all`,
+     which states that an enclave has existed at some point in the past at some index `tid` in the enclave table, and that this index corresponds to some hash/EIdentity `I` *)
+  (* Essentially it gives us a partial view on the enclave table, since we now know that at a particular index, at some point, there was an enclave with a particular identity. *)
+  (* In a later step of the verification, we will trade this resource for the specific predicate that always holds for results signed by enclaves with that hash... *)
+  (* This enables "learning" some information about the signed, yet unknown result: we will be able to establish that at least the above predicate will hold for it... *)
   Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
