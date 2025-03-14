@@ -307,7 +307,7 @@ Section cap_lang_rules.
       Instr Executable @ Ep
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LWInt (hash ws)
           ∗ [[ b , e ]] ↦ₐ{ v } [[ ws ]]
       }}}.
@@ -343,6 +343,5 @@ Section cap_lang_rules.
       }}}.
   Proof.
   Admitted.
-
 
 End cap_lang_rules.
