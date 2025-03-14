@@ -451,13 +451,16 @@ Section opsem.
     | None => False
     end.
 
-  Definition measure (m : Mem) (b e: Addr) :=
+  Definition hash_memory_region (m : Mem) (b e : Addr) :=
     let instructions : list Word :=
       map snd
         ((map_to_list
-            (filter (fun '(a, _) => a ∈ (finz.seq_between (b^+1)%a e)) m)))
+            (filter (fun '(a, _) => a ∈ (finz.seq_between b e)) m)))
     in
-    hash_concat (hash b) (hash instructions).
+    hash instructions.
+
+  Definition measure (m : Mem) (b e: Addr) :=
+    hash_concat (hash b) (hash_memory_region m (b^+1)%a e).
 
   (* cannot stand the nested indentation *)
   Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
@@ -545,11 +548,24 @@ Section opsem.
     n1 ← z_of_argument (reg φ) ρ1;
     n2 ← z_of_argument (reg φ) ρ2;
     updatePC (update_reg φ dst (WInt (n1 `mod` n2)%Z))
+    | HashConcat dst ρ1 ρ2 =>
+    n1 ← z_of_argument (reg φ) ρ1;
+    n2 ← z_of_argument (reg φ) ρ2;
+    updatePC (update_reg φ dst (WInt (hash_concat n1 n2)))
     | Lt dst ρ1 ρ2 =>
     n1 ← z_of_argument (reg φ) ρ1;
     n2 ← z_of_argument (reg φ) ρ2;
     updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
-  | Subseg dst ρ1 ρ2 =>
+    | Hash dst src =>
+      wsrc ← (reg φ) !! src;
+      match wsrc with
+      | WCap p b e a =>
+        if readAllowed p then
+          updatePC (update_reg φ dst (WInt (hash_memory_region (mem φ) b e)))
+        else None
+      | _ => None
+      end
+    | Subseg dst ρ1 ρ2 =>
     wdst ← (reg φ) !! dst;
     match wdst with
     | WCap p b e a =>

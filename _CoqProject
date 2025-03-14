@@ -57,6 +57,7 @@ theories/rules/rules_EInit.v
 theories/rules/rules_EDeInit.v
 theories/rules/rules_EStoreId.v
 theories/rules/rules_IsUnique.v
+theories/rules/rules_Hash.v
 theories/rules.v
 
 # Program logic: Binary WP rules
@@ -87,6 +88,7 @@ theories/logrel.v
 theories/ftlr/ftlr_base.v
 theories/ftlr/interp_weakening.v
 theories/ftlr/Get.v
+theories/ftlr/Hash.v
 theories/ftlr/Load.v
 theories/ftlr/Store.v
 theories/ftlr/AddSubLt.v

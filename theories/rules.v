@@ -6,6 +6,7 @@ From cap_machine.rules Require Export
      rules_Jmp rules_Jnz rules_Subseg
      rules_Seal rules_UnSeal
      rules_IsUnique
+     rules_Hash
      rules_EInit rules_EDeInit rules_EStoreId.
 
 (* Program specifications

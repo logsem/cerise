@@ -48,6 +48,7 @@ Ltac dispatch_instr_rule instr cont :=
   | Add ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Sub ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Mod ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
+  | HashConcat ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Lt ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   (* Lea *)
   | Lea PC (inr _) => cont (@wp_lea_success_reg_PC)

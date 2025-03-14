@@ -1,5 +1,5 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg Get Lea Seal UnSeal IsUnique.
+  Subseg Get Lea Seal UnSeal IsUnique Hash.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -87,6 +87,12 @@ Section fundamental.
           try iAssumption; eauto.
       + (* Mod *)
         iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+      + (* HashConcat*)
+        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+      + (* Hash *)
+        iApply (hash_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Lea *)
         iApply (lea_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");

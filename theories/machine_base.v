@@ -47,6 +47,8 @@ Inductive instr: Type :=
 | Add (dst: RegName) (r1 r2: Z + RegName)
 | Sub (dst: RegName) (r1 r2: Z + RegName)
 | Mod (dst: RegName) (r1 r2: Z + RegName)
+| HashConcat (dst: RegName) (r1 r2: Z + RegName)
+| Hash (dst: RegName) (src: RegName)
 | Lea (dst: RegName) (r: Z + RegName)
 | Restrict (dst: RegName) (r: Z + RegName)
 | Subseg (dst: RegName) (r1 r2: Z + RegName)
@@ -807,6 +809,8 @@ Proof.
       | Fail => GenNode 23 []
       | Halt => GenNode 24 []
       | Mod dst r1 r2 => GenNode 25 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
+      | HashConcat dst r1 r2 => GenNode 26 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)]
+      | Hash dst src => GenNode 27 [GenLeaf (inl dst); GenLeaf (inl src)]
       end).
   set (dec := fun e =>
       match e with
@@ -836,6 +840,8 @@ Proof.
       | GenNode 23 [] => Fail
       | GenNode 24 [] => Halt
       | GenNode 25 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => Mod dst r1 r2
+      | GenNode 26 [GenLeaf (inl dst); GenLeaf (inr r1); GenLeaf (inr r2)] => HashConcat dst r1 r2
+      | GenNode 27 [GenLeaf (inl dst); GenLeaf (inl src)] => Hash dst src
       | _ => Fail (* dummy *)
       end).
   refine (inj_countable' enc dec _).
