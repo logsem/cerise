@@ -228,20 +228,50 @@ Section mutual_attest_example.
       Jmp r_t2;
       (* r1 := (RWX, x, x+2, x) *)
 
-      (* if x%2 = 0 then (store 42, lea 1, store 1) else (store 1, lea 1, store 42) *)
+      (* prepare the result capabilities *)
+      Mov r_t1 r_t4;        (* r4 := (RWX, x, x+2, x) *)
+      Lea r_t4 1;           (* r4 := (RWX, x, x+2, x+1) *)
+      GetA r_t2 r_t1;       (* r2 := x *)
+      Add r_t3 r_t2 1;      (* r3 := x+1 *)
+      Subseg r_t1 r_t2 r_t3; (* r1 := (RWX, x, x+1, x) *)
+      Add r_t5 r_t3 1;      (* r5 := x+2 *)
+      Subseg r_t4 r_t3 r_t5; (* r4 := (RWX, x+1, x+2, x+1) *)
+      Mod r_t2 r_t2 2;      (* r2 := x%2 *)
 
-      (* subseg x and x+1 *)
+      (* if x%2 = 0 then mb=[42;1] else  mb=[1;42] *)
+      Mov r_t5 PC;
+      Lea r_t5 7;
+      Jnz r_t5 r_t2;
+
+      (* case x%2 == 0 *)
+      Store r_t1 42;
+      Store r_t4 1;
+      Lea r_t5 2;
+      Jmp r_t5;
+      (* case x%2 == 1 *)
+      Store r_t1 1;
+      Store r_t4 42;
+
+      (* continue here  *)
+      Restrict r_t1 (encodePerm RO);
+      Restrict r_t4 (encodePerm RO);
+
       (* sign x and sign x+1 *)
-      (* clear regs and jmp to adve *)
+      Lea r_t6 1;            (* r6 := (SU, σ+1, σ+2, σ+1) *)
+      Seal r_t1 r_t6 r_t1;
+      Seal r_t2 r_t6 r_t4;
 
-      Halt
+      GetA r_t3 r_t6;        (* r3 := σ+1 *)
+      Add r_t4 r_t3 1;       (* r4 := σ+2 *)
+      Subseg r_t6 r_t3 r_t4; (* r6 := (SU, σ+1, σ+2, σ+1) *)
+      Restrict r_t6 (encodeSealPerms (false,true));
 
-      (* fetch sign key *)
-      (* signs {43}_signed_B *)
-      (* return to ENCLAVE A with
-        r_t1 := {43}_signed_B;
-        r_t2 := pub_sign_key_B;
-      *)
+      (* clear regs and jmp to adv *)
+      Mov r_t3 r_t6;
+      Mov r_t4 0;
+      Mov r_t5 0;
+      Mov r_t6 0;
+      Jmp r_t0
     ].
 
   Definition hash_mutual_attest_A_pre : Z :=
