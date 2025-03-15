@@ -1,447 +1,28 @@
-From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
-From cap_machine Require Import rules seal_store.
-From cap_machine Require Import logrel fundamental.
-From cap_machine Require Import logrel.
+From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
-(* From cap_machine Require Import macros_new. *)
-(* Open Scope Z_scope. *)
+From cap_machine Require Import mutual_attestation_code.
 
-Ltac iHide0 irisH coqH :=
-  let coqH := fresh coqH in
-  match goal with
-  | h: _ |- context [ environments.Esnoc _ (INamed irisH) ?prop ] =>
-      set (coqH := prop)
-  end.
-
-Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
-  iHide0 irisH coqH.
-
-Lemma finz_dist_add
-  {finz_bound : Z} (f1 : finz finz_bound) (n : nat) :
-  is_Some (f1 + n)%f → finz.dist f1 (f1 ^+ n)%f = n.
-Proof.
-  generalize dependent f1.
-  induction n; intros f1 [f1' Hf1'].
-  - apply finz_dist_0; solve_finz.
-  - rewrite finz_dist_S; last solve_finz.
-    f_equal.
-    replace (f1 ^+ S n)%f with ((f1 ^+ 1) ^+n)%f by solve_finz.
-    rewrite IHn; solve_finz.
-Qed.
-
-Section mutual_attest_example.
+Section mutual_attest_B.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
-  Context (malloc_entry_point : LWord).
-  Context (ma_addr_A ma_addr_B : Addr).
-
-  (* -------------------------------------- *)
-  (* ------ MUTUAL ATTEST *ENCLAVES* ------ *)
-  (* -------------------------------------- *)
-
-  (* Expects:
-     - r_t0 contains return pointer to adv
-     - r_t1 contains entry point to ENCLAVE B, not attested yet
-   *)
-  (* Dynamic check:
-     data[0] = #A
-     data[1] = #A
-     data[2] = malloc_entry_point
-   *)
-  Definition mutual_attest_enclave_A_code_pre : list LWord :=
-    encodeInstrsLW [
-
-      (* fetch ?malloc *)
-      (* hash ?malloc *)
-      (* if #?malloc =! #malloc_entry_point --> fail *)
-
-      (* malloc a buffer b of size 3:
-         will be used to communicate
-      *)
-
-      (* let idA := hash PC[1::-] *)
-      (* let idT := data[0-1] *)
-
-      (* if idA != idT, then fail *)
-
-      (* hash idT *)
-
-      (* let mbA := base(b) % 3 *)
-      (* if mbA == 0,
-         then we can use
-         + mbA[0] for #idT
-         + mbA[1] for 42    // attestation of A for B
-         + mbA[2] for 1     // attestation of A for main
-       *)
-      (* if mbA == 1,
-         then we can use
-         + mbA[0] for 1     // attestation of A for main
-         + mbA[1] for #idT
-         + mbA[2] for 42    // attestation of A for B
-       *)
-      (* if mbA == 2,
-         then we can use
-         + mbA[0] for 42    // attestation of A for B
-         + mbA[1] for 1     // attestation of A for main
-         + mbA[2] for #idT
-       *)
-
-      (* fetch sign key *)
-      (* signs { mbA[#idT] }_signed_A *)
-      (* signs { mbA[w42] }_signed_A *)
-
-      (* call ENCLAVE B with
-        r_t30 := return pointer;
-        r_t1  := { mbA[#idT] }_signed_A;
-        r_t2  := { mbA[w42] }_signed_A;
-        r_t3  := pub_sign_key_A;
-      *)
-
-      (* ---- we only arrive here if B has successfully attested A ---- *)
-      (* receives:
-        r_t1  := { mbB[#idT] }_signed_B;
-        r_t2  := { mbB[w43] }_signed_B;
-        r_t3  := pub_sign_key_B;
-      *)
-
-      (* ATTEST B *)
-      (* TODO @June: how do I attest
-         the value returned by B
-      *)
-      (* if mbA[#idT] != mbB[#idT], then fail *)
-
-      (* CHECK ATTESTS B *)
-      (* get idT(B) in r_t2 *)
-      (* get hash(idT) in r_t3 *)
-      (* get hash_concat(idT(B),idT) in r_t3 *)
-
-      (* compare identity(r_t1) == r_t3 *)
-
-      (* assert unsealed( {43}_signed_B ) = 43 *)
-
-      Jmp r_t0
-      (* REST OF CODE OF A *)
-    ].
-
-  (* Expects:
-     - r_t0 contains return pointer to caller
-     - r_t1 contains entry point to ENCLAVE B, not attested yet
-   *)
-  Definition mutual_attest_enclave_B_code_pre : list LWord :=
-    let size_idT : Z := 2 in
-    let offset_idA : Z := 0 in
-    let offset_idB : Z := 1 in
-    encodeInstrsLW [
-      (* CODE INITIALISATION ENCLAVE B *)
-
-      (* receives:
-         r_t1 := {42}_signed_A;
-         r_t2 := pub_sign_key_A;
-      *)
-
-      (* CHECK ATTESTS A *)
-      (* get idT(A) in r_t3 *)
-
-      Mov r_t4 PC;                (* r4 := (RX, pc_b, pc_e, pc_a) *)
-      GetA r_t5 r_t4;             (* r5 := pc_a *)
-      GetE r_t6 r_t4;             (* r6 := pc_e *)
-      Sub r_t5 r_t6 r_t5;         (* r5 := pc_e - pc_a *)
-      Lea r_t4 r_t5;              (* r4 := (RX, pc_b, pc_e, pc_e) *)
-      Lea r_t4 (-size_idT)%Z;     (* r4 := (RX, pc_b, pc_e, a_idT) *)
-
-      Mov r_t3 r_t4;              (* r3 := (RX, pc_b, pc_e, a_idT) *)
-      Lea r_t3 offset_idA;        (* r3 := (RX, pc_b, pc_e, a_idT(A)) *)
-      Load r_t3 r_t3;             (* r3 := idT(A) *)
-
-      (* get hash(idT) in r_t4 *)
-      GetA r_t5 r_t4;             (* r5 := a_idT *)
-      Subseg r_t4 r_t5 r_t6;      (* r4 := (RX, a_idT pc_e, a_idT) *)
-      Hash r_t4 r_t4;             (* r4 := #[a_idT;pc_E] *)
-
-      (* get hash_concat(idT(A),idT) in r_t3 *)
-      HashConcat r_t3 r_t3 r_t4;  (* r3 := idT(A) || #[a_idT;pc_E] *)
-
-      (* compare identity(r_t1) == r_t3 *)
-      GetOType r_t4 r_t1;         (* r4 := ?signed_A *)
-      Add r_t4 r_t4 1;            (* r5 := if is_sealed(r_t1) = false then 0 else not0 *)
-
-      (* if  is_sealed(r_t1) then continue else fail *)
-      Mov r_t5 PC;
-      Lea r_t5 4;
-      Jnz r_t5 r_t4;
-      Fail;
-
-      GetOType r_t5 r_t1;         (* r5 := ?signed_A *)
-      EStoreId r_t4 r_t5;         (* r4 := I_signed_A *)
-      Sub r_t3 r_t3 r_t4;         (* r3 := (idT(A) || #[a_idT;pc_E]) - ?signed_A*)
-
-      (* if ?signed_A != (idT(A) || #[a_idT;pc_E])
-         then Fail
-         else continue *)
-      Mov r_t5 PC;
-      Lea r_t5 5;
-      Jnz r_t5 r_t3;
-      Lea r_t5 1;
-      Jmp r_t5;
-      Fail;
-
-      UnSeal r_t1 r_t2 r_t1;      (* r1 := unsealed( {(RO,a, _, 42)}_signed_A ) *)
-      (* if (unsealed( {42}_signed_A ) != 42)
-         then Fail
-         else continue
-       *)
-      (* TODO remove the NOP thanks to later credit? *)
-      Mov r_t0 r_t0; (* NOP instruction for getting rid off the later *)
-
-      GetB r_t2 r_t1;             (* r2 := a *)
-      Mod r_t2 r_t2 2;            (* r2 := a%2 *)
-      (* if a%2 != 0 then Fail else continue *)
-      Mov r_t5 PC;
-      Lea r_t5 5;
-      Jnz r_t5 r_t2;
-      Lea r_t5 1;
-      Jmp r_t5;
-      Fail;
-
-      GetA r_t1 r_t1; (* r1 := ?42 *)
-      (* if ?42 != 42 then Fail else continue *)
-      Sub r_t1 r_t1 42;
-      Lea r_t5 6;
-      Jnz r_t5 r_t2;
-      Lea r_t5 1;
-      Jmp r_t5;
-      Fail;
-
-      (* fetch data_cap *)
-      GetA r_t1 r_t5;
-      GetB r_t2 r_t5;
-      Sub r_t1 r_t2 r_t1;
-      Lea r_t5 r_t1;
-      Load r_t1 r_t5;       (* r1 := (RW, data_b, data_e, data_a) *)
-
-      (* fetch sign_key *)
-      GetA r_t2 r_t1;
-      GetB r_t3 r_t1;      (* r3 := data_b *)
-      Sub r_t2 r_t3 r_t2;
-      Lea r_t1 r_t2;       (* r1 := (RW, data_b, data_e, data_b) *)
-      Load r_t6 r_t1;      (* r6 := [SU, σ, σ+2, σ] *)
-
-
-      Mov r_t4 r_t1;      (* r4 := (RW, data_b, data_e, data_b) *)
-      GetB r_t2 r_t1;     (* r2 := data_b *)
-      Add r_t3 r_t2 1;    (* r3 := data_b + 1 *)
-      Subseg r_t1 r_t2 r_t3; (* r1 := (RW, data_b, data_b+1, data_b) *)
-      Add r_t5 r_t3 1;    (* r5 := data_b + 2 *)
-      Subseg r_t4 r_t3 r_t5 (* r4 := (RW, data_b+1, data_b+2, data_b) *)
-      ] ++ encodeInstrsLW [
-        (* if x%2 = 0 then mb=[42;1] else  mb=[1;42] *)
-        Mod r_t3 r_t2 2;
-        Mov r_t5 PC;
-        Lea r_t5 9;
-        Jnz r_t5 r_t3;
-
-        (* case x%2 == 0 *)
-        Sub r_t3 43 r_t2;
-        Lea r_t1 r_t3; (*  r1 :=  (RW, data_b, data_b+1, 42) *)
-        Sub r_t3 1 r_t2;
-        Lea r_t4 r_t3; (*  r4 :=  (RW, data_b+1, data_b+2, 1) *)
-        Lea r_t5 4;
-        Jmp r_t5;
-
-        (* case x%2 == 1 *)
-        Sub r_t3 1 r_t2;
-        Lea r_t1 r_t3; (*  r1 :=  (RW, data_b, data_b+1, 1) *)
-        Sub r_t3 43 r_t2;
-        Lea r_t4 r_t3 (*  r4 :=  (RW, data_b+1, data_b+2, 42) *)
-      ] ++ encodeInstrsLW [
-      (* continue here  *)
-      Restrict r_t1 (encodePerm O);
-      Restrict r_t4 (encodePerm O);
-
-      (* sign x and sign x+1 *)
-      Lea r_t6 1;            (* r6 := (SU, σ+1, σ+2, σ+1) *)
-      Seal r_t1 r_t6 r_t1;
-      Seal r_t2 r_t6 r_t4;
-
-      GetA r_t3 r_t6;        (* r3 := σ+1 *)
-      Add r_t4 r_t3 1;       (* r4 := σ+2 *)
-      Subseg r_t6 r_t3 r_t4; (* r6 := (SU, σ+1, σ+2, σ+1) *)
-      Restrict r_t6 (encodeSealPerms (false,true));
-
-      (* clear regs and jmp to adv *)
-      Mov r_t3 r_t6;
-      Mov r_t4 0;
-      Mov r_t5 0;
-      Mov r_t6 0;
-      Jmp r_t0
-    ].
-
-  Definition hash_mutual_attest_A_pre : Z :=
-    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code_pre).
-  Definition hash_mutual_attest_B_pre : Z :=
-    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code_pre).
-
-  Definition mutual_attest_eid_table : list LWord :=
-    [ LWInt hash_mutual_attest_A_pre; LWInt hash_mutual_attest_B_pre ].
-
-
-  Definition mutual_attest_enclave_A_code : list LWord :=
-   (mutual_attest_enclave_A_code_pre ++ mutual_attest_eid_table).
-  Definition mutual_attest_enclave_B_code : list LWord :=
-   (mutual_attest_enclave_B_code_pre ++ mutual_attest_eid_table).
-
-  Definition hash_mutual_attest_A : Z :=
-    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code).
-  Definition hash_mutual_attest_B : Z :=
-    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code).
-
-  Definition mutual_attest_enclave_A (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table.
-
-  Definition mutual_attest_enclave_B (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::mutual_attest_enclave_B_code  ++ mutual_attest_eid_table.
-
-  Definition mutual_attestN : namespace := nroot .@ "mutual_attest".
-
-  (* Sealed predicate for enclave A *)
-  Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
-  Program Definition f1 : Addr := (finz.FinZ 1 eq_refl eq_refl).
-  Definition prot_sealed_A (a : Addr) : Addr :=
-    if (decide (a `mod` 2%nat = 0 )%Z) then f42 else f1.
-
-  Definition sealed_enclaveA : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v,
-             ⌜ w = LCap O b e (prot_sealed_A b) v ⌝)%I.
-  Definition sealed_enclaveA_ne : (leibnizO LWord) -n> (iPropO Σ) :=
-      λne (w : leibnizO LWord), sealed_enclaveA w%I.
-
-  Instance sealed_enclaveA_persistent (w : LWord) : Persistent (sealed_enclaveA w).
-  Proof. apply _. Qed.
-
-  Definition seal_pred_enclaveA (τ : OType) := seal_pred τ sealed_enclaveA.
-  Definition valid_sealed_enclaveA_cap (w : LWord) (τ : OType) := valid_sealed w τ sealed_enclaveA.
-  Lemma sealed_enclaveA_interp (lw : LWord) : sealed_enclaveA lw -∗ fixpoint interp1 lw.
-  Proof.
-    iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "->".
-    by rewrite fixpoint_interp1_eq /=.
-  Qed.
-
-
-  (* Sealed predicate for enclave B *)
-  Program Definition f43 : Addr := (finz.FinZ 43 eq_refl eq_refl).
-  Definition prot_sealed_B (a : Addr) : Addr :=
-    if (decide (a `mod` 2%nat = 0 )%Z) then f43 else f1.
-
-  Definition sealed_enclaveB : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v,
-             ⌜ w = LCap O b e (prot_sealed_B b) v ⌝)%I.
-  Definition sealed_enclaveB_ne : (leibnizO LWord) -n> (iPropO Σ) :=
-      λne (w : leibnizO LWord), sealed_enclaveB w%I.
-
-  Instance sealed_enclaveB_persistent (w : LWord) : Persistent (sealed_enclaveB w).
-  Proof. apply _. Qed.
-
-  Definition seal_pred_enclaveB (τ : OType) := seal_pred τ sealed_enclaveB.
-  Definition valid_sealed_enclaveB_cap (w : LWord) (τ : OType) := valid_sealed w τ sealed_enclaveB.
-  Lemma sealed_enclaveB_interp (lw : LWord) : sealed_enclaveB lw -∗ fixpoint interp1 lw.
-  Proof.
-    iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "->".
-    by rewrite fixpoint_interp1_eq /=.
-  Qed.
-
-
-  (* Trusted Compute Custom Predicates *)
-  Definition mutual_attest_enclave_A_pred : CustomEnclave :=
-    @MkCustomEnclave Σ
-      mutual_attest_enclave_A_code
-      ma_addr_A
-      (λ w, False%I)
-      sealed_enclaveA.
-  Definition mutual_attest_enclave_B_pred : CustomEnclave :=
-    @MkCustomEnclave Σ
-      mutual_attest_enclave_B_code
-      ma_addr_B
-      (λ w, False%I)
-      sealed_enclaveB.
-
-  Definition ma_enclaves_map : custom_enclaves_map :=
-   {[ hash_mutual_attest_A := mutual_attest_enclave_A_pred;
-      hash_mutual_attest_B := mutual_attest_enclave_B_pred
-   ]}.
-
-  Lemma wf_ma_enclaves_map :
-    custom_enclaves_map_wf ma_enclaves_map.
-  Proof.
-    rewrite /custom_enclaves_map_wf /ma_enclaves_map.
-    apply (map_Forall_insert_2 (λ (I : Z) (ce : CustomEnclave), _)).
-    - by rewrite /hash_mutual_attest_A /=.
-    - by rewrite map_Forall_singleton /hash_mutual_attest_B /=.
-  Qed.
-
-  Axiom hash_concat_app : forall {A : Type} (la la' : list A),
-    hash (la++la') = hash_concat (hash la) (hash la').
-  Axiom hash_concat_assoc : Assoc eq hash_concat.
-  Global Instance hash_concat_Assoc : Assoc eq hash_concat := hash_concat_assoc.
-
-
-  (* -------------------------------------------------- *)
-  (* ------------------ ENCLAVE A---------------------- *)
-  (* -------------------------------------------------- *)
-
-  Lemma mutual_attest_A_contract
-    v b' e' a' v'
-    enclave_data ot :
-    let e := (length mutual_attest_enclave_A_code + 1)%Z in
-    (ot + 2)%f = Some (ot ^+ 2)%f ->
-    (b' < e')%a ->
-    (ma_addr_A + e)%a =
-    Some (ma_addr_A ^+ e)%a ->
-    custom_enclave_inv ma_enclaves_map
-    ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_A)
-        ([[ma_addr_A,(ma_addr_A ^+ e)%a]]↦ₐ{v}
-           [[LCap RW b' e' a' v' :: mutual_attest_enclave_A_code]]
-         ∗ [[b',e']]↦ₐ{v'}[[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])
-    ∗ seal_pred (ot ^+ 1)%f sealed_enclaveA
-      -∗ interp (LCap E ma_addr_A
-                   (ma_addr_A ^+ e)%a
-                   (ma_addr_A ^+ 1)%a v).
-  Proof.
-    intro e ; subst e.
-    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
-    rewrite fixpoint_interp1_eq /=.
-    iIntros (lregs); iNext ; iModIntro.
-    iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
-    rewrite /interp_conf.
-    iMod (na_inv_acc with "Hma_inv Hna") as "(>[Hma_code Hma_data]  & Hna & Hclose)"; [solve_ndisj ..|].
-    rewrite /registers_mapsto.
-    iExtract "Hrmap" PC as "HPC".
-    remember ma_addr_A as pc_b in |- * at 7.
-    (* remember (ma_addr_A ^+ (91%nat + 1))%a as pc_e in |- * at 4. *)
-    (* assert (SubBounds pc_b pc_e ma_addr_A (ma_addr_A ^+ (91%nat + 1))%a) by (subst; solve_addr). *)
-  Admitted.
-
-
-  (* -------------------------------------------------- *)
-  (* ------------------ ENCLAVE B---------------------- *)
-  (* -------------------------------------------------- *)
-
+  Context {MA: MutualAttestation}.
+
+  Ltac iHide0 irisH coqH :=
+    let coqH := fresh coqH in
+    match goal with
+    | h: _ |- context [ environments.Esnoc _ (INamed irisH) ?prop ] =>
+        set (coqH := prop)
+    end.
+  Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
+    iHide0 irisH coqH.
 
   Lemma enclave_B_mod_encoding_spec
     pc_b pc_e pc_a pc_v
     b' v' φ
     :
 
-    let code :=
-     (encodeInstrsLW
-                    [Mod r_t3 r_t2 2; Mov r_t5 PC; Lea r_t5 9; Jnz r_t5 r_t3;
-                     Sub r_t3 43 r_t2; Lea r_t1 r_t3; Sub r_t3 1 r_t2;
-                     Lea r_t4 r_t3; Lea r_t5 4; Jmp r_t5; Sub r_t3 1 r_t2;
-                     Lea r_t1 r_t3; Sub r_t3 43 r_t2; Lea r_t4 r_t3])
-    in
+    let code := mutual_attest_enclave_B_mod_encoding in
 
     ContiguousRegion pc_a (length code) ->
     SubBounds pc_b pc_e pc_a (pc_a ^+ length code)%a ->
@@ -565,7 +146,6 @@ Section mutual_attest_example.
   Qed.
 
 
-
   Lemma mutual_attest_B_contract
     v b' e' a' v'
     enclave_data ot :
@@ -594,8 +174,8 @@ Section mutual_attest_example.
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
     remember ma_addr_B as pc_b in |- * at 7.
-    remember (ma_addr_B ^+ (91%nat + 1))%a as pc_e in |- * at 4.
-    assert (SubBounds pc_b pc_e ma_addr_B (ma_addr_B ^+ (91%nat + 1))%a) by (subst; solve_addr).
+    remember (ma_addr_B ^+ (90%nat + 1))%a as pc_e in |- * at 4.
+    assert (SubBounds pc_b pc_e ma_addr_B (ma_addr_B ^+ (90%nat + 1))%a) by (subst; solve_addr).
 
     (* Prepare the necessary resources *)
     (* Registers *)
@@ -685,23 +265,23 @@ Section mutual_attest_example.
     { solve_addr. }
     rewrite /mutual_attest_enclave_B_code.
 
-    iDestruct (region_mapsto_split _ _ (ma_addr_B ^+ (89%nat + 1))%a with "Hma_code") as "[Hma_code HidT]"; last iFrame.
+    iDestruct (region_mapsto_split _ _ (ma_addr_B ^+ (88%nat + 1))%a with "Hma_code") as "[Hma_code HidT]"; last iFrame.
     { solve_addr. }
     { cbn.
-      replace (ma_addr_B ^+ (89%nat + 1))%a
-        with ((ma_addr_B ^+ 1)%a ^+ 89%nat)%a by solve_addr.
+      replace (ma_addr_B ^+ (88%nat + 1))%a
+        with ((ma_addr_B ^+ 1)%a ^+ 88%nat)%a by solve_addr.
       rewrite finz_dist_add; solve_addr.
     }
     rewrite /mutual_attest_eid_table.
     iDestruct (region_mapsto_cons with "HidT") as "[HidTA HidTB]".
-    { transitivity (Some (ma_addr_B ^+ (89%nat + 2))%a); auto ; try solve_addr. }
+    { transitivity (Some (ma_addr_B ^+ (88%nat + 2))%a); auto ; try solve_addr. }
     { solve_addr. }
 
     iAssert (codefrag (ma_addr_B ^+ 1)%a v mutual_attest_enclave_B_code_pre)
       with "[Hma_code]" as "Hma_code".
     {
       rewrite /codefrag /=.
-      by replace ((ma_addr_B ^+ 1) ^+ 89%nat)%a with (ma_addr_B ^+ 90%nat)%a by solve_addr.
+      by replace ((ma_addr_B ^+ 1) ^+ 88%nat)%a with (ma_addr_B ^+ 89%nat)%a by solve_addr.
     }
     codefrag_facts "Hma_code".
 
@@ -741,7 +321,7 @@ Section mutual_attest_example.
     iInstr "Hma_code".
     { transitivity (Some (pc_e ^+ -2)%a); solve_addr. }
     (* Load r_t3 r_t3 *)
-    replace (pc_e ^+ -2)%a  with (ma_addr_B ^+ (89%nat + 1))%a by (subst;solve_addr).
+    replace (pc_e ^+ -2)%a  with (ma_addr_B ^+ (88%nat + 1))%a by (subst;solve_addr).
     iInstr "Hma_code".
     { subst; solve_addr. }
     (* GetA r_t5 r_t4 *)
@@ -908,9 +488,6 @@ Section mutual_attest_example.
     destruct sb ; simplify_eq.
     iClear "Heqv Hma_A_Penc Hcemap Henclaves_inv".
 
-    (* Mov r_t0 r_t0  *)
-    iInstr "Hma_code".
-
     (* GetB r_t2 r_t1 *)
     iInstr "Hma_code".
     (* Mod r_t2 r_t2 2 *)
@@ -971,7 +548,7 @@ Section mutual_attest_example.
     iInstr "Hma_code".
     (* Lea r_t5 r_t1 *)
     assert (
-        (((ma_addr_B ^+ 1) ^+ 45)%a + (ma_addr_B - ((ma_addr_B ^+ 1) ^+ 45)%a))%a
+        (((ma_addr_B ^+ 1) ^+ 44)%a + (ma_addr_B - ((ma_addr_B ^+ 1) ^+ 44)%a))%a
         = Some (ma_addr_B)) by solve_addr+He.
     iInstr "Hma_code".
     (* Load r_t1 r_t5 *)
@@ -1004,7 +581,7 @@ Section mutual_attest_example.
     (* Add r_t5 r_t3 1 *)
     iInstr "Hma_code".
     (* Subseg r_t4 r_t3 r_t5 *)
-    destruct ((b' + 2)%a) as [| b'2] eqn:Hb'2; cycle 1.
+    destruct ((b' + 2)%a) eqn:Hb'2; cycle 1.
     {
       wp_instr.
       iInstr_lookup "Hma_code" as "Hi" "Hma_code".
@@ -1065,16 +642,21 @@ Section mutual_attest_example.
     unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
     ; subst hcont_code hma_code.
 
+
+
+
+
     focus_block 1 "Hma_code" as a_Mod Ha_Mod "Hma_code" "Hcont_code"
     ; iHide "Hcont_code" as hcont_code.
-
     iApply ( enclave_B_mod_encoding_spec with "[- $HPC $Hma_code $Hr1 $Hr2 $Hr3 $Hr4 $Hr5]" ); eauto.
     iNext; iIntros "(HPC & Hma_code & Hr1 & Hr2 & Hr3 & Hr4 & Hr5)".
     iDestruct "Hr3" as (w3') "Hr3".
     iDestruct "Hr5" as (w5') "Hr5".
-
     unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
     ; subst hcont_code.
+
+
+
 
     focus_block 2 "Hma_code" as a_block2 Ha_blobk2 "Hma_code" "Hcont_code"
     ; iHide "Hcont_code" as hcont_code.
@@ -1085,7 +667,6 @@ Section mutual_attest_example.
     iInstr "Hma_code".
     { rewrite decode_encode_perm_inv; solve_pure. }
     rewrite !decode_encode_perm_inv.
-
     (* Lea r_t6 1 *)
     iInstr "Hma_code".
     { transitivity (Some (ot ^+ 1)%ot); solve_addr. }
@@ -1097,7 +678,6 @@ Section mutual_attest_example.
     iInstr "Hma_code".
     { done. }
     { solve_addr. }
-
     (* GetA r_t3 r_t6 *)
     iInstr "Hma_code".
     (* Add r_t4 r_t3 1 *)
@@ -1123,12 +703,12 @@ Section mutual_attest_example.
     iInstr "Hma_code".
     (*   Mov r_t6 0; *)
     iInstr "Hma_code".
-
     (*   Jmp r_t0 *)
     iInstr "Hma_code".
-
     unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
     ; subst hcont_code.
+
+    (* ----- Prepare the use of FTLR ----- *)
 
     iAssert (
         interp (LSealedCap (ot ^+ 1)%f O b' (b' ^+ 1)%a (prot_sealed_B b') v')
@@ -1171,8 +751,8 @@ Section mutual_attest_example.
     rewrite -/mutual_attest_eid_table.
     iDestruct (region_mapsto_split
                  ma_addr_B
-                 (ma_addr_B ^+ (91%nat + 1))%a
-                 ((ma_addr_B ^+ 1) ^+ 89%nat)%a
+                 (ma_addr_B ^+ (90%nat + 1))%a
+                 ((ma_addr_B ^+ 1) ^+ 88%nat)%a
                 with "[$Hma_code HidT]") as "Hma_code"; last iFrame.
     { solve_addr. }
     { cbn.
@@ -1180,8 +760,8 @@ Section mutual_attest_example.
       f_equal.
       rewrite finz_dist_add; solve_addr.
     }
-    { replace (ma_addr_B ^+ (89%nat + 1))%a with
-        ((ma_addr_B ^+ 1) ^+ 89%nat)%a by solve_addr.
+    { replace (ma_addr_B ^+ (88%nat + 1))%a with
+        ((ma_addr_B ^+ 1) ^+ 88%nat)%a by solve_addr.
       iFrame. }
     iDestruct (region_mapsto_cons with "[$Hma_keys $Hma_data]") as "Hma_data" ; last iFrame.
     { solve_addr. }
@@ -1238,39 +818,4 @@ Section mutual_attest_example.
     iApply ("Hjmp" with "[]") ; eauto ; iFrame.
   Admitted.
 
-  Lemma mutual_attest_contract :
-    custom_enclave_contract ma_enclaves_map.
-  Proof.
-    rewrite /custom_enclave_contract.
-    iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hwf_cemap Hcode_ce Hot Hb' HIhash Hb He)
-      "(#Henclaves_inv & #Hma_inv & #HPenc & #HPsign)".
-    clear HIhash.
-    clear Hwf_cemap.
-    assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
-
-    rewrite /ma_enclaves_map in Hcode_ce.
-    simplify_map_eq.
-
-    assert (I = hash_mutual_attest_A \/ I = hash_mutual_attest_B) as HI.
-    { rewrite lookup_insert_Some in Hcode_ce.
-      destruct Hcode_ce as [ [? _] | [_ Hcode_ce] ]; first auto.
-      rewrite lookup_insert_Some in Hcode_ce.
-      destruct Hcode_ce as [ [? _] | [_ Hcode_ce] ]; first auto.
-      done.
-    }
-    destruct HI ; simplify_map_eq.
-    - iApply ( mutual_attest_A_contract with "[]") ; last iFrame "#"; eauto.
-    - rewrite lookup_insert_ne // in Hcode_ce.
-      2:{ rewrite /hash_mutual_attest_A /hash_mutual_attest_B.
-          intro Hcontra.
-          apply hash_concat_inj' in Hcontra.
-          destruct Hcontra as [_ Hcontra].
-          rewrite /mutual_attest_enclave_A_code /mutual_attest_enclave_B_code in Hcontra.
-          by injection Hcontra.
-      }
-      simplify_map_eq.
-      iApply ( mutual_attest_B_contract with "[]") ; last iFrame "#"; eauto.
-  Admitted.
-
-End mutual_attest_example.
+End mutual_attest_B.

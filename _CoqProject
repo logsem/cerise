@@ -140,6 +140,12 @@ theories/examples/enclaves/trusted_compute.v
 # Trusted Memory Readout example
 theories/examples/enclaves/trusted_memory_readout.v
 
+# Mutual attestation example
+theories/examples/enclaves/mutual_attestation_code.v
+theories/examples/enclaves/mutual_attestation_A_spec.v
+theories/examples/enclaves/mutual_attestation_B_spec.v
+theories/examples/enclaves/mutual_attestation_spec.v
+
 # Template Adequacy
 # theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
