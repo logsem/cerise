@@ -492,14 +492,14 @@ Section mutual_attest_example.
       (* Lea r_t1 r_t3 *)
       iInstr "Hcode".
       { transitivity ( Some f43 ); try solve_addr.
-        admit.
+        by rewrite finz_incr_minus_id.
       }
       (* Sub r_t3 1 r_t2 *)
       iInstr "Hcode".
       (* Lea r_t4 r_t3 *)
       iInstr "Hcode".
       { transitivity ( Some f1 ); try solve_addr.
-        admit.
+        by rewrite finz_incr_minus_id.
       }
       (* Lea r_t5 4 *)
       iInstr "Hcode".
@@ -531,19 +531,22 @@ Section mutual_attest_example.
       (* Lea r_t1 r_t3 *)
       iInstr "Hcode".
       { transitivity ( Some f1 ); try solve_addr.
-        admit.
+        by rewrite finz_incr_minus_id.
       }
       (* Sub r_t3 1 r_t2 *)
       iInstr "Hcode".
       (* Lea r_t4 r_t3 *)
       iInstr "Hcode".
       { transitivity ( Some f43 ); try solve_addr.
-        admit.
+        by rewrite finz_incr_minus_id.
       }
       iApply "Hφ"; iFrame.
       rewrite /prot_sealed_B.
       assert ((b' `mod` 2%nat)%Z = 1) as Hmod'.
-      { admit. }
+      { rewrite Zmod_even in Hmod.
+        rewrite Zmod_even.
+        destruct (Z.even b') eqn:Hb'; try done.
+      }
       cbn.
       rewrite Hmod'.
       destruct (decide (((Z.of_nat 1%nat = 0%Z))%Z)); first lia.
@@ -559,7 +562,7 @@ Section mutual_attest_example.
         assert ( (Z.succ b')%a = (z_of (b' ^+ 1)%a)) by solve_addr.
         solve_addr.
       }
-  Admitted.
+  Qed.
 
 
 

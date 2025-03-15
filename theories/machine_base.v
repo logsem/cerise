@@ -493,6 +493,19 @@ Proof.
       solve_finz.
 Qed.
 
+Lemma finz_dist_add
+  {finz_bound : Z} (f1 : finz finz_bound) (n : nat) :
+  is_Some (f1 + n)%f → finz.dist f1 (f1 ^+ n)%f = n.
+Proof.
+  generalize dependent f1.
+  induction n; intros f1 [f1' Hf1'].
+  - apply finz_dist_0; solve_finz.
+  - rewrite finz_dist_S; last solve_finz.
+    f_equal.
+    replace (f1 ^+ S n)%f with ((f1 ^+ 1) ^+n)%f by solve_finz.
+    rewrite IHn; solve_finz.
+Qed.
+
 (* Some lemma's to link the implementations of finz.seq_between and withinBounds *)
 
 Lemma finz_0_dist (finz_bound : Z) (f1 f2 : finz finz_bound):
