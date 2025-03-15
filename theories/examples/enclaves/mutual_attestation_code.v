@@ -245,17 +245,18 @@ Section mutual_attest_example.
         Restrict r_t6 (encodeSealPerms (false,true));
 
         (* clear regs and jmp to adv *)
-        Mov r_t3 r_t6;
+        Mov r_t2 r_t6;
+        Mov r_t3 0;
         Mov r_t4 0;
         Mov r_t5 0;
         Mov r_t6 0;
         Jmp r_t0
     ].
 
+
   (* --------------------------------------- *)
   (* ------- MUTUAL ATTEST ENCLAVE B ------- *)
   (* --------------------------------------- *)
-
 
   Definition mutual_attest_enclave_B_mod_encoding : list LWord :=
     encodeInstrsLW [
@@ -438,6 +439,13 @@ Section mutual_attest_example.
     enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table.
   Definition mutual_attest_enclave_B (enclave_data_cap : LWord) : list LWord :=
     enclave_data_cap::mutual_attest_enclave_B_code  ++ mutual_attest_eid_table.
+
+
+
+  (* -------------------------------------- *)
+  (* --------- MUTUAL ATTEST MAIN --------- *)
+  (* -------------------------------------- *)
+  (* TODO *)
 
 
 
