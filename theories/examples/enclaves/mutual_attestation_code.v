@@ -24,12 +24,74 @@ Section mutual_attest_example.
   (* ------- MUTUAL ATTEST ENCLAVE A ------- *)
   (* --------------------------------------- *)
 
+  Definition mutual_attest_enclave_A_mod_encoding_42 : list LWord :=
+    encodeInstrsLW [
+
+        (* r1 := (RW, data_b, data_e, data_b) *)
+        (* prepare {42} *)
+        GetB r_t2 r_t1;         (* r2 := data_b *)
+        Add r_t3 r_t2 1;        (* r3 := data_b + 1 *)
+        Mod r_t4 r_t2 2;        (* r4 := data_b % 2 *)
+
+        (* if x%2 = 0 then data_b=[42] else  data_b+1=[42] *)
+        Mov r_t5 PC;
+        Lea r_t5 6;
+        Jnz r_t5 r_t4;
+
+        (* case x%2 == 0 *)
+        Subseg r_t1 r_t2 r_t3;  (* r1 := (RW, data_b, data_b+1, data_b) *)
+        Lea r_t5 2;
+        Jmp r_t5;
+
+        (* case x%2 == 1 *)
+        Add r_t4 r_t3 1;        (* r4 := data_b + 2 *)
+        Subseg r_t1 r_t3 r_t4;  (* r1 := (RW, data_b+1, data_b+2, data_b) *)
+
+        (* continue here *)
+        Sub r_t3 42 r_t2;       (* r3 := 42 - data_b *)
+        Lea r_t1 r_t3;          (* r1 :=  (RW, data_b, data_b+1, 42) if data_b%2 = 0 *)
+                                (* r1 :=  (RW, data_b+1 , data_b+2, 42) if data_b%2 = 1 *)
+        Restrict r_t1 (encodePerm O)
+      ].
+
+  Definition mutual_attest_enclave_A_mod_encoding_1 : list LWord :=
+    encodeInstrsLW [
+
+        (* r1 := (RW, data_b, data_e, data_b) *)
+        (* prepare {42} *)
+        GetB r_t2 r_t1;         (* r2 := data_b *)
+        Add r_t3 r_t2 1;        (* r3 := data_b + 1 *)
+        Mod r_t4 r_t2 2;        (* r4 := data_b % 2 *)
+
+        (* if x%2 = 0 then data_b+1=[1] else data_b=[1] *)
+        Mov r_t5 PC;
+        Lea r_t5 7;
+        Jnz r_t5 r_t4;
+
+        (* case x%2 == 0 *)
+        Add r_t4 r_t3 1;        (* r4 := data_b + 2 *)
+        Subseg r_t1 r_t3 r_t4;  (* r1 := (RW, data_b+1, data_b+2, data_b) *)
+        Lea r_t5 1;
+        Jmp r_t5;
+
+        (* case x%2 == 1 *)
+        Subseg r_t1 r_t2 r_t3;  (* r1 := (RW, data_b, data_b+1, data_b) *)
+
+        (* continue here *)
+        Sub r_t3 1 r_t2;        (* r3 := 1 - data_b *)
+        Lea r_t1 r_t3;          (* r1 := (RW, data_b, data_b+1, 1) if data_b%2 = 1 *)
+                                (* r1 := (RW, data_b+1 , data_b+2, 1) if data_b%2 = 0 *)
+        Restrict r_t1 (encodePerm O)
+      ].
+
   (* Expects:
      - r_t0 contains return pointer to adv
    *)
   Definition mutual_attest_enclave_A_code_pre : list LWord :=
+    let size_idT : Z := 2 in
+    let offset_idA : Z := 0 in
+    let offset_idB : Z := 1 in
     encodeInstrsLW [
-
 
       (* SEND {(O,a,a+1,42)}_signed_A ; with a%2=0 *)
 
@@ -46,96 +108,149 @@ Section mutual_attest_example.
       GetB r_t3 r_t1;       (* r3 := data_b *)
       Sub r_t2 r_t3 r_t2;   (* r2 := data_b - data_a *)
       Lea r_t1 r_t2;        (* r1 := (RW, data_b, data_e, data_b) *)
-      Load r_t6 r_t1;       (* r6 := [SU, σ, σ+2, σ] *)
+      Load r_t6 r_t1       (* r6 := [SU, σ, σ+2, σ] *)
+      ]
+      ++ mutual_attest_enclave_A_mod_encoding_42
+      ++ encodeInstrsLW [
+        (* r1 :=  (RW, data_b, data_b+1, 42) *)
+        (* r6 := [SU, σ, σ+2, σ] *)
 
+        (* sign {42} *)
+        Lea r_t6 1;            (* r6 := (SU, σ+1, σ+2, σ+1) *)
+        Seal r_t1 r_t6 r_t1;
 
-      Mov r_t4 r_t1;      (* r4 := (RW, data_b, data_e, data_b) *)
-      GetB r_t2 r_t1;     (* r2 := data_b *)
-      Add r_t3 r_t2 1;    (* r3 := data_b + 1 *)
-      Subseg r_t1 r_t2 r_t3; (* r1 := (RW, data_b, data_b+1, data_b) *)
-      Add r_t5 r_t3 1;    (* r5 := data_b + 2 *)
-      Subseg r_t4 r_t3 r_t5; (* r4 := (RW, data_b+1, data_b+2, data_b) *)
+        GetA r_t3 r_t6;        (* r3 := σ+1 *)
+        Add r_t4 r_t3 1;       (* r4 := σ+2 *)
+        Subseg r_t6 r_t3 r_t4; (* r6 := (SU, σ+1, σ+2, σ+1) *)
+        Restrict r_t6 (encodeSealPerms (false,true));
 
-      (* fetch sign key *)
+        (* create return pointer *)
+        Mov r_t3 PC;
+        Lea r_t3 8;
+        Restrict r_t3 (encodePerm E);
 
+        (* clear regs and jmp to adv *)
+        Mov r_t2 r_t6;
+        Mov r_t4 0;
+        Mov r_t5 0;
+        Mov r_t6 0;
+        Jmp r_t0]
+      ++ encodeInstrsLW [
+        (* return from adversary *)
+        (* Expect:
+           r0 := ret_word
+           r1 := {(RO, b, e, 43}_signed_B, with (b%2 = 0)
+           r2 := pub_signed_B
+         *)
 
+        (* CHECK ATTESTS B *)
+        (* get idT(B) in r_t3 *)
 
+        Mov r_t4 PC;                (* r4 := (RX, pc_b, pc_e, pc_a) *)
+        GetA r_t5 r_t4;             (* r5 := pc_a *)
+        GetE r_t6 r_t4;             (* r6 := pc_e *)
+        Sub r_t5 r_t6 r_t5;         (* r5 := pc_e - pc_a *)
+        Lea r_t4 r_t5;              (* r4 := (RX, pc_b, pc_e, pc_e) *)
+        Lea r_t4 (-size_idT)%Z;     (* r4 := (RX, pc_b, pc_e, a_idT) *)
 
+        Mov r_t3 r_t4;              (* r3 := (RX, pc_b, pc_e, a_idT) *)
+        Lea r_t3 offset_idB;        (* r3 := (RX, pc_b, pc_e, a_idT(B)) *)
+        Load r_t3 r_t3;             (* r3 := idT(B) *)
 
+        (* get hash(idT) in r_t4 *)
+        GetA r_t5 r_t4;             (* r5 := a_idT *)
+        Subseg r_t4 r_t5 r_t6;      (* r4 := (RX, a_idT pc_e, a_idT) *)
+        Hash r_t4 r_t4;             (* r4 := #[a_idT;pc_E] *)
 
-      (* fetch ?malloc *)
-      (* hash ?malloc *)
-      (* if #?malloc =! #malloc_entry_point --> fail *)
+        (* get hash_concat(idT(B),idT) in r_t3 *)
+        HashConcat r_t3 r_t3 r_t4;  (* r3 := idT(B) || #[a_idT;pc_E] *)
 
-      (* malloc a buffer b of size 3:
-         will be used to communicate
-      *)
+        (* compare identity(r_t1) == r_t3 *)
+        GetOType r_t4 r_t1;         (* r4 := ?signed_B *)
+        Add r_t4 r_t4 1;            (* r5 := if is_sealed(r_t1) = false then 0 else not0 *)
 
-      (* let idA := hash PC[1::-] *)
-      (* let idT := data[0-1] *)
+        (* if  is_sealed(r_t1) then continue else fail *)
+        Mov r_t5 PC;
+        Lea r_t5 4;
+        Jnz r_t5 r_t4;
+        Fail;
 
-      (* if idA != idT, then fail *)
+        GetOType r_t5 r_t1;         (* r5 := ?signed_B *)
+        EStoreId r_t4 r_t5;         (* r4 := I_signed_B *)
+        Sub r_t3 r_t3 r_t4;         (* r3 := (idT(B) || #[a_idT;pc_E]) - ?signed_B *)
 
-      (* hash idT *)
+        (* if ?signed_B != (idT(B) || #[a_idT;pc_E])
+         then Fail
+         else continue *)
+        Mov r_t5 PC;
+        Lea r_t5 5;
+        Jnz r_t5 r_t3;
+        Lea r_t5 1;
+        Jmp r_t5;
+        Fail;
 
-      (* let mbA := base(b) % 3 *)
-      (* if mbA == 0,
-         then we can use
-         + mbA[0] for #idT
-         + mbA[1] for 42    // attestation of A for B
-         + mbA[2] for 1     // attestation of A for main
-       *)
-      (* if mbA == 1,
-         then we can use
-         + mbA[0] for 1     // attestation of A for main
-         + mbA[1] for #idT
-         + mbA[2] for 42    // attestation of A for B
-       *)
-      (* if mbA == 2,
-         then we can use
-         + mbA[0] for 42    // attestation of A for B
-         + mbA[1] for 1     // attestation of A for main
-         + mbA[2] for #idT
-       *)
+        UnSeal r_t1 r_t2 r_t1;      (* r1 := unsealed( {(RO,a, _, 43)}_signed_B ) *)
+        (* if (unsealed( {43}_signed_A ) != 43)
+         then Fail
+         else continue
+         *)
 
-      (* fetch sign key *)
-      (* signs { mbA[#idT] }_signed_A *)
-      (* signs { mbA[w42] }_signed_A *)
+        GetB r_t2 r_t1;             (* r2 := a *)
+        Mod r_t2 r_t2 2;            (* r2 := a%2 *)
+        (* if a%2 != 0 then Fail else continue *)
+        Mov r_t5 PC;
+        Lea r_t5 5;
+        Jnz r_t5 r_t2;
+        Lea r_t5 1;
+        Jmp r_t5;
+        Fail;
 
-      (* call ENCLAVE B with
-        r_t30 := return pointer;
-        r_t1  := { mbA[#idT] }_signed_A;
-        r_t2  := { mbA[w42] }_signed_A;
-        r_t3  := pub_sign_key_A;
-      *)
+        GetA r_t1 r_t1; (* r1 := ?43 *)
+        (* if ?43 != 43 then Fail else continue *)
+        Sub r_t1 r_t1 43;
+        Lea r_t5 6;
+        Jnz r_t5 r_t2;
+        Lea r_t5 1;
+        Jmp r_t5;
+        Fail;
 
-      (* ---- we only arrive here if B has successfully attested A ---- *)
-      (* receives:
-        r_t1  := { mbB[#idT] }_signed_B;
-        r_t2  := { mbB[w43] }_signed_B;
-        r_t3  := pub_sign_key_B;
-      *)
+        (* Confirmation attestation *)
+        (* fetch data_cap *)
+        GetA r_t1 r_t5;
+        GetB r_t2 r_t5;
+        Sub r_t1 r_t2 r_t1;
+        Lea r_t5 r_t1;
+        Load r_t1 r_t5;       (* r1 := (RW, data_b, data_e, data_a) *)
 
-      (* ATTEST B *)
-      (* TODO @June: how do I attest
-         the value returned by B
-      *)
-      (* if mbA[#idT] != mbB[#idT], then fail *)
+        (* fetch sign_key *)
+        GetA r_t2 r_t1;
+        GetB r_t3 r_t1;      (* r3 := data_b *)
+        Sub r_t2 r_t3 r_t2;
+        Lea r_t1 r_t2;       (* r1 := (RW, data_b, data_e, data_b) *)
+        Load r_t6 r_t1      (* r6 := [SU, σ, σ+2, σ] *)
+      ]
+      ++ mutual_attest_enclave_A_mod_encoding_1
+      ++ encodeInstrsLW [
+        (* continue here  *)
+        (* r1 := (RW, data_b, data_b+1, 1) *)
+        (* r6 := [SU, σ, σ+2, σ] *)
 
-      (* CHECK ATTESTS B *)
-      (* get idT(B) in r_t2 *)
-      (* get hash(idT) in r_t3 *)
-      (* get hash_concat(idT(B),idT) in r_t3 *)
+        (* sign x and sign x+1 *)
+        Lea r_t6 1;            (* r6 := (SU, σ+1, σ+2, σ+1) *)
+        Seal r_t1 r_t6 r_t1;
 
-      (* compare identity(r_t1) == r_t3 *)
+        GetA r_t3 r_t6;        (* r3 := σ+1 *)
+        Add r_t4 r_t3 1;       (* r4 := σ+2 *)
+        Subseg r_t6 r_t3 r_t4; (* r6 := (SU, σ+1, σ+2, σ+1) *)
+        Restrict r_t6 (encodeSealPerms (false,true));
 
-      (* assert unsealed( {43}_signed_B ) = 43 *)
-
-      Jmp r_t0
-      (* REST OF CODE OF A *)
+        (* clear regs and jmp to adv *)
+        Mov r_t3 r_t6;
+        Mov r_t4 0;
+        Mov r_t5 0;
+        Mov r_t6 0;
+        Jmp r_t0
     ].
-
-
 
   (* --------------------------------------- *)
   (* ------- MUTUAL ATTEST ENCLAVE B ------- *)
