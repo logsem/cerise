@@ -1,7 +1,7 @@
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
-From cap_machine Require Import mutual_attestation_code.
+From cap_machine Require Import assert.
 From cap_machine Require Import
   mutual_attestation_code
   (* mutual_attestation_A_spec *)
@@ -80,10 +80,10 @@ Section mutual_attest_main.
             ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_a' pc_v
             ∗ r ↦ᵣ w ∗ (∃ w5', r_t5 ↦ᵣ w5') ∗ (∃ w6', r_t6 ↦ᵣ w6')
             ∗ codefrag pc_a pc_v code)
-            -∗ WP Seq (Instr Executable) {{ v, ⌜ v = FailedV ⌝ ∨ φ v }}
+            -∗ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}
       )
     )
-   ⊢ WP Seq (Instr Executable) {{ v, ⌜ v = FailedV ⌝ ∨ φ v }}.
+   ⊢ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}.
   Proof.
     intros code otype_w pc_a' Hpc_a' Hbounds; subst code.
     iIntros "(HPC & Hr & Hr5 & Hr6 & Hcode & Hφ)".
@@ -101,7 +101,7 @@ Section mutual_attest_main.
     iDestruct "H" as "(Hi & Hr5 & [(-> & HPC & H)|(-> & HPC & Hr6)])".
     1: iDestruct "H" as (I tid) "(Hr6 & #Hma_env & %Hseal)".
     all: wp_pure; iInstr_close "Hcode".
-    2:{ wp_end; by iLeft. }
+    2:{ wp_end; by iRight. }
     (* iDestruct (interp_valid_sealed with "Hinterp_w1") as (Φ) "Hseal_valid". *)
 
     iInstr "Hcode".
@@ -113,7 +113,7 @@ Section mutual_attest_main.
       iInstr "Hcode". (* Jnz *)
       by (injection; intro Hcontra; lia).
       iInstr "Hcode". (* Fail *)
-      wp_end; by iLeft.
+      wp_end; by iRight.
     }
     replace ( _ - _)%Z with 0%Z by lia.
     iInstr "Hcode".
@@ -141,17 +141,17 @@ Section mutual_attest_main.
       ∗ ▷ ( (PC ↦ᵣ LCap RX pc_b pc_e pc_a' pc_v
             ∗ r ↦ᵣ w ∗ r' ↦ᵣ w' ∗ (∃ w5', r_t5 ↦ᵣ w5') ∗ (∃ w6', r_t6 ↦ᵣ w6')
             ∗ codefrag pc_a pc_v code)
-            -∗ WP Seq (Instr Executable) {{ v, ⌜ v = FailedV ⌝ ∨ φ v }}
+            -∗ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}
       )
     )
-   ⊢ WP Seq (Instr Executable) {{ v, ⌜ v = FailedV ⌝ ∨ φ v }}.
+   ⊢ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}.
   Proof.
     intros code pc_a' Hpc_a' Hbounds; subst code.
     iIntros "(HPC & Hr & Hr' & Hr5 & Hr6 & Hcode & Hφ)".
     codefrag_facts "Hcode".
-    iAssert (⌜ PC ≠ r ⌝)%I as %HPCr. admit.
-    iAssert (⌜ PC ≠ r' ⌝)%I as %HPCr'. admit.
-    iAssert (⌜ r ≠ r' ⌝)%I as %Hrr'. admit.
+    iDestruct ( regname_neq with "[$HPC] [$Hr]") as %HPCr.
+    iDestruct ( regname_neq with "[$HPC] [$Hr']") as %HPCr'.
+    iDestruct ( regname_neq with "[$Hr] [$Hr']") as %Hrr'.
 
     wp_instr.
     (* iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj. *)
@@ -162,7 +162,7 @@ Section mutual_attest_main.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds' Hregs'|]; cycle 1.
     { (* iMod ("Hclose_inv" with "Henclaves_inv_open") as "_". iModIntro. *)
-      by wp_pure; wp_end; by iLeft.
+      by wp_pure; wp_end; by iRight.
     }
     (* iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)". *)
     (* iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; iModIntro. *)
@@ -177,8 +177,99 @@ Section mutual_attest_main.
     clear Z.
     iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr Hr'] ]"; eauto; iFrame.
     wp_pure; iInstr_close "Hcode".
+  Admitted.
 
 
+
+  Definition mutual_attestationN : namespace := nroot .@ "mutual_attestation".
+  (* Define all the invariants *)
+  (* Linking table invariant *)
+  Definition link_tableN := (mutual_attestationN.@"link_table").
+  Definition link_table_inv
+    v_link
+    assert_entry b_assert e_assert v_assert :=
+    na_inv logrel_nais link_tableN
+         ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
+
+  (* Assert invariant *)
+  Definition assertN := (mutual_attestationN.@"assert").
+  Definition assert_inv b_a a_flag e_a v_assert :=
+    na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
+
+  Definition flag_assertN := (mutual_attestationN.@"flag_assert").
+  Definition flag_inv a_flag v_flag :=
+    inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
+
+
+  Lemma trusted_compute_full_run_spec
+    (pc_b pc_e : Addr)
+    (pc_v : Version)
+
+    (b_link a_link e_link assert_entry : Addr) (* linking *)
+    (assert_lt_offset : Z)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
+
+    (rmap : LReg)
+    (w0 w1 w2 w3 w4 w5 w6 : LWord)
+    :
+
+    let v_link := pc_v in
+    let link_cap := LCap RO b_link e_link a_link v_link in
+
+    let code := mutual_attestation_main_code assert_lt_offset in
+    let e_main := (pc_b ^+ (length code))%a in
+    let a_data := (e_main ^+ 1)%a in
+
+    (e_main + 1)%a = Some a_data ->
+    SubBounds pc_b pc_e pc_b e_main ->
+
+
+    (a_link + assert_lt_offset)%a = Some assert_entry →
+    withinBounds b_link e_link assert_entry = true ->
+
+    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ; r_t2 ; r_t3 ; r_t4 ; r_t5 ; r_t6 ]} →
+
+    (link_table_inv v_link assert_entry b_assert e_assert v_assert
+    ∗ assert_inv b_assert a_flag e_assert v_assert
+    ∗ flag_inv a_flag v_assert)
+    ∗ custom_enclave_inv ma_enclaves_map
+
+    ⊢ ( codefrag pc_b pc_v code
+        ∗ (a_data, pc_v) ↦ₐ link_cap
+        ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_b pc_v
+        ∗ r_t0 ↦ᵣ w0 ∗ r_t1 ↦ᵣ w1
+        ∗ r_t2 ↦ᵣ w2 ∗ r_t3 ↦ᵣ w3
+        ∗ r_t4 ↦ᵣ w4 ∗ r_t5 ↦ᵣ w5
+        ∗ r_t6 ↦ᵣ w6
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+        ∗ na_own logrel_nais ⊤
+          -∗ WP Seq (Instr Executable)
+               {{λ v, (⌜v = HaltedV⌝ →
+                       ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                      ∨ ⌜v = FailedV⌝ }})%I.
+  Proof.
+    intros ????? He_main HsubBounds Hassert Hlink Hrmap.
+    subst code. rewrite /mutual_attestation_main_code.
+
+    iIntros "[  #(HlinkInv & HassertInv & HflagInv) #Hcemap_inv ]
+             (Hcode & Hadata & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hrmap & Hna)".
+
+    codefrag_facts "Hcode".
+
+    focus_block_0 "Hcode" as "Hcode" "Hcode_cont".
+    iApply (mutual_attestation_main_attest_or_fail_spec
+             with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6]"); eauto.
+    { solve_addr. }
+    { subst e_main; solve_addr. }
+    iNext ; iIntros "H".
+    iDestruct "H" as (tid) "(%Hhas_seal & #Henclave_tid & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
+    unfocus_block "Hcode" "Hcode_cont" as "Hcode".
+
+    iDestruct "Hr5" as (w5') "Hr5".
+    iDestruct "Hr6" as (w6') "Hr6".
+
+    (* focus_block 1 "Hcode" as a_block1 Ha_block1 "Hcode" "Hcode_cont". *)
+    Admitted.
 
 
 End mutual_attest_main.

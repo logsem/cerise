@@ -494,9 +494,7 @@ Section mutual_attest_example.
   (* r3 := unsealing cap A *)
   (* a_data = callback + length mutual_attest_code *)
   (* mem[a_data] = link_cap *)
-  Definition mutual_attestation_main_code_0
-    (callback fails : Z)
-    (hash_enclave : Z)
+  Definition mutual_attestation_main_code
     (assert_lt_offset : Z)
     : list LWord :=
     mutual_attestation_main_attest_or_fail r_t0 hash_mutual_attest_A ++
