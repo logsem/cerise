@@ -1,5 +1,6 @@
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel proofmode.
+From cap_machine Require Import macros_new.
 
 (* -------------------------------------- *)
 (* --------------- AXIOMS --------------- *)
@@ -445,8 +446,100 @@ Section mutual_attest_example.
   (* -------------------------------------- *)
   (* --------- MUTUAL ATTEST MAIN --------- *)
   (* -------------------------------------- *)
-  (* TODO *)
 
+  (* Attest if sealed word in `r` (≠ r5, r6) contains expected_hash_enclave  *)
+  (* Clobbers r5, r6 *)
+  Definition mutual_attestation_main_attest_or_fail
+    ( r : RegName )
+    (expected_hash_enclave : Z)
+    : list LWord :=
+    encodeInstrsLW [
+
+        GetOType r_t5 r;
+        EStoreId r_t6 r_t5;
+        (* check otype(w_res) against identity of the enclave *)
+        Sub r_t6 r_t6 expected_hash_enclave;
+        Mov r_t5 PC;
+        Lea r_t5 5;
+        Jnz r_t5 r_t6;
+        Lea r_t5 2;
+        Jmp r_t5;
+        Fail
+      ].
+
+  (* Get the content of (attested) sealed word in r, with unseal in r'.
+     Result in r *)
+  (* Clobbers r5,r6 *)
+  Definition mutual_attestation_main_get_confirm_or_fail
+    ( r r' : RegName )
+    : list LWord :=
+    encodeInstrsLW [
+
+        UnSeal r r' r;
+        GetB r_t5 r;
+        Mod r_t5 r_t5 2; (* if (b%2 = 0) then fail else continue *)
+        Mov r_t6 PC;
+        Lea r_t6 3;
+        Jnz r_t6 r_t5;
+        Fail;
+        GetA r r
+      ].
+
+
+
+  (* Expect PC := (RWX, main, main_end, callback) *)
+  (* r0 := sealed_cap A *)
+  (* r1 := unsealing cap A *)
+  (* r2 := sealed_cap A *)
+  (* r3 := unsealing cap A *)
+  (* a_data = callback + length mutual_attest_code *)
+  (* mem[a_data] = link_cap *)
+  Definition mutual_attestation_main_code_0
+    (callback fails : Z)
+    (hash_enclave : Z)
+    (assert_lt_offset : Z)
+    : list LWord :=
+    mutual_attestation_main_attest_or_fail r_t0 hash_mutual_attest_A ++
+      mutual_attestation_main_get_confirm_or_fail r_t0 r_t1 ++
+      (* r_t0 should contain 1 *)
+    mutual_attestation_main_attest_or_fail r_t2 hash_mutual_attest_B ++
+      mutual_attestation_main_get_confirm_or_fail r_t2 r_t3 ++
+      (* r_t2 should contain 2 *)
+      encodeInstrsLW [
+        (* Load assert_routine in r_t1 and r_t3 *)
+        Mov r_t1 PC;
+        GetE r_t4 r_t1;
+        GetA r_t5 r_t1;
+        Sub r_t4 r_t4 r_t5;
+        Lea r_t1 r_t4;
+        Lea r_t1 (-1)%Z;
+        Load r_t1 r_t1;
+        Mov r_t3 r_t1;
+
+        (* assert r_t0 == 1*)
+        Mov r_t4 r_t0;
+        Mov r_t5 1] ++
+      assert_reg_instrs assert_lt_offset r_t1 ++
+      (* assert r_t2 == 1*)
+      encodeInstrsLW [ Mov r_t4 r_t2 ; Mov r_t5 1 ] ++
+      assert_reg_instrs assert_lt_offset r_t3 ++
+      encodeInstrsLW [Halt].
+
+
+  (* (* Checks if r (≠ r5, r6) contains a sealed cap *)
+  (*    Clobbers r5, r6 *)
+  (*  *) *)
+  (* Definition mutual_attestation_main_sealed_or_fail ( r : RegName ) : list LWord := *)
+  (*       (* sanity check: w_res is a sealed capability *) *)
+  (*   encodeInstrsLW [ *)
+  (*       GetOType r_t5 r; *)
+  (*       Sub r_t5 r_t5 (-1)%Z; *)
+  (*       Mov r_t6 PC ; *)
+  (*       Lea r_t6 XX ; *)
+  (*       Jnz r_t6 r_t5; *)
+  (*       Lea r_t6 *)
+  (*       Fail; *)
+  (*       Jmp r_t7]. *)
 
 
   (* Sealed predicate for enclave A *)
