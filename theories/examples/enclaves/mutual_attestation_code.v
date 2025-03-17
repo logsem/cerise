@@ -464,7 +464,8 @@ Section mutual_attest_example.
         Jnz r_t5 r_t6;
         Lea r_t5 2;
         Jmp r_t5;
-        Fail
+        Fail;
+        Mov r_t5 r_t5
       ].
 
   (* Get the content of (attested) sealed word in r, with unseal in r'.
@@ -479,7 +480,7 @@ Section mutual_attest_example.
         GetB r_t5 r;
         Mod r_t5 r_t5 2; (* if (b%2 = 0) then fail else continue *)
         Mov r_t6 PC;
-        Lea r_t6 3;
+        Lea r_t6 4;
         Jnz r_t6 r_t5;
         Fail;
         GetA r r
@@ -502,8 +503,11 @@ Section mutual_attest_example.
       (* r_t0 should contain 1 *)
     mutual_attestation_main_attest_or_fail r_t2 hash_mutual_attest_B ++
       mutual_attestation_main_get_confirm_or_fail r_t2 r_t3 ++
-      (* r_t2 should contain 2 *)
+      (* r_t2 should contain 1 *)
       encodeInstrsLW [
+        Mov r_t6 r_t2;
+        (* r6 contains the value of the sealed word for B *)
+        (* r0 contains the value of the sealed word for A *)
         (* Load assert_routine in r_t1 and r_t3 *)
         Mov r_t1 PC;
         GetE r_t4 r_t1;
@@ -519,25 +523,9 @@ Section mutual_attest_example.
         Mov r_t5 1] ++
       assert_reg_instrs assert_lt_offset r_t1 ++
       (* assert r_t2 == 1*)
-      encodeInstrsLW [ Mov r_t4 r_t2 ; Mov r_t5 1 ] ++
+      encodeInstrsLW [ Mov r_t4 r_t6 ; Mov r_t5 1 ] ++
       assert_reg_instrs assert_lt_offset r_t3 ++
       encodeInstrsLW [Halt].
-
-
-  (* (* Checks if r (≠ r5, r6) contains a sealed cap *)
-  (*    Clobbers r5, r6 *)
-  (*  *) *)
-  (* Definition mutual_attestation_main_sealed_or_fail ( r : RegName ) : list LWord := *)
-  (*       (* sanity check: w_res is a sealed capability *) *)
-  (*   encodeInstrsLW [ *)
-  (*       GetOType r_t5 r; *)
-  (*       Sub r_t5 r_t5 (-1)%Z; *)
-  (*       Mov r_t6 PC ; *)
-  (*       Lea r_t6 XX ; *)
-  (*       Jnz r_t6 r_t5; *)
-  (*       Lea r_t6 *)
-  (*       Fail; *)
-  (*       Jmp r_t7]. *)
 
 
   (* Sealed predicate for enclave A *)
