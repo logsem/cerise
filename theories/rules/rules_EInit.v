@@ -30,21 +30,29 @@ Section cap_lang_rules.
     | EInit_fail_ccap_not_unique :
       EInit_fail lregs lmem ot
     | EInit_fail_dcap_not_unique :
+      EInit_fail lregs lmem ot
+    | EInit_fail_ccap_not_a_cap :
+      EInit_fail lregs lmem ot
+    | EInit_fail_dcap_not_a_cap :
+      EInit_fail lregs lmem ot
+    | EInit_fail_ccap_no_rx :
+      EInit_fail lregs lmem ot
+    | EInit_fail_dcap_no_rw :
       EInit_fail lregs lmem ot.
 
   Inductive EInit_spec (lregs lregs' : LReg) (lmem lmem' : LMem) (n n' : nat) (tidx : TIndex) (eid : EIdentity) (ot : OType) (rs : RegName) : cap_lang.val → Prop :=
     | EInit_success_no_revoke code_b code_e code_a code_v data_b data_e data_a data_v vmap :
-      incrementLPC lregs = Some lregs' →
-      n + 1 = n' →
-      eid = hash_lmemory_region lmem code_b code_e code_v →
-      (ot + 2)%ot = Some (ot ^+ 2)%ot →
-      lregs !! rs = Some (LCap RX code_b code_e code_a code_v) →
-      lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v) →
-      is_valid_updated_lmemory lmem (finz.seq_between code_b code_e) code_v lmem' → (* support revocation *)
-      is_valid_updated_lmemory lmem (finz.seq_between data_b data_e) data_v lmem' → (* support revocation *)
-      unique_in_registersL lregs rs (LCap RX code_b code_e code_a code_v) →
-      (* unique_in_memoryL lmem vmap code_b → (* @TODO: I'm missing something for sure... *) *)
-      incrementLPC (<[ rs := LInt eid]> lregs) = Some lregs' →
+      incrementLPC lregs = Some lregs' → (* PC can be incremented *)
+      n + 1 = n' → (* n is the value of the EC register, it can be incremented to n' *)
+      eid = hash_lmemory_region lmem code_b code_e code_v → (* the hashed value `eid` corresponds to hashing the code capability's memory footprint *)
+      (ot + 2)%ot = Some (ot ^+ 2)%ot → (* the otype can be incremented *)
+      lregs !! rs = Some (LCap RX code_b code_e code_a code_v) → (* rs contains a valid capability *)
+      lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v) → (* the base address of the code capability points to a valid data capability *)
+      is_valid_updated_lmemory lmem (finz.seq_between code_b code_e) code_v lmem' → (* support revocation *) (* all memory in the code capability is "current" w.r.t. revocation *)
+      is_valid_updated_lmemory lmem (finz.seq_between data_b data_e) data_v lmem' → (* support revocation *) (* all memory in the data capability is "current" w.r.t. revocation *)
+      unique_in_registersL lregs rs (LCap RX code_b code_e code_a code_v) → (* the code capability in the rs register is unique across all other registers *)
+      unique_in_memoryL lmem vmap (LCap RW data_b data_e data_a data_v) → (* the data capability at base address b of the code capability is unique across all of memory *)
+      incrementLPC (<[ rs := next_version_lword (LCap E code_b code_e (code_b ^+ 1)%a code_v)]> lregs) = Some lregs' → (* the pc will be incremented and rs will point to a "current" sentry capability *)
       EInit_spec lregs lregs' lmem lmem' n n' tidx eid ot rs NextIV
     | EInit_failure :
       n = n' →
