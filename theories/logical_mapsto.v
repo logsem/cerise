@@ -785,6 +785,7 @@ Proof.
 Qed.
 
 
+(* No register except `src` contains `lwsrc` *)
 Definition unique_in_registersL (lregs : LReg) (src : RegName) (lwsrc : LWord) : Prop :=
   (map_Forall
      (λ (r : RegName) (lwr : LWord),

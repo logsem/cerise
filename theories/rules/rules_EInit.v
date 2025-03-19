@@ -18,14 +18,64 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  (* TODO @Denis *)
-  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v lw r :
-    decodeInstrWL lw = EInit r →
-    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+  Inductive EInit_fail (lregs : LReg) (lmem : LMem) (ot : OType) : Prop :=
+    (* Etable is now unbounded *)
+    (* | EInit_fail_etable_full *)
+    | EInit_fail_pc_overflow :
+      incrementLPC lregs = None →
+      EInit_fail lregs lmem ot
+    | EInit_fail_otype_overflow :
+      (ot + 2)%ot = None →
+      EInit_fail lregs lmem ot
+    | EInit_fail_ccap_not_unique :
+      EInit_fail lregs lmem ot
+    | EInit_fail_dcap_not_unique :
+      EInit_fail lregs lmem ot.
 
-    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}
+  Inductive EInit_spec (lregs lregs' : LReg) (lmem lmem' : LMem) (n n' : nat) (tidx : TIndex) (eid : EIdentity) (ot : OType) (rs : RegName) : cap_lang.val → Prop :=
+    | EInit_success_no_revoke code_b code_e code_a code_v data_b data_e data_a data_v :
+      incrementLPC lregs = Some lregs' →
+      n + 1 = n' →
+      (ot + 2)%ot = Some (ot ^+ 2)%ot →
+      lregs !! rs = Some (LCap RX code_b code_e code_a code_v) →
+      lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v) →
+      is_valid_updated_lmemory lmem (finz.seq_between code_b code_e) code_v lmem' -> (* support revocation *)
+      is_valid_updated_lmemory lmem (finz.seq_between data_b data_e) data_v lmem' -> (* support revocation *)
+      EInit_spec lregs lregs' lmem lmem' n n' tidx eid ot rs NextIV
+    | EInit_failure :
+      n = n' →
+      EInit_fail lregs lmem ot →
+      EInit_spec lregs lregs' lmem lmem' n n' tidx eid ot rs FailedV.
+
+  (* TODO: Failure lmem does not contain none at code_b etc *)
+  (* TODO: how to determine tidx and eid in the spec? *)
+  (* TODO: hash? *)
+  (* TODO @Denis *)
+  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v pc_a' lw
+    lregs lmem tidx eid rs n :
+    decodeInstrWL lw = EInit rs →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
+    regs_of (EInit rs) ⊆ dom lregs →
+
+    {{{ ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y ∗
+        ▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw ∗
+        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw ∗
+        EC⤇ n (* need a fragment for the EC register *)
+        }}}
       Instr Executable @ E
-    {{{ RET FailedV; PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}.
+    {{{ lregs' lmem' retv n' ot, RET retv;
+        ⌜ EInit_spec lregs lregs' lmem lmem' n n' tidx eid ot rs retv⌝ ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
+        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
+        [∗ map] la↦lw ∈ lmem', la ↦ₐ lw ∗
+        [∗ map] k↦y ∈ lregs', k ↦ᵣ y ∗
+        EC⤇ n' ∗ (* need to give back the fragment of EC *)
+        (* gain a non-duplicable token that asserts ownership over the enclave at etable index `tidx` *)
+        if decide (retv = NextIV) then
+          enclave_cur tidx eid
+          (* @TODO Denis/June: seal predicates needed? *)
+        else emp }}}.
   Proof.
    (*  iIntros (Hinstr Hvpc φ) "[Hpc Hpca] Hφ". *)
    (*  apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc. *)
