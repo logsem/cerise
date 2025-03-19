@@ -129,22 +129,24 @@ Section fundamental.
           try iAssumption; eauto.
 
       + (* TODO @Denis EInit *)
-        iApply (wp_einit with "[HPC Ha]"); eauto. iFrame.
-        iNext. iIntros "[HPC Ha] /=".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
-        iNext ; iIntros "_".
-        iApply wp_value.
-        iIntros (Hcontr); inversion Hcontr.
+        admit.
+        (* iApply (wp_einit with "[HPC Ha]"); eauto. iFrame. *)
+        (* iNext. iIntros "[HPC Ha] /=". *)
+        (* iApply wp_pure_step_later; auto. *)
+        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
+        (* iNext ; iIntros "_". *)
+        (* iApply wp_value. *)
+        (* iIntros (Hcontr); inversion Hcontr. *)
 
       + (* TODO @Denis EDeInit *)
-        iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame.
-        iNext. iIntros "[HPC Ha] /=".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
-        iNext ; iIntros "_".
-        iApply wp_value.
-        iIntros (Hcontr); inversion Hcontr.
+        admit.
+        (* iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame. *)
+        (* iNext. iIntros "[HPC Ha] /=". *)
+        (* iApply wp_pure_step_later; auto. *)
+        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
+        (* iNext ; iIntros "_". *)
+        (* iApply wp_value. *)
+        (* iIntros (Hcontr); inversion Hcontr. *)
 
       + (* TODO @Denis EStoreId *)
         admit.
