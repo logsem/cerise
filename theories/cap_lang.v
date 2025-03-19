@@ -453,7 +453,7 @@ Section opsem.
 
   Definition hash_memory_region (m : Mem) (b e : Addr) :=
     let instructions : list Word :=
-      map snd
+      snd <$>
         ((map_to_list
             (filter (fun '(a, _) => a ∈ (finz.seq_between b e)) m)))
     in

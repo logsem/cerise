@@ -2396,6 +2396,21 @@ Proof.
   destruct (b <? pc_b)%a eqn:Hb; solve_addr.
 Qed.
 
+Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
+  lregs !! r = Some (LCap p b e a v) ∧ readAllowed p = true.
+
+Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (b e : Addr) (v : Version) :=
+  let instructions : list LWord :=
+    snd <$> ((map_to_list
+      (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e) /\ (laddr_get_version a) = v) lm)))
+  in
+  hash (lword_get_word <$> instructions).
+
+Lemma lmeasure_measure `{MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
+  forall b e v,
+    state_phys_log_corresponds phr phm lr lm vmap →
+    hash_lmemory_region lm b e v = hash_memory_region phm b e.
+Proof. intros. unfold hash_lmemory_region, hash_memory_region. (* oh boy... @TODO *) Admitted.
 
 (** Instantiation of the program logic *)
 
@@ -2451,7 +2466,7 @@ Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
 (* Notations for fragmental resources *)
 Notation "EC⤇ n" := (EC_frag n)
                       (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
-(* @TODO: denis *)
+(* @TODO: Denis *)
 
 Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
   ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,

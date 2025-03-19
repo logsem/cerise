@@ -19,20 +19,6 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
-    lregs !! r = Some (LCap p b e a v) ∧ readAllowed p = true.
-
-  Definition hash_lmemory_region (lm : LMem) (b e : Addr) (v : Version) :=
-    let instructions : list LWord :=
-      map snd
-        ((map_to_list
-            (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e)
-                                  /\ (laddr_get_version a) = v)
-               lm)))
-    in
-    hash (fmap lword_get_word instructions).
-
-
   Inductive Hash_failure (lregs: LReg) (dst src: RegName) (lmem : LMem) :=
   | Hash_fail_const lw:
       lregs !! src = Some lw ->
