@@ -43,7 +43,7 @@ Section cap_lang_rules.
       is_valid_updated_lmemory lmem (finz.seq_between code_b code_e) code_v lmem' → (* support revocation *)
       is_valid_updated_lmemory lmem (finz.seq_between data_b data_e) data_v lmem' → (* support revocation *)
       unique_in_registersL lregs rs (LCap RX code_b code_e code_a code_v) →
-      unique_in_memoryL lmem vmap code_b → (* @TODO: I'm missing something for sure... *)
+      (* unique_in_memoryL lmem vmap code_b → (* @TODO: I'm missing something for sure... *) *)
       incrementLPC (<[ rs := LInt eid]> lregs) = Some lregs' →
       EInit_spec lregs lregs' lmem lmem' n n' tidx eid ot rs NextIV
     | EInit_failure :
