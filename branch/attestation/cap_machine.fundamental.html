@@ -165,23 +165,25 @@
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="comment">(*&nbsp;TODO&nbsp;@Denis&nbsp;EInit&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_EInit.html#wp_einit"><span class="id" title="axiom">wp_einit</span></a> <span class="id" title="notation">with</span> "[HPC Ha]"<span class="id" title="notation">)</span>; <span class="id" title="tactic">eauto</span>. <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span>. <span class="id" title="var">iIntros</span> "[HPC Ha] /=".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[HP Ha]"<span class="id" title="notation">)</span>;[<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>].<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span> ; <span class="id" title="var">iIntros</span> "_".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">Hcontr</span>); <span class="id" title="tactic">inversion</span> <span class="id" title="var">Hcontr</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;(wp_einit&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");&nbsp;eauto.&nbsp;iFrame.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iNext.&nbsp;iIntros&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>&nbsp;/=".&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HP</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iNext&nbsp;;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;wp_value.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iIntros&nbsp;(Hcontr);&nbsp;inversion&nbsp;Hcontr.&nbsp;*)</span><br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="comment">(*&nbsp;TODO&nbsp;@Denis&nbsp;EDeInit&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.rules.rules_EDeInit.html#wp_edeinit"><span class="id" title="axiom">wp_edeinit</span></a> <span class="id" title="notation">with</span> "[HPC Ha]"<span class="id" title="notation">)</span>; <span class="id" title="tactic">eauto</span>; <span class="id" title="var">iFrame</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span>. <span class="id" title="var">iIntros</span> "[HPC Ha] /=".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[HP Ha]"<span class="id" title="notation">)</span>;[<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>].<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span> ; <span class="id" title="var">iIntros</span> "_".<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">Hcontr</span>); <span class="id" title="tactic">inversion</span> <span class="id" title="var">Hcontr</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;(wp_edeinit&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");&nbsp;eauto;&nbsp;iFrame.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iNext.&nbsp;iIntros&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>&nbsp;/=".&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HP</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iNext&nbsp;;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;wp_value.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iIntros&nbsp;(Hcontr);&nbsp;inversion&nbsp;Hcontr.&nbsp;*)</span><br/>
 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="comment">(*&nbsp;TODO&nbsp;@Denis&nbsp;EStoreId&nbsp;*)</span><br/>

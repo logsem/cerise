@@ -912,6 +912,10 @@
 &nbsp;&nbsp;| <a id="NextIV" class="idref" href="#NextIV"><span class="id" title="constructor">NextIV</span></a>: <a class="idref" href="cap_machine.cap_lang.html#val:372"><span class="id" title="inductive">val</span></a>.<br/>
 
 <br/>
+<span class="id" title="keyword">Global Instance</span> <a id="instr_eq_val" class="idref" href="#instr_eq_val"><span class="id" title="instance">instr_eq_val</span></a> : <span class="id" title="abbreviation">EqDecision</span> <a class="idref" href="cap_machine.cap_lang.html#val"><span class="id" title="inductive">val</span></a>.<br/>
+<span class="id" title="keyword">Proof</span>. <span class="id" title="var">solve_decision</span>. <span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
 &nbsp;&nbsp;<span class="comment">(*&nbsp;TODO:&nbsp;change&nbsp;to&nbsp;co-inductive&nbsp;list&nbsp;in&nbsp;the&nbsp;Seq&nbsp;case&nbsp;*)</span><br/>
 &nbsp;&nbsp;<span class="id" title="keyword">Inductive</span> <a id="expr" class="idref" href="#expr"><span class="id" title="definition, inductive"><span id="expr_rect" class="id"><span id="expr_ind" class="id"><span id="expr_rec" class="id"><span id="expr_sind" class="id">expr</span></span></span></span></span></a>: <span class="id" title="keyword">Type</span> :=<br/>
 &nbsp;&nbsp;| <a id="Instr" class="idref" href="#Instr"><span class="id" title="constructor">Instr</span></a> (<a id="c:376" class="idref" href="#c:376"><span class="id" title="binder">c</span></a> : <a class="idref" href="cap_machine.cap_lang.html#ConfFlag"><span class="id" title="inductive">ConfFlag</span></a>)<br/>
