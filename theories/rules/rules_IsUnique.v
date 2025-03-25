@@ -113,13 +113,15 @@ Section cap_lang_rules.
     (lregs: LReg) (lmem : LMem) (dst src : RegName)
     (lregs': LReg) (lmem' : LMem) : cap_lang.val → Prop :=
 
+  (* WPIsUniqueSuccessFull success branch *)
   | IsUnique_success_true_cap (p : Perm) (b e a : Addr) (v : Version) :
     lregs !! src = Some (LCap p b e a v) ->
     p ≠ E ->
     (* we update the region of memory with the new version *)
     is_valid_updated_lmemory lmem (finz.seq_between b e) v lmem' ->
     (* specific instance of unique_in_registers *)
-    unique_in_registersL lregs src (LCap p b e a v) ->
+    unique_in_registersL lregs (Some src) (LCap p b e a v) ->
+
     incrementLPC (<[ dst := LInt 1 ]> (<[ src := next_version_lword (LCap p b e a v) ]> lregs)) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
 
@@ -127,11 +129,12 @@ Section cap_lang_rules.
     lregs !! src = Some lwsrc ->
     is_sealed lwsrc ->
     (* specific instance of unique_in_registers *)
-    unique_in_registersL lregs src lwsrc ->
+    unique_in_registersL lregs (Some src) lwsrc ->
     lmem' = lmem ->
     incrementLPC (<[ dst := LInt 1 ]> lregs) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
 
+  (* WPIsUniqueSuccessFull failure branch *)
   | IsUnique_success_false (lwsrc: LWord) p b e a v :
     lregs !! src = Some lwsrc ->
     get_lcap lwsrc = Some (LSCap p b e a v) ->

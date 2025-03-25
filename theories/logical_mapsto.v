@@ -786,18 +786,24 @@ Qed.
 
 
 (* No register except `src` contains `lwsrc` *)
-Definition unique_in_registersL (lregs : LReg) (src : RegName) (lwsrc : LWord) : Prop :=
-  (map_Forall
-     (λ (r : RegName) (lwr : LWord),
-       if decide (r = src) then True else ¬ overlap_wordL lwsrc lwr)
-     lregs).
+Definition unique_in_registersL (lregs : LReg) (osrc : option RegName) (lwsrc : LWord) : Prop :=
+  match osrc with
+  | Some src =>
+    (map_Forall
+       (λ (r : RegName) (lwr : LWord),
+         if decide (r = src) then True else ¬ overlap_wordL lwsrc lwr)
+       lregs)
+  | None => map_Forall (λ _ lwr, ¬ overlap_wordL lwsrc lwr) lregs
+  end.
 
-Global Instance unique_in_registersL_dec (lregs : LReg) (src : RegName) (lwsrc : LWord)
-  : Decision (unique_in_registersL lregs src lwsrc).
+Global Instance unique_in_registersL_dec (lregs : LReg) (osrc : option RegName) (lwsrc : LWord)
+  : Decision (unique_in_registersL lregs osrc lwsrc).
 Proof.
-  apply map_Forall_dec.
-  move=> r rw.
-  case_decide; solve_decision.
+  destruct osrc as [rn|].
+  - apply map_Forall_dec.
+    move=> r rw.
+    case_decide; solve_decision.
+  - apply map_Forall_dec. move=>r rw. solve_decision.
 Defined.
 
 (* Returns [true] if [r] is unique. *)
@@ -818,14 +824,14 @@ Defined.
 Definition unique_in_machineL
     (lregs : LReg) (lmem : LMem) (vmap : VMap) (src : RegName) (lwsrc : LWord) :=
   lregs !! src = Some lwsrc ->
-  unique_in_registersL lregs src lwsrc /\ unique_in_memoryL lmem vmap lwsrc.
+  unique_in_registersL lregs (Some src) lwsrc /\ unique_in_memoryL lmem vmap lwsrc.
 
 
 Lemma unique_in_registersL_mono
   (lregs lr : LReg) (src : RegName) (lwsrc : LWord) :
   lregs ⊆ lr ->
-  unique_in_registersL lr src lwsrc ->
-  unique_in_registersL lregs src lwsrc.
+  unique_in_registersL lr (Some src) lwsrc ->
+  unique_in_registersL lregs (Some src) lwsrc.
 Proof.
   intros Hincl Hunique.
   rewrite /unique_in_registersL in Hunique |- *.
@@ -876,7 +882,7 @@ Lemma state_corresponds_unique_in_registers
   state_phys_log_corresponds phr phm lr lm vmap ->
   lr !! src = Some lwsrc ->
   unique_in_registers phr (lword_get_word lwsrc) (Some src) ->
-  unique_in_registersL lr src lwsrc.
+  unique_in_registersL lr (Some src) lwsrc.
 Proof.
   move=> [Hreg_inv Hmem_inv] Hlr_src Hunique.
   eapply map_Forall_lookup_2.
@@ -2376,7 +2382,7 @@ Lemma unique_in_registersL_pc_no_overlap
   PC ≠ src ->
   isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) ->
   regs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) ->
-  unique_in_registersL regs src (LCap p b e a v) ->
+  unique_in_registersL regs (Some src) (LCap p b e a v) ->
   pc_a ∉ finz.seq_between b e.
 Proof.
   intros Hpc_neq_pc Hvpc Hpc Hunique_regs.
