@@ -752,6 +752,7 @@ Section mutual_attest_A.
     }
     iNext; iIntros "(HPC & Hi & Hr4 & HidT)".
     wp_pure; iInstr_close "Hma_code".
+    iEval (cbn) in "Hr4".
 
     (* HashConcat r_t3 r_t3 r_t4 *)
     wp_instr.
@@ -762,12 +763,12 @@ Section mutual_attest_A.
     iEval (cbn) in "Hr3".
     (* NOTE we use the axiom HERE! *)
     replace
-      (hash_concat hash_mutual_attest_B_pre (hash [LInt hash_mutual_attest_A_pre; LInt hash_mutual_attest_B_pre]))
+      (hash_concat hash_mutual_attest_B_pre (hash [WInt hash_mutual_attest_A_pre; WInt hash_mutual_attest_B_pre]))
       with
       hash_mutual_attest_B.
     2:{
       rewrite /hash_mutual_attest_B /hash_mutual_attest_B_pre /mutual_attest_enclave_B_code.
-      by rewrite -(assoc_L hash_concat) -/mutual_attest_eid_table hash_concat_app.
+      by rewrite -(assoc_L hash_concat) -/mutual_attest_eid_table fmap_app hash_concat_app.
     }
     wp_pure; iInstr_close "Hma_code".
 

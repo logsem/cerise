@@ -417,9 +417,9 @@ Section mutual_attest_example.
 
   (* Enclave Identity Table --- pre-hashed code *)
   Definition hash_mutual_attest_A_pre : Z :=
-    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code_pre).
+    hash_concat (hash ma_addr_A) (hash (lword_get_word <$> mutual_attest_enclave_A_code_pre)).
   Definition hash_mutual_attest_B_pre : Z :=
-    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code_pre).
+    hash_concat (hash ma_addr_B) (hash (lword_get_word <$> mutual_attest_enclave_B_code_pre)).
 
   Definition mutual_attest_eid_table : list LWord :=
     [ LWInt hash_mutual_attest_A_pre ; LWInt hash_mutual_attest_B_pre].
@@ -432,9 +432,9 @@ Section mutual_attest_example.
    (mutual_attest_enclave_B_code_pre ++ mutual_attest_eid_table).
 
   Definition hash_mutual_attest_A : Z :=
-    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code).
+    hash_concat (hash ma_addr_A) (hash (lword_get_word <$> mutual_attest_enclave_A_code)).
   Definition hash_mutual_attest_B : Z :=
-    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code).
+    hash_concat (hash ma_addr_B) (hash (lword_get_word <$> mutual_attest_enclave_B_code)).
 
   Definition mutual_attest_enclave_A (enclave_data_cap : LWord) : list LWord :=
     enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table.

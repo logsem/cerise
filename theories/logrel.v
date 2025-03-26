@@ -1073,7 +1073,7 @@ Section custom_enclaves.
 
   Definition custom_enclaves_map_wf (cenclaves : custom_enclaves_map) :=
     map_Forall
-      (fun I ce => I = hash_concat (hash (code_region ce)) (hash (code ce)))
+      (fun I ce => I = hash_concat (hash (code_region ce)) (hash (lword_get_word <$> (code ce))))
       cenclaves.
 
   Definition custom_enclaveN := (nroot.@"custom_enclave").

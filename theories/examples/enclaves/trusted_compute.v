@@ -73,7 +73,7 @@ Section trusted_compute_example.
     enclave_data_cap::trusted_compute_enclave_code.
 
   Definition hash_trusted_compute_enclave (tc_addr : Addr) : Z :=
-    hash_concat (hash tc_addr) (hash trusted_compute_enclave_code).
+    hash_concat (hash tc_addr) (hash (lword_get_word <$> trusted_compute_enclave_code)).
 
 
   (* Trusted Compute Custom Predicates *)
