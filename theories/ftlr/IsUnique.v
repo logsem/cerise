@@ -333,7 +333,7 @@ Section fundamental.
     p_src ≠ machine_base.E ->
     <[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs !! src = Some (LCap p_src b_src e_src a_src v_src) ->
     unique_in_registersL
-      (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs) src
+      (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs) (Some src)
       (LCap p_src b_src e_src a_src v_src) ->
     (b_pc <= a_pc < e_pc)%a ->
     ¬ (reg_allows_sweep
@@ -382,7 +382,7 @@ Section fundamental.
     length la = length Ps ->
     p_src ≠ machine_base.E ->
     is_valid_updated_lmemory lmem (finz.seq_between b_src e_src) v_src lmem' ->
-    unique_in_registersL lregs' src (LCap p_src b_src e_src a_src v_src) ->
+    unique_in_registersL lregs' (Some src) (LCap p_src b_src e_src a_src v_src) ->
     lregs' !! src = Some (LCap p_src b_src e_src a_src v_src) ->
     isCorrectLPC (LCap p_pc b_pc e_pc a_pc v_pc) ->
     Persistent (P lw_pc) ->
