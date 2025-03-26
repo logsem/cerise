@@ -18,12 +18,14 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EStoreId_spec (lregs lregs' : LReg) (lmem lmem' : LMem) otype tidx : cap_lang.val -> Prop :=
+  Inductive EStoreId_spec (lregs lregs' : LReg) (lmem lmem' : LMem) (rs rd : RegName) (any : LWord) otype tidx : cap_lang.val -> Prop :=
   | EStoreId_spec_success:
     has_seal otype tidx → (* we associate a given table index with the provided otype *)
-    EStoreId_spec lregs lregs' lmem lmem' otype tidx NextIV
+    lregs !! rs = Some (LWInt otype) →
+    lregs !! rd = Some any →
+    EStoreId_spec lregs lregs' lmem lmem' rs rd any otype tidx NextIV
   |EStoreId_spec_failure:
-    EStoreId_spec lregs lregs' lmem lmem' otype tidx FailedV.
+    EStoreId_spec lregs lregs' lmem lmem' rs rd any otype tidx FailedV.
 
   (* TODO @Denis *)
   (* The EStoreId instruction fetches the machine's stored hash for a given OType.
@@ -37,19 +39,17 @@ Section cap_lang_rules.
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
+    regs_of (EStoreId rs rd) ⊆ dom lregs →
+    lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
+
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
-        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
-        (pc_a, pc_v) ↦ₐ lw ∗
-        rs ↦ᵣ LWInt otype ∗
-        rd ↦ᵣ any }}}
+        (pc_a, pc_v) ↦ₐ lw }}}
       Instr Executable @ E
     {{{ lregs' lmem' tidx retv, RET retv;
-        ⌜ EStoreId_spec lregs lregs' lmem lmem' otype tidx retv⌝ ∗
+        ⌜ EStoreId_spec lregs lregs' lmem lmem' rs rd any otype tidx retv⌝ ∗
+        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
         rs ↦ᵣ LWInt otype ∗
-        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
-        ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
         if decide (retv = NextIV) then
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
           ∃ (I : EIdentity),
@@ -59,7 +59,7 @@ Section cap_lang_rules.
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
           rd ↦ᵣ any }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca' φ) "(Hpc & Hpca & Hrs & Hrd) Hφ".
+    iIntros (Hinstr Hvpc Dregs HPC HPCa φ) "(>Hrmap & Hpca) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=".
@@ -110,8 +110,13 @@ Section cap_lang_rules.
          ) }}}.
     Proof.
     iIntros (Hinstr Hvpc Hpca φ) "(>HPC & >Hpc_a & >Hrs & >Hrd) Hφ".
-    iApply (wp_estoreid with "[$HPC $Hrs $Hrd $Hpc_a]"); eauto. (* eauto is picking an empty lregs and lmem? *)
-    iNext. iIntros (lregs' lmem' tidx retv) "(#Hspec & Hpclw & Hrs & Hrmap & Hmmap & Hpost)".
+    iDestruct (map_of_regs_3 with "HPC Hrs Hrd") as "[Hrmap (%&%&%)]".
+
+    iApply (wp_estoreid with "[$Hrmap $Hpc_a]"); eauto; simplify_map_eq; eauto.
+    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+    Unshelve. 4: apply gmap_empty. (* empty LMem ? *)
+
+    iNext. iIntros (lregs' lmem' tidx retv) "(#Hspec & Hrmap & HPCa & Hrs & Hpost)".
     iDestruct "Hspec" as %Hspec.
     destruct Hspec eqn:?; cycle 1; cbn; iApply "Hφ". iFrame.
     - iRight. auto.
