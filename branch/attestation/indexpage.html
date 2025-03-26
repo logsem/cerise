@@ -56,7 +56,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2546 entries)</td>
+<td>(2551 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -216,7 +216,7 @@
 <td><a href="indexpage.html#lemma_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(988 entries)</td>
+<td>(994 entries)</td>
 </tr>
 <tr>
 <td>Constructor Index</td>
@@ -472,7 +472,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(774 entries)</td>
+<td>(773 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
@@ -1291,6 +1291,7 @@
 <a href="cap_machine.machine_parameters.html#hash_concat_inj">hash_concat_inj</a> [projection, in <a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a>]<br/>
 <a href="cap_machine.machine_parameters.html#hash_inj">hash_inj</a> [projection, in <a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a>]<br/>
 <a href="cap_machine.machine_parameters.html#hash_concat">hash_concat</a> [projection, in <a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#hash_lmemory_weaken">hash_lmemory_weaken</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_spec_sind">Hash_spec_sind</a> [definition, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_spec_ind">Hash_spec_ind</a> [definition, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_spec_failure">Hash_spec_failure</a> [constructor, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
@@ -1304,7 +1305,6 @@
 <a href="cap_machine.rules.rules_Hash.html#Hash_fail_perm">Hash_fail_perm</a> [constructor, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_fail_const">Hash_fail_const</a> [constructor, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_failure">Hash_failure</a> [inductive, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
-<a href="cap_machine.rules.rules_Hash.html#hash_lmemory_region">hash_lmemory_region</a> [definition, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidAddress_dec">hasValidAddress_dec</a> [instance, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidLAddress">hasValidLAddress</a> [definition, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.cap_lang.html#has_seal">has_seal</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
@@ -1329,6 +1329,10 @@
 <a href="cap_machine.rules.rules_IsUnique.html#incrementLPC_incrementPC_some">incrementLPC_incrementPC_some</a> [lemma, in <a href="cap_machine.rules.rules_IsUnique.html">cap_machine.rules.rules_IsUnique</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementLPC_None_inv">incrementLPC_None_inv</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementLPC_Some_inv">incrementLPC_Some_inv</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_success_updatePC">incrementLPC_success_updatePC</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_fail_updatePC">incrementLPC_fail_updatePC</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_incrementPC_none">incrementLPC_incrementPC_none</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_incrementPC_some">incrementLPC_incrementPC_some</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC">incrementPC</a> [definition, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC_success_updatePC">incrementPC_success_updatePC</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC_fail_updatePC">incrementPC_fail_updatePC</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
@@ -1808,6 +1812,7 @@
 <a href="cap_machine.rules.rules_base.html#map_of_regs_3">map_of_regs_3</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#map_of_regs_2">map_of_regs_2</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#map_of_regs_1">map_of_regs_1</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#map_filter_alt'">map_filter_alt'</a> [lemma, in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.proofmode.map_simpl.html">map_simpl</a> [library]<br/>
 <a href="cap_machine.ftlr.Restrict.html#match_perm_with_E_rewrite">match_perm_with_E_rewrite</a> [lemma, in <a href="cap_machine.ftlr.Restrict.html">cap_machine.ftlr.Restrict</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#ma_enclaves_map">ma_enclaves_map</a> [definition, in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
@@ -3562,6 +3567,7 @@
 <br/><br/><a id="lemma_H"></a><h2>H </h2>
 <a href="cap_machine.ftlr.Hash.html#hash_case">hash_case</a> [in <a href="cap_machine.ftlr.Hash.html">cap_machine.ftlr.Hash</a>]<br/>
 <a href="cap_machine.machine_parameters.html#hash_concat_inj'">hash_concat_inj'</a> [in <a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#hash_lmemory_weaken">hash_lmemory_weaken</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_reducible_from_step">head_reducible_from_step</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_ctx_step_val">head_ctx_step_val</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <br/><br/><a id="lemma_I"></a><h2>I </h2>
@@ -3573,6 +3579,10 @@
 <a href="cap_machine.rules.rules_IsUnique.html#incrementLPC_incrementPC_some">incrementLPC_incrementPC_some</a> [in <a href="cap_machine.rules.rules_IsUnique.html">cap_machine.rules.rules_IsUnique</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementLPC_None_inv">incrementLPC_None_inv</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementLPC_Some_inv">incrementLPC_Some_inv</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_success_updatePC">incrementLPC_success_updatePC</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_fail_updatePC">incrementLPC_fail_updatePC</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_incrementPC_none">incrementLPC_incrementPC_none</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#incrementLPC_incrementPC_some">incrementLPC_incrementPC_some</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC_success_updatePC">incrementPC_success_updatePC</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC_fail_updatePC">incrementPC_fail_updatePC</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#incrementPC_overflow_antimono">incrementPC_overflow_antimono</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
@@ -3770,6 +3780,7 @@
 <a href="cap_machine.rules.rules_base.html#map_of_regs_3">map_of_regs_3</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#map_of_regs_2">map_of_regs_2</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#map_of_regs_1">map_of_regs_1</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
+<a href="cap_machine.rules.rules_Hash.html#map_filter_alt'">map_filter_alt'</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.ftlr.Restrict.html#match_perm_with_E_rewrite">match_perm_with_E_rewrite</a> [in <a href="cap_machine.ftlr.Restrict.html">cap_machine.ftlr.Restrict</a>]<br/>
 <a href="cap_machine.examples.macros.html#mclear_spec">mclear_spec</a> [in <a href="cap_machine.examples.macros.html">cap_machine.examples.macros</a>]<br/>
 <a href="cap_machine.examples.macros.html#mclear_iter_spec">mclear_iter_spec</a> [in <a href="cap_machine.examples.macros.html">cap_machine.examples.macros</a>]<br/>
@@ -5203,7 +5214,6 @@
 <a href="cap_machine.rules.rules_Hash.html#Hash_failure_rec">Hash_failure_rec</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_failure_ind">Hash_failure_ind</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.rules.rules_Hash.html#Hash_failure_rect">Hash_failure_rect</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
-<a href="cap_machine.rules.rules_Hash.html#hash_lmemory_region">hash_lmemory_region</a> [in <a href="cap_machine.rules.rules_Hash.html">cap_machine.rules.rules_Hash</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidLAddress">hasValidLAddress</a> [in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.cap_lang.html#has_seal">has_seal</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#has_access_lword_range">has_access_lword_range</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -5851,7 +5861,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2546 entries)</td>
+<td>(2551 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -6011,7 +6021,7 @@
 <td><a href="indexpage.html#lemma_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(988 entries)</td>
+<td>(994 entries)</td>
 </tr>
 <tr>
 <td>Constructor Index</td>
@@ -6267,7 +6277,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(774 entries)</td>
+<td>(773 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
