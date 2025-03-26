@@ -573,97 +573,95 @@ Section cap_lang_rules.
 
 
       + iDestruct (update_state_interp_transient_next_version with "Hσ") as "Hσ" ; eauto.
-        (* TODO and now, how do I convert transiently into transient_state again ? *)
-        admit.
-        rewrite (update_state_interp_transient_int (dst := dst) (z := 1%Z))
-        ; last by set_solver.
-        (* iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). *)
-        (* { rewrite elem_of_dom. *)
-        (*   destruct (decide (PC = dst)); try by simplify_map_eq. *)
-        (*   destruct (decide (PC = src)); by simplify_map_eq. *)
-        (* } *)
-        (* iSplit. *)
-        (* { (* failure case: incrementing the pc failed *) *)
-        (*   iIntros (ec lregs') "Hσ %Hlincr %Hincr". *)
-        (*   iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". *)
-        (*   rewrite big_sepM_fmap. *)
-        (*   iApply ("Hφ" with "[$Hregs $Hmem]"). *)
-        (*   iPureIntro. *)
-        (*   constructor 4; auto. *)
-        (*   destruct srcv as [ | [|] | ? [|] ] *)
-        (*   ; cbn in * *)
-        (*   ; try done *)
-        (*   ; by econstructor 2. *)
-        (* } *)
-
-        (* pc incr success *)
-        (* iIntros (lregs' regs') "Hσ %Hlincr %Hincr". *)
-        (* iApply wp2_val. cbn. *)
-        (* iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)". *)
-        (* rewrite big_sepM_fmap; cbn. *)
-        (* iApply ("Hφ" with "[$Hmem $Hregs]"). *)
-        (* iPureIntro. *)
-        (* destruct srcv as [ | [|] | ? [|] ] ; cbn in * *)
-        (* ; auto *)
-        (* ; try done *)
-        (* ; inversion Hget_lsrcv; subst. *)
-        (* eapply IsUnique_success_true_cap; eauto. *)
-        (* { by intro ; subst. } *)
-
-    - iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
-      { iCombine "Hpca Hmem" as "Hmem".
+        change (<[dst:=WInt 1]> (reg σ)) with (reg (update_reg σ dst (WInt 1))).
+        iApply (wp2_opt_incrementPC with "[Hσ Hφ]").
+        { pose proof (elem_of_dom_2 _ _ _ HPC).
+          now set_solver.}
+        unfold state_interp_transient.
+        iSplitR "Hφ".
+        * admit.
+        * iSplit.
+          -- iIntros (ϕt' lrt') "[Hσ %Hσpure] %HincLPC %HincPC".
+             iDestruct (transiently_abort with "Hσ") as "($ & Hlr' & Hlm')".
+             iApply ("Hφ" with "[$Hlr' Hlm']").
+             iSplitR.
+             iPureIntro; constructor; try reflexivity.
+             eapply IsUnique_fail_invalid_PC_upd; now eauto.
+             admit.
+          -- iIntros (lrt' rs') "[Hσ %Hσpure] %HincLPC %HincPC".
+             iApply wp2_val.
+             iMod (transiently_commit with "Hσ") as "(Hσ & Hlrt' & Hlmt')".
+             iModIntro.
+             iFrame "Hσ".
+             iApply ("Hφ" with "[$Hlrt' Hlmt']").
+             iSplitR.
+             iPureIntro.
+             destruct srcv; inversion Hsrcv_lcap;
+               last by (destruct l; inversion H0; inversion His_sealed).
+             destruct sb; inversion H0. 
+             eapply IsUnique_success_true_cap; eauto.
+             destruct p0; now inversion His_sealed.
+             admit.
+             admit.
+    - iApply wp2_reg_lookup.
+      {cbn in Dregs; set_solver.}
+      iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
+      { (* TODO: lemma! *)
+        iCombine "Hpca Hmem" as "Hmem".
         rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
         rewrite insert_delete. iFrame. auto. by rewrite lookup_delete. }
-      iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
-      iIntros (srcv) "Hσ %Hlsrcv %Hsrcv".
-
-      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
-      iApply wp2_word_is_lcap. iSplit.
-
-      { (* failure case: r1v contains something, but it is not a capability. *)
-        iIntros "%Hcsrcv %Hgcsrcv".
-        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
-        rewrite big_sepM_fmap.
-        iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
-        constructor 4; try easy.
-        eapply IsUnique_fail_cap; first eassumption.
-        rewrite /is_log_cap_or_scap.
-        destruct srcv; auto.
-        destruct sb; cbn in *; done.
-        destruct l; cbn in *; done.
-      }
-
-      iIntros "%Heqlwdstv %Heqgwdstv".
-      rewrite updatePC_incrementPC; cbn.
-      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
-      rewrite (update_state_interp_transient_int (dst := dst) (z := 0%Z))
-      ; last by set_solver.
-      iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
-      { rewrite elem_of_dom.
-        destruct (decide (PC = dst)) ; subst; now simplify_map_eq.
-      }
+      iModIntro.
+      iFrame "Hσ".
+      iIntros (lwr) "Hσ %Hlsrc Hsrc".
+      iApply wp_opt2_bind.
+      iApply wp_opt2_eqn_both.
+      iApply wp2_word_is_lcap.
       iSplit.
-      { (* failure case: incrementing the pc failed *)
-        iIntros (ec lregs') "Hσ %Hlincr %Hincr".
-        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
-        rewrite big_sepM_fmap.
-        iApply ("Hφ" with "[$Hregs $Hmem]").
-        iPureIntro.
-        constructor 4; auto. econstructor 3; eauto. }
+      + iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hlregs & Hlmem)".
+        rewrite big_opM_fmap; cbn.
+        iIntros "%Hlwr %Hwr".
+        iApply ("Hφ" with "[$Hlmem $Hlregs]").
+        iPureIntro; constructor; try reflexivity.
+        eapply IsUnique_fail_cap; eauto.
+        destruct lwr; inversion Hlwr; try done.
+        * destruct sb; now inversion H0.
+        * destruct l; now inversion H0.
+      + iIntros "%Hlwr %Hwr".       
+        rewrite updatePC_incrementPC.
+        iApply wp_opt2_bind.
+        iApply wp_opt2_eqn_both.
+        iApply wp2_opt_incrementPC.
+        { pose proof (elem_of_dom_2 _ _ _ HPC).
+          now set_solver.}
+        unfold state_interp_transient.
+        iSplitR "Hφ".
+        * admit.
+        * iSplit.
+          -- iIntros (ϕt' lrt') "[Hσ %Hσpure] %HincLPC %HincPC".
+             iDestruct (transiently_abort with "Hσ") as "($ & Hlr' & Hlm')".
+             iApply ("Hφ" with "[$Hlr' Hlm']").
+             iSplitR.
+             iPureIntro; constructor; try reflexivity.
+             eapply IsUnique_fail_invalid_PC_nupd; now eauto.
+             admit.
+          -- iIntros (lrt' rs') "[Hσ %Hσpure] %HincLPC %HincPC".
+             iApply wp2_val.
+             iMod (transiently_commit with "Hσ") as "(Hσ & Hlrt' & Hlmt')".
+             iModIntro.
+             iFrame "Hσ".
+             iApply ("Hφ" with "[$Hlrt' Hlmt']").
+             iSplitR.
+             iPureIntro.
+             destruct lwr; inversion Hwr.
+               (* last by (destruct l; inversion H0; inversion His_sealed). *)
+             destruct sb; inversion H0. 
+             eapply IsUnique_success_false; eauto.
+             destruct l; inversion H0.
+             eapply IsUnique_success_false; eauto.
+             admit.
+  Admitted.
 
-      (* pc incr success *)
-      iIntros (lregs' regs') "Hσ %Hlincr %Hincr".
-      iApply wp2_val. cbn.
-      iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & Hmem)".
-      rewrite big_sepM_fmap; cbn.
-      iApply ("Hφ" with "[$Hmem $Hregs]").
-      iPureIntro.
-      destruct srcv as [ | [|] | ? [|] ] ; cbn in *
-      ; auto
-      ; try done
-      ; eapply IsUnique_success_false; eauto.
-  Qed.
-
+        
   (* Lemma update_state_interp_transient_next_version {σ σt lr lrt} {lm lmt : LMemF} la lw lw' : *)
   (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) -> *)
   (*   (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la cur_map) -> *)

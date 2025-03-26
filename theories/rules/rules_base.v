@@ -393,6 +393,14 @@ Section cap_lang_rules.
   Definition transiently (Pcommitted : iProp Σ) (Ptransient : iProp Σ) : iProp Σ :=
     Pcommitted ∗ (∀ Ep, Pcommitted ={Ep}=∗ Ptransient).
 
+  Lemma transiently_abort Pcommitted Ptransient :
+    transiently Pcommitted Ptransient ⊢ Pcommitted.
+  Proof. now iIntros "[P _]". Qed.
+
+  Lemma transiently_commit Pcommitted Ptransient Ep :
+    transiently Pcommitted Ptransient ⊢ |={Ep}=> Ptransient.
+  Proof. iIntros "[Hc Ht]". now iApply ("Ht" with "Hc"). Qed.
+
   Definition state_interp_transient (φ φt : ExecConf) (lr lrt : LReg) (lm lmt : LMemF) : iProp Σ :=
     transiently
       (state_interp_logical φ ∗ ([∗ map] k↦y ∈ lr, k ↦ᵣ y) ∗ ([∗ map] k↦y ∈ lm, k ↦ₐ{y.1} y.2))
