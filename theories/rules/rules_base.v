@@ -1014,7 +1014,11 @@ Definition regs_of (i: instr): gset RegName :=
   | Seal dst r1 r2 => {[dst; r1; r2]}
   | UnSeal dst r1 r2 => {[dst; r1; r2]}
   | IsUnique dst src => {[dst; src]}
-  (* TODO @Denis add enclaves instructions here *)
+  | EInit r => {[r]}
+  | EDeInit r => {[r]}
+  | EStoreId rs rd => {[rs; rd]}
+  (* TODO @June add hash instructions *)
+
   | _ => ∅
   end.
 
