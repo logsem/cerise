@@ -94,7 +94,7 @@ Section cap_lang_rules.
                           & HEC
                           & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
                           & %HLinv)"
-    ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
+    ; cbn in *.
 
     iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as %Hregs.
     (* have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs. *)
@@ -118,7 +118,10 @@ Section cap_lang_rules.
     iModIntro.
     iSplitR "Hφ HECv". (* not yet sure what is needed *)
     iExists lr, lm, vmap.
+    iExists etable, tbl_prev, (etable ∪ tbl_prev).
     iFrame; auto.
+
+
     all: admit.
    (* Qed. *)
   Admitted.

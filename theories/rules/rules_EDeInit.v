@@ -18,14 +18,28 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
+  Inductive EDeInit_spec (lregs lregs' : LReg) (lmem lmem' : LMem) : cap_lang.val → Prop :=
+    | EDeInit_success : EDeInit_spec lregs lregs' lmem lmem' NextIV
+    | EDeInit_failure : EDeInit_spec lregs lregs' lmem lmem' FailedV.
+
   (* TODO @Denis *)
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw src :
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw src lregs lmem tidx eid :
     decodeInstrWL lw = EDeInit src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (* TODO: EC register changes? *)
 
-    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}
+    {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
+        (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
+        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
+        enclave_cur tidx eid (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
+    }}}
       Instr Executable @ E
-    {{{ RET FailedV; PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}.
+    {{{ lregs' lmem' retv, RET retv;
+        ⌜ EDeInit_spec lregs lregs' lmem lmem' retv⌝ ∗
+        [∗ map] k↦y ∈ lregs, k ↦ᵣ y ∗
+        [∗ map] la↦lw ∈ lmem, la ↦ₐ lw ∗
+        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
    (*  iIntros (Hinstr Hvpc φ) "[Hpc Hpca] Hφ". *)
    (*  apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc. *)
