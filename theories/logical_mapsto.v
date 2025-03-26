@@ -2412,11 +2412,26 @@ Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (b e : Addr) (v 
   in
   hash (lword_get_word <$> instructions).
 
-Lemma lmeasure_measure `{MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
-  forall b e v,
-    state_phys_log_corresponds phr phm lr lm vmap →
-    hash_lmemory_region lm b e v = hash_memory_region phm b e.
-Proof. intros. unfold hash_lmemory_region, hash_memory_region. (* oh boy... @TODO *) Admitted.
+Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
+  forall p b e a v,
+  is_cur_word (LCap p b e a v) vmap ->
+  state_phys_log_corresponds phr phm lr lm vmap →
+  hash_lmemory_region lm b e v = hash_memory_region phm b e.
+Proof.
+  intros p b e a v Hcur_word [ _ [Hcur Hroot] ].
+  unfold hash_lmemory_region, hash_memory_region.
+  f_equal.
+  rewrite /is_cur_word in Hcur_word.
+  induction ( finz.seq_between b e ).
+  - match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flog := f) end.
+    match goal with | _ : _ |- context [ (filter ?f phm) ] => set (Fphy := f) end.
+    pose proof (map_filter_empty_iff Flog lm) as [_ HFlog].
+    pose proof (map_filter_empty_iff Fphy phm) as [_ HFphy].
+    rewrite HFlog; last admit.
+    rewrite HFphy ; last admit.
+    by rewrite !map_to_list_empty /=.
+  - admit.
+(* oh boy... @TODO *) Admitted.
 
 (** Instantiation of the program logic *)
 
