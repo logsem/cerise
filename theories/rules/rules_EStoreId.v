@@ -84,4 +84,31 @@ Section cap_lang_rules.
    (* Qed. *)
   Admitted.
 
+  Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
+    decodeInstrWL lw = EStoreId rd rs →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+        (pc_a, pc_v) ↦ₐ lw ∗
+        rs ↦ᵣ LWInt otype ∗
+        rd ↦ᵣ any }}}
+      Instr Executable @ E
+    {{{ retv, RET retv;
+        (pc_a, pc_v) ↦ₐ lw ∗
+        rs ↦ᵣ LWInt otype ∗
+        ((⌜ retv = NextIV ⌝ ∗
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
+          ∃ (I : EIdentity), ∃ (tid : TIndex),
+            rd ↦ᵣ (LWInt I) ∗
+            (enclave_all tid I) ∗
+            ⌜ has_seal otype tid ⌝)
+           ∨
+           (⌜ retv = FailedV ⌝ ∗
+            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+            rd ↦ᵣ any)
+         ) }}}.
+    Proof.
+    Admitted.
+
 End cap_lang_rules.
