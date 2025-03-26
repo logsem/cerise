@@ -48,8 +48,8 @@ Section cap_lang_rules.
         ⌜ EStoreId_spec lregs lregs' lmem lmem' otype tidx retv⌝ ∗
         (pc_a, pc_v) ↦ₐ lw ∗
         rs ↦ᵣ LWInt otype ∗
-        [∗ map] k↦y ∈ lregs', k ↦ᵣ y ∗
-        [∗ map] la↦lw ∈ lmem', la ↦ₐ lw ∗
+        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
+        ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
         if decide (retv = NextIV) then
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
           ∃ (I : EIdentity),
@@ -89,10 +89,10 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
 
-    {{{ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
-        (pc_a, pc_v) ↦ₐ lw ∗
-        rs ↦ᵣ LWInt otype ∗
-        rd ↦ᵣ any }}}
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+        ▷ (pc_a, pc_v) ↦ₐ lw ∗
+        ▷ rs ↦ᵣ LWInt otype ∗
+        ▷ rd ↦ᵣ any }}}
       Instr Executable @ E
     {{{ retv, RET retv;
         (pc_a, pc_v) ↦ₐ lw ∗
@@ -109,6 +109,15 @@ Section cap_lang_rules.
             rd ↦ᵣ any)
          ) }}}.
     Proof.
-    Admitted.
+    iIntros (Hinstr Hvpc Hpca φ) "(>HPC & >Hpc_a & >Hrs & >Hrd) Hφ".
+    iApply (wp_estoreid with "[$HPC $Hrs $Hrd $Hpc_a]"); eauto. (* eauto is picking an empty lregs and lmem? *)
+    iNext. iIntros (lregs' lmem' tidx retv) "(#Hspec & Hpclw & Hrs & Hrmap & Hmmap & Hpost)".
+    iDestruct "Hspec" as %Hspec.
+    destruct Hspec eqn:?; cycle 1; cbn; iApply "Hφ". iFrame.
+    - iRight. auto.
+    - iFrame. iLeft. iDestruct "Hpost" as "(HPC & Henc)". iFrame. iSplitR. by iPureIntro.
+      iDestruct "Henc" as (I) "(Hrd & Henc)".
+      iExists I, tidx. iFrame. by iPureIntro.
+  Qed.
 
 End cap_lang_rules.
