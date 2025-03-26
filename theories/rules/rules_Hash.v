@@ -19,6 +19,19 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
+  Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
+    lregs !! r = Some (LCap p b e a v) ∧ readAllowed p = true.
+
+  Definition hash_lmemory_region (lm : LMem) (b e : Addr) (v : Version) :=
+    let instructions : list LWord :=
+      map snd
+        ((map_to_list
+            (filter (fun mem_addr => (laddr_get_addr (fst mem_addr)) ∈ (finz.seq_between b e)
+                                  /\ (laddr_get_version (fst mem_addr)) = v)
+               lm)))
+    in
+    hash (fmap lword_get_word instructions).
+
   Inductive Hash_failure (lregs: LReg) (dst src: RegName) (lmem : LMem) :=
   | Hash_fail_const lw:
       lregs !! src = Some lw ->
@@ -225,7 +238,7 @@ Section cap_lang_rules.
 
     replace (WInt (hash_memory_region (mem σ) b e))
       with ( lword_get_word  (LInt (hash_lmemory_region lmem b e v))).
-    2:{ admit. }
+    2:{ cbn. admit. }
 
 
     iApply (wp2_opt_incrementPC with "[$Hσ Hcred Hφ]").
@@ -267,12 +280,50 @@ Section cap_lang_rules.
       Instr Executable @ Ep
       {{{ RET NextIV;
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v
-        ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+          ∗ (pc_a, pc_v) ↦ₐ lw
           ∗ dst ↦ᵣ LWInt (hash ws)
           ∗ src ↦ᵣ LCap p b e a v
           ∗ [[ b , e ]] ↦ₐ{ v } [[ ws ]]
       }}}.
   Proof.
+    intros Hdecode HcorrectPC Hread_allowed Hpca'.
+    iIntros (φ) "(>HPC & >Hpca & >Hdst & >Hsrc & >Hmem) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hdst Hsrc") as "[Hmap (%&%&%)]".
+    rewrite /region_mapsto.
+    iDestruct ( big_sepL2_to_big_sepM with "Hmem") as "Hmem".
+    { admit. }
+    iDestruct (big_sepM_insert with "[$Hmem $Hpca]") as "Hmem".
+    { admit. }
+
+    iApply (wp_hash with "[$]"); eauto.
+    { by simplify_map_eq. }
+    { by rewrite !dom_insert; set_solver+. }
+    { by simplify_map_eq. }
+    {
+
+      rewrite /allow_hash_map_or_true.
+      exists p,b,e,a,v.
+      split.
+      - rewrite /read_reg_inr.
+        rewrite lookup_insert_ne //.
+        rewrite lookup_insert_ne //.
+        by simplify_map_eq.
+      - match goal with
+        | H: _ |- context [decide ?x] => destruct (decide x)
+        end; last done.
+        (* rewrite /reg_allows_hash in r; destruct r as [r _]. *)
+        (* rewrite lookup_insert_ne // in r. *)
+        (* rewrite lookup_insert_ne // in r. *)
+        (* rewri *)
+        apply Forall_forall.
+        intros a' Ha'.
+        admit.
+        (* rewrite //. *)
+
+    }
+
+
+
   Admitted.
 
   Lemma wp_hash_success_same Ep
