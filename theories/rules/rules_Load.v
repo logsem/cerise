@@ -250,7 +250,7 @@ Section cap_lang_rules.
     iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
     { rewrite dom_insert. apply elem_of_union_r. now rewrite elem_of_dom HPC. }
     iSplit.
-    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
+    - iIntros "Hσ %Hlin %Hin".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hmem $Hregs]").
       iPureIntro.

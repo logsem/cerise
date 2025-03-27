@@ -227,7 +227,7 @@ Section cap_lang_rules.
     iApply (wp2_opt_incrementPC with "[$Hσ Hφ]"). { now rewrite elem_of_dom. }
     iSplit.
     { (* failure case: incrementing the pc failed *)
-      iIntros (ec lregs') "Hσ %Hlincr %Hincr".
+      iIntros "Hσ %Hlincr %Hincr".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       rewrite big_sepM_fmap.
       iApply ("Hφ" with "[$Hregs $Hmem]").

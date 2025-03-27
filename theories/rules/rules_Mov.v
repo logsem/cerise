@@ -71,7 +71,7 @@ Section cap_lang_rules.
     { intros. now eapply (word_of_argumentL_cur Heqlw2). }
     iFrame "Hσ".
     iSplit. cbn.
-    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
+    - iIntros "Hσ %Hlin %Hin".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
       iPureIntro.
