@@ -2487,7 +2487,6 @@ Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
 (* Notations for fragmental resources *)
 Notation "EC⤇ n" := (EC_frag n)
                       (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
-(* @TODO: Denis *)
 
 Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
   ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,
