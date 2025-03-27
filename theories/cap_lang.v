@@ -451,6 +451,9 @@ Section opsem.
     | None => False
     end.
 
+  Definition otype_has_seal (ot : OType) (tid : TIndex) : Prop :=
+    tid_of_otype ot = Some tid.
+
   Definition hash_memory_region (m : Mem) (b e : Addr) :=
     let instructions : list Word :=
       snd <$>
