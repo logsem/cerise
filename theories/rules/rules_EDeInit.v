@@ -18,9 +18,15 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
+  Inductive EDeInit_fail : Prop :=
+  | EDeInit_fail_no_valid_PC : EDeInit_fail
+  | EDeInit_fail_no_seal_unseal_pair : EDeInit_fail.
+
   Inductive EDeInit_spec (lregs lregs' : LReg) (lmem lmem' : LMem) : cap_lang.val → Prop :=
-    | EDeInit_success : EDeInit_spec lregs lregs' lmem lmem' NextIV
-    | EDeInit_failure : EDeInit_spec lregs lregs' lmem lmem' FailedV.
+  | EDeInit_success : EDeInit_spec lregs lregs' lmem lmem' NextIV
+  | EDeInit_failure :
+    EDeInit_fail →
+    EDeInit_spec lregs lregs' lmem lmem' FailedV.
 
   (* TODO @Denis *)
   Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw src lregs lmem tidx eid :
