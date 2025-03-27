@@ -1,10 +1,10 @@
 From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg Get Lea Seal UnSeal IsUnique Hash.
+  Subseg Get Lea Seal UnSeal IsUnique Hash EInit EDeInit EStoreId.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine.rules Require Import rules_EInit rules_EDeInit rules_EStoreId rules_IsUnique. (* temporarily *)
+(* From cap_machine.rules Require Import rules_EInit rules_EDeInit rules_EStoreId rules_IsUnique. (* temporarily *) *)
 
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
@@ -39,8 +39,8 @@ Section fundamental.
   Qed.
 
   Lemma fundamental_cap lregs p b e a v :
-    ⊢ interp (LCap p b e a v) →
-      interp_expression lregs (LCap p b e a v).
+    ⊢ interp (LCap p b e a v) → (* PC safe to share *)
+      interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
     iIntros "#Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
@@ -128,35 +128,38 @@ Section fundamental.
         iApply (unseal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
 
-      + (* TODO @Denis EInit *)
-        admit.
-        (* iApply (wp_einit with "[HPC Ha]"); eauto. iFrame. *)
-        (* iNext. iIntros "[HPC Ha] /=". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
-        (* iNext ; iIntros "_". *)
-        (* iApply wp_value. *)
-        (* iIntros (Hcontr); inversion Hcontr. *)
+      + (* EInit *)
+        iApply (einit_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
 
-      + (* TODO @Denis EDeInit *)
-        admit.
-        (* iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame. *)
-        (* iNext. iIntros "[HPC Ha] /=". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
-        (* iNext ; iIntros "_". *)
-        (* iApply wp_value. *)
-        (* iIntros (Hcontr); inversion Hcontr. *)
+      + (* EDeInit *)
+        iApply (edeinit_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
 
-      + (* TODO @Denis EStoreId *)
-        admit.
-        (* iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame. *)
-        (* iNext. iIntros "[HPC Ha] /=". *)
-        (* iApply wp_pure_step_later; auto. *)
-        (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *)
-        (* iNext ; iIntros "_". *)
-        (* iApply wp_value. *)
-        (* iIntros (Hcontr); inversion Hcontr. *)
+      + (* EStoreId *)
+        iApply (estoreid_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+          try iAssumption; eauto.
+
+
+      (* + (* TODO @Denis EDeInit *) *)
+      (*   admit. *)
+      (*   (* iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame. *) *)
+      (*   (* iNext. iIntros "[HPC Ha] /=". *) *)
+      (*   (* iApply wp_pure_step_later; auto. *) *)
+      (*   (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *) *)
+      (*   (* iNext ; iIntros "_". *) *)
+      (*   (* iApply wp_value. *) *)
+      (*   (* iIntros (Hcontr); inversion Hcontr. *) *)
+
+      (* + (* TODO @Denis EStoreId *) *)
+      (*   admit. *)
+      (*   (* iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame. *) *)
+      (*   (* iNext. iIntros "[HPC Ha] /=". *) *)
+      (*   (* iApply wp_pure_step_later; auto. *) *)
+      (*   (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *) *)
+      (*   (* iNext ; iIntros "_". *) *)
+      (*   (* iApply wp_value. *) *)
+      (*   (* iIntros (Hcontr); inversion Hcontr. *) *)
 
       + iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
