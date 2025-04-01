@@ -75,12 +75,7 @@ Section cap_lang_rules.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn_both.
     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred Hpc_a]") ; first by set_solver.
-    iIntros (lwrs) "Hσ %HrsL %Hrs".
-
-    iApply wp_opt2_bind.
-    assert ((get_otype_from_wint (lword_get_word lwrs) = finz.of_z otype)). admit.
-    rewrite H.
-    iApply wp_opt2_eqn_both.
+    iIntros (lwrs2) "Hσ %HrsL2 %Hrs2".
 
   Admitted.
 
@@ -134,7 +129,7 @@ Section cap_lang_rules.
       rewrite lookup_insert in H2.
       inversion H2; subst.
 
-      rewrite Hpca in H3. inversion H3; subst.
+      rewrite Hpca in H3. inversion H3.
 
        iDestruct "Hrmap" as "[$ Hrmap]".
       iExists I, tidx. iFrame. by iPureIntro.

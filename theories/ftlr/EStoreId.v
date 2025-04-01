@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine.ftlr Require Import ftlr_base.
+From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_EStoreId.
 
 Section fundamental.
@@ -23,65 +23,65 @@ Section fundamental.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
-    specialize Hsome with rd as Hr.
+    specialize Hsome with rd as Hrd.
+    specialize Hsome with rs as Hrs.
+    iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
+      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
     iApply (wp_estoreid with "[$Ha $Hmap]"); eauto.
-    destruct Hr as [wsrc Hsomesrc].
-    iDestruct ((big_sepM_delete _ _ r) with "Hmap") as "[Hsrc Hmap]"; eauto.
-    rewrite (lookup_delete_ne lregs PC r); eauto.
-    iApply (wp_jmp_success with "[$HPC $Ha $Hsrc]"); eauto.
-    iNext. iIntros "[HPC [Ha Hsrc]] /=".
-    iApply wp_pure_step_later; auto.
-    (* reconstruct regions *)
-    iDestruct ((big_sepM_delete _ _ r) with "[Hsrc Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|].
-    rewrite -delete_insert_ne // insert_id; auto.
+    { destruct Hrd as [wrd Hsomerd]. destruct Hrs as [wrs Hsomers].
+      rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
+      apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
+    { by simplify_map_eq. }
+    iIntros "!>" (regs' tidx retv). iDestruct 1 as (HSpec) "(Hrmap & Ha & Hrs & Hpost)".
 
-      iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro].
+    destruct HSpec as [Hincr Hseal|Hincr Hlregs']; cycle 1.
+    - (* failure case: increment pc fails *)
+      iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro]. iNext.
+      iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate.
 
-  (*    (* Needed because IH disallows non-capability values *) *)
-  (*     destruct wsrc as [ | [p' b' e' a' v' | ] | ]; cycle 1. *)
-  (*     { *)
-  (*       rewrite /updatePcPerm. *)
-  (*       (* Special case for E-values*) *)
-  (*       destruct (decide (p' = E)) as [-> | HneE]. *)
-  (*       - *)
-  (*         unshelve iDestruct ("Hreg" $! r _ _ Hsomesrc) as "HPCv"; auto. *)
-  (*         iClear "Hinv". *)
-  (*         rewrite fixpoint_interp1_eq; simpl. *)
+    - (* success case *)
+      incrementLPC_inv as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs'); simplify_map_eq.
+      iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro].
+      iNext. iIntros.
+      iApply ("IH" with "[%] [] Hrmap [$Hown]").
 
-  (*         iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. *)
-  (*         rewrite insert_delete_insert; auto. *)
-  (*         iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto. *)
-  (*       - iAssert (PC ↦ᵣ LCap p' b' e' a' v')%I  with "[HPC]" as "HPC". *)
-  (*         { destruct p'; auto. congruence. } *)
+      (* destruct (reg_eq_dec rs PC) as [Heq | Hners]. *)
+      (* { simplify_map_eq. } *)
+      (* rewrite lookup_insert_ne in HPC; auto. *)
+      (* destruct (reg_eq_dec rd PC) as [Heq | Hnerd]. *)
+      (* { subst rd. *)
+      (* rewrite lookup_insert in HPC. *)
+      (* iDestruct "Hpost" as "[%I HPC]". *)
+      (* Unshelve. apply I. *)
+      (* subst HPC. *)
+      (* repeat rewrite insert_insert. *)
+      (* (* rewrite insert_insert. *) *)
 
-  (*         iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. *)
-  (*         rewrite insert_delete_insert; auto. *)
-  (*         iNext; iIntros "_". *)
-  (*         iApply ("IH" $! (<[PC:=LCap p' b' e' a' v']> lregs) with "[%] [] [Hmap] [$Hown]"). *)
-  (*         { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). } *)
-  (*         { iIntros (ri ? Hri Hvs). *)
-  (*           rewrite lookup_insert_ne in Hvs; auto. *)
-  (*           destruct (decide (ri = r)); simplify_map_eq. *)
-  (*           { rewrite Hsomesrc in Hvs; inversion Hvs; subst; clear Hvs. *)
-  (*             unshelve iSpecialize ("Hreg" $! r _ _ Hsomesrc); eauto. } *)
-  (*           { iApply "Hreg"; auto. } *)
-  (*         } *)
-  (*         { rewrite insert_insert. iApply "Hmap". } *)
-  (*         iModIntro. *)
-  (*         unshelve iSpecialize ("Hreg" $! r _ _ Hsomesrc); eauto. *)
-  (*     } *)
+      (* iApply ("IH" with "[%] [] Hrmap [$Hown]"); auto. *)
+      + cbn. intros.  by repeat (apply lookup_insert_is_Some'; right).
+      + iIntros. iApply "Hreg"; auto.
+        iPureIntro.
+        destruct (reg_eq_dec r1 rs).
+        { subst rs. admit. }
+        { destruct (reg_eq_dec r1 rd).
+          - subst. rewrite lookup_insert_ne in H1; auto. admit.
+          - repeat rewrite lookup_insert_ne in H1; auto. }
 
-  (*    (* Non-capability cases *) *)
-  (*     all: iNext; iIntros "_". *)
-  (*     all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx])); *)
-  (*       iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse; cbn in *; simplify_eq| ]. *)
-  (*     all: repeat iNext; iIntros "HPC /=". *)
-  (*     all: iApply wp_pure_step_later; auto. *)
-  (*     all: iNext; iIntros "_". *)
-  (*     all: iApply wp_value. *)
-  (*     all: iIntros; discriminate. *)
-  (* Qed. *)
-    Admitted.
+      + iModIntro.
+        destruct (reg_eq_dec rs PC).
+        { simplify_map_eq. }
+        { destruct (reg_eq_dec rd PC).
+          - (* rd = PC *)
+            subst. admit.
+          - (* rd ≠ PC *)
+            rewrite lookup_insert_ne in HPC. rewrite lookup_insert_ne in HPC; auto.
+            rewrite lookup_insert in HPC. inversion HPC.  subst.
+        iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+        { destruct Hp as [HRX | HRW]; by subst p''. }
+        { by rewrite PermFlowsToReflexive. }
+  Admitted.
 
 End fundamental.

@@ -140,28 +140,8 @@ Section fundamental.
         iApply (estoreid_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
 
-
-      (* + (* TODO @Denis EDeInit *) *)
-      (*   admit. *)
-      (*   (* iApply (wp_edeinit with "[HPC Ha]"); eauto; iFrame. *) *)
-      (*   (* iNext. iIntros "[HPC Ha] /=". *) *)
-      (*   (* iApply wp_pure_step_later; auto. *) *)
-      (*   (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *) *)
-      (*   (* iNext ; iIntros "_". *) *)
-      (*   (* iApply wp_value. *) *)
-      (*   (* iIntros (Hcontr); inversion Hcontr. *) *)
-
-      (* + (* TODO @Denis EStoreId *) *)
-      (*   admit. *)
-      (*   (* iApply (wp_estoreid with "[HPC Ha]"); eauto. iFrame. *) *)
-      (*   (* iNext. iIntros "[HPC Ha] /=". *) *)
-      (*   (* iApply wp_pure_step_later; auto. *) *)
-      (*   (* iMod ("Hcls" with "[HP Ha]");[iExists lw;iFrame|iModIntro]. *) *)
-      (*   (* iNext ; iIntros "_". *) *)
-      (*   (* iApply wp_value. *) *)
-      (*   (* iIntros (Hcontr); inversion Hcontr. *) *)
-
-      + iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+      + (* IsUnique *)
+        iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
 
       + (* Fail *)
