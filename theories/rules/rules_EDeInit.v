@@ -22,30 +22,33 @@ Section cap_lang_rules.
   | EDeInit_fail_no_valid_PC : EDeInit_fail
   | EDeInit_fail_no_seal_unseal_pair : EDeInit_fail.
 
-  Inductive EDeInit_spec (lregs lregs' : LReg) (lmem lmem' : LMem) : cap_lang.val → Prop :=
-  | EDeInit_success : EDeInit_spec lregs lregs' lmem lmem' NextIV
+  Inductive EDeInit_spec (etable etable' : ETable) (lregs lregs' : LReg) : cap_lang.val → Prop :=
+  | EDeInit_success (tidx : TIndex) (eid : EIdentity) :
+    etable !! tidx = Some eid →
+    delete tidx etable = etable' →
+    incrementLPC lregs = Some lregs' →
+    EDeInit_spec etable etable' lregs lregs' NextIV
   | EDeInit_failure :
     EDeInit_fail →
-    EDeInit_spec lregs lregs' lmem lmem' FailedV.
+    EDeInit_spec etable etable' lregs lregs' FailedV.
 
   (* TODO @Denis *)
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw src lregs lmem tidx eid :
-    decodeInstrWL lw = EDeInit src →
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r lregs etable tidx eid :
+    decodeInstrWL lw = EDeInit r →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
+    regs_of (EDeInit r) ⊆ dom lregs →
     (* TODO: EC register changes? *)
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
-        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
         (pc_a, pc_v) ↦ₐ lw ∗
         enclave_cur tidx eid (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
     }}}
       Instr Executable @ E
-    {{{ lregs' lmem' retv, RET retv;
-        ⌜ EDeInit_spec lregs lregs' lmem lmem' retv⌝ ∗
-        [∗ map] k↦y ∈ lregs, k ↦ᵣ y ∗
-        [∗ map] la↦lw ∈ lmem, la ↦ₐ lw ∗
-        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗ (pc_a, pc_v) ↦ₐ lw }}}.
+    {{{ lregs' etable' retv, RET retv;
+        ⌜ EDeInit_spec etable etable' lregs lregs' retv⌝ ∗
+        ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
+        (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
    (*  iIntros (Hinstr Hvpc φ) "[Hpc Hpca] Hφ". *)
    (*  apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc. *)
