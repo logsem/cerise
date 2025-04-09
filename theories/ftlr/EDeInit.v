@@ -15,15 +15,6 @@ Section fundamental.
   Implicit Types lw : (leibnizO LWord).
   Implicit Types interp : (D).
 
-  #[global] Instance enclave_prev_timeless (tidx : TIndex) : Timeless (enclave_prev tidx).
-  apply _. Defined.
-
-  #[global] Instance enclave_cur_timeless (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_cur tidx eid).
-  apply _. Defined.
-
-  #[global] Instance enclave_all_timeless (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_all tidx eid).
-  apply _. Defined.
-
   Lemma edeinit_case (lregs : leibnizO LReg)
     (p : Perm) (b e a : Addr) (v : Version)
     (lw : LWord) (r : RegName) (P : D):
