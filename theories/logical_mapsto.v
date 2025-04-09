@@ -2481,14 +2481,14 @@ Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
 Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
   own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
-#[global] Instance enclave_prev_timeless (tidx : TIndex) : Timeless (enclave_prev tidx).
-apply _. Defined.
+#[global] Instance enclave_prev_timeless `{ceriseG Σ} (tidx : TIndex)  : Timeless (enclave_prev tidx).
+Proof. apply _. Defined.
 
-#[global] Instance enclave_cur_timeless (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_cur tidx eid).
-apply _. Defined.
+#[global] Instance enclave_cur_timeless `{ceriseG Σ} (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_cur tidx eid).
+Proof. apply _. Defined.
 
-#[global] Instance enclave_all_timeless (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_all tidx eid).
-apply _. Defined.
+#[global] Instance enclave_all_timeless `{ceriseG Σ} (tidx : TIndex) (eid : EIdentity) : Timeless (enclave_all tidx eid).
+Proof. apply _. Defined.
 
 Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
   own (inG0 := EC_G) EC_name (auth_frag n).
