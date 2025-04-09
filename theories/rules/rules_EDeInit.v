@@ -18,22 +18,35 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EDeInit_fail : Prop :=
-  | EDeInit_fail_no_valid_PC : EDeInit_fail
-  | EDeInit_fail_no_seal_unseal_pair : EDeInit_fail.
+  Inductive EDeInit_fail lregs : Prop :=
+  | EDeInit_fail_no_valid_PC :
+    incrementLPC lregs = None →
+    EDeInit_fail lregs
+  | EDeInit_fail_no_seal_unseal_pair :
+    (*... → *)
+    EDeInit_fail lregs.
 
-  Inductive EDeInit_spec (etable etable' : ETable) (lregs lregs' : LReg) : cap_lang.val → Prop :=
-  | EDeInit_success (tidx : TIndex) (eid : EIdentity) :
-    etable !! tidx = Some eid →
-    delete tidx etable = etable' →
+  Inductive EDeInit_spec (lregs lregs' : LReg) r (tidx : TIndex) (eid : EIdentity) is_cur : cap_lang.val → Prop :=
+  | EDeInit_success b e a:
+    e = (b^+2)%ot →
+    lregs !! r = Some (LSealRange (true,true) b e a) →
     incrementLPC lregs = Some lregs' →
-    EDeInit_spec etable etable' lregs lregs' NextIV
+    is_cur = true →
+    EDeInit_spec lregs lregs' r tidx eid is_cur NextIV
   | EDeInit_failure :
-    EDeInit_fail →
-    EDeInit_spec etable etable' lregs lregs' FailedV.
+    EDeInit_fail lregs →
+    lregs = lregs' →
+    EDeInit_spec lregs lregs' r tidx eid is_cur FailedV.
+
+(* SealRange <-> Word *)
+Definition is_seal_range (w : option LWord) : bool :=
+  match w with
+  | Some (LSealRange (true,true) b e a) => (e =? (b^+2))%ot
+  |  _ => false
+  end.
 
   (* TODO @Denis *)
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r lregs etable tidx eid :
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r lregs tidx eid (is_cur : bool) :
     decodeInstrWL lw = EDeInit r →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -42,12 +55,17 @@ Section cap_lang_rules.
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
-        enclave_cur tidx eid (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
+        if is_seal_range (lregs !! r) then
+          (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
+          if is_cur then enclave_cur tidx eid else enclave_prev tidx
+        else
+          emp
     }}}
       Instr Executable @ E
-    {{{ lregs' etable' retv, RET retv;
-        ⌜ EDeInit_spec etable etable' lregs lregs' retv⌝ ∗
-        ([∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
+    {{{ lregs' retv, RET retv;
+        ⌜ EDeInit_spec lregs lregs' r tidx eid is_cur retv⌝ ∗
+        enclave_prev tidx ∗
+        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
    (*  iIntros (Hinstr Hvpc φ) "[Hpc Hpca] Hφ". *)

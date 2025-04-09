@@ -40,6 +40,9 @@ Section cap_lang_rules.
   (* In a later step of the verification, an invariant will allow us to trade this resource for the specific predicate that always holds for results signed by enclaves with that hash... *)
   (* This enables "learning" some information about the signed, yet unknown result: we will be able to establish that at least the above predicate will hold for it... *)
   (* NOTE @June what if we already have the resource `enclave_cur(tidx, I)` ? *)
+  (* @Denis: that is the case when an enclave initializes and immediately attests itself. *)
+  (* Then we need a separate rule, because the rule below is not general enough to derive the former *)
+  (* For the time being, this rule is at least enough to prove the FTLR. *)
   Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -111,6 +114,7 @@ Section cap_lang_rules.
 
     iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & Henclave)".
     iDestruct "Hspec" as %Hspec.
+
     destruct Hspec eqn:?
     ; [ erewrite decide_True | erewrite decide_False ]; rewrite // ;
       simplify_eq; cycle 1; cbn; iApply "Hφ"; iFrame.
@@ -123,8 +127,6 @@ Section cap_lang_rules.
       iFrame.
       iRight; iFrame.
       done.
-      (* iDestruct "Hpost" as "Hrd". iFrame. iSplit. by iPureIntro. subst. *)
-      (* rewrite big_opM_insert_delete. iDestruct "Hrmap" as "[$ Hrmap]". *)
     - rewrite lookup_insert_ne in e ; last done.
       rewrite lookup_insert in e; simplify_eq.
       apply incrementLPC_Some_inv in e0 as (?&?&?&?&?&?&?&?&?); simplify_map_eq.
@@ -141,22 +143,6 @@ Section cap_lang_rules.
       iSplit ; first done.
       iExists I, tidx; iFrame.
       done.
-      (* (* iDestruct "Hpost" as "[%I (Hrd & Henc)]". *) *)
-      (* iFrame. iSplitR. by iPureIntro. *)
-      (* clear Heqe. apply incrementLPC_Some_inv in e as (?&?&?&?&?&?&?&?&?). *)
-      (* subst. *)
-
-      (* rewrite big_opM_insert_delete. *)
-
-      (* rewrite lookup_insert_ne in H2; auto. *)
-      (* rewrite lookup_insert_ne in H2; auto. *)
-      (* rewrite lookup_insert in H2. *)
-      (* inversion H2; subst. *)
-
-      (* rewrite Hpca in H3. inversion H3. *)
-
-      (*  iDestruct "Hrmap" as "[$ Hrmap]". *)
-      (* iExists I, tidx. iFrame. by iPureIntro. *)
   Qed.
 
 End cap_lang_rules.

@@ -691,7 +691,7 @@ Section opsem.
     (* enclave deinitialization *)
   | EDeInit r =>
       wr   ← (reg φ) !! r; (* σ should be a seal/unseal pair *)
-      '(p,σb,σe,σa) ← get_sealing_cap wr;
+      '(p,σb,σe,_) ← get_sealing_cap wr;
       when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
       tid ← tid_of_otype σb;
 
