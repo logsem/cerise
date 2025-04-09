@@ -101,6 +101,9 @@ theories/ftlr/Subseg.v
 theories/ftlr/Seal.v
 theories/ftlr/UnSeal.v
 theories/ftlr/IsUnique.v
+theories/ftlr/EInit.v
+theories/ftlr/EDeInit.v
+theories/ftlr/EStoreId.v
 theories/fundamental.v
 
 # Binary Logical Relation

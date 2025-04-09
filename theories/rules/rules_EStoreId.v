@@ -18,15 +18,16 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) (any : LWord) otype tidx : cap_lang.val -> Prop :=
-  | EStoreId_spec_success:
-    incrementLPC (<[ rs := (LWInt otype) ]> (<[rd := any]> lregs)) = Some lregs' →
+  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) : cap_lang.val -> Prop :=
+  | EStoreId_spec_success otype :
+    lregs !! rs = Some (LInt otype) ->
+    incrementLPC ((<[rd := LInt I]> lregs)) = Some lregs' →
     has_seal otype tidx → (* we associate a given table index with the provided otype *)
-    EStoreId_spec lregs lregs' rs rd any otype tidx NextIV
+    EStoreId_spec lregs lregs' rs rd tidx I NextIV
   |EStoreId_spec_failure_incr_pc:
     incrementLPC lregs = None →
     lregs = lregs' →
-    EStoreId_spec lregs lregs' rs rd any otype tidx FailedV.
+    EStoreId_spec lregs lregs' rs rd tidx I FailedV.
   (* |EStoreId_spec_failure_other: *)
   (*   EStoreId_spec lregs lregs' rs rd any otype tidx FailedV. *)
 
@@ -38,26 +39,22 @@ Section cap_lang_rules.
   (* Essentially it gives us a partial view on the enclave table, since we now know that at a particular index, at some point, there was an enclave with a particular identity. *)
   (* In a later step of the verification, an invariant will allow us to trade this resource for the specific predicate that always holds for results signed by enclaves with that hash... *)
   (* This enables "learning" some information about the signed, yet unknown result: we will be able to establish that at least the above predicate will hold for it... *)
-  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs otype any lregs :
+  (* NOTE @June what if we already have the resource `enclave_cur(tidx, I)` ? *)
+  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (EStoreId rd rs) ⊆ dom lregs →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (pc_a, pc_v) ↦ₐ lw }}}
+        (pc_a, pc_v) ↦ₐ lw
+    }}}
       Instr Executable @ E
-    {{{ lregs' tidx retv, RET retv;
-        ⌜ EStoreId_spec lregs lregs' rs rd any otype tidx retv⌝ ∗
+    {{{ lregs' tidx I retv, RET retv;
+        ⌜ EStoreId_spec lregs lregs' rs rd tidx I retv⌝ ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
-        rs ↦ᵣ LWInt otype ∗
-        if decide (retv = NextIV) then
-          ∃ (I : EIdentity),
-            rd ↦ᵣ (LWInt I) ∗
-            enclave_all tidx I (*!*)
-        else
-          rd ↦ᵣ any }}}.
+        if decide (retv = NextIV) then (enclave_all tidx I) (*!*) else emp }}}.
   Proof.
     iIntros (Hinstr Hvpc Dregs HPC φ) "(>Hrmap & Hpca) Hφ".
     iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpca $Hrmap Hφ]").
@@ -112,27 +109,54 @@ Section cap_lang_rules.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
 
 
-    iNext. iIntros (lregs' tidx retv) "(#Hspec & Hrmap & HPCa & Hrs & Hpost)".
+    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & Henclave)".
     iDestruct "Hspec" as %Hspec.
-    destruct Hspec eqn:?; cycle 1; cbn; iApply "Hφ". iFrame.
-    - iRight. auto.
-      iDestruct "Hpost" as "Hrd". iFrame. iSplit. by iPureIntro. subst.
-      rewrite big_opM_insert_delete. iDestruct "Hrmap" as "[$ Hrmap]".
-    - iFrame. iLeft. iDestruct "Hpost" as "[%I (Hrd & Henc)]". iFrame. iSplitR. by iPureIntro.
-      clear Heqe. apply incrementLPC_Some_inv in e as (?&?&?&?&?&?&?&?&?).
-      subst.
+    destruct Hspec eqn:?
+    ; [ erewrite decide_True | erewrite decide_False ]; rewrite // ;
+      simplify_eq; cycle 1; cbn; iApply "Hφ"; iFrame.
+    - rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[HPC Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrs Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrd _]".
+      iFrame.
+      iRight; iFrame.
+      done.
+      (* iDestruct "Hpost" as "Hrd". iFrame. iSplit. by iPureIntro. subst. *)
+      (* rewrite big_opM_insert_delete. iDestruct "Hrmap" as "[$ Hrmap]". *)
+    - rewrite lookup_insert_ne in e ; last done.
+      rewrite lookup_insert in e; simplify_eq.
+      apply incrementLPC_Some_inv in e0 as (?&?&?&?&?&?&?&?&?); simplify_map_eq.
+      rewrite (insert_commute _ rd PC) // insert_insert.
+      rewrite (insert_commute _ rd rs) // insert_insert.
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[HPC Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrs Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrd _]".
 
-      rewrite big_opM_insert_delete.
+      iFrame. iLeft; iFrame.
+      iSplit ; first done.
+      iExists I, tidx; iFrame.
+      done.
+      (* (* iDestruct "Hpost" as "[%I (Hrd & Henc)]". *) *)
+      (* iFrame. iSplitR. by iPureIntro. *)
+      (* clear Heqe. apply incrementLPC_Some_inv in e as (?&?&?&?&?&?&?&?&?). *)
+      (* subst. *)
 
-      rewrite lookup_insert_ne in H2; auto.
-      rewrite lookup_insert_ne in H2; auto.
-      rewrite lookup_insert in H2.
-      inversion H2; subst.
+      (* rewrite big_opM_insert_delete. *)
 
-      rewrite Hpca in H3. inversion H3.
+      (* rewrite lookup_insert_ne in H2; auto. *)
+      (* rewrite lookup_insert_ne in H2; auto. *)
+      (* rewrite lookup_insert in H2. *)
+      (* inversion H2; subst. *)
 
-       iDestruct "Hrmap" as "[$ Hrmap]".
-      iExists I, tidx. iFrame. by iPureIntro.
+      (* rewrite Hpca in H3. inversion H3. *)
+
+      (*  iDestruct "Hrmap" as "[$ Hrmap]". *)
+      (* iExists I, tidx. iFrame. by iPureIntro. *)
   Qed.
 
 End cap_lang_rules.
