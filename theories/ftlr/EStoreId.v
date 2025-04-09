@@ -32,7 +32,7 @@ Section fundamental.
       rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
     { by simplify_map_eq. }
-    iIntros "!>" (regs' tidx retv). iDestruct 1 as (HSpec) "(Hrmap & Ha & Hrs & Hpost)".
+    iIntros "!>" (regs' tidx I retv). iDestruct 1 as (HSpec) "(Hrmap & Ha & Henclave)".
 
     destruct HSpec as [Hincr Hseal|Hincr Hlregs']; cycle 1.
     - (* failure case: increment pc fails *)
@@ -42,46 +42,35 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate.
 
     - (* success case *)
+
+      (* get Henclave *)
+      destruct (decide (NextIV = NextIV)); last congruence.
+
       incrementLPC_inv as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs'); simplify_map_eq.
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro].
       iNext. iIntros.
       iApply ("IH" with "[%] [] Hrmap [$Hown]").
-
-      (* destruct (reg_eq_dec rs PC) as [Heq | Hners]. *)
-      (* { simplify_map_eq. } *)
-      (* rewrite lookup_insert_ne in HPC; auto. *)
-      (* destruct (reg_eq_dec rd PC) as [Heq | Hnerd]. *)
-      (* { subst rd. *)
-      (* rewrite lookup_insert in HPC. *)
-      (* iDestruct "Hpost" as "[%I HPC]". *)
-      (* Unshelve. apply I. *)
-      (* subst HPC. *)
-      (* repeat rewrite insert_insert. *)
-      (* (* rewrite insert_insert. *) *)
-
-      (* iApply ("IH" with "[%] [] Hrmap [$Hown]"); auto. *)
-      + cbn. intros.  by repeat (apply lookup_insert_is_Some'; right).
-      + iIntros. iApply "Hreg"; auto.
-        iPureIntro.
-        destruct (reg_eq_dec r1 rs).
-        { subst rs. admit. }
-        { destruct (reg_eq_dec r1 rd).
-          - subst. rewrite lookup_insert_ne in H1; auto. admit.
-          - repeat rewrite lookup_insert_ne in H1; auto. }
-
-      + iModIntro.
-        destruct (reg_eq_dec rs PC).
-        { simplify_map_eq. }
-        { destruct (reg_eq_dec rd PC).
-          - (* rd = PC *)
-            subst. admit.
-          - (* rd ≠ PC *)
-            rewrite lookup_insert_ne in HPC. rewrite lookup_insert_ne in HPC; auto.
-            rewrite lookup_insert in HPC. inversion HPC.  subst.
-        iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-        { destruct Hp as [HRX | HRW]; by subst p''. }
-        { by rewrite PermFlowsToReflexive. }
-  Admitted.
+      { (* full_map lregs' case *)
+        intros r.
+        rewrite lookup_insert_is_Some.
+        destruct (reg_eq_dec rd r); auto; right; split; auto.
+        rewrite lookup_insert_is_Some.
+        destruct (reg_eq_dec PC r); auto; right; split; auto.
+      }
+      { (* all registers except PC are safe to share *)
+        iIntros (r rlv Hrneq Hlregs').
+        destruct (decide (r = rd)).
+        - simplify_map_eq. iEval (rewrite fixpoint_interp1_eq). done.
+        - rewrite lookup_insert_ne in Hlregs'.
+          simplify_map_eq. iApply "Hreg"; eauto. by symmetry. }
+      { destruct (decide (rd = PC)).
+        + simplify_map_eq.
+        + rewrite lookup_insert_ne // in HPC.
+          simplify_map_eq.
+          iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+          { destruct Hp as [HRX | HRW]; by subst p''. }
+          { by rewrite PermFlowsToReflexive. } }
+  Qed.
 
 End fundamental.
