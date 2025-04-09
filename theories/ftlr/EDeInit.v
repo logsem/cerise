@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
 From cap_machine Require Export logrel.
-From cap_machine.ftlr Require Import ftlr_base.
+From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_EDeInit.
 
 Section fundamental.
@@ -59,7 +59,7 @@ Section fundamental.
       iDestruct "Henclave" as "[Henclave|Henclave]".
       - (* the enclave is current (interesting path) *)
 
-        iDestruct "Henclave" as "(%I & Henclave)". iFrame.
+        iDestruct "Henclave" as "(%I & Henclave)".
         iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ _ true (* is_cur = true *) with "[$Ha Henclave $Hmap]"); eauto.
         { by simplify_map_eq. }
         { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -78,9 +78,10 @@ Section fundamental.
           apply incrementLPC_Some_inv in H2 as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
           simplify_map_eq. rewrite insert_insert.
 
-          (* iApply ("IH" $! lregs p'' b'' e'' x v'' with "[%] [] [Hrmap] []"). *)
-          (* iApply ("IH" $! lregs with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iModIntro. *)
-          admit.
+          iApply ("IH" with "[%] [] [Hrmap] [$Hown]"); eauto.
+          iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+          { destruct Hp as [HRX | HRW]; by subst p''. }
+          { by rewrite PermFlowsToReflexive. }
 
         * (* failure case when enclave_cur *)
           iApply wp_pure_step_later; auto.
@@ -129,6 +130,10 @@ Section fundamental.
         iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
         iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
+        Unshelve. all: eauto.
+        exact 0.
+        exact 0.
+        exact true.
   Admitted.
 
 End fundamental.

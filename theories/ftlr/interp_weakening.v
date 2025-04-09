@@ -109,6 +109,20 @@ Section fundamental.
     - iClear "HA"; rewrite !finz_seq_between_empty;[done |solve_addr].
   Qed.
 
+  Lemma safe_to_attest_weakening b e b' e':
+    (b <= b')%ot ->
+    (e' <= e)%ot ->
+    safe_to_attest b e -∗
+    safe_to_attest b' e'.
+  Proof.
+    iIntros (Hb He) "HA".
+    rewrite /safe_to_attest.
+    destruct (decide (b' <= e')%ot).
+    - rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
+      rewrite !big_sepL_app; iDestruct "HA" as "[_ [$ _]]".
+    - iClear "HA"; rewrite !finz_seq_between_empty;[done |solve_addr].
+  Qed.
+
   Ltac destruct_sealperm p :=
      let b := fresh "b" in
      let b1 := fresh "b1" in
@@ -127,13 +141,18 @@ Section fundamental.
     (fixpoint interp1) (LSealRange p b e a) -∗
     (fixpoint interp1) (LSealRange p' b' e' a').
   Proof.
-  intros Hb He Hp. iIntros "#HA".
-  rewrite !fixpoint_interp1_eq. cbn.
-  destruct (permit_seal p') eqn:Hseal; [eapply (permit_seal_flowsto _ p) in Hseal as ->; auto | ].
-  all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as ->; auto | ]; iDestruct "HA" as "[Hs Hus]".
-  all: iSplitL "Hs";
-  [try iApply (safe_to_seal_weakening with "Hs") | try iApply (safe_to_unseal_weakening with "Hus")]; auto.
+    intros Hb He Hp. iIntros "#HA".
+    rewrite !fixpoint_interp1_eq. cbn.
+    destruct (permit_seal p') eqn:Hseal; [eapply (permit_seal_flowsto _ p) in Hseal as ->; auto | ].
+    all: destruct (permit_unseal p') eqn:Hunseal; [eapply (permit_unseal_flowsto _ p) in Hunseal as
+          ->; auto | ]; iDestruct "HA" as "[Hs [ Hus Hattest] ]".
+    all: iSplitL "Hs";
+      [try iApply (safe_to_seal_weakening with "Hs") |]; auto.
+    all: iSplitL "Hs"; [
+        try iApply (safe_to_unseal_weakening with "Hus")|
+      ]; auto.
+    cbn.
+    iApply (safe_to_attest_weakening with "Hattest"); auto.
   Qed.
-
 
 End fundamental.
