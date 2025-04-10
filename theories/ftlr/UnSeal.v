@@ -25,7 +25,7 @@ Section fundamental.
   Proof.
     iIntros (Hpseal Hwb) "#HVsd #HVsr".
     rewrite (fixpoint_interp1_eq (LSealRange _ _ _ _)) (fixpoint_interp1_eq (LWSealed _ _)) /= Hpseal /interp_sb.
-    iDestruct "HVsr" as "[_ Hss]".
+    iDestruct "HVsr" as "[_ [Hss Hattest] ]".
     apply seq_between_dist_Some in Hwb.
     iDestruct (big_sepL_delete with "Hss") as "[HSa0 _]"; eauto.
     iDestruct "HSa0" as (P) "[HsealP HWcond]".
