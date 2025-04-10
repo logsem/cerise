@@ -388,13 +388,17 @@ Section mutual_attest_B.
     iInstr "Hma_code".
     (* GetOType r_t4 r_t1 *)
     iInstr "Hma_code".
+
     (* EStoreId r_t4 r_t5 *)
     iInstr_lookup "Hma_code" as "Hi" "Hma_code".
     wp_instr.
-    iApply (wp_estoreid_success_unknown with "[$HPC $Hr5 $Hr4 $Hi]"); try solve_pure.
+    iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj.
+    iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)".
+    iApply (wp_estoreid_success_unknown_ec with "[$HPC $Hr5 $Hr4 $Hi $HEC]"); try solve_pure.
     iNext. iIntros (retv) "H".
-    iDestruct "H" as "(Hi & Hr5 & [(-> & HPC & H)|(-> & HPC & Hr4)])".
-    1: iDestruct "H" as (I tid) "(Hr4 & #Hma_env & %Hseal)".
+    iDestruct "H" as "(Hi & Hr5 & HEC  & [(-> & HPC & H)|(-> & HPC & Hr4)])".
+    1: iDestruct "H" as (I tid) "(Hr4 & #Hma_env & [%Hseal %Htidx])".
+    all: iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; [ iExists ECn; iFrame "HEC Hcemap" | iModIntro].
     all: wp_pure; iInstr_close "Hma_code".
     2:{ wp_end; by iIntros (?). }
     iDestruct (interp_valid_sealed with "Hinterp_w1") as (Φ) "Hseal_valid".
@@ -424,8 +428,6 @@ Section mutual_attest_B.
 
     (* UnSeal r_t1 r_t1 r_t2 *)
     wp_instr.
-    iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj.
-
     iInstr_lookup "Hma_code" as "Hi" "Hma_code".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap _]".
     iApply (wp_UnSeal with "[$Hmap $Hi]") ; try (by simplify_map_eq) ; try solve_pure.
@@ -435,12 +437,7 @@ Section mutual_attest_B.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds Hregs'|]; cycle 1.
-    { iMod ("Hclose_inv" with "Henclaves_inv_open") as "_". iModIntro.
-      by wp_pure; wp_end; by iIntros (?).
-    }
-    iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)".
-    iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; iModIntro.
-    { iExists ECn. iFrame "HEC Hcemap". }
+    { by wp_pure; wp_end; by iIntros (?). }
     Opaque mutual_attest_enclave_B_code_pre encodeInstrsLW.
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs');
       simplify_map_eq.
@@ -460,7 +457,6 @@ Section mutual_attest_B.
       )%I as "Hma_A".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      + iPureIntro. admit.
       + iPureIntro; apply wf_ma_enclaves_map.
       + iPureIntro; by rewrite /ma_enclaves_map; simplify_map_eq.
     }
@@ -739,6 +735,7 @@ Section mutual_attest_B.
       iSplit ; first done.
       rewrite finz_seq_between_singleton ; last solve_finz.
       iSplit ; last done.
+      iSplit ; last done.
       iExists sealed_enclaveB_ne; iFrame "#".
       iNext ; iModIntro; iIntros (lw) "Hlw".
       by iApply sealed_enclaveB_interp.
@@ -817,6 +814,6 @@ Section mutual_attest_B.
     }
 
     iApply ("Hjmp" with "[]") ; eauto ; iFrame.
-  Admitted.
+  Qed.
 
 End mutual_attest_B.

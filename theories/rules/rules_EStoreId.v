@@ -18,16 +18,17 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) : cap_lang.val -> Prop :=
+  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
   | EStoreId_spec_success otype :
     lregs !! rs = Some (LInt otype) ->
     incrementLPC ((<[rd := LInt I]> lregs)) = Some lregs' →
     has_seal otype tidx → (* we associate a given table index with the provided otype *)
-    EStoreId_spec lregs lregs' rs rd tidx I NextIV
+    0 <= tidx < ecn ->
+    EStoreId_spec lregs lregs' rs rd tidx I ecn NextIV
   |EStoreId_spec_failure_incr_pc:
     incrementLPC lregs = None →
     lregs = lregs' →
-    EStoreId_spec lregs lregs' rs rd tidx I FailedV.
+    EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
   (* |EStoreId_spec_failure_other: *)
   (*   EStoreId_spec lregs lregs' rs rd any otype tidx FailedV. *)
 
@@ -43,23 +44,25 @@ Section cap_lang_rules.
   (* @Denis: that is the case when an enclave initializes and immediately attests itself. *)
   (* Then we need a separate rule, because the rule below is not general enough to derive the former *)
   (* For the time being, this rule is at least enough to prove the FTLR. *)
-  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs :
+  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs (with_ec : bool) (ecn : ENum) :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (EStoreId rd rs) ⊆ dom lregs →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (pc_a, pc_v) ↦ₐ lw
+        (pc_a, pc_v) ↦ₐ lw ∗
+        (if with_ec then EC⤇ ecn else True)
     }}}
       Instr Executable @ E
     {{{ lregs' tidx I retv, RET retv;
-        ⌜ EStoreId_spec lregs lregs' rs rd tidx I retv⌝ ∗
+        ⌜ EStoreId_spec lregs lregs' rs rd tidx I ecn retv⌝ ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
+        (if with_ec then EC⤇ ecn else True) ∗
         if decide (retv = NextIV) then (enclave_all tidx I) (*!*) else emp }}}.
   Proof.
-    iIntros (Hinstr Hvpc Dregs HPC φ) "(>Hrmap & Hpca) Hφ".
+    iIntros (Hinstr Hvpc Dregs HPC φ) "(>Hrmap & Hpca & HEC) Hφ".
     iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hpca $Hrmap Hφ]").
     iModIntro.
     iIntros (σ1) "(Hσ1 & Hmap &Hpc_a)".
@@ -79,7 +82,7 @@ Section cap_lang_rules.
 
   Admitted.
 
-  Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
+  Lemma wp_estoreid_success_unknown_ec E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any ecn :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
@@ -87,32 +90,37 @@ Section cap_lang_rules.
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
         ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ rs ↦ᵣ LWInt otype ∗
-        ▷ rd ↦ᵣ any }}}
+        ▷ rd ↦ᵣ any ∗
+        ▷ EC⤇ ecn
+    }}}
       Instr Executable @ E
     {{{ retv, RET retv;
         (pc_a, pc_v) ↦ₐ lw ∗
         rs ↦ᵣ LWInt otype ∗
+        EC⤇ ecn ∗
         ((⌜ retv = NextIV ⌝ ∗
           PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
           ∃ (I : EIdentity), ∃ (tid : TIndex),
             rd ↦ᵣ (LWInt I) ∗
             (enclave_all tid I) ∗
-            ⌜ has_seal otype tid ⌝)
+            ⌜ has_seal otype tid ⌝ ∗
+            ⌜ 0 <= tid < ecn ⌝
+         )
            ∨
            (⌜ retv = FailedV ⌝ ∗
             PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
             rd ↦ᵣ any)
          ) }}}.
     Proof.
-    iIntros (Hinstr Hvpc Hpca φ) "(>HPC & >Hpc_a & >Hrs & >Hrd) Hφ".
+    iIntros (Hinstr Hvpc Hpca φ) "(>HPC & >Hpc_a & >Hrs & >Hrd & >HEC) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hrs Hrd") as "[Hrmap (%&%&%)]".
 
     (* iDestruct (big_opM_delete with "H"). *)
-    iApply (wp_estoreid with "[$Hrmap $Hpc_a]"); eauto; simplify_map_eq; eauto.
+    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ true with "[$Hrmap $HEC $Hpc_a]"); eauto; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
 
 
-    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & Henclave)".
+    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & HEC & Henclave)".
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec eqn:?
@@ -144,5 +152,74 @@ Section cap_lang_rules.
       iExists I, tidx; iFrame.
       done.
   Qed.
+
+  Lemma wp_estoreid_success_unknown E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any :
+    decodeInstrWL lw = EStoreId rd rs →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (pc_a + 1)%a = Some pc_a' →
+
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+        ▷ (pc_a, pc_v) ↦ₐ lw ∗
+        ▷ rs ↦ᵣ LWInt otype ∗
+        ▷ rd ↦ᵣ any
+    }}}
+      Instr Executable @ E
+    {{{ retv, RET retv;
+        (pc_a, pc_v) ↦ₐ lw ∗
+        rs ↦ᵣ LWInt otype ∗
+        ((⌜ retv = NextIV ⌝ ∗
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
+          ∃ (I : EIdentity), ∃ (tid : TIndex),
+            rd ↦ᵣ (LWInt I) ∗
+            (enclave_all tid I) ∗
+            ⌜ has_seal otype tid ⌝
+         )
+           ∨
+           (⌜ retv = FailedV ⌝ ∗
+            PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+            rd ↦ᵣ any)
+         ) }}}.
+    Proof.
+    iIntros (Hinstr Hvpc Hpca φ) "(>HPC & >Hpc_a & >Hrs & >Hrd) Hφ".
+    iDestruct (map_of_regs_3 with "HPC Hrs Hrd") as "[Hrmap (%&%&%)]".
+
+    (* iDestruct (big_opM_delete with "H"). *)
+    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ false 0 with "[$Hrmap$Hpc_a]"); eauto; simplify_map_eq; eauto.
+    { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+
+
+    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & HEC & Henclave)".
+    iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec eqn:?
+    ; [ erewrite decide_True | erewrite decide_False ]; rewrite // ;
+      simplify_eq; cycle 1; cbn; iApply "Hφ"; iFrame.
+    - rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[HPC Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrs Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrd _]".
+      iFrame.
+      iRight; iFrame.
+      done.
+    - rewrite lookup_insert_ne in e ; last done.
+      rewrite lookup_insert in e; simplify_eq.
+      apply incrementLPC_Some_inv in e0 as (?&?&?&?&?&?&?&?&?); simplify_map_eq.
+      rewrite (insert_commute _ rd PC) // insert_insert.
+      rewrite (insert_commute _ rd rs) // insert_insert.
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[HPC Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrs Hrmap]".
+      rewrite big_sepM_insert; last by simplify_map_eq.
+      iDestruct "Hrmap" as "[Hrd _]".
+
+      iFrame. iLeft; iFrame.
+      iSplit ; first done.
+      iExists I, tidx; iFrame.
+      done.
+  Qed.
+
 
 End cap_lang_rules.

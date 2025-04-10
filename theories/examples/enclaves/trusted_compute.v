@@ -253,6 +253,7 @@ Section trusted_compute_example.
       iSplit ; first done.
       rewrite finz_seq_between_singleton; cbn ; last solve_finz.
       iSplit ; last done.
+      iSplit ; last done.
       iExists sealed_42_ne; iFrame "#".
       iNext ; iModIntro; iIntros (lw) "Hlw".
       by iApply sealed_42_interp.
@@ -596,11 +597,15 @@ Section trusted_compute_example.
 
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     wp_instr.
-    iApply (wp_estoreid_success_unknown with "[HPC Hr2 Hr4 Hi]"); try iFrame; try solve_pure.
+    iMod (inv_acc with "Hcemap_inv") as "(Hcemap & Hclose)"; first solve_ndisj.
+    iDestruct "Hcemap" as (ECn) "(>HEC & #Hcemap)".
+
+    iApply (wp_estoreid_success_unknown_ec with "[HPC Hr2 Hr4 Hi $HEC]"); try iFrame; try solve_pure.
     iNext.
     iIntros (retv) "H".
-    iDestruct "H" as "(Hi & Hr2 & [(-> & HPC & H)|(-> & HPC & Hr4)])".
-    1: iDestruct "H" as (I tid) "(Hr4 & #Htc_env & %Hseal)".
+    iDestruct "H" as "(Hi & Hr2 & HEC & [(-> & HPC & H)|(-> & HPC & Hr4)])".
+    1: iDestruct "H" as (I tid) "(Hr4 & #Htc_env & [%Hseal %Htidx])".
+    all: iMod ("Hclose" with "[HEC Hcemap]") as "_"; [ iExists ECn; iFrame "HEC Hcemap" | iModIntro].
     all: wp_pure; iInstr_close "Hcode".
     2:{ wp_end; by iRight. }
 
@@ -621,8 +626,6 @@ Section trusted_compute_example.
 
     (* UnSeal *)
     wp_instr.
-    iMod (inv_acc with "Hcemap_inv") as "(Hcemap & Hclose)"; first solve_ndisj.
-
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr0") as "[Hmap _]".
     iApply (wp_UnSeal with "[$Hmap Hi]"); eauto; simplify_map_eq; eauto;
@@ -630,13 +633,8 @@ Section trusted_compute_example.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds Hregs'|]; cycle 1.
-    { iMod ("Hclose" with "Hcemap") as "_". iModIntro.
-      by wp_pure; wp_end; iRight.
-    }
+    { by wp_pure; wp_end; iRight. }
 
-    iDestruct "Hcemap" as (ECn) "(HEC & #Hcemap)".
-    iMod ("Hclose" with "[HEC Hcemap]") as "_"; iModIntro.
-    { iExists ECn. iFrame "HEC Hcemap". }
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs'); simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
     replace x with (b_main ^+ 18)%a by solve_addr.
@@ -653,9 +651,8 @@ Section trusted_compute_example.
       )%I as "Htc".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      + iPureIntro. admit.
-      + iPureIntro. rewrite /tcenclaves_map.
-        by simplify_map_eq.
+      iPureIntro. rewrite /tcenclaves_map.
+      by simplify_map_eq.
     }
 
     destruct (Z.even (finz.to_z a)) eqn:HEven_a
@@ -715,7 +712,7 @@ Section trusted_compute_example.
 
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
-  Admitted.
+  Qed.
 
   Definition tc_mainN := (trusted_computeN.@"main").
   Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap

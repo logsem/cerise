@@ -2497,6 +2497,9 @@ Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
 Notation "EC⤇ n" := (EC_frag n)
                       (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
 
+#[global] Instance EC_timeless `{ceriseG Σ} (n : ENum) : Timeless (EC⤇ n)%I.
+Proof. apply _. Defined.
+
 Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
   ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,
     gen_heap_interp lr ∗

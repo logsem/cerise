@@ -52,7 +52,7 @@ Section mutual_attest_main.
       }
       simplify_map_eq.
       iApply ( mutual_attest_B_contract with "[]") ; last iFrame "#"; eauto.
-  Admitted.
+  Qed.
 
   (* -------------------------------------------------- *)
   (* ---------------------- MAIN ---------------------- *)
