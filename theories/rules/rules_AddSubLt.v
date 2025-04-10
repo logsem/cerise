@@ -105,7 +105,7 @@ Section cap_lang_rules.
     (* Starting the transaction *)
     iApply wp_wp2.
     (* Copying the initial state as the transient state *)
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    iDestruct (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
     { by rewrite big_sepM_empty. }
 
     (* both executions use a bind *)

@@ -139,7 +139,7 @@ Section cap_lang_rules.
   Qed.
 
 
-  Lemma wp_Get Ep pc_p pc_b pc_e pc_a pc_v lw get_i dst src regs :
+  Lemma wp_Get pc_p pc_b pc_e pc_a pc_v lw get_i dst src regs :
     decodeInstrWL lw = get_i →
     is_Get get_i dst src →
 
@@ -149,7 +149,7 @@ Section cap_lang_rules.
 
     {{{ ▷ (pc_a, pc_v) ↦ₐ lw ∗
         ▷ [∗ map] k↦y ∈ regs, k ↦ᵣ y }}}
-      Instr Executable @ Ep
+      Instr Executable @ ∅
     {{{ regs' retv, RET retv;
         ⌜ Get_spec (decodeInstrWL lw) regs dst src regs' retv ⌝ ∗
         (pc_a, pc_v) ↦ₐ lw ∗
@@ -169,7 +169,7 @@ Section cap_lang_rules.
     iApply wp_wp2.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hregs $Hσ]") as "Hσ". set_solver.
+    iPoseProof (state_interp_transient_intro (lm:= ∅) with "[$Hregs $Hσ]") as "Hσ". set_solver.
     iApply (wp2_reg_lookup (lrt := regs)); first by set_solver.
     iModIntro.
     iFrame "Hσ".

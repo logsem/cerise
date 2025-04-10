@@ -208,7 +208,7 @@ Section cap_lang_rules.
 
     iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame.
     rewrite insert_id; auto.
-    iMod (state_interp_transient_intro with "[$Hregs $Hσ $Hmem]") as "Hσ".
+    iDestruct (state_interp_transient_intro with "[$Hregs $Hσ $Hmem]") as "Hσ".
 
     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
     iIntros (lw2) "Hσ %Hlrs %Hrs".

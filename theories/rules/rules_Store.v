@@ -171,7 +171,7 @@ Section cap_lang_rules.
     iApply (wp_wp2 (φ1 := exec_optL_Store lregs lmem r1 r2 ) (φ2 := _)).
 
     iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
-    iMod (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
+    iDestruct (state_interp_transient_intro_nodfracs (lm := lmem) with "[$Hregs $Hσ Hmem Hpca]") as "Hσ".
     { iCombine "Hpca Hmem" as "Hmem".
       rewrite -(big_sepM_insert (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y)).
       rewrite insert_delete. iFrame. auto. by rewrite lookup_delete. }
