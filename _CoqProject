@@ -128,7 +128,7 @@ theories/fundamental.v
 theories/monotone.v
 theories/examples/addr_reg_sample.v
 theories/proofmode/disjoint_regions_tactics.v
-# theories/proofmode/mkregion_helpers.v
+theories/proofmode/mkregion_helpers.v
 
 # Common Cerise (assembly) macros
 theories/examples/malloc.v
@@ -150,7 +150,7 @@ theories/examples/enclaves/mutual_attestation_B_spec.v
 theories/examples/enclaves/mutual_attestation_spec.v
 
 # Template Adequacy
-# theories/examples/template_adequacy.v
+theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
 
 # Tutorial and Exercises for learning Cerise in Coq

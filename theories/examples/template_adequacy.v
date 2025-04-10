@@ -3,10 +3,19 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From cap_machine Require Import
-     stdpp_extra iris_extra
-     rules logrel fundamental.
+  logical_mapsto
+  stdpp_extra iris_extra
+  rules logrel fundamental.
 From cap_machine.examples Require Import addr_reg_sample.
+(* From cap_machine.proofmode Require Export disjoint_regions_tactics. *)
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
+
+
+Definition register_to_lregister (reg : Reg) ( v : Version ) : LReg :=
+  fmap (fun w => word_to_lword w v) reg.
+
+Definition memory_to_lmemory (mem : Mem) ( v : Version ) : LMem :=
+  kmap (fun a => (a,v)) (fmap (fun w => word_to_lword w v) mem).
 
 Record prog := MkProg {
   prog_start: Addr;
@@ -20,8 +29,9 @@ Record prog := MkProg {
 Definition prog_region (P: prog): gmap Addr Word :=
   mkregion (prog_start P) (prog_end P) (prog_instrs P).
 
-Definition adv_condition adv w :=
-  is_z w = true \/ in_region w (prog_start adv) (prog_end adv).
+
+Definition adv_condition adv w v :=
+  is_z w = true \/ in_region (word_to_lword w v) (prog_start adv) (prog_end adv) v.
 
 Program Definition empty_prog a : prog := MkProg a a [] _.
 Next Obligation.
@@ -103,11 +113,10 @@ Proof.
   { destruct H as [? [? ?] ]; auto. }
 Qed.
 
-Definition minv_sep `{memG Σ} (I: memory_inv): iProp Σ :=
+Definition minv_sep `{ceriseG Σ} (I: memory_inv) ( v : Version ): iProp Σ :=
   ∃ (m: gmap Addr Word),
-    ([∗ map] a↦w ∈ m, a ↦ₐ w) ∗ ⌜dom m = minv_dom I⌝ ∗
+    ([∗ map] a↦w ∈ (memory_to_lmemory m v), a ↦ₐ w) ∗ ⌜dom m = minv_dom I⌝ ∗
     ⌜minv I m⌝.
-
 
 Module basic.
 
@@ -116,7 +125,7 @@ Definition is_initial_registers (P: prog) (reg: gmap RegName Word) :=
   (∀ (r: RegName), r ∉ ({[ PC ]} : gset RegName) →
      ∃ (w:Word), reg !! r = Some w ∧ is_z w = true).
 
-Lemma initial_registers_full_map (P: prog) reg :
+Lemma initial_registers_full_map (P: prog) (reg: gmap RegName Word) :
   is_initial_registers P reg →
   (∀ r, is_Some (reg !! r)).
 Proof.
@@ -125,42 +134,102 @@ Proof.
   destruct (Hothers r) as (w & ? & ?); [| eauto]. set_solver.
 Qed.
 
+
 Definition is_initial_memory (P: prog) (m: gmap Addr Word) :=
-  prog_region P ⊆ m.
+  (prog_region P) ⊆ m.
 
 Section Adequacy.
   Context (Σ: gFunctors).
   Context {inv_preg: invGpreS Σ}.
-  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
-  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {mem_preg: gen_heapGpreS LAddr LWord Σ}.
+  Context {reg_preg: gen_heapGpreS RegName LWord Σ}.
   Context {seal_store_preg: sealStorePreG Σ}.
+  Context {enclave_hist_preg: inG Σ enclaves_histUR}.
+  Context {enclave_live_preg: inG Σ enclaves_liveUR}.
+  Context {EC_preg: inG Σ ECUR}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.
 
   Context (P: prog).
   Context (I : memory_inv).
 
+  (* Lemma gen_enclaves_hist_init : *)
+  (*   ⊢ |==> (∃ γ, own γ ( ● ∅ : (authR (gmapR TIndex (agreeR EIdentity))))). *)
+  (* pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais. *)
+
+  Set Nested Proofs Allowed.
+  Lemma memory_to_lmemory_subseteq (m1 m2 : Mem) (v : Version) :
+    m1 ⊆ m2 -> memory_to_lmemory m1 v ⊆ memory_to_lmemory m2 v.
+  Proof.
+    intros Hm.
+    rewrite /memory_to_lmemory.
+    apply kmap_subseteq; first by intros x y ?; simplify_eq.
+    by apply map_fmap_mono.
+  Qed.
+
+  Lemma register_to_lregister_lookup (reg : Reg) (r : RegName) (w : Word) (v : Version) :
+    reg !! r = Some w ->
+    register_to_lregister reg v !! r = Some (word_to_lword w v).
+  Proof.
+    intros Hr.
+    rewrite /register_to_lregister.
+    by rewrite lookup_fmap Hr /=.
+  Qed.
+
+
+  Lemma memory_to_lmemory_union (m1 m2 : Mem) (v : Version) :
+    memory_to_lmemory (m1 ∪ m2) v =
+    (memory_to_lmemory m1 v) ∪  (memory_to_lmemory m2 v).
+  Proof.
+    by rewrite /memory_to_lmemory map_fmap_union kmap_union.
+  Qed.
+
+  Lemma memory_to_lmemory_disjoint (m1 m2 : Mem) (v : Version) :
+    (m1 ##ₘ m2) ->
+    ((memory_to_lmemory m1 v) ##ₘ (memory_to_lmemory m2 v)).
+  Proof.
+    intros Hm.
+    rewrite /memory_to_lmemory.
+    apply map_disjoint_kmap; first by intros x y ?; simplify_eq.
+    by apply map_disjoint_fmap.
+  Qed.
+
+  Lemma register_to_lregister_delete (reg : Reg) (r : RegName) (v : Version) :
+    delete r (register_to_lregister reg v) = (register_to_lregister (delete r reg) v).
+  Proof. by rewrite /register_to_lregister fmap_delete. Qed.
+
+  Lemma lreg_strip_register_to_lregister (reg : Reg) (v : Version) :
+    lreg_strip (register_to_lregister reg v) = reg.
+  Proof.
+  Admitted.
+
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
+  (* TODO what exactly should the invariant minv_sep be?
+     The problem is that, we initialise it with some version v.
+     But how can I be sure that, after execution,
+     the version number of the address of my invariant will STILL be v?
+   *)
   Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
-    (etbl etbl' : ETable) (ecur ecur' : ENum)
-    (es: list cap_lang.expr):
+    (* (etbl etbl' : ETable) (ecur ecur' : ENum) *)
+    (etbl' : ETable) (ecur' : ENum)
+    (es: list cap_lang.expr) ( v : Version ):
     is_initial_memory P m →
     is_initial_registers P reg →
     minv I m →
     minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
-    (∀ `{memG Σ, regG Σ, sealStoreG Σ, logrel_na_invs Σ} rmap,
+    (∀ `{ceriseG Σ, sealStoreG Σ, logrel_na_invs Σ} (rmap : Reg),
      dom rmap = all_registers_s ∖ {[ PC ]} →
-     ⊢ inv invN (minv_sep I)
-       ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-       ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
-       ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+     ⊢ inv invN (minv_sep I v)
+       ∗ PC ↦ᵣ LCap RWX (prog_start P) (prog_end P) (prog_start P) v
+       ∗ ([∗ map] r↦w ∈ (register_to_lregister rmap v), r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+       ∗ ([∗ map] a↦w ∈ (memory_to_lmemory prog_map v), a ↦ₐ w)
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
     rtc erased_step
-      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0 |})
       (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
@@ -169,7 +238,7 @@ Section Adequacy.
     pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
     specialize (WPI
                   (Seq (Instr Executable))
-                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
+                  {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0 |}
                   es
                   {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
                   (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
@@ -177,26 +246,44 @@ Section Adequacy.
 
     unfold is_initial_memory in Hm.
 
-    iMod (gen_heap_init (m:Mem)) as (mem_heapg) "(Hmem_ctx & Hmem & _)".
-    iMod (gen_heap_init (reg:Reg)) as (reg_heapg) "(Hreg_ctx & Hreg & _)" .
+    iMod (gen_heap_init ((memory_to_lmemory m v):LMem))
+      as (lmem_heapg) "(Hmem_ctx & Hmem & _)".
+    iMod (gen_heap_init ((register_to_lregister reg v):LReg))
+      as (lreg_heapg) "(Hreg_ctx & Hreg & _)" .
+
+    iMod (own_alloc (A := enclaves_histUR) (● ∅)) as (γhist) "Henclave_hist"
+    ; first by apply auth_auth_valid.
+    iMod (own_alloc (A := enclaves_histUR) (● ∅)) as (γprev) "Henclave_prev"
+    ; first by apply auth_auth_valid.
+    iMod (own_alloc (A := enclaves_liveUR) (● ∅)) as (γlive) "Henclave_live"
+    ; first by apply auth_auth_valid.
+    iMod (own_alloc (A := ECUR) (● 0)) as (γEC) "HEC"
+    ; first by apply auth_auth_valid.
     iMod (seal_store_init) as (seal_storeg) "Hseal_store".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
+    (* Admitted. *)
 
-    pose memg := MemG Σ Hinv mem_heapg.
-    pose regg := RegG Σ Hinv reg_heapg.
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
+    pose ceriseg := CeriseG Σ Hinv lmem_heapg lreg_heapg
+                      enclave_hist_preg enclave_live_preg γprev γlive γhist
+                      EC_preg γEC.
+    specialize (Hspec ceriseg seal_storeg logrel_na_invs).
+    iDestruct (big_sepM_subseteq _ _ (memory_to_lmemory (prog_region P) v)  with "Hmem") as "Hprog".
+    { by apply memory_to_lmemory_subseteq. }
 
-    specialize (Hspec memg regg seal_storeg logrel_na_invs).
-    iDestruct (big_sepM_subseteq with "Hmem") as "Hprog". by eapply Hm.
 
     set prog_in_inv :=
       filter (λ '(a, _), a ∈ minv_dom I) (prog_region P).
     rewrite (_: prog_region P = prog_in_inv ∪ prog_map).
     2: { symmetry. apply map_filter_union_complement. }
-    iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
-    by apply map_disjoint_filter_complement.
+    rewrite memory_to_lmemory_union.
 
-    iMod (inv_alloc invN ⊤ (minv_sep I) with "[Hprog_inv]") as "#Hinv".
+    iDestruct (big_sepM_union with "Hprog") as "[Hprog_inv Hprog]".
+    { apply memory_to_lmemory_disjoint.
+      by apply map_disjoint_filter_complement.
+    }
+
+    iMod (inv_alloc invN ⊤ (minv_sep I v) with "[Hprog_inv]") as "#Hinv".
     { iNext. unfold minv_sep. iExists prog_in_inv. iFrame. iPureIntro.
       assert (minv_dom I ⊆ dom (prog_region P)).
       { etransitivity. eapply HIdom. rewrite prog_region_dom//. }
@@ -207,35 +294,129 @@ Section Adequacy.
 
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hrothers).
-    iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; eauto.
-
-    set rmap := delete PC reg.
-    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)%I
+    iDestruct (big_sepM_delete _ _ PC (LCap RWX (prog_start P) (prog_end P) (prog_start P) v) with "Hreg") as "[HPC Hreg]"; eauto.
+    {
+      erewrite register_to_lregister_lookup; eauto.
+      by cbn.
+    }
+    set lreg := (register_to_lregister reg v).
+    set lrmap := delete PC lreg.
+    iAssert ([∗ map] r↦w ∈ lrmap, r ↦ᵣ w ∗ ⌜is_zL w = true⌝)%I
                with "[Hreg]" as "Hreg".
     { iApply (big_sepM_mono with "Hreg"). intros r w Hr. cbn.
-      subst rmap. apply lookup_delete_Some in Hr as [? Hr].
+      subst lrmap. apply lookup_delete_Some in Hr as [? Hr].
       opose proof (Hrothers r _) as HH; first set_solver.
-      destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame. eauto. }
+      destruct HH as [? (? & ?)]. simplify_map_eq. iIntros. iFrame.
+      subst lreg.
+      apply (register_to_lregister_lookup _ _ _ v) in H0; eauto.
+      rewrite Hr in H0.
+      simplify_eq.
+      destruct x ; cbn in H1 ; try congruence.
+      by cbn.
+    }
 
     assert (∀ r, is_Some (reg !! r)) as Hreg_full.
     { intros r.
       destruct (decide (r = PC)); subst; [by eauto|].
       destruct (Hrothers r) as [? [? ?] ]; eauto. set_solver. }
+    subst lrmap lreg.
+    rewrite register_to_lregister_delete.
+    set rmap := delete PC reg.
 
     iPoseProof (Hspec rmap with "[$HPC $Hreg $Hprog $Hinv]") as "Spec".
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
 
     iModIntro.
-    iExists (fun σ κs _ => ((gen_heap_interp σ.(cap_lang.reg)) ∗ (gen_heap_interp σ.(mem))))%I.
+    iExists (fun σ κs _ => state_interp_logical σ).
     iExists (fun _ => True)%I. cbn. iFrame.
-    iIntros "[Hreg' Hmem']". iExists (⊤ ∖ ↑invN).
+    iSplitL.
+    {
+      iExists (register_to_lregister reg v), (memory_to_lmemory m v), (gset_to_gmap v (dom m)), ∅, ∅, ∅.
+      iFrame; cbn.
+      repeat (iSplit ; first done).
+      iPureIntro.
+      (* TODO Lemma *)
+      rewrite /state_phys_log_corresponds.
+      split.
+      + rewrite /reg_phys_log_corresponds.
+        split.
+        ++ apply lreg_strip_register_to_lregister.
+        ++ rewrite /is_cur_regs.
+           apply map_Forall_lookup_2.
+           intros r lw Hr.
+           rewrite /is_cur_word.
+           destruct lw ; try done; cycle 1.
+           * (* contradiction *)
+             destruct (decide (r = PC)); simplify_eq ; cycle 1.
+             { admit. (* contradiction, because reg !! r = WInt _ *) }
+             { eapply register_to_lregister_lookup in HPC; erewrite HPC in Hr; simplify_eq. }
+           * destruct sb ; try done.
+             intros a Ha.
+             destruct (decide (r = PC)); simplify_eq ; cycle 1.
+             { admit. (* contradiction, because reg !! r = WInt _ *) }
+             eapply register_to_lregister_lookup in HPC; erewrite HPC in Hr; simplify_eq.
+             cbn in Hr; simplify_eq.
+             apply lookup_gset_to_gmap_Some.
+             split ; last done.
+             apply subseteq_dom in Hm.
+             eapply elem_of_weaken; eauto.
+             rewrite prog_region_dom.
+             by apply elem_of_list_to_set.
+      + rewrite /mem_phys_log_corresponds.
+        split.
+        ++ rewrite /mem_current_version.
+           apply map_Forall_lookup_2.
+           intros la lw Hla.
+           rewrite /is_legal_address.
+           destruct la as (a', v').
+           destruct (decide (v = v')) ; simplify_eq ; cycle 1.
+           { rewrite /memory_to_lmemory in Hla.
+             apply lookup_kmap_Some in Hla; last (by intros x y ?; simplify_eq).
+             destruct Hla as (? & ? & _).
+             simplify_eq.
+           }
+           exists v'.
+           cbn.
+           split; [|split].
+           +++ rewrite /is_cur_addr //=.
+               rewrite lookup_gset_to_gmap_Some; split; auto.
+               admit. (* true because of Hla *)
+           +++ lia.
+           +++ by rewrite Hla.
+        ++ rewrite /mem_vmap_root.
+           apply map_Forall_lookup_2.
+           intros a' v' Ha'.
+           admit. (* should be okay *)
+    }
+
+    iIntros "Hinterp'".
+    rewrite /state_interp_logical.
+    iDestruct "Hinterp'"
+      as (lr' lm' vmap' cur_tb' prev_tb' all_tb')
+           "(Hreg' & Hmem'
+           & %Hcur_tb' & Henclaves_cur & Henclaves_prev & Henclaves_all
+           & HEC & %Hdis_tb & %Hdom_all_tb & %Hdis_tb' & %Hall_tb
+           & %Hstate_inv)".
+    cbn in Hstate_inv.
+    iExists (⊤ ∖ ↑invN).
     iInv invN as ">Hx" "_".
     unfold minv_sep. iDestruct "Hx" as (mi) "(Hmi & Hmi_dom & %)".
     iDestruct "Hmi_dom" as %Hmi_dom.
     iDestruct (gen_heap_valid_inclSepM with "Hmem' Hmi") as %Hmi_incl.
     iModIntro. iPureIntro. rewrite /state_is_good //=.
     eapply minv_sub_extend; [| |eassumption].
-    rewrite Hmi_dom //. auto.
+    rewrite Hmi_dom //.
+    destruct Hstate_inv as [_ Hmem_inv].
+    Lemma state_phys_log_corresponds_memory_to_lmemory
+      (m mi : Mem) (lm : LMem) (vmap : VMap) (v : Version) :
+      mem_phys_log_corresponds m lm vmap ->
+      memory_to_lmemory mi v ⊆ lm ->
+      mi ⊆ m.
+    Proof.
+      intros Hmem Hmi.
+      rewrite /mem_phys_log_corresponds in Hmem.
+    Abort.
+
   Qed.
 
 End Adequacy.
@@ -301,8 +482,8 @@ Definition is_initial_memory (P Adv AdvData: prog) (m: gmap Addr Word) :=
 Section Adequacy.
   Context (Σ: gFunctors).
   Context {inv_preg: invGpreS Σ}.
-  Context {mem_preg: gen_heapGpreS Addr Word Σ}.
-  Context {reg_preg: gen_heapGpreS RegName Word Σ}.
+  Context {mem_preg: gen_heapGpreS LAddr LWord Σ}.
+  Context {reg_preg: gen_heapGpreS RegName LWord Σ}.
   Context {seal_store_preg: sealStorePreG Σ}.
   Context {na_invg: na_invG Σ}.
   Context `{MP: MachineParameters}.

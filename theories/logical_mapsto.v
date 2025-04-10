@@ -2435,6 +2435,10 @@ Proof.
 
 (** Instantiation of the program logic *)
 
+Definition enclaves_histUR := authR (gmapUR TIndex (agreeR EIdentity)).
+Definition enclaves_liveUR := authUR (gmapUR TIndex (exclR EIdentity)).
+Definition ECUR := authUR ENum.
+
 (* CMRΑ for Cerise *)
 Class ceriseG Σ := CeriseG {
   cerise_invG : invGS Σ;
@@ -2443,15 +2447,15 @@ Class ceriseG Σ := CeriseG {
   (* Heap for registers *)
   reg_gen_regG :: gen_heapGS RegName LWord Σ;
   (* The ghost resource of all enclaves that have ever existed *)
-  enclaves_hist :: inG Σ (authR (gmapR TIndex (agreeR EIdentity)));
+  enclaves_hist :: inG Σ enclaves_histUR;
   (* The ghost resource of current, known alive enclaves *)
-  enclaves_live :: inG Σ (authR (gmapR TIndex (exclR EIdentity)));
+  enclaves_live :: inG Σ enclaves_liveUR;
   (* ghost names for the resources *)
   enclaves_name_prev : gname;
   enclaves_name_cur : gname;
   enclaves_name_all : gname;
   (* Heap for EC register *)
-  EC_G :: inG Σ (authR ENum);
+  EC_G :: inG Σ ECUR;
   EC_name : gname;
 }.
 
