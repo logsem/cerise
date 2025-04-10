@@ -154,13 +154,14 @@ Section logrel.
   Definition safe_to_unseal (interp : D) (b e : OType) : iPropO Σ :=
     ([∗ list] a ∈ (finz.seq_between b e), ∃ P : D, seal_pred a P ∗ read_cond P interp)%I.
 
+  Definition attestN : namespace := nroot .@ "attestN".
   Definition safe_to_attest (b e : OType) : iPropO Σ :=
     ([∗ list] a ∈ (finz.seq_between b e),
      (* so a seal/unseal pair is safe to attest when...
      there exists an index in the table that relates to this OType *)
       ∃ tidx, ⌜tid_of_otype a = Some tidx⌝ ∧
       (* and this index corresponds to an invariant that contain the enclave resources of said otype *)
-        inv (logN .@ tidx) ((∃ I, enclave_cur tidx I) ∨ enclave_prev tidx)
+        inv (attestN .@ tidx) ((∃ I, enclave_cur tidx I) ∨ enclave_prev tidx)
     )%I.
 
   (* TODO: @Denis include the condition for edeinit found on p24 of the TR (Apx E.2) *)

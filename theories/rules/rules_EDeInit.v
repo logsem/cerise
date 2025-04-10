@@ -28,7 +28,7 @@ Section cap_lang_rules.
 
   Inductive EDeInit_spec (lregs lregs' : LReg) r (tidx : TIndex) (eid : EIdentity) is_cur : cap_lang.val → Prop :=
   | EDeInit_success b e a:
-    e = (b^+2)%ot →
+    (b+2)%ot = Some e →
     lregs !! r = Some (LSealRange (true,true) b e a) →
     incrementLPC lregs = Some lregs' →
     is_cur = true →
@@ -38,12 +38,16 @@ Section cap_lang_rules.
     lregs = lregs' →
     EDeInit_spec lregs lregs' r tidx eid is_cur FailedV.
 
-(* SealRange <-> Word *)
-Definition is_seal_range (w : option LWord) : bool :=
-  match w with
-  | Some (LSealRange (true,true) b e a) => (e =? (b^+2))%ot
-  |  _ => false
-  end.
+  (* SealRange <-> Word *)
+  Definition is_seal_range (w : option LWord) : bool :=
+    match w with
+    | Some (LSealRange (true,true) b e a) =>
+        match (b+2)%ot with
+        | Some b2 => (e =? b2)%ot
+        | None => false
+        end
+    |  _ => false
+    end.
 
   (* TODO @Denis *)
   Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r lregs tidx eid (is_cur : bool) :

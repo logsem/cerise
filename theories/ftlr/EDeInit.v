@@ -31,7 +31,7 @@ Section fundamental.
       (* we need to get the invariant from the LogRel sealrange case *)
       pose proof Hsealrange as Hsealrange'.
       destruct (decide (r = PC)).
-      { (* trivial... PC contains a LCap, r is a SealRange *) admit. }
+      { simplify_map_eq. }
       rewrite lookup_insert_ne in Hsealrange.
       2: by symmetry.
       unfold is_seal_range in Hsealrange.
@@ -48,14 +48,11 @@ Section fundamental.
       iEval (cbn) in "Hsaferange".
       iDestruct "Hsaferange" as "(_ & _ & Hattest)".
       unfold safe_to_attest.
-      Search finz.seq_between.
       rewrite finz_seq_between_cons.
-      2: (*solve_addr*) admit.
-      Search big_opL.
+      2: solve_addr.
       rewrite big_sepL_cons.
       iDestruct "Hattest" as "((%tidx & %Htidx & Hinvtidx) & Hattest)".
-      iInv (logN.@ tidx) as ">Henclave" "Hclstidx".
-      admit.
+      iInv (attestN.@ tidx) as ">Henclave" "Hclstidx".
       iDestruct "Henclave" as "[Henclave|Henclave]".
       - (* the enclave is current (interesting path) *)
 
@@ -124,7 +121,8 @@ Section fundamental.
         rewrite H1 in Hsealrange. exfalso.
         cbn in *.
         apply incrementLPC_Some_inv in H2 as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
-        simplify_map_eq. solve_addr.
+        simplify_map_eq.
+        solve_addr.
       - (* Fail case *)
         iApply wp_pure_step_later; auto.
         iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
@@ -134,6 +132,6 @@ Section fundamental.
         exact 0.
         exact 0.
         exact true.
-  Admitted.
+  Qed.
 
 End fundamental.
