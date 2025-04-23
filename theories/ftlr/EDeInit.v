@@ -29,32 +29,41 @@ Section fundamental.
 
     + (* we have a seal range in the `r` register *)
       (* we need to get the invariant from the LogRel sealrange case *)
-      pose proof Hsealrange as Hsealrange'.
-      destruct (decide (r = PC)).
-      { simplify_map_eq. }
-      rewrite lookup_insert_ne in Hsealrange.
-      2: by symmetry.
+      pose proof Hsealrange as Hsealrange'. (* need a copy of this for later.. *)
+      destruct (decide (r = PC)). { simplify_map_eq. }
+      rewrite lookup_insert_ne in Hsealrange. 2: by symmetry.
+
+      (* By Hsealrange, there is a sealrange (of the form `SealRange (t,t) b e a`) buried somewhere in lregs !! r *)
+      (* let's get it out... *)
       unfold is_seal_range in Hsealrange.
-      destruct (lregs !! r) eqn:Hr; rewrite Hr in Hsealrange;
-        last congruence.
-      destruct l; try congruence;
-        destruct sb; try congruence.
-      destruct s; try congruence.
-      destruct b0, b1; try congruence.
+      destruct (lregs !! r) eqn:Hr; rewrite Hr in Hsealrange; last congruence.
+      destruct l; try congruence. destruct sb; try congruence.
+      destruct s as [allowSeal allowUnseal]; try congruence.
+      destruct allowSeal, allowUnseal; try congruence.
       (* lregs now points to a sealrange... *)
+
+      (* The sealrange is safe, since all reg values are safe (by Hreg) *)
       iAssert (interp (LSealRange (true, true) f f0 f1)) as "Hsaferange".
       { iApply "Hreg"; eauto. }
       iEval (rewrite fixpoint_interp1_eq) in "Hsaferange".
       iEval (cbn) in "Hsaferange".
+
+      (* Thus we can obtain the safe_to_attest predicate (needed to obtain the ghost resource for the enclave from the invariant) *)
       iDestruct "Hsaferange" as "(_ & _ & Hattest)".
       unfold safe_to_attest.
-      rewrite finz_seq_between_cons.
-      2: solve_addr.
+
+      rewrite finz_seq_between_cons. 2: solve_addr.
       rewrite big_sepL_cons.
+      (* let's get that enclave ghost resource now *)
       iDestruct "Hattest" as "((%tidx & %Htidx & Hinvtidx) & Hattest)".
       iInv (attestN.@ tidx) as ">Henclave" "Hclstidx".
+
+      (* and consider the two options: either this enclave is still "current" or "live", in which case the invariant stores
+         an `enclave_cur` resource,
+         or the enclave was already deinitialized, and running edeinit will halt the machine (but we still need to close the invariant)
+         and give an `enclave_prev` resource back! *)
       iDestruct "Henclave" as "[Henclave|Henclave]".
-      - (* the enclave is current (interesting path) *)
+      - (* the enclave is current, i.e. not yet deinitialized (this is the interesting path) *)
 
         iDestruct "Henclave" as "(%I & Henclave)".
         iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ _ true (* is_cur = true *) with "[$Ha Henclave $Hmap]"); eauto.
@@ -118,11 +127,8 @@ Section fundamental.
       iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
       destruct HSpec as [Hincr |HFail].
       -  (* Success cannot be true! *)
-        rewrite H1 in Hsealrange. exfalso.
-        cbn in *.
-        apply incrementLPC_Some_inv in H2 as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
-        simplify_map_eq.
-        solve_addr.
+        exfalso. rewrite H1 in Hsealrange.
+        simplify_map_eq. solve_addr.
       - (* Fail case *)
         iApply wp_pure_step_later; auto.
         iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
