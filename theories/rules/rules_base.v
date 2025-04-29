@@ -1474,10 +1474,8 @@ Section cap_lang_rules_opt.
     destruct φ1 eqn:Hφ1; destruct φ2 eqn:Hφ2; cbn.
     - iApply (transiently_mono_2 with "[$HPQ]").
       now iIntros ">HΦsa".
-    - iDestruct "HPQ" as "[_ HF]".
-      now iMod "HF" as "%f".
-    - iDestruct "HPQ" as "[_ HF]".
-      now iMod "HF" as "%f".
+    - now iMod (transiently_commit with "HPQ") as "%f".
+    - now iMod (transiently_commit with "HPQ") as "%f".
     - iApply (transiently_mono_2 with "[$HPQ]").
       now iIntros ">HΦsa".
   Qed.
