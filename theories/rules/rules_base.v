@@ -2006,7 +2006,6 @@ Qed.
     eapply is_cur_lword_lea with (lw := LCap p f f0 f1 v); try now cbn.
     refine (is_cur_regs_mono Hlrt _ PC _ _); last easy.
     now destruct Hcorr as [[_ Hcurregs] _].
-    i
   Qed.
   
   Lemma wp2_opt_incrementPC {φ φt lr lrt lm lmt Φs Φf} :
