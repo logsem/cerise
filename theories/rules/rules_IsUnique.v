@@ -336,9 +336,7 @@ Section cap_lang_rules.
       let la := finz.seq_between b e in
       let lmem' := update_version_region lm la v lmem in
       let lm' := update_version_region lm la v lm in
-      (* let lregs' := (if is_sealed lwsrc then lregs else (<[src:=next_version_lword lwsrc]> lregs)) in *)
       let lregs' := (<[src:=next_version_lword lwsrc]> lregs) in
-      (* let lr' := (if is_sealed lwsrc then lregs else (<[src:=next_version_lword lwsrc]> lr)) in *)
       let lr' := (<[src:=next_version_lword lwsrc]> lr) in
       let vmap' := update_version_region_vmap la v vmap in
       ⌜ is_valid_updated_lmemory lm lmem (finz.seq_between b e) v lmem'⌝ ∗
@@ -430,7 +428,8 @@ Section cap_lang_rules.
     ; unshelve iApply (wp_wp2 (φ1 := exec_optL_IsUnique lregs lmem dst src _) (φ2 := _))
     ; [exact true|exact false| |].
     all: iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-    - iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
+    - (* the memory sweep has succeeded *)
+      iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
       iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
       iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
       iCombine "Hlr Hlm Hregs Hmem" as "Hσ". 
@@ -466,14 +465,13 @@ Section cap_lang_rules.
       clear u1 u2 Hlclsrcv Hwicos.
       destruct (get_is_lcap_inv _ Hillsrcv) as (p & b & e & a & v & Hgllsrcv).
       destruct (is_sealed lsrcv) eqn:Hslsrcv.
-      + iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+      + (* a sealed capability, we do not want to update the version map *)
+        iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
         iApply wp_opt2_mono2.
         iSplitL "Hφ".
         2: {
           iApply transiently_wp_opt2.
           iMod "Hσ" as "(Hσr & Hσm & Hregs & Hmem)".
-          iModIntro.
-          iApply wp_opt2_mod.
           iMod (gen_heap_update_inSepM _ _ dst (LInt 1) with "Hσr Hregs") as "(Hσr & Hregs)".
           { rewrite -elem_of_dom. set_solver. }
           iDestruct (gen_heap_valid_inclSepM with "Hσr Hregs") as "%Hlr2sub".
@@ -505,7 +503,8 @@ Section cap_lang_rules.
         eapply unique_in_registersL_mono; eauto.
         eapply state_corresponds_unique_in_registers; eauto.
         eapply sweep_spec; eauto.
-      + assert (lsrcv = LCap p b e a v /\ p ≠ E) as  [-> HnpE].
+      + (* an unsealed capability, we do want to update the version map *)
+        assert (lsrcv = LCap p b e a v /\ p ≠ E) as  [-> HnpE].
         { now destruct lsrcv as [z|[ [ | | | | | ] ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
             inversion Hgllsrcv. }
         iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
@@ -514,8 +513,6 @@ Section cap_lang_rules.
         2: {
           iApply transiently_wp_opt2.
           iMod "Hσ" as "(Hσr & Hσm & Hregs & Hmem)".
-          iModIntro.
-          iApply wp_opt2_mod.
           rewrite map_full_own.
           iMod (update_state_interp_next_version with "[$Hσr $Hσm $Hregs $Hmem]") as "(%Hvm & Hσr & Hσm & #Hcorr' & Hregs & Hmem)"; eauto. 
           iMod (gen_heap_update_inSepM _ _ dst (LInt 1) with "Hσr Hregs") as "(Hσr & Hregs)".
@@ -553,7 +550,8 @@ Section cap_lang_rules.
         eapply unique_in_registersL_mono; eauto.
         eapply state_corresponds_unique_in_registers; eauto.
         eapply sweep_spec; eauto.
-    - iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
+    - (* the memory sweep has failed *)
+      iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
       iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
       iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
       iCombine "Hlr Hlm Hregs Hmem" as "Hσ". 
