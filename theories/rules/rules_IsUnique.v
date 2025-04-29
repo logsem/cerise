@@ -57,12 +57,16 @@ Section cap_lang_rules.
     p ≠ E ->
     (* we update the region of memory with the new version *)
     (∃ lm, lmem ⊆ lm ∧ is_valid_updated_lmemory lm lmem (finz.seq_between b e) v lmem') ->
+    (* specific instance of unique_in_registers *)
+    unique_in_registersL lregs src (LCap p b e a v) ->
     incrementLPC (<[ dst := LInt 1 ]> (<[ src := next_version_lword (LCap p b e a v) ]> lregs)) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
 
   | IsUnique_success_true_is_sealed (lwsrc : LWord) :
     lregs !! src = Some lwsrc ->
     is_sealed lwsrc ->
+    (* specific instance of unique_in_registers *)
+    unique_in_registersL lregs src lwsrc ->
     lmem' = lmem ->
     incrementLPC (<[ dst := LInt 1 ]> lregs) = Some lregs' ->
     IsUnique_spec lregs lmem dst src lregs' lmem' NextIV
@@ -440,6 +444,7 @@ Section cap_lang_rules.
       iSplit.
       { now iIntros "%Htr". } 
       iIntros (lsrcv srcv) "-> %Hlsrcv %Hsrcv".
+      assert (lr !! src = Some lsrcv) as Hlrsrc by eapply (lookup_weaken _ _ _ _ Hlsrcv Hlrsub).
       iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
       iApply wp_opt2_mono2.
       iSplitL "Hφ Hσ".
@@ -497,6 +502,9 @@ Section cap_lang_rules.
         iApply ("Hφ" with "[$Hregs $Hmem]").
         iPureIntro.
         eapply IsUnique_success_true_is_sealed; eauto.
+        eapply unique_in_registersL_mono; eauto.
+        eapply state_corresponds_unique_in_registers; eauto.
+        eapply sweep_spec; eauto.
       + assert (lsrcv = LCap p b e a v /\ p ≠ E) as  [-> HnpE].
         { now destruct lsrcv as [z|[ [ | | | | | ] ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
             inversion Hgllsrcv. }
@@ -541,8 +549,10 @@ Section cap_lang_rules.
         iPureIntro.
         eapply IsUnique_success_true_cap; eauto.
         exists lm.
-        assert (lr !! src = Some (LCap p b e a v)) as Hlrsrc by eapply (lookup_weaken _ _ _ _ Hlsrcv Hlrsub).
         eauto using is_valid_updated_lmemory_update_version_region, lookup_weaken, finz_seq_between_NoDup, state_corresponds_last_version_lword_region, state_corresponds_access_lword_region.
+        eapply unique_in_registersL_mono; eauto.
+        eapply state_corresponds_unique_in_registers; eauto.
+        eapply sweep_spec; eauto.
     - iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
       iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
       iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
@@ -672,8 +682,8 @@ Section cap_lang_rules.
     rewrite -/(logical_range_map b e lws v).
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as
-      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hincr_PC
-      | ? Hlwsrc Hnot_sealed Hmem' Hincr_PC
+      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hunique_regs Hincr_PC
+      | ? Hlwsrc Hnot_sealed Hmem' Hunique_regs Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hmem' Hincr_PC
       | ? ? Hfail]
     ; cycle 1.
@@ -803,8 +813,8 @@ Section cap_lang_rules.
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as
-      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hincr_PC
-      | ? Hlwsrc Hnot_sealed Hmem' Hincr_PC
+      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hunique_regs Hincr_PC
+      | ? Hlwsrc Hnot_sealed Hmem' Hunique_regs Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hmem' Hincr_PC
       | ? ? Hfail]
     ; cycle 1.
