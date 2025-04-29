@@ -418,52 +418,53 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (σ) "(Hσ & Hregs & Hpca)".
     iModIntro.
-    iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) Hcred".
+    iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) _".
 
     iCombine "Hpca Hmem" as "Hmem".
     rewrite -(big_sepM_delete (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y) _ _ _ Hmem_pc).
 
-    destruct (sweep (mem σ) (reg σ) src) eqn:Hsweep
-    ; cbn ; rewrite Hsweep
-    ; unshelve iApply (wp_wp2 (φ1 := exec_optL_IsUnique lregs lmem dst src _) (φ2 := _))
-    ; [exact true|exact false| |].
-    all: iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-    - (* the memory sweep has succeeded *)
-      iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
-      iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
-      iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
-      iCombine "Hlr Hlm Hregs Hmem" as "Hσ". 
-      iDestruct (transiently_intro with "Hσ") as "Hσ".
-      iModIntro. iApply wp_opt2_mono2.
-      iSplitL "Hφ Hσ".
-      2: {
-        iApply wp2_reg_lookup5; eauto.
-        set_solver.
-      }
-      iSplit.
-      { now iIntros "%Htr". } 
-      iIntros (lsrcv srcv) "-> %Hlsrcv %Hsrcv".
-      assert (lr !! src = Some lsrcv) as Hlrsrc by eapply (lookup_weaken _ _ _ _ Hlsrcv Hlrsub).
-      iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-      iApply wp_opt2_mono2.
-      iSplitL "Hφ Hσ".
-      2: now iApply (wp2_word_is_lcap (Φf := True%I) (w := lsrcv) (Φs := fun _ _ => True)%I).
-      iSplit.
-      { iIntros "_ %Hislcap %Hwicos".
-        iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem)".
-        iSplitR "Hφ Hregs Hmem".
-        iExists lr, lm, vmap; now iFrame.
-        iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
-        apply IsUnique_failure; eauto.
-        eapply (IsUnique_fail_cap _ _ _ _ _ Hlsrcv).
-        destruct lsrcv as [z|[? ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
-          now inversion Hislcap.
-      }
-      iIntros (u1 u2) "_ %Hlclsrcv %Hwicos".
-      rewrite updatePC_incrementPC.
-      destruct (is_lcap  lsrcv) eqn:Hillsrcv; last inversion Hlclsrcv.
-      clear u1 u2 Hlclsrcv Hwicos.
-      destruct (get_is_lcap_inv _ Hillsrcv) as (p & b & e & a & v & Hgllsrcv).
+    set (bsweep := (sweep (mem σ) (reg σ) src)).
+    iApply (wp_wp2 (φ1 := exec_optL_IsUnique lregs lmem dst src bsweep) (φ2 := _)).
+    iModIntro.
+    iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
+    iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
+    iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
+    iCombine "Hlr Hlm Hregs Hmem" as "Hσ". 
+    iDestruct (transiently_intro with "Hσ") as "Hσ".
+    iApply wp_opt2_mono2.
+    iSplitL "Hφ Hσ".
+    2: {
+      iApply wp2_reg_lookup5; eauto.
+      set_solver.
+    }
+    iSplit; first now iIntros "%Htr".  
+    iIntros (lsrcv srcv) "-> %Hlsrcv %Hsrcv".
+    assert (lr !! src = Some lsrcv) as Hlrsrc by eapply (lookup_weaken _ _ _ _ Hlsrcv Hlrsub).
+    iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    iApply wp_opt2_mono2.
+    iSplitL "Hφ Hσ".
+    2: now iApply (wp2_word_is_lcap (Φf := True%I) (w := lsrcv) (Φs := fun _ _ => True)%I).
+    iSplit.
+    { (* src register does not contain a capability *) 
+      iIntros "_ %Hislcap %Hwicos".
+      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem)".
+      iSplitR "Hφ Hregs Hmem".
+      iExists lr, lm, vmap; now iFrame.
+      iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
+      apply IsUnique_failure; eauto.
+      eapply (IsUnique_fail_cap _ _ _ _ _ Hlsrcv).
+      destruct lsrcv as [z|[? ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
+        now inversion Hislcap.
+    }
+    iIntros (u1 u2) "_ %Hlclsrcv %Hwicos".
+    rewrite updatePC_incrementPC.
+    destruct (is_lcap  lsrcv) eqn:Hillsrcv; last inversion Hlclsrcv.
+    clear u1 u2 Hlclsrcv Hwicos.
+    destruct (get_is_lcap_inv _ Hillsrcv) as (p & b & e & a & v & Hgllsrcv).
+    
+    destruct bsweep eqn:Hsweep.
+    - (* the sweep has succeeded *)
       destruct (is_sealed lsrcv) eqn:Hslsrcv.
       + (* a sealed capability, we do not want to update the version map *)
         iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
@@ -480,6 +481,7 @@ Section cap_lang_rules.
           iModIntro.
           iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
           { assert (PC ∈ dom lregs) by now rewrite elem_of_dom HPC. now set_solver. }
+          subst bsweep. rewrite Hsweep.
           eapply (state_phys_log_corresponds_update_reg (lw := LInt 1) eq_refl); cbn; eauto.
         }
         iSplit.
@@ -524,6 +526,7 @@ Section cap_lang_rules.
           iDestruct "Hcorr'" as "%Hcorr'".
           iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
           { assert (PC ∈ dom lregs) by now rewrite elem_of_dom HPC. now set_solver. }
+          subst bsweep. rewrite Hsweep.
           eapply (state_phys_log_corresponds_update_reg (lw := LInt 1) eq_refl); cbn; eauto.
         }
         iSplit.
@@ -551,40 +554,7 @@ Section cap_lang_rules.
         eapply state_corresponds_unique_in_registers; eauto.
         eapply sweep_spec; eauto.
     - (* the memory sweep has failed *)
-      iDestruct "Hσ" as "(%lr & %lm & %vmap & Hlr & Hlm & %Hcorr0)".
-      iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
-      iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
-      iCombine "Hlr Hlm Hregs Hmem" as "Hσ". 
-      iDestruct (transiently_intro with "Hσ") as "Hσ".
-      iModIntro. iApply wp_opt2_mono2.
-      iSplitL "Hφ Hσ".
-      2: {
-        iApply wp2_reg_lookup5; eauto.
-        set_solver.
-      }
-      iSplit.
-      { now iIntros "%Htr". } 
-      iIntros (lsrcv srcv) "-> %Hlsrcv %Hsrcv".
-      iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-      iApply wp_opt2_mono2.
-      iSplitL "Hφ Hσ".
-      2: now iApply (wp2_word_is_lcap (Φf := True%I) (w := lsrcv) (Φs := fun _ _ => True)%I).
-      iSplit.
-      { iIntros "_ %Hislcap %Hwicos".
-        iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem)".
-        iSplitR "Hφ Hregs Hmem".
-        iExists lr, lm, vmap; now iFrame.
-        iApply ("Hφ" with "[$Hregs $Hmem]"). iPureIntro.
-        apply IsUnique_failure; eauto.
-        eapply (IsUnique_fail_cap _ _ _ _ _ Hlsrcv).
-        destruct lsrcv as [z|[? ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
-          now inversion Hislcap.
-      }
-      iIntros (u1 u2) "_ %Hlclsrcv %Hwicos".
-      rewrite updatePC_incrementPC.
-      destruct (is_lcap  lsrcv) eqn:Hillsrcv; last inversion Hlclsrcv.
-      clear u1 u2 Hlclsrcv Hwicos.
-      destruct (get_is_lcap_inv _ Hillsrcv) as (p & b & e & a & v & Hgllsrcv).
+      subst bsweep. rewrite Hsweep.
       iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
       iApply wp_opt2_mono2.
       iSplitL "Hφ".
