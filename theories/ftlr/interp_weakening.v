@@ -8,6 +8,7 @@ From cap_machine Require Import addr_reg region.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
@@ -41,21 +42,32 @@ Section fundamental.
   Proof.
     intros HpnotE Hb He Hp. iIntros "#IH #HA".
     destruct (decide (b' <= e')%a).
-    2: { rewrite !fixpoint_interp1_eq. destruct p'; try done; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
-         iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-         iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
-         iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
+    2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
+      ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
+         - iDestruct (read_allowed_not_reserved with "[HA]") as "%Hreserved"; first eauto.
+           + rewrite fixpoint_interp1_eq; iFrame "HA".
+           + iEval (cbn); iPureIntro.
+             intros x Hx Hx'. eapply Hreserved ; eauto.
+             rewrite !elem_of_finz_seq_between in Hx |- *; solve_addr.
+         - iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
+           iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
+           iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
     }
     destruct p'.
-    - rewrite !fixpoint_interp1_eq. done.
+    - rewrite !fixpoint_interp1_eq.
+      iDestruct (read_allowed_not_reserved with "[HA]") as "%Hreserved"; first eauto.
+      + rewrite fixpoint_interp1_eq; iFrame "HA".
+      + iEval (cbn); iPureIntro.
+        intros x Hx Hx'. eapply Hreserved ; eauto.
+        rewrite !elem_of_finz_seq_between in Hx |- *; solve_addr.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (Hreserved P) "(H1 & H2 & H3 & H4)"; iFrame "%". iExists P; iFrame.
       + iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (Hreserved P) "(H1 & H2 & H3 & H4)"; iFrame "%". iExists P; iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
@@ -65,7 +77,7 @@ Section fundamental.
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);
       rewrite !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]";iFrame "#".
       iApply (big_sepL_mono with "A2").
-      iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
+      iIntros (k y Hsome) "H". iDestruct "H" as (Hreserved P) "(H1 & H2 & H3 & H4)"; iFrame "%". iExists P; iFrame.
     - rewrite !fixpoint_interp1_eq. iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
       iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
       destruct p; inversion Hp; try contradiction.
@@ -74,7 +86,7 @@ Section fundamental.
       + rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
         rewrite !fixpoint_interp1_eq !big_sepL_app; iDestruct "HA" as "[A1 [A2 A3]]".
         iApply (big_sepL_mono with "A2").
-        iIntros (k y Hsome) "H". iDestruct "H" as (P) "(H1 & H2 & H3 & H4)". iExists P. iFrame.
+        iIntros (k y Hsome) "H". iDestruct "H" as (Hreserved P) "(H1 & H2 & H3 & H4)"; iFrame "%". iExists P; iFrame.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);

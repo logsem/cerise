@@ -7,6 +7,7 @@ From cap_machine.proofmode Require Export region register_tactics.
 
 Section cap_lang_rules.
   Context `{ceriseg: ceriseG Σ}.
+  Context `{reservedaddresses : ReservedAddresses}.
   Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -119,6 +120,7 @@ Section cap_lang_rules.
     p ≠ E ->
     (* we update the region of memory with the new version *)
     is_valid_updated_lmemory lmem (finz.seq_between b e) v lmem' ->
+    (finz.seq_between b e) ## reserved_addresses ->
     (* specific instance of unique_in_registers *)
     unique_in_registersL lregs (Some src) (LCap p b e a v) ->
 
@@ -225,6 +227,9 @@ Section cap_lang_rules.
 
    *)
 
+  Definition allows_sweep (lregs : LReg) (r : RegName) :=
+    ∀ p b e a v, lregs !! r = Some (LCap p b e a v) -> p ≠ E -> (finz.seq_between b e) ## reserved_addresses.
+
   Lemma wp_isunique Ep
     pc_p pc_b pc_e pc_a pc_v
     (dst src : RegName) lw lmem lregs :
@@ -233,6 +238,7 @@ Section cap_lang_rules.
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (IsUnique dst src) ⊆ dom lregs →
     lmem !! (pc_a, pc_v) = Some lw →
+    allows_sweep lregs src ->
 
     {{{ (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
           ▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y }}}
@@ -242,7 +248,7 @@ Section cap_lang_rules.
             ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
             [∗ map] k↦y ∈ lregs', k ↦ᵣ y }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc φ) "(>Hmem & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc Hallow φ) "(>Hmem & >Hmap) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
@@ -459,6 +465,12 @@ Section cap_lang_rules.
     iMod ((gen_heap_lmem_version_update lmem lm lmem' lm' ) with "Hm Hmem")
       as "[Hm Hmem]"; eauto.
     (* we destruct the cases when the registers are equals *)
+    assert (not_reserved_addresses_word (LCap p b e a v)) as Hreserved.
+    { rewrite /allows_sweep in Hallow.
+      rewrite /not_reserved_addresses_word /=.
+      eapply Hallow; eauto.
+    }
+
     destruct (decide (src = PC)); simplify_map_eq ; cycle 1.
     - (* src <> PC *)
       destruct (decide (src = dst)) ; simplify_map_eq ; cycle 1.
@@ -469,7 +481,6 @@ Section cap_lang_rules.
           as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
         iMod ((gen_heap_update_inSepM _ _ PC (LCap p1 b1 e1 a_pc1 v1)) with "Hr Hmap")
           as "[Hr Hmap]"; eauto ; first by simplify_map_eq.
-
 
         iFrame; iModIntro ; iSplitR "Hφ Hmap Hmem"
         ; [| iApply "Hφ" ; iFrame; iPureIntro; econstructor; eauto]
@@ -484,6 +495,7 @@ Section cap_lang_rules.
         ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
         ; destruct HLinv as [Hreg_inv Hmem_inv]
         ; last done.
+        2: eauto.
         assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
         { eapply lookup_weaken in HPC'' ; eauto.
           eapply lreg_corresponds_insert_respects_updated_vmap
@@ -517,6 +529,7 @@ Section cap_lang_rules.
         ; last (eapply update_cur_version_region_lmem_corresponds ; eauto)
         ; destruct HLinv as [Hreg_inv Hmem_inv]
         ; last done.
+        2: done.
         assert ( is_cur_word (LCap p1 b1 e1 a_pc1 v1) vmap' ).
         { eapply lookup_weaken in HPC'' ; eauto.
           eapply lreg_corresponds_insert_respects_updated_vmap
@@ -580,6 +593,7 @@ Section cap_lang_rules.
     (pc_a + 1)%a = Some pc_a' →
     length lws = length (finz.seq_between b e) ->
     p ≠ E ->
+    finz.seq_between b e ## reserved_addresses ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ dst ↦ᵣ lwdst
@@ -603,7 +617,7 @@ Section cap_lang_rules.
           ∗ [[ b , e ]] ↦ₐ{ v } [[ lws ]] )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca_notin Hpca Hlen_lws Hp φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc Hpca_notin Hpca Hlen_lws Hp Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (big_sepL2_cons (λ _ la lw, la ↦ₐ lw)%I (pc_a, pc_v) lw with "[Hpc_a Hmap]")
@@ -616,12 +630,15 @@ Section cap_lang_rules.
     }
     iApply (wp_isunique with "[$Hrmap Hmmap]"); eauto ; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+    { rewrite /allows_sweep. intros p' b' e' a' v' ? ?.
+      by simplify_map_eq.
+    }
 
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
     rewrite -/(logical_range_map b e lws v).
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as
-      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hunique_regs Hincr_PC
+      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hreserved' Hunique_regs Hincr_PC
       | ? Hlwsrc Hnot_sealed Hunique_regs Hmem' Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hmem' Hincr_PC
       | ? ? Hfail]
@@ -715,6 +732,7 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
     p ≠ E ->
+    finz.seq_between b e ## reserved_addresses ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
         ∗ ▷ dst ↦ᵣ lwdst
@@ -735,18 +753,21 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca Hp φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
+    iIntros (Hinstr Hvpc Hpca Hp Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmmap".
     iApply (wp_isunique with "[$Hrmap Hmmap]"); eauto ; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
+    { rewrite /allows_sweep. intros p' b' e' a' v' ? ?.
+      by simplify_map_eq.
+    }
 
     iNext. iIntros (regs' mem' retv) "(#Hspec & Hmmap & Hrmap)".
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as
-      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hunique_regs Hincr_PC
+      [ ? ? ? ? ? Hlwsrc' Hp_neq_E Hupd Hreserved' Hunique_regs Hincr_PC
       | ? Hlwsrc Hnot_sealed Hunique_regs Hmem' Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hmem' Hincr_PC
       | ? ? Hfail]

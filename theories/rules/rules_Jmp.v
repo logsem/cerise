@@ -6,6 +6,7 @@ From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
   Context `{ceriseg: ceriseG Σ}.
+  Context `{reservedaddresses : ReservedAddresses}.
   Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.

@@ -9,6 +9,7 @@ From cap_machine Require Import addr_reg. (* Required because of a weird Coq bug
 
 Section region.
   Context `{MachineParameters, ceriseG Σ, cfg: cfgSG Σ}.
+  Context `{ reservedaddresses : ReservedAddresses}.
 
   Lemma isWithin_finz_seq_between_decomposition {z} (a0 a1 b e : finz z):
     (b <= a0 /\ a1 <= e /\ a0 <= a1)%f ->

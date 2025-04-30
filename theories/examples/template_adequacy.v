@@ -203,13 +203,61 @@ Section Adequacy.
   Proof.
   Admitted.
 
+  Lemma state_phys_log_corresponds_memory_to_lmemory {RA: ReservedAddresses}
+    (m mi : Mem) (lm : LMem) (vmap : VMap) (v : Version) :
+    dom mi = minv_dom I ->
+    v = init_version ->
+    elements (minv_dom I) = reserved_addresses  ->
+    mem_phys_log_corresponds m lm vmap ->
+    memory_to_lmemory mi v ⊆ lm ->
+    mi ⊆ m.
+  Proof.
+    intros Hmi_dom -> Hreserved_addrs Hinv Hmi .
+    destruct Hinv as (Hdom & Hroot & Hreserved).
+    intros a. rewrite /option_relation.
+    destruct ( mi !! a ) as [w|] eqn:Ha; rewrite Ha; auto
+    ; destruct (m !! a) as [w'|] eqn:Ha'; rewrite Ha'; auto.
+    - assert (a ∈ reserved_addresses) as Ha_reserved.
+      { rewrite -Hreserved_addrs elem_of_elements -Hmi_dom.
+        by apply elem_of_dom.
+      }
+      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version)) as Hmi_a
+                                                                                                                    by rewrite lookup_kmap lookup_fmap Ha //=.
+      eapply lookup_weaken in Hmi_a; eauto.
+      pose proof Hmi_a as Hmi_a'.
+      eapply map_Forall_lookup_1 in Hmi_a; eauto; cbn in Hmi_a.
+      rewrite /is_legal_address in Hmi_a.
+      destruct Hmi_a as (va & Hcur_addr & _ & [w'' Hw''] ).
+      rewrite /is_cur_addr /= in Hcur_addr.
+      cbn in Hw''.
+      clear Hdom.
+      eapply map_Forall_lookup_1 in Hreserved; eauto.
+      apply Hreserved in Ha_reserved; simplify_eq.
+      eapply map_Forall_lookup_1 in Hroot; eauto.
+      destruct Hroot as (lw & Hlw & Hm' & Hcur).
+      rewrite Hmi_a' in Hlw; simplify_eq.
+      destruct w ; auto; destruct sb ; auto.
+    - assert (a ∈ reserved_addresses) as Ha_reserved.
+      { rewrite -Hreserved_addrs elem_of_elements -Hmi_dom.
+        by apply elem_of_dom.
+      }
+      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version)) as Hmi_a
+                                                                                                                    by rewrite lookup_kmap lookup_fmap Ha //=.
+      eapply lookup_weaken in Hmi_a; eauto.
+      eapply map_Forall_lookup_1 in Hmi_a; eauto; cbn in Hmi_a.
+      rewrite /is_legal_address in Hmi_a.
+      destruct Hmi_a as (va & Hcur_addr & Hmax_v & [w' Hw'] ).
+      rewrite /is_cur_addr /= in Hcur_addr.
+      eapply map_Forall_lookup_1 in Hreserved; eauto.
+      apply Hreserved in Ha_reserved; simplify_eq.
+      cbn in Hw'.
+      eapply map_Forall_lookup_1 in Hroot; eauto.
+      destruct Hroot as (lw & Hlw & Hm' & Hcur).
+      by rewrite Hm' in Ha'.
+  Qed.
+
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  (* TODO what exactly should the invariant minv_sep be?
-     The problem is that, we initialise it with some version v.
-     But how can I be sure that, after execution,
-     the version number of the address of my invariant will STILL be v?
-   *)
   Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
     (* (etbl etbl' : ETable) (ecur ecur' : ENum) *)
     (etbl' : ETable) (ecur' : ENum)
@@ -220,7 +268,7 @@ Section Adequacy.
     minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
     let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
-    (∀ `{ceriseG Σ, sealStoreG Σ, logrel_na_invs Σ} (rmap : Reg),
+    (∀ `{ceriseG Σ, sealStoreG Σ, logrel_na_invs Σ, ReservedAddresses} (rmap : Reg),
      dom rmap = all_registers_s ∖ {[ PC ]} →
      ⊢ inv invN (minv_sep I v)
        ∗ PC ↦ᵣ LCap RWX (prog_start P) (prog_end P) (prog_start P) v
@@ -267,7 +315,9 @@ Section Adequacy.
     pose ceriseg := CeriseG Σ Hinv lmem_heapg lreg_heapg
                       enclave_hist_preg enclave_live_preg γprev γlive γhist
                       EC_preg γEC.
-    specialize (Hspec ceriseg seal_storeg logrel_na_invs).
+    set ( addr_inv := (elements (minv_dom I))).
+    pose reservedaddresses := ReservedAddressesG addr_inv v.
+    specialize (Hspec ceriseg seal_storeg logrel_na_invs reservedaddresses).
     iDestruct (big_sepM_subseteq _ _ (memory_to_lmemory (prog_region P) v)  with "Hmem") as "Hprog".
     { by apply memory_to_lmemory_subseteq. }
 
@@ -363,7 +413,7 @@ Section Adequacy.
              rewrite prog_region_dom.
              by apply elem_of_list_to_set.
       + rewrite /mem_phys_log_corresponds.
-        split.
+        split;[|split].
         ++ rewrite /mem_current_version.
            apply map_Forall_lookup_2.
            intros la lw Hla.
@@ -386,7 +436,25 @@ Section Adequacy.
         ++ rewrite /mem_vmap_root.
            apply map_Forall_lookup_2.
            intros a' v' Ha'.
-           admit. (* should be okay *)
+           apply lookup_gset_to_gmap_Some in Ha'; destruct Ha' as [Ha' ->].
+           apply elem_of_dom in Ha'. destruct Ha' as [w' Ha'].
+           exists (word_to_lword w' v').
+           split; [|split].
+           * by rewrite lookup_kmap lookup_fmap Ha'; cbn.
+           * rewrite Ha' /lword_get_word /word_to_lword /=.
+             destruct w'; auto.
+             all: destruct sb; auto.
+           * rewrite /is_cur_word.
+             destruct w' ; cbn; auto.
+             all: destruct sb; cbn; auto.
+             all: intros x Hx.
+             all: apply lookup_gset_to_gmap_Some.
+             all: admit. (* should be okay *)
+        ++ rewrite /mem_gcroot.
+           apply map_Forall_lookup_2.
+           intros a' v' Ha' Ha'_reserved.
+           rewrite /init_version; cbn.
+           apply lookup_gset_to_gmap_Some in Ha'; by destruct Ha'.
     }
 
     iIntros "Hinterp'".
@@ -406,18 +474,12 @@ Section Adequacy.
     iModIntro. iPureIntro. rewrite /state_is_good //=.
     eapply minv_sub_extend; [| |eassumption].
     rewrite Hmi_dom //.
-    destruct Hstate_inv as [_ Hmem_inv].
-    Lemma state_phys_log_corresponds_memory_to_lmemory
-      (m mi : Mem) (lm : LMem) (vmap : VMap) (v : Version) :
-      mem_phys_log_corresponds m lm vmap ->
-      memory_to_lmemory mi v ⊆ lm ->
-      mi ⊆ m.
-    Proof.
-      intros Hmem Hmi.
-      rewrite /mem_phys_log_corresponds in Hmem.
-    Abort.
 
-  Qed.
+
+    destruct Hstate_inv.
+    eapply state_phys_log_corresponds_memory_to_lmemory; eauto.
+
+    Admitted.
 
 End Adequacy.
 

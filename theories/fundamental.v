@@ -9,6 +9,7 @@ From cap_machine Require Export logrel.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
@@ -273,10 +274,11 @@ Section fundamental.
 
   Lemma region_integers_alloc' E (b e a: Addr) (v : Version) l p :
     Forall (λ lw, is_zL lw = true) l →
+    finz.seq_between b e ## reserved_addresses ->
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hl) "H". destruct p.
+    iIntros (Hl Hreserved) "H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_integers_alloc _ _ _ a _ _ RX with "H") as ">#H"; auto.
@@ -286,11 +288,12 @@ Section fundamental.
   Qed.
 
   Lemma region_valid_alloc' E (b e a: Addr) v l p :
+    finz.seq_between b e ## reserved_addresses ->
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros "#Hl H". destruct p.
+    iIntros (Hreserved) "#Hl H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_alloc _ RX _ _ a _ _  with "Hl H") as ">#H"; auto.
@@ -300,12 +303,13 @@ Section fundamental.
   Qed.
 
   Lemma region_in_region_alloc' E (b e a: Addr) v l p :
+    finz.seq_between b e ## reserved_addresses ->
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
     Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l →
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hmasks Hl) "H". destruct p.
+    iIntros (Hreserved Hmasks Hl) "H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_in_region _ _ _ a _ _ RX with "H") as ">#H"; auto.

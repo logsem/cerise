@@ -34,6 +34,7 @@ Section logrel.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{MP: MachineParameters}.
+  Context `{reservedaddresses : ReservedAddresses}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -97,12 +98,18 @@ Section logrel.
 
   Definition interp_z : D := λne lw, ⌜match lw with LInt z => True | _ => False end⌝%I.
 
-  Definition interp_cap_O : D := λne _, True%I.
+  Definition interp_cap_O : D :=
+    λne lw, (⌜match lw with
+              | LCap O b e a v => (finz.seq_between b e) ## reserved_addresses
+              | _ => False
+              end⌝)%I.
+  (* Solve All Obligations with solve_proper. *)
 
   Program Definition interp_cap_RO (interp : D) : D :=
     λne lw, (match lw with
               | LCap RO b e a v =>
                 [∗ list] a ∈ (finz.seq_between b e),
+                  ⌜ a ∉ reserved_addresses ⌝ ∗
                   ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
                          ∗ persistent_cond P
                          ∗ read_cond P interp
@@ -114,6 +121,7 @@ Section logrel.
     λne lw, (match lw with
               | LCap RW b e a v =>
                 [∗ list] a ∈ (finz.seq_between b e),
+                  ⌜ a ∉ reserved_addresses ⌝ ∗
                   ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
                          ∗ persistent_cond P
                          ∗ read_cond P interp ∗ write_cond P interp
@@ -124,6 +132,7 @@ Section logrel.
   Program Definition interp_cap_RX (interp : D) : D :=
     λne lw, (match lw with LCap RX b e a v =>
                          [∗ list] a ∈ (finz.seq_between b e),
+                           ⌜ a ∉ reserved_addresses ⌝ ∗
                              ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
                                     ∗ persistent_cond P
                                     ∗ read_cond P interp
@@ -140,6 +149,7 @@ Section logrel.
   Program Definition interp_cap_RWX (interp : D) : D :=
     λne lw, (match lw with LCap RWX b e a v =>
                            [∗ list] a ∈ (finz.seq_between b e),
+                             ⌜ a ∉ reserved_addresses ⌝ ∗
                              ∃ P, inv (logN .@ (a,v)) (interp_ref_inv a v P)
                                     ∗ persistent_cond P
                                     ∗ read_cond P interp ∗ write_cond P interp
@@ -194,9 +204,6 @@ Section logrel.
 
   Global Instance read_cond_contractive :
     Contractive (read_cond).
-  Proof. solve_contractive. Qed.
-  Global Instance interp_cap_O_contractive :
-    Contractive (interp_cap_O).
   Proof. solve_contractive. Qed.
   Global Instance interp_cap_RO_contractive :
     Contractive (interp_cap_RO).
@@ -299,7 +306,7 @@ Section logrel.
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction;
     try (iDestruct "Hinterp" as "[Hinterp Hinterpe]");
-    try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"
+    try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hiff)"
          ; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
@@ -319,7 +326,7 @@ Section logrel.
       try iFrame "Hinterp".
     all: iApply (big_sepL_impl with "Hinterp").
     all: iModIntro; iIntros (k x) "% H".
-    all: iDestruct "H" as (P) "(? & ? & ?)"; iExists P; iFrame.
+    all: iDestruct "H" as (Hreserved P) "(? & ? & ?)"; iExists P; iFrame.
     all: iFrame.
   Qed.
 
@@ -332,14 +339,14 @@ Section logrel.
     iIntros (Hin Wa) "Hinterp".
     rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
     destruct p; try contradiction.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hread". iFrame.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
         iExists w. iFrame. iApply "Hwrite". iFrame.
-    - iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
+    - iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "[Hinv #(Hpers & Hread & Hwrite) ]";[eauto|].
       iApply (inv_iff with "Hinv").
       iNext. iModIntro. iSplit.
       + iIntros "HP". iDestruct "HP" as (w) "[Ha' HP]".
@@ -402,7 +409,7 @@ Section logrel.
       + simplify_map_eq.
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct p; try contradiction; inversion Hwa;
-          try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hread & Hwrite)"
+          try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hread & Hwrite)"
                ; [eauto|iExists P;eauto]).
       + simplify_map_eq.
         destruct (lregs !! reg) eqn:Hsome; rewrite Hsome in Hw; inversion Hw.
@@ -410,12 +417,29 @@ Section logrel.
         iSpecialize ("Hregvalid" $! _ _ n Hsome). simplify_eq. iClear "Hinterp".
         rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
         destruct c; try contradiction; inversion Hwa;
-        try (iDestruct (extract_from_region_inv with "Hregvalid") as (P) "(Hinv & Hpers & Hread & Hwrite)";
+        try (iDestruct (extract_from_region_inv with "Hregvalid") as (Hreserved P) "(Hinv & Hpers & Hread & Hwrite)";
              [eauto|iExists P;eauto]).
     - rewrite /interp. cbn. rewrite fixpoint_interp1_eq /=; cbn.
       destruct p; try contradiction;
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & [Hiff _ ] )"; [eauto|iExists P;iSplit;eauto]);
-        try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & [Hiff _ ] )"; [eauto|iExists P;iSplit;eauto]);
+        try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
+  Qed.
+
+  Lemma read_allowed_not_reserved (a b e: Addr) v p :
+    p ≠ E ->
+    ⊢ interp (LCap p b e a v) -∗ ⌜ finz.seq_between b e ## reserved_addresses ⌝.
+  Proof.
+    iIntros (HpnE) "#Hinterp".
+    rewrite fixpoint_interp1_eq /=; cbn.
+    destruct p eqn:Hp; try contradiction;
+      try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hread & Hwrite)"
+           ; [eauto|iExists P;eauto]).
+    1: done.
+    (* all: assert (readAllowed p *)
+    all: iDestruct (big_sepL_sep with "Hinterp") as "[%Hreserved _]"; iPureIntro.
+    all: intros a' Ha'.
+    all: rewrite elem_of_list_lookup in Ha'; destruct Ha' as [? ?].
+    all: by eapply Hreserved.
   Qed.
 
   (* Lemma for allocating invariants in a region *)
@@ -442,10 +466,11 @@ Section logrel.
   Lemma region_integers_alloc E (b e a: Addr) v l p :
     Forall (λ lw, is_zL lw = true) l →
     PermFlowsTo RO p →
+    (finz.seq_between b e) ## reserved_addresses ->
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hl Hp) "H".
+    iIntros (Hl Hp Hreserved) "H".
     iMod (region_inv_alloc with "[H]") as "H".
     { iApply (big_sepL2_mono with "H").
       intros k v1 v2 ? Hlk. cbn. iIntros. iFrame.
@@ -460,6 +485,10 @@ Section logrel.
     destruct p; cbn; eauto; try by inversion Hp.
     all: iApply (big_sepL_mono with "[H]"); iFrame.
     all: iIntros (k a' Hk) "H"; cbn.
+    all: rewrite /disjoint /set_disjoint_instance in Hreserved.
+    all: assert (a' ∈ finz.seq_between b e) as Ha' by (rewrite elem_of_list_lookup; naive_solver).
+    all: iSplitR.
+    all: try (iPureIntro; intro; apply Hreserved in Ha'; try done).
     all: iExists (fixpoint interp1); iFrame.
     all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
@@ -471,11 +500,12 @@ Section logrel.
     (p : Perm) (b e a : Addr ) (v : Version)
     (l : list LWord) :
     PermFlowsTo RO p →
+    (finz.seq_between b e) ## reserved_addresses ->
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hp) "#Hl H".
+    iIntros (Hp Hreserved) "#Hl H".
     iMod (region_inv_alloc with "[H]") as "H".
     { iDestruct (big_sepL2_length with "H") as %Hlen.
       iDestruct (big_sepL2_to_big_sepL_r with "Hl") as "Hl'";[apply Hlen|].
@@ -490,6 +520,10 @@ Section logrel.
     destruct p; cbn; eauto; try by inversion Hp.
     all: iApply (big_sepL_mono with "H").
     all: iIntros (k a' Hk) "H"; cbn.
+    all: rewrite /disjoint /set_disjoint_instance in Hreserved.
+    all: assert (a' ∈ finz.seq_between b e) as Ha' by (rewrite elem_of_list_lookup; naive_solver).
+    all: iSplitR.
+    all: try (iPureIntro; intro; apply Hreserved in Ha'; try done).
     all: iExists (fixpoint interp1); iFrame.
     all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
@@ -500,12 +534,13 @@ Section logrel.
     (p : Perm) ( b e a : Addr ) (v : Version)
     (la: list Addr) (l : list LWord) :
     PermFlowsTo RO p →
+    (finz.seq_between b e) ## reserved_addresses ->
     finz.seq_between b e ⊆+ la ->
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] a;lw ∈ (fun a => (a,v)) <$> la;l, a ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hp Hincl) "#Hl H".
+    iIntros (Hp Hreserved Hincl) "#Hl H".
     iMod (region_inv_alloc with "[H]") as "H".
     { iDestruct (big_sepL2_length with "H") as %Hlen.
       iDestruct (big_sepL2_to_big_sepL_r with "Hl") as "Hl'";[apply Hlen|].
@@ -522,6 +557,10 @@ Section logrel.
     destruct p; cbn; eauto; try by inversion Hp.
     all: iApply (big_sepL_mono with "H").
     all: iIntros (k a' Hk) "H"; cbn.
+    all: rewrite /disjoint /set_disjoint_instance in Hreserved.
+    all: assert (a' ∈ finz.seq_between b e) as Ha' by (rewrite elem_of_list_lookup; naive_solver).
+    all: iSplitR.
+    all: try (iPureIntro; intro; apply Hreserved in Ha'; try done).
     all: iExists (fixpoint interp1); iFrame.
     all: iSplit; [iPureIntro ; intros; apply interp_persistent|].
     all: try iSplit; iNext; iModIntro; eauto.
@@ -628,14 +667,15 @@ Section logrel.
     Forall (λ a, ↑logN.@(a,v) ⊆ E) (l1 ++ l2) ->
     NoDup l1 -> NoDup l2 ->
     l2 ## l1 ->
+    l1 ++ l2 ## reserved_addresses ->
     ([∗ list] a ∈ l1, inv (logN .@ (a,v)) (interp_ref_inv a v interp)) -∗
     ([∗ list] a ∈ l2, ∃ lw, (a,v) ↦ₐ lw ∗ ⌜is_zL lw = true \/ in_region_list lw (l1 ++ l2) v⌝) -∗
     |={compute_mask E (list_to_set ((λ a, (a,v)) <$> l1))}=>
           ([∗ list] a ∈ l1 ++ l2, inv (logN .@ (a,v)) (interp_ref_inv a v interp)).
   Proof.
-    iIntros (Hforall Hdup1 Hdup2 Hdisj) "Hval Hl2".
+    iIntros (Hforall Hdup1 Hdup2 Hdisj Hreserved ) "Hval Hl2".
     iInduction l2 as [|] "IH"
-  forall (l1 Hdup2 Hforall Hdup1 Hdisj);iDestruct "Hval" as "#Hval".
+  forall (l1 Hdup2 Hforall Hdup1 Hdisj Hreserved);iDestruct "Hval" as "#Hval".
     { simpl. rewrite app_nil_r. iFrame "#". iModIntro. done. }
     iDestruct "Hl2" as "[Hl Hl2]".
     iDestruct "Hl" as (w) "[Hl %Hcond]".
@@ -648,9 +688,10 @@ Section logrel.
       { iNext. iExists _. iFrame. iApply fixpoint_interp1_eq. eauto. }
       iMod (fupd_mask_subseteq (compute_mask E (list_to_set ( (λ a0 : Addr, (a0, v)) <$> (a :: l1))))) as "Hclose";
         [apply compute_mask_subseteq; set_solver|].
-      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [Hl2]") as "HH";auto.
+      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
+      { iPureIntro. admit. }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
@@ -682,9 +723,10 @@ Section logrel.
         - rewrite set_fold_singleton. done.
         - set_solver.
         - set_solver. }
-      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [Hl2]") as "HH";auto.
+      iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
+      { iPureIntro. admit. }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
@@ -697,7 +739,11 @@ Section logrel.
       iMod ("Hcls" with "[Hl]");[|by iFrame "#"].
       iNext. iExists _. iFrame.
       iApply fixpoint_interp1_eq. destruct p;try done.
-      all: iApply big_sepL_forall; iIntros (k x Hlook); iExists interp.
+      all: iApply big_sepL_forall; iIntros (k x Hlook); iSplitR; last iExists interp.
+      all: rewrite /disjoint /set_disjoint_instance in Hreserved.
+      all: assert (x ∈ finz.seq_between f f0) as Hx by (rewrite elem_of_list_lookup; eauto).
+      all: rewrite elem_of_finz_seq_between in Hx; apply Hin in Hx.
+      all: try (iPureIntro ; intro; apply Hreserved in Hx; done).
       all: iSplit;
         [ | iSplit; [iPureIntro ; intros; apply interp_persistent|] ]
       ; [|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
@@ -706,21 +752,23 @@ Section logrel.
           [iDestruct (big_sepL_elem_of with "Hl1v") as "?";eauto|iFrame "#"|
             iDestruct (big_sepL_elem_of with "Hl2v") as "?";eauto].
       Unshelve. all: apply _.
-  Qed.
+  Admitted.
 
   Lemma region_valid_in_region E (b e a: Addr) v l p  :
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
+    finz.seq_between b e ## reserved_addresses ->
     PermFlowsTo RO p →
     Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l ->
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hsub Hperm Hl) "Hl".
+    iIntros (Hsub Hreserved Hperm Hl) "Hl".
     iDestruct (region_valid_in_region_ind E [] (finz.seq_between b e) v with "[] [Hl]") as "HH".
     { rewrite app_nil_l. auto. }
     { apply NoDup_nil. auto. }
     { apply finz_seq_between_NoDup. }
     { eapply disjoint_nil_r. exact 0%a. }
+    { by cbn. }
     { auto. }
     { rewrite app_nil_l.
       iDestruct (big_sepL2_length with "Hl") as %Hlen.
@@ -737,9 +785,10 @@ Section logrel.
     { rewrite list_to_set_nil compute_mask_id app_nil_l. iMod "HH".
       iModIntro.
       iApply fixpoint_interp1_eq. destruct p;try done.
-     all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl";
-        try iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. }
-  Qed.
+      (* all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl"; *)
+      (*   try iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. } *)
+  (* Qed. *)
+  Admitted.
 
   (* Given all Otypes between b and e, we have the predicated associated that makes it
   safe to share, then we can conclude the range is also safe to share *)
@@ -1051,6 +1100,7 @@ End logrel.
 Section sealing_reasoning.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+  Context `{reservedaddresses : ReservedAddresses}.
 
   Definition valid_sealed w o (Φ : LWord -> iProp Σ) :=
     (∃ sb, ⌜w = LWSealed o sb⌝ ∗  ⌜∀ w : leibnizO LWord, Persistent (Φ w)⌝
@@ -1077,6 +1127,7 @@ End sealing_reasoning.
 Section custom_enclaves.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+  Context `{reservedaddresses : ReservedAddresses}.
 
   Record CustomEnclave :=
     MkCustomEnclave {

@@ -9,6 +9,7 @@ From cap_machine Require Import stdpp_extra.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).

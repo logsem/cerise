@@ -9,6 +9,7 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
 Section Assert.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}.
 
   (* assert (r4 == r5) *)

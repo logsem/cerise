@@ -23,6 +23,7 @@ Ltac inv_head_step :=
 
 Section cap_lang_rules.
   Context `{ceriseg: ceriseG Σ}.
+  Context `{ reservedaddresses : ReservedAddresses}.
   Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -1307,6 +1308,7 @@ Tactic Notation "incrementLPC_inv" "as" simple_intropattern(pat):=
 
 Section cap_lang_rules_opt.
   Context `{MachineParameters}.
+  Context `{ reservedaddresses : ReservedAddresses}.
   Context `{ceriseg: ceriseG Σ}.
 
   Implicit Types P Q : iProp Σ.

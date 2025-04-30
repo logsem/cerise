@@ -19,6 +19,7 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
 Section SimpleMalloc.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}.
 
   Definition malloc_subroutine_instrs' (offset: Z) :=

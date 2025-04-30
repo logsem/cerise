@@ -7,6 +7,7 @@ From cap_machine Require Export rules_base region logical_mapsto.
 
 Section cap_lang_rules.
   Context `{ceriseg: ceriseG Σ}.
+  Context `{reservedaddresses : ReservedAddresses}.
   Context `{MP: MachineParameters}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
@@ -163,6 +164,35 @@ Section cap_lang_rules.
     lmem ⊆ lm ->
     (hash_lmemory_region lm b e v) =
     (hash_lmemory_region lmem b e v).
+  Proof.
+    revert lm.
+    rewrite /hash_lmemory_region.
+    induction lmem using map_ind; intros lm Hall Hmem.
+    - f_equal.
+      match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flm := f) end.
+      pose proof (map_filter_empty_iff Flm lm) as [_ HFlm].
+      rewrite HFlm.
+      + by rewrite map_filter_empty map_to_list_empty !fmap_nil.
+      + subst Flm.
+        apply map_Forall_lookup_2.
+        intros [a v'] lw Hlw; cbn.
+        intro Hcontra.
+        destruct Hcontra as [Hcontra ->].
+        rewrite Forall_forall in Hall.
+        apply Hall in Hcontra.
+        set_solver.
+    - f_equal.
+      match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flm := f) end.
+      assert (lm = (<[i := x]> lm)) as Hlm_eq.
+      { rewrite insert_id; first done.
+        by eapply insert_weaken.
+      }
+      rewrite Hlm_eq.
+      apply insert_subseteq_r_inv in Hmem ; auto.
+      rewrite !map_filter_insert.
+      destruct (decide (Flm (i, x))).
+      + admit.
+      + rewrite !map_filter_delete.
   Admitted.
 
   Lemma wp_hash Ep
@@ -535,9 +565,9 @@ Section cap_lang_rules.
       - apply NoDup_cons in Hnodup. destruct Hnodup as [Hal Hnodup].
         destruct a as [a1 a2].
         destruct (decide (P (a1,a2))); rewrite IHl; auto.
-        + rewrite map_filter_insert_True; last done.
+        + rewrite map_filter_insert_True; last done; cbn.
           admit.
-        + rewrite map_filter_insert_False; last done.
+        + rewrite map_filter_insert_False; last done; cbn.
           admit.
     Admitted.
     admit.

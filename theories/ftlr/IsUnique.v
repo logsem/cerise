@@ -9,6 +9,7 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
@@ -76,13 +77,15 @@ Section fundamental.
     let E'  := allow_sweep_mask a_pc v_pc la v_src in
 
     (⌜read_reg_inr lregs src p_src b_src e_src a_src v_src⌝ ∗
+     ⌜allows_sweep lregs src⌝ ∗
      if sweep_mask_cond lregs src p_src b_src e_src a_src v_src a_pc v_pc
      then
       (|={E, E'}=>
          ∃ (lws :list LWord),
          ⌜ length lws = length la ⌝
          ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v_src), la ↦ₐ lw)
-         ∗ region_open_resources a_pc v_pc la v_src lws Ps true)%I
+         ∗ region_open_resources a_pc v_pc la v_src lws Ps true
+      )%I
      else True)%I.
 
   Lemma create_sweep_res
@@ -110,7 +113,14 @@ Section fundamental.
     rewrite /allow_sweep_res /sweep_mask_cond.
     case_decide as Hallows; cycle 1.
     { iExists (repeat (λne _, True%I) (length la)); iFrame "%".
-      by rewrite repeat_length.
+      iSplit; first by rewrite repeat_length.
+      iSplit; last done.
+      iIntros (p b e a v Hlv Hp).
+      destruct (decide (src = PC)) as [-> | Hneq_src_pc] ; simplify_map_eq.
+      + iDestruct (read_allowed_not_reserved with "Hinterp_pc") as "%"; auto.
+      + iAssert (interp (LCap p b e a v)) as "Hinterp_src".
+        { iApply "Hreg"; eauto. }
+        iDestruct (read_allowed_not_reserved with "Hinterp_src") as "%"; auto.
     }
     iFrame "%".
     cbn in Hapc_inbounds.
@@ -142,6 +152,12 @@ Section fundamental.
       }
       iExists Ps.
       iSplit ; first by subst.
+      iSplit.
+      { iIntros (p b e a v Hsrc Hp).
+        iDestruct (read_allowed_not_reserved with "Hinterp_pc") as "%"; auto.
+        + destruct p_src ; cbn in HreadAllowed; auto.
+        + by simplify_map_eq.
+      }
       iMod "Hmod".
       iDestruct "Hmod" as (lws) "(%Hlws & %Hpers & Hmem & HPs & HPs' & Hclose)".
       iExists lws.
@@ -169,6 +185,12 @@ Section fundamental.
       }
       iExists Ps.
       iSplit ; first by subst.
+      iSplit.
+      { iIntros (p b e a v Hsrc Hp).
+        iDestruct (read_allowed_not_reserved with "Hinterp_src") as "%"; auto.
+        + destruct p_src ; cbn in HreadAllowed; auto.
+        + by simplify_map_eq.
+      }
       iMod "Hmod".
       rewrite allow_sweep_mask_remove_nodup; auto.
       iDestruct "Hmod" as (lws) "(%Hlws & %Hpers & Hmem & HPs & HPs' & Hclose)".
@@ -220,7 +242,7 @@ Section fundamental.
   Proof.
     intros *.
     iIntros "HSweepRes Ha_pc".
-    iDestruct "HSweepRes" as "(%Hread & HSweepRes)".
+    iDestruct "HSweepRes" as "(%Hread & [ %Hreserved HSweepRes ] )".
     subst E'.
     rewrite /sweep_mask_cond.
     case_decide as Hallows; cycle 1.
@@ -382,6 +404,7 @@ Section fundamental.
     length la = length Ps ->
     p_src ≠ machine_base.E ->
     is_valid_updated_lmemory lmem (finz.seq_between b_src e_src) v_src lmem' ->
+    finz.seq_between b_src e_src ## reserved_addresses ->
     unique_in_registersL lregs' (Some src) (LCap p_src b_src e_src a_src v_src) ->
     lregs' !! src = Some (LCap p_src b_src e_src a_src v_src) ->
     isCorrectLPC (LCap p_pc b_pc e_pc a_pc v_pc) ->
@@ -399,7 +422,7 @@ Section fundamental.
     then interp (LCap p_src b_src e_src a_src (v_src+1))
     else emp).
   Proof.
-    intros * Hlen_Ps Hp_ne_E Hvalid_lmem' Hunique_regs Hlwsrc' Hcorrect_pc HpersP
+    intros * Hlen_Ps Hp_ne_E Hvalid_lmem' Hreserved Hunique_regs Hlwsrc' Hcorrect_pc HpersP
     ; iIntros "#Hread #HP (%Hread & HSweepMem) Hmem".
     subst lregs'.
     assert ( (b_pc <= a_pc < e_pc)%a) as Hbae.
@@ -527,6 +550,7 @@ Section fundamental.
          with "[HPrange HP] [Hrange' Ha_next]")
          as "#Hinterp__next"; last done.
         { destruct p_src ; cbn in * ; try congruence; done. }
+        { done. }
         { eapply list_remove_list_region ; auto.
           apply list_remove_elem_in in Ha_pc_in_range.
           subst la.
@@ -623,6 +647,7 @@ Section fundamental.
                with "[HPrange] [Hrange']")
           as "#Hinterp__next"; last done.
         { destruct p_src ; cbn in * ; try congruence; done. }
+        { done. }
         { iDestruct ( big_sepL2_sep_sepL_r with "[$Hread_cond $HPrange]") as "Hread_Ps".
           iDestruct (big_sepL2_alt with "Hread_Ps") as "[_ Hread_Ps']".
           iAssert (
@@ -706,6 +731,11 @@ Section fundamental.
     (* Step 4: move the later outside, so that we can remove it after applying wp_isunique *)
     iDestruct (allow_sweep_mem_later with "HSweepMem") as "HSweepMem"; auto.
 
+    iAssert ( ⌜ allows_sweep (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs) src ⌝)%I as "%Hallows_sweep".
+    { iDestruct "HSweepRes" as "(_&%HsweepRes&_)".
+      iPureIntro. apply HsweepRes.
+    }
+
     iApply (wp_isunique with "[$Hmap $HMemRes]")
     ; eauto
     ; [ by simplify_map_eq
@@ -713,7 +743,7 @@ Section fundamental.
         ; intros rr _; apply elem_of_dom
         ; rewrite lookup_insert_is_Some';
         eauto
-      |].
+      | ].
     iNext; iIntros (lregs' lmem' retv) "(%Hspec & Hmem & Hmap)".
     destruct Hspec as
       [ p_src' b_src' e_src' a_src' v_src' Hlwsrc' Hp_neq_E Hupd Hunique_regs Hincr_PC

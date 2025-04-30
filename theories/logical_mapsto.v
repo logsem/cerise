@@ -159,6 +159,16 @@ Proof.
   ; destruct sb; cbn in *; try congruence.
 Qed.
 
+Class ReservedAddresses :=
+  ReservedAddressesG {
+      reserved_addresses : list Addr;
+      init_version : Version
+  }.
+
+
+Section Logical_mapsto.
+  Context `{ reservedaddresses : ReservedAddresses}.
+
 Definition VMap : Type := gmap Addr Version.
 Definition LReg := gmap RegName LWord.
 Definition LMem := gmap LAddr LWord.
@@ -334,8 +344,11 @@ Definition mem_vmap_root (phm : Mem) (lm : LMem) (vmap : VMap) : Prop :=
         ∧ is_cur_word lw vmap)
     vmap. (* subset in other direction, and every current address is gc root *)
 
+Definition mem_gcroot (vmap : VMap) : Prop :=
+  map_Forall (λ a v, a ∈ reserved_addresses → v = init_version ) vmap.
+
 Definition mem_phys_log_corresponds (phm : Mem) (lm : LMem) (vmap : VMap) :=
-  (mem_current_version lm vmap) ∧ (mem_vmap_root phm lm vmap).
+  (mem_current_version lm vmap) ∧ (mem_vmap_root phm lm vmap) ∧ (mem_gcroot vmap).
 
 Definition state_phys_log_corresponds
   (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap):=
@@ -492,7 +505,7 @@ Lemma lmem_corresponds_read_iscur
   lm !! la = Some lw →
   is_cur_word lw vmap.
 Proof.
-  intros [Hdom Hroot] Hla Hlw.
+  intros (Hdom & Hroot & _) Hla Hlw.
   rewrite /is_cur_addr in Hla.
   eapply map_Forall_lookup_1 in Hla; eauto; cbn in Hla.
   destruct Hla as (lw' & Hlw' & Hphm & Hcur_lw').
@@ -509,8 +522,8 @@ Lemma lmem_corresponds_insert_respects
     (<[laddr_get_addr la := lword_get_word lw]> phm)
     (<[la := lw]> lm) vmap.
 Proof.
-  intros [Hdom Hroot] Hla Hlw.
-  split.
+  intros (Hdom & Hroot & Hgcroot) Hla Hlw.
+  split; [|split].
   - apply map_Forall_insert_2; auto.
     exists (laddr_get_version la). rewrite laddr_inv.
     do 2 (split; auto). by simplify_map_eq.
@@ -524,7 +537,7 @@ Proof.
     intros a' v' Hp ; cbn in *.
     pose proof (Hp' := Hp).
 
-    eapply map_Forall_lookup_1 in Hp'; eauto ; cbn in Hp'.
+    eapply (map_Forall_lookup_1 _ _ _ _ Hroot) in Hp'; eauto ; cbn in Hp'.
     destruct Hp' as (lw' & Hlw' & Hw' & Hcur_lw').
     destruct la as [a v].
     rewrite /is_cur_addr /= in Hla.
@@ -537,6 +550,8 @@ Proof.
     + exists lw'.
       split; [rewrite lookup_insert_ne; auto ; intro; simplify_pair_eq|].
       split; by simplify_map_eq.
+
+  - auto.
 Qed.
 
 Lemma lmem_corresponds_get_word
@@ -547,7 +562,7 @@ Lemma lmem_corresponds_get_word
   lm !! (a, v) = Some lw ->
   phm !! a = Some (lword_get_word lw).
 Proof.
-  intros [Hdom Hroot] Hcur Hlm.
+  intros (Hdom & Hroot & _) Hcur Hlm.
   eapply map_Forall_lookup_1 in Hdom; eauto; cbn in Hdom.
   destruct Hdom as (cur_v & Hcur_addr & Hle_cur & Hsome).
   rewrite /is_cur_addr /= in Hcur, Hcur_addr; simplify_eq.
@@ -564,7 +579,7 @@ Lemma lmem_corresponds_current_word
   is_cur_addr (a,v) vmap ->
   is_cur_word lw vmap.
 Proof.
-  intros [Hdom Hroot] Hlm Hcur.
+  intros (Hdom & Hroot & _) Hlm Hcur.
   eapply map_Forall_lookup_1 in Hdom; eauto; cbn in Hdom.
   destruct Hdom as (cur_v & Hcur_addr & Hle_cur & Hsome).
   rewrite /is_cur_addr /= in Hcur, Hcur_addr; simplify_eq.
@@ -669,7 +684,7 @@ Proof.
   all: apply Hcur_src in Ha0_inbounds.
   all: assert (is_cur_addr (a0, v) vmap) as Hcur_a0 by done.
   all: destruct (lm !! (a0, v + 1)) eqn:Hv' ; [|done].
-  all: destruct Hmem_inv as [Hroot Hcur].
+  all: destruct Hmem_inv as (Hroot & Hcur & _).
   all: eapply map_Forall_lookup_1 in Hroot; eauto.
   all: destruct Hroot as (cur_v & Hcur_v & cur & Hsome & Hmaxv); cbn in *.
   all: eapply map_Forall_lookup_1 in Hcur; eauto.
@@ -685,7 +700,7 @@ Lemma state_corresponds_access_lword_region
   lr !! src = Some lwsrc ->
   (Forall (λ a' : Addr, is_Some (lm !! (a', v))) (finz.seq_between b e)).
 Proof.
-  intros [ [_ ?] [? ?] ] Hget Hlsrc.
+  intros [ [_ ?] [? [ ? _ ] ] ] Hget Hlsrc.
   eapply map_Forall_lookup_1 in Hlsrc; eauto; cbn in Hlsrc.
   eapply Forall_forall.
   intros a' Ha'.
@@ -1390,12 +1405,13 @@ Qed.
    after updating its version number. *)
 Lemma update_cur_version_addr_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (a : Addr) :
+  a ∉ reserved_addresses ->
   update_cur_version_addr lmem lm vmap a = (lmem', lm', vmap') →
   lmem_not_access_addrL lm vmap a →
   mem_phys_log_corresponds phm lm vmap ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-  intros Hupd Hnaccess_mem [Hdom Hroot].
+  intros Hreserved Hupd Hnaccess_mem (Hdom & Hroot & Hgcroot).
   rewrite /update_cur_version_addr in Hupd.
   destruct (vmap !! a) as [v |] eqn:Hcur_la; cbn in * ; simplify_eq; last done.
   destruct (lm !! (a,v)) as [lw |] eqn:Hla; cbn in * ; simplify_eq; last done.
@@ -1406,7 +1422,7 @@ Proof.
   destruct Hla' as (va & Hcur_va & Hle_va & [lwa Hlwa]).
   rewrite /is_cur_addr /= in Hcur_la, Hcur_va.
   rewrite Hcur_la in Hcur_va ; simplify_eq.
-  split.
+  split; [|split].
   - eapply lmem_corresponds_read_iscur in Hla ; eauto.
     2: split ; eauto.
     eapply update_cur_word with (v := va+1) in Hla;eauto.
@@ -1432,11 +1448,11 @@ Proof.
       exists cur_lw. rewrite lookup_insert_ne //=; congruence.
   - apply map_Forall_insert_2.
     { pose proof (Hla' := Hla).
-      eapply map_Forall_lookup_1 in Hla; eauto ; cbn in *.
+      eapply map_Forall_lookup_1 in Hla; try eapply Hroot; eauto ; cbn in *.
       destruct Hla as (cur_v & Hcur_v & Hcur_max & [cur_lw Hcur_lw]).
       rewrite /is_cur_addr /= Hcur_la in Hcur_v; simplify_map_eq.
       exists lw. split. by simplify_map_eq.
-      eapply map_Forall_lookup_1 in Hcur_la ; eauto ; cbn in Hcur_la.
+      eapply map_Forall_lookup_1 in Hcur_la; try eapply Hroot; eauto ; cbn in Hcur_la.
       destruct Hcur_la as (lw' & Hlw' & Hw' & Hcur_lw').
       rewrite Hlw' in Hla' ; simplify_eq.
       split; auto.
@@ -1445,7 +1461,7 @@ Proof.
     eapply map_Forall_lookup; eauto.
     intros a' v' Hcur_a'.
     pose proof (Hcur_a'' := Hcur_a').
-    eapply map_Forall_lookup_1 in Hcur_a'' ; eauto ; cbn in Hcur_a''.
+    eapply map_Forall_lookup_1 in Hcur_a'' ; try eapply Hroot ; eauto ; cbn in Hcur_a''.
     destruct Hcur_a'' as (lw' & Hlw' & Hw' & Hcur_lw').
     destruct (decide (a = a')); simplify_eq.
     + eapply update_cur_word with (v := va+1) in Hcur_lw'; eauto.
@@ -1458,38 +1474,53 @@ Proof.
       assert ((a, va + 1) ≠ (a', v')) by (intro ; simplify_eq).
       split ; [|split] ; try by simplify_map_eq.
       eapply update_cur_word;eauto.
+  - apply map_Forall_insert_2; done.
 Qed.
 
 Lemma update_cur_version_region_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (la : list Addr):
   NoDup la →
+  la ## reserved_addresses ->
   update_cur_version_region lmem lm vmap la = (lmem', lm', vmap') →
   Forall (fun a => lmem_not_access_addrL lm vmap a) la →
   mem_phys_log_corresponds phm lm vmap ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
   move: phm lmem lm lmem' lm' vmap vmap'.
-  induction la as [| a la IH]; intros * Hno_dup Hupd Hall_naccess_mem Hmem_corr.
+  induction la as [| a la IH]; intros * Hno_dup Hreserved Hupd Hall_naccess_mem Hmem_corr.
   - by cbn in * ; simplify_eq.
   - destruct_cons.
+    assert (a ∉ reserved_addresses)
+      as Ha_reserved by (by apply disjoint_cons in Hreserved).
+    assert (la ## reserved_addresses)
+      as Hla_reserved by (by apply disjoint_weak in Hreserved).
     assert (mem_phys_log_corresponds phm lm0 vmap0) as Hinv0
         by (eapply IH ;eauto).
     eapply update_cur_version_addr_preserves_mem_corresponds in Hupd0 ; eauto.
-    by eapply update_cur_version_region_notin_preserves_no_access.
+    eapply update_cur_version_region_notin_preserves_no_access; try eapply Ha_notin_la; eauto.
 Qed.
+
+Definition not_reserved_addresses_word (lw : LWord) :=
+  match get_lcap lw with
+  | Some (LSCap p b e a v) =>
+      (finz.seq_between b e) ## reserved_addresses
+  | Some _ | None => True
+  end.
 
 (* update the version number of a memory region that is not reacheable,
    preserves the mem_phys_log invariant *)
 Lemma update_cur_version_word_region_preserves_mem_corresponds
   (phm : Mem) (lmem lm lmem' lm': LMem) (vmap vmap' : VMap) (lw : LWord) :
   lmem_not_access_wordL lm vmap lw →
+  not_reserved_addresses_word lw ->
   update_cur_version_word_region lmem lm vmap lw = (lmem', lm', vmap') →
   mem_phys_log_corresponds phm lm vmap ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-  intros Hno_access Hupd Hmem_phys_log.
+  intros Hno_access Hreserved Hupd Hmem_phys_log.
   rewrite /update_cur_version_word_region in Hupd.
   rewrite /lmem_not_access_wordL in Hno_access.
+  rewrite /not_reserved_addresses_word in Hreserved.
   destruct (get_lcap lw) as [[] |] ; simplify_eq ; auto.
   eapply update_cur_version_region_preserves_mem_corresponds ; eauto.
   apply finz_seq_between_NoDup.
@@ -1499,13 +1530,16 @@ Lemma update_cur_version_region_lmem_corresponds
   (phr : Reg) (lr : LReg) (phm : Mem) (lmem lm lmem' lm' : LMem) (vmap vmap' : VMap)
   (src : RegName) (p : Perm) (b e a : Addr) (v : Version) (lw : LWord) :
   state_phys_log_corresponds phr phm lr lm vmap ->
+  not_reserved_addresses_word lw ->
   get_lcap lw = Some (LSCap p b e a v) ->
   lr !! src = Some lw ->
   unique_in_machineL lr lm vmap src lw ->
   update_cur_version_region lmem lm vmap (finz.seq_between b e) = (lmem', lm', vmap') ->
   mem_phys_log_corresponds phm lm' vmap'.
 Proof.
-  intros [Hreg_inv Hmem_inv] Hget Hsrc Hunique Hupd.
+  intros [Hreg_inv Hmem_inv] Hreserved Hget Hsrc Hunique Hupd.
+  rewrite /not_reserved_addresses_word in Hreserved.
+  rewrite Hget in Hreserved.
   eapply update_cur_version_region_preserves_mem_corresponds; eauto.
   eapply finz_seq_between_NoDup.
   eapply unique_in_machine_no_accessL ; eauto.
@@ -2497,14 +2531,12 @@ Proof. apply _. Defined.
 Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
   own (inG0 := EC_G) EC_name (auth_frag n).
 
-(* Notations for fragmental resources *)
-Notation "EC⤇ n" := (EC_frag n)
-                      (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
-
-#[global] Instance EC_timeless `{ceriseG Σ} (n : ENum) : Timeless (EC⤇ n)%I.
+#[global] Instance EC_timeless `{ceriseG Σ} (n : ENum) : Timeless (EC_frag n).
 Proof. apply _. Defined.
 
-Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ :=
+End Logical_mapsto.
+
+Definition state_interp_logical (σ : cap_lang.state) `{ReservedAddresses} `{!ceriseG Σ} : iProp Σ :=
   ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,
     gen_heap_interp lr ∗
     gen_heap_interp lm ∗
@@ -2520,13 +2552,30 @@ Definition state_interp_logical (σ : cap_lang.state) `{!ceriseG Σ} : iProp Σ 
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
-Global Instance memG_irisG `{MachineParameters} `{!ceriseG Σ} : irisGS cap_lang Σ := {
+Global Instance memG_irisG `{MachineParameters} `{ReservedAddresses} `{ceriseg: !ceriseG Σ} : irisGS cap_lang Σ := {
   iris_invGS := cerise_invG;
   state_interp σ _ κs _ := state_interp_logical σ;
   fork_post _ := True%I;
   num_laters_per_step _ := 0;
-  state_interp_mono _ _ _ _ := fupd_intro _ _
-}.
+  state_interp_mono _ _ _ _ := fupd_intro _ _}.
+
+Ltac destruct_cons_upd :=
+  match goal with
+     | Hupd : update_cur_version_region ?lmem ?lm ?vmap (?a :: ?la) = (?lmem', ?lm', ?vmap')
+       |- _ =>
+         let lmem0 := fresh lmem "0" in
+         let lm0 := fresh lm "0" in
+         let vmap0 := fresh vmap "0" in
+         let Hupd0 := fresh Hupd "0" in
+         apply update_cur_version_region_cons in Hupd
+         ; destruct Hupd as (lmem0 & lm0 & vmap0 & Hupd & Hupd0)
+   end.
+Ltac destruct_cons_hook2 := destruct_cons_upd || destruct_cons_hook1.
+Ltac destruct_cons_hook ::= destruct_cons_hook2.
+
+(* Notations for fragmental resources *)
+Notation "EC⤇ n" := (EC_frag n)
+                      (at level 20, n at level 50, format "EC⤇ n") : bi_scope.
 
 (* Points to predicates for logical registers *)
 Notation "r ↦ᵣ{ q } lw" := (mapsto (L:=RegName) (V:=LWord) r q lw)

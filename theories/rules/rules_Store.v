@@ -7,6 +7,7 @@ From cap_machine Require Export rules_base stdpp_extra.
 Section cap_lang_rules.
   Context `{ceriseg: ceriseG Σ}.
   Context `{MP: MachineParameters}.
+  Context `{reservedaddresses : ReservedAddresses}.
   Implicit Types P Q : iProp Σ.
   Implicit Types σ : ExecConf.
   Implicit Types c : cap_lang.expr.
