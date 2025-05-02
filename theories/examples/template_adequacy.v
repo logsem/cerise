@@ -153,10 +153,6 @@ Section Adequacy.
   Context (P: prog).
   Context (I : memory_inv).
 
-  (* Lemma gen_enclaves_hist_init : *)
-  (*   ⊢ |==> (∃ γ, own γ ( ● ∅ : (authR (gmapR TIndex (agreeR EIdentity))))). *)
-  (* pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais. *)
-
   Set Nested Proofs Allowed.
   Lemma memory_to_lmemory_subseteq (m1 m2 : Mem) (v : Version) :
     m1 ⊆ m2 -> memory_to_lmemory m1 v ⊆ memory_to_lmemory m2 v.
@@ -198,10 +194,21 @@ Section Adequacy.
     delete r (register_to_lregister reg v) = (register_to_lregister (delete r reg) v).
   Proof. by rewrite /register_to_lregister fmap_delete. Qed.
 
+  (* TODO move *)
+  Lemma lword_get_word_to_lword (w : Word) (v : Version) :
+    lword_get_word (word_to_lword w v) = w.
+  Proof.
+    by destruct w ; auto; destruct sb ; auto.
+  Qed.
+
   Lemma lreg_strip_register_to_lregister (reg : Reg) (v : Version) :
     lreg_strip (register_to_lregister reg v) = reg.
   Proof.
-  Admitted.
+    induction reg using map_ind; cbn in *; first done.
+    rewrite /register_to_lregister /lreg_strip !fmap_insert lword_get_word_to_lword.
+    rewrite -/(register_to_lregister m v) -/(lreg_strip _).
+    by rewrite IHreg.
+  Qed.
 
   Lemma state_phys_log_corresponds_memory_to_lmemory {RA: ReservedAddresses}
     (m mi : Mem) (lm : LMem) (vmap : VMap) (v : Version) :
@@ -236,7 +243,7 @@ Section Adequacy.
       eapply map_Forall_lookup_1 in Hroot; eauto.
       destruct Hroot as (lw & Hlw & Hm' & Hcur).
       rewrite Hmi_a' in Hlw; simplify_eq.
-      destruct w ; auto; destruct sb ; auto.
+      by rewrite lword_get_word_to_lword.
     - assert (a ∈ reserved_addresses) as Ha_reserved.
       { rewrite -Hreserved_addrs elem_of_elements -Hmi_dom.
         by apply elem_of_dom.
@@ -258,12 +265,108 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
+  Definition is_complete_word (w : Word) (m : Mem) :=
+    match w with
+    | WCap p b e a
+    | WSealed _ (SCap p b e a) => (Forall (fun a => is_Some( m !! a ) ) (finz.seq_between b e))
+    | _ => True
+    end.
+
+  Definition is_complete_registers (reg : Reg) (m : Mem) :=
+    map_Forall ( fun r w => is_complete_word w m) reg.
+  Definition is_complete_memory (m : Mem) :=
+    map_Forall ( fun r w => is_complete_word w m) m.
+
+  Lemma state_phys_log_corresponds_adequacy `{ReservedAddresses} (m : Mem) (reg : Reg) (v : Version)  :
+    v = init_version ->
+    is_complete_memory m ->
+    is_complete_registers reg m ->
+    state_phys_log_corresponds reg m (register_to_lregister reg v) (memory_to_lmemory m v) (gset_to_gmap v (dom m)).
+  Proof.
+    intros Hv Hm_complete Hreg_complete.
+    rewrite /state_phys_log_corresponds.
+    split.
+    + rewrite /reg_phys_log_corresponds.
+      split.
+      ++ apply lreg_strip_register_to_lregister.
+      ++ rewrite /is_cur_regs.
+         apply map_Forall_lookup_2.
+         intros r lw Hr.
+         rewrite /is_cur_word.
+         destruct lw as [ z | sb | ot sb ] ; try done.
+         all: destruct sb; auto.
+         all: rewrite /register_to_lregister lookup_fmap_Some in Hr.
+         all: destruct Hr as (w & Hw & Hwr).
+         all: destruct w as [z | sb' | ot' sb']; try destruct sb'; cbn in Hw; simplify_eq.
+         all: intros x Hx.
+         all: apply lookup_gset_to_gmap_Some.
+         all: split; last done.
+         all: eapply (map_Forall_lookup_1) in Hreg_complete; eauto.
+         all: rewrite elem_of_list_lookup in Hx.
+         all: destruct Hx as [kx Hkx].
+         all: eapply Forall_lookup in Hreg_complete; eauto.
+         all: by rewrite elem_of_dom.
+    + rewrite /mem_phys_log_corresponds.
+      split;[|split].
+      ++ rewrite /mem_current_version.
+         apply map_Forall_lookup_2.
+         intros la lw Hla.
+         rewrite /is_legal_address.
+         destruct la as (a', v').
+         destruct (decide (v = v')) ; simplify_eq ; cycle 1.
+         { rewrite /memory_to_lmemory in Hla.
+           apply lookup_kmap_Some in Hla; last (by intros x y ?; simplify_eq).
+           destruct Hla as (? & ? & _).
+           simplify_eq.
+         }
+         exists init_version.
+         cbn.
+         split; [|split].
+         +++ rewrite /is_cur_addr //=.
+             rewrite lookup_gset_to_gmap_Some; split; auto.
+             rewrite /memory_to_lmemory lookup_kmap lookup_fmap_Some in Hla.
+             destruct Hla as (w & Hlw & Ha).
+             by rewrite elem_of_dom.
+         +++ lia.
+         +++ by rewrite Hla.
+      ++ rewrite /mem_vmap_root.
+         apply map_Forall_lookup_2.
+         intros a' v' Ha'.
+         apply lookup_gset_to_gmap_Some in Ha'; destruct Ha' as [Ha' ->].
+         apply elem_of_dom in Ha'. destruct Ha' as [w' Ha'].
+         exists (word_to_lword w' v').
+         split; [|split].
+      * by rewrite lookup_kmap lookup_fmap Ha'; cbn.
+      * rewrite Ha' /lword_get_word /word_to_lword /=.
+        destruct w'; auto.
+        all: destruct sb; auto.
+      * rewrite /is_cur_word.
+        destruct w' ; cbn; auto.
+        all: destruct sb; cbn; auto.
+        all: intros x Hx.
+        all: apply lookup_gset_to_gmap_Some.
+        all: split; last done.
+        all: eapply (map_Forall_lookup_1) in Hm_complete; eauto.
+        all: rewrite elem_of_list_lookup in Hx.
+        all: destruct Hx as [kx Hkx].
+        all: eapply Forall_lookup in Hm_complete; eauto.
+        all: by rewrite elem_of_dom.
+        ++ rewrite /mem_gcroot.
+           apply map_Forall_lookup_2.
+           intros a' v' Ha' Ha'_reserved.
+           rewrite /init_version; cbn.
+           apply lookup_gset_to_gmap_Some in Ha';simplify_eq.
+           by destruct Ha'.
+  Qed.
+
+
   Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
-    (* (etbl etbl' : ETable) (ecur ecur' : ENum) *)
     (etbl' : ETable) (ecur' : ENum)
     (es: list cap_lang.expr) ( v : Version ):
     is_initial_memory P m →
+    is_complete_memory m →
     is_initial_registers P reg →
+    is_complete_registers reg m →
     minv I m →
     minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
@@ -281,7 +384,7 @@ Section Adequacy.
       (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
-    intros Hm Hreg HI HIdom prog_map Hspec Hstep.
+    intros Hm Hm_complete Hreg Hreg_complete HI HIdom prog_map Hspec Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
     pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
     specialize (WPI
@@ -309,7 +412,6 @@ Section Adequacy.
     ; first by apply auth_auth_valid.
     iMod (seal_store_init) as (seal_storeg) "Hseal_store".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
-    (* Admitted. *)
 
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
     pose ceriseg := CeriseG Σ Hinv lmem_heapg lreg_heapg
@@ -385,76 +487,7 @@ Section Adequacy.
       iFrame; cbn.
       repeat (iSplit ; first done).
       iPureIntro.
-      (* TODO Lemma *)
-      rewrite /state_phys_log_corresponds.
-      split.
-      + rewrite /reg_phys_log_corresponds.
-        split.
-        ++ apply lreg_strip_register_to_lregister.
-        ++ rewrite /is_cur_regs.
-           apply map_Forall_lookup_2.
-           intros r lw Hr.
-           rewrite /is_cur_word.
-           destruct lw ; try done; cycle 1.
-           * (* contradiction *)
-             destruct (decide (r = PC)); simplify_eq ; cycle 1.
-             { admit. (* contradiction, because reg !! r = WInt _ *) }
-             { eapply register_to_lregister_lookup in HPC; erewrite HPC in Hr; simplify_eq. }
-           * destruct sb ; try done.
-             intros a Ha.
-             destruct (decide (r = PC)); simplify_eq ; cycle 1.
-             { admit. (* contradiction, because reg !! r = WInt _ *) }
-             eapply register_to_lregister_lookup in HPC; erewrite HPC in Hr; simplify_eq.
-             cbn in Hr; simplify_eq.
-             apply lookup_gset_to_gmap_Some.
-             split ; last done.
-             apply subseteq_dom in Hm.
-             eapply elem_of_weaken; eauto.
-             rewrite prog_region_dom.
-             by apply elem_of_list_to_set.
-      + rewrite /mem_phys_log_corresponds.
-        split;[|split].
-        ++ rewrite /mem_current_version.
-           apply map_Forall_lookup_2.
-           intros la lw Hla.
-           rewrite /is_legal_address.
-           destruct la as (a', v').
-           destruct (decide (v = v')) ; simplify_eq ; cycle 1.
-           { rewrite /memory_to_lmemory in Hla.
-             apply lookup_kmap_Some in Hla; last (by intros x y ?; simplify_eq).
-             destruct Hla as (? & ? & _).
-             simplify_eq.
-           }
-           exists v'.
-           cbn.
-           split; [|split].
-           +++ rewrite /is_cur_addr //=.
-               rewrite lookup_gset_to_gmap_Some; split; auto.
-               admit. (* true because of Hla *)
-           +++ lia.
-           +++ by rewrite Hla.
-        ++ rewrite /mem_vmap_root.
-           apply map_Forall_lookup_2.
-           intros a' v' Ha'.
-           apply lookup_gset_to_gmap_Some in Ha'; destruct Ha' as [Ha' ->].
-           apply elem_of_dom in Ha'. destruct Ha' as [w' Ha'].
-           exists (word_to_lword w' v').
-           split; [|split].
-           * by rewrite lookup_kmap lookup_fmap Ha'; cbn.
-           * rewrite Ha' /lword_get_word /word_to_lword /=.
-             destruct w'; auto.
-             all: destruct sb; auto.
-           * rewrite /is_cur_word.
-             destruct w' ; cbn; auto.
-             all: destruct sb; cbn; auto.
-             all: intros x Hx.
-             all: apply lookup_gset_to_gmap_Some.
-             all: admit. (* should be okay *)
-        ++ rewrite /mem_gcroot.
-           apply map_Forall_lookup_2.
-           intros a' v' Ha' Ha'_reserved.
-           rewrite /init_version; cbn.
-           apply lookup_gset_to_gmap_Some in Ha'; by destruct Ha'.
+      apply state_phys_log_corresponds_adequacy; eauto.
     }
 
     iIntros "Hinterp'".
@@ -474,43 +507,43 @@ Section Adequacy.
     iModIntro. iPureIntro. rewrite /state_is_good //=.
     eapply minv_sub_extend; [| |eassumption].
     rewrite Hmi_dom //.
-
-
     destruct Hstate_inv.
     eapply state_phys_log_corresponds_memory_to_lmemory; eauto.
-
-    Admitted.
+    Qed.
 
 End Adequacy.
 
 Theorem template_adequacy `{MachineParameters}
     (P: prog) (I: memory_inv)
     (m m': Mem) (reg reg': Reg)
-    (etbl etbl' : ETable) (ecur ecur' : ENum)
+    (etbl' : ETable) (ecur' : ENum)
     (es: list cap_lang.expr):
   is_initial_memory P m →
+  is_complete_memory m →
   is_initial_registers P reg →
+  is_complete_registers reg m →
   minv I m →
   minv_dom I ⊆ list_to_set (finz.seq_between (prog_start P) (prog_end P)) →
 
   let prog_map := filter (fun '(a, _) => a ∉ minv_dom I) (prog_region P) in
-  (∀ `{memG Σ, regG Σ, sealStoreG Σ, logrel_na_invs Σ} rmap,
+  (∀ `{ceriseG Σ, sealStoreG Σ, logrel_na_invs Σ, ReservedAddresses} rmap,
    dom rmap = all_registers_s ∖ {[ PC ]} →
-   ⊢ inv invN (minv_sep I)
-     ∗ PC ↦ᵣ WCap RWX (prog_start P) (prog_end P) (prog_start P)
-     ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_z w = true⌝)
-     ∗ ([∗ map] a↦w ∈ prog_map, a ↦ₐ w)
+   ⊢ inv invN (minv_sep I 0)
+     ∗ PC ↦ᵣ LCap RWX (prog_start P) (prog_end P) (prog_start P) 0
+     ∗ ([∗ map] r↦w ∈ (register_to_lregister rmap 0), r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+     ∗ ([∗ map] a↦w ∈ (memory_to_lmemory prog_map 0), a ↦ₐ w)
      -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
     rtc erased_step
-      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0 |})
       (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
-  set (Σ := #[invΣ; gen_heapΣ Addr Word; gen_heapΣ RegName Word;
+  set (Σ := #[invΣ; gen_heapΣ LAddr LWord; gen_heapΣ RegName LWord;
               na_invΣ; sealStorePreΣ]).
-  intros. eapply (@template_adequacy' Σ); eauto; typeclasses eauto.
-Qed.
+  intros. eapply (@template_adequacy' Σ); eauto.
+  all: try typeclasses eauto.
+Admitted.
 
 End basic.
 
