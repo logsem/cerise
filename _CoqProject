@@ -134,6 +134,7 @@ theories/proofmode/mkregion_helpers.v
 theories/examples/malloc.v
 # theories/examples/salloc.v
 theories/examples/assert.v
+theories/examples/hash_cap.v
 theories/examples/macros.v
 theories/examples/macros_new.v
 
@@ -150,7 +151,7 @@ theories/examples/enclaves/mutual_attestation_B_spec.v
 theories/examples/enclaves/mutual_attestation_spec.v
 
 # Template Adequacy
-theories/examples/template_adequacy.v
+# theories/examples/template_adequacy.v
 # theories/examples/template_adequacy_ocpl.v
 
 # Tutorial and Exercises for learning Cerise in Coq

@@ -8,6 +8,7 @@ From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc ass
 Section macros.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}.
 
 
@@ -968,7 +969,7 @@ Section macros.
             ∗ [[ b_r , e_r ]] ↦ₐ{v} [[region_addrs_zeroesL b_r e_r v]]
             ∗ mclear a r v -∗
             WP Seq (Instr Executable) {{ φ }})
-    ⊢ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }})%I.
+    ⊢ WP Seq (Instr Executable) {{ φ }})%I.
   Proof.
     iIntros (Hnext [Hne Hwa] Hjnz_off Hvpc Hle)
             "(Hmclear & >HPC & >Hr & >Hr_t4 & >Hr_t1 & >Hr_t2 & >Hr_t3 & >Hr_t5 & >Hr_t6 & >Hregion & Hφ)".

@@ -9,6 +9,7 @@ From cap_machine.proofmode Require Import classes tactics_helpers solve_pure pro
 Section macros.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {seals:sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
+          `{reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}.
 
   (* --------------------------------------------------------------------------------- *)

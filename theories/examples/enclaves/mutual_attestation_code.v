@@ -1,6 +1,6 @@
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import logrel proofmode.
-From cap_machine Require Import macros_new.
+From cap_machine Require Import macros_new hash_cap.
 
 (* -------------------------------------- *)
 (* --------------- AXIOMS --------------- *)
@@ -158,10 +158,26 @@ Section mutual_attest_example.
         Lea r_t3 offset_idB;        (* r3 := (RX, pc_b, pc_e, a_idT(B)) *)
         Load r_t3 r_t3;             (* r3 := idT(B) *)
 
+
         (* get hash(idT) in r_t4 *)
         GetA r_t5 r_t4;             (* r5 := a_idT *)
         Subseg r_t4 r_t5 r_t6;      (* r4 := (RX, a_idT pc_e, a_idT) *)
-        Hash r_t4 r_t4;             (* r4 := #[a_idT;pc_E] *)
+
+
+        Mov r_t11 r_t1;
+        Mov r_t12 r_t2;
+        Mov r_t13 r_t3;
+        Mov r_t15 r_t5;
+        Mov r_t16 r_t6;
+      ]
+      ++ hash_cap_instrs        (* r4 := #[a_idT;pc_E] *)
+      ++ encodeInstrsLW [
+        Mov r_t1 r_t11;
+        Mov r_t2 r_t12;
+        Mov r_t3 r_t13;
+        Mov r_t4 r_t8;
+        Mov r_t5 r_t15;
+        Mov r_t6 r_t16;
 
         (* get hash_concat(idT(B),idT) in r_t3 *)
         HashConcat r_t3 r_t3 r_t4;  (* r3 := idT(B) || #[a_idT;pc_E] *)
