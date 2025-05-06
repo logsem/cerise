@@ -50,6 +50,9 @@ Ltac dispatch_instr_rule instr cont :=
   | Mod ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | HashConcat ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
   | Lt ?x1 ?x2 ?x3 => dispatch_AddSubLt x1 x2 x3 cont
+  (* Hash *)
+  | Hash ?x1 ?x2 => cont (@wp_hash_success)
+  | Hash ?x2 ?x2 => cont (@wp_hash_success_same)
   (* Lea *)
   | Lea PC (inr _) => cont (@wp_lea_success_reg_PC)
   | Lea PC (inl _) => cont (@wp_lea_success_z_PC)

@@ -580,13 +580,7 @@ Section opsem.
     updatePC (update_reg φ dst (WInt (Z.b2z (Z.ltb n1 n2))))
     | Hash dst src =>
       wsrc ← (reg φ) !! src;
-      match wsrc with
-      | WCap p b e a =>
-        if readAllowed p then
-          updatePC (update_reg φ dst (WInt (hash_memory_region (mem φ) b e)))
-        else None
-      | _ => None
-      end
+      updatePC (update_reg φ dst (WInt (hash wsrc)))
     | Subseg dst ρ1 ρ2 =>
     wdst ← (reg φ) !! dst;
     match wdst with
