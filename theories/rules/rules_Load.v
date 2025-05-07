@@ -209,7 +209,7 @@ Section cap_lang_rules.
 
     iDestruct (big_sepM_insert_delete _ _ _ (dq, lw) with "[Hpc_a $Hmem]") as "Hmem"; iFrame.
     rewrite insert_id; auto.
-    iMod (state_interp_transient_intro with "[$Hregs $Hσ $Hmem]") as "Hσ".
+    iDestruct (state_interp_transient_intro with "[$Hregs $Hσ $Hmem]") as "Hσ".
 
     iApply (wp2_reg_lookup with "[$Hσ Hφ Hcred]") ; first by set_solver.
     iIntros (lw2) "Hσ %Hlrs %Hrs".
@@ -251,7 +251,7 @@ Section cap_lang_rules.
     iApply (wp2_opt_incrementPC with "[$Hσ Hφ]").
     { rewrite dom_insert. apply elem_of_union_r. now rewrite elem_of_dom HPC. }
     iSplit.
-    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
+    - iIntros "Hσ %Hlin %Hin".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
       iApply ("Hφ" with "[$Hmem $Hregs]").
       iPureIntro.

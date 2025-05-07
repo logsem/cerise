@@ -77,7 +77,7 @@ Section cap_lang_rules.
 
     iApply (wp_wp2 (φ1 := exec_optL_Jnz lregs dst src)).
 
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    iDestruct (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
     { by rewrite big_sepM_empty. }
 
     iApply wp_opt2_bind.
@@ -114,7 +114,7 @@ Section cap_lang_rules.
       { rewrite elem_of_dom; eexists; eauto. }
       iFrame "Hσ".
       iSplit; cbn.
-      * iIntros (φt' lrt') "Hσ %Hin %Hlin".
+      * iIntros "Hσ %Hin %Hlin".
         iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
         iApply ("Hφ" with "[$Hpc_a $Hregs]").
         iPureIntro; by eapply Jnz_spec_failure.

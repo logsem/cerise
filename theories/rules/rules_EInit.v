@@ -42,15 +42,15 @@ Section cap_lang_rules.
       EInit_fail lregs lmem ot.
 
   Definition EInit_spec_success (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex) (eid : EIdentity) (ot : OType) (rs : RegName) : iProp Σ :=
-    ∃ code_b code_e code_a code_v data_b data_e data_a data_v ,
+    ∃ glmem code_b code_e code_a code_v data_b data_e data_a data_v ,
     ⌜incrementLPC lregs = Some lregs'⌝ ∗ (* PC can be incremented *)
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
     ⌜eid = hash_lmemory_region lmem code_b code_e code_v⌝ ∗ (* eid = hash(ccap) *)
     ⌜(ot + 2)%ot = Some (ot ^+ 2)%ot ⌝ ∗ (* there are still otypes left in the pool *)
     ⌜lregs !! rs = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rs contains a valid capability *)
     ⌜lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v)⌝ ∗ (* the base address of the code capability points to a valid data capability *)
-    ⌜is_valid_updated_lmemory lmem (finz.seq_between code_b code_e) code_v lmem' ⌝ ∗ (* all memory in the code capability is "current" w.r.t. revocation *)
-    ⌜is_valid_updated_lmemory lmem (finz.seq_between data_b data_e) data_v lmem' ⌝ ∗ (* all memory in the data capability is "current" w.r.t. revocation *)
+    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between code_b code_e) code_v lmem' ⌝ ∗ (* all memory in the code capability is "current" w.r.t. revocation *)
+    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between data_b data_e) data_v lmem' ⌝ ∗ (* all memory in the data capability is "current" w.r.t. revocation *)
     ⌜unique_in_registersL lregs (Some rs) (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* the code capability is unique across all registers (except where it is stored: in `rs`) *)
     ⌜unique_in_registersL lregs None      (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* the data capability is unique across all registers *)
     ⌜incrementLPC (<[ rs := next_version_lword (LCap E code_b code_e (code_b ^+ 1)%a code_v)]> lregs) = Some lregs' ⌝ ∗ (* the pc will be incremented and rs will point to a "current" sentry capability *)

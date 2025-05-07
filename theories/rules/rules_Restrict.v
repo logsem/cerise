@@ -118,7 +118,7 @@ Section cap_lang_rules.
 
     iApply (wp_wp2 (φ1 := exec_optL_Restrict lregs dst src)).
 
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    iDestruct (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
     { by rewrite big_sepM_empty. }
 
     iApply wp_opt2_bind.
@@ -177,7 +177,7 @@ Section cap_lang_rules.
       { now rewrite elem_of_dom (lookup_insert_dec HPC). }
       iFrame "Hσ".
       iSplit; cbn.
-      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+      + iIntros "Hσ %Hlin %Hin".
         iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
         iApply ("Hφ" with "[$Hpc_a $Hregs]").
         iPureIntro; constructor ; by eapply Restrict_fail_PC_overflow_cap.
@@ -210,7 +210,7 @@ Section cap_lang_rules.
       { now rewrite elem_of_dom (lookup_insert_dec HPC). }
       iFrame "Hσ".
       iSplit; cbn.
-      + iIntros (φt' lrt') "Hσ %Hlin %Hin".
+      + iIntros "Hσ %Hlin %Hin".
         iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
         iApply ("Hφ" with "[$Hpc_a $Hregs]").
         iPureIntro; constructor ; by eapply Restrict_fail_PC_overflow_sr.

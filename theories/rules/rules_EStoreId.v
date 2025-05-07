@@ -73,7 +73,7 @@ Section cap_lang_rules.
 
     iApply wp_wp2.
 
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    iDestruct (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
     { by rewrite big_sepM_empty. }
 
     iApply wp_opt2_bind.

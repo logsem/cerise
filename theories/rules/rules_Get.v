@@ -170,7 +170,7 @@ Section cap_lang_rules.
     iApply wp_wp2.
     iApply wp_opt2_bind.
     iApply wp_opt2_eqn.
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hregs $Hσ]") as "Hσ". set_solver.
+    iPoseProof (state_interp_transient_intro (lm:= ∅) with "[$Hregs $Hσ]") as "Hσ". set_solver.
     iApply (wp2_reg_lookup (lrt := regs)); first by set_solver.
     iModIntro.
     iFrame "Hσ".
@@ -198,7 +198,7 @@ Section cap_lang_rules.
     iApply (wp2_opt_incrementPC with "[$Hσ Hpc_a Hφ]").
     { rewrite dom_insert. apply elem_of_union_r. now rewrite elem_of_dom HPC. }
     iSplit.
-    - iIntros (φt' lrt') "Hσ %Hlin %Hin".
+    - iIntros "Hσ %Hlin %Hin".
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "(Hσ & Hregs & _)".
       iFrame.
       iApply ("Hφ" with "[$Hpc_a $Hregs]").

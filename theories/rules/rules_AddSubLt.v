@@ -110,7 +110,7 @@ Section cap_lang_rules.
     (* Starting the transaction *)
     iApply wp_wp2.
     (* Copying the initial state as the transient state *)
-    iMod (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
+    iDestruct (state_interp_transient_intro (lm:= ∅) with "[$Hmap $Hσ1]") as "Hσ".
     { by rewrite big_sepM_empty. }
 
     (* both executions use a bind *)
@@ -157,13 +157,15 @@ Section cap_lang_rules.
     iApply (wp2_opt_incrementPC with "[$Hσ Hcred Hpc_a Hφ]").
     { now rewrite elem_of_dom (lookup_insert_dec HPC). }
 
-    rewrite HdecodeLW; iSplit; cbn; iIntros (φt' lrt') "Hσ %Heqn1 %Heqn2".
-    - iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
+    rewrite HdecodeLW; iSplit; cbn.
+    - iIntros "Hσ %Heqn1 %Heqn2".
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
       iPureIntro.
       eapply AddSubLt_spec_failure.
       by constructor 3 with z1 z2.
-    - iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
+    - iIntros (lrt' rs') "Hσ %Heqn1 %Heqn2".
+      iMod (state_interp_transient_elim_commit with "Hσ") as "($ & Hregs & _)".
       iApply ("Hφ" with "[$Hpc_a $Hregs]").
       iPureIntro.
       by constructor 1 with z1 z2.

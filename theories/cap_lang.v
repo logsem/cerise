@@ -975,9 +975,11 @@ Proof. solve_decision. Defined.
     ; repeat destruct (word_of_argument (reg φ) _)
     ; repeat destruct (z_of_argument (reg φ) _)
     ; try destruct (sweep src (reg φ) (mem φ))
+    ; try destruct (word_is_cap_or_scap _)
     ; cbn in *; try by exfalso.
     all: repeat destruct (reg _ !! _); cbn in *; repeat case_match.
     all: repeat destruct (mem _ !! _); cbn in *; repeat case_match.
+    all: try destruct (word_is_cap_or_scap _).
     all: simplify_eq; try by exfalso.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: repeat (
