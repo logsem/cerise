@@ -43,8 +43,6 @@ Section mutual_attest_main.
     }
     destruct HI ; simplify_map_eq.
     - iApply ( mutual_attest_A_contract with "[]") ; last iFrame "#"; eauto.
-      admit.
-      admit.
     - rewrite lookup_insert_ne // in Hcode_ce.
       2:{ rewrite /hash_mutual_attest_A /hash_mutual_attest_B.
           intro Hcontra.
@@ -55,9 +53,7 @@ Section mutual_attest_main.
       }
       simplify_map_eq.
       iApply ( mutual_attest_B_contract with "[]") ; last iFrame "#"; eauto.
-      admit.
-      admit.
-  Admitted.
+  Qed.
 
   (* -------------------------------------------------- *)
   (* ---------------------- MAIN ---------------------- *)
@@ -438,7 +434,7 @@ Section mutual_attest_main.
     { iIntros (lw) "H".
       cbn.
       rewrite /sealed_enclaveA.
-      iDestruct "H" as (b e v) "[_ ->]".
+      iDestruct "H" as (b e v) "->".
       iPureIntro.
       eexists _,_,_,_; split; auto.
       intros.
@@ -502,7 +498,7 @@ Section mutual_attest_main.
     { iIntros (lw) "H".
       cbn.
       rewrite /sealed_enclaveB.
-      iDestruct "H" as (b e v) "[_ ->]".
+      iDestruct "H" as (b e v) "->".
       iPureIntro.
       eexists _,_,_,_; split; auto.
       intros.

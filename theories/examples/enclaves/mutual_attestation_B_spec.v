@@ -153,8 +153,6 @@ Section mutual_attest_B.
     let e := (length mutual_attest_enclave_B_code + 1)%Z in
     (ot + 2)%f = Some (ot ^+ 2)%f ->
     (b' < e')%a ->
-    b' ∉ reserved_addresses →
-    (b' ^+1)%a ∉ reserved_addresses →
     (ma_addr_B + e)%a =
     Some (ma_addr_B ^+ e)%a ->
     custom_enclave_inv ma_enclaves_map
@@ -168,7 +166,7 @@ Section mutual_attest_B.
                  (ma_addr_B ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' Hreserved Hreserved' He) "#(Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -603,7 +601,7 @@ Section mutual_attest_B.
       by iRewrite "Heqv".
     }
     iDestruct (seal_pred_valid_sealed_eq with "[$Hma_A_Psign] Hseal_valid") as "Heqv".
-    iAssert (▷ sealed_enclaveA (LWSealable sb))%I as (fb fe fv) "[>%Hseal_A_reserved >%Hseal_A]".
+    iAssert (▷ sealed_enclaveA (LWSealable sb))%I as (fb fe fv) ">%Hseal_A".
     { iDestruct "Hseal_valid" as (sb') "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (LWSealable sb')).
@@ -843,12 +841,7 @@ Section mutual_attest_B.
       iExists sealed_enclaveB; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveB_persistent. }
-      { iNext; iExists _,_,_. iSplit ; last done.
-        iPureIntro.
-        intros y Hy Hy'; rewrite elem_of_finz_seq_between in Hy.
-        assert (y = b') as -> by solve_addr.
-        done.
-      }
+      { iNext; by iExists _,_,_. }
     }
     iAssert (
         interp (LSealedCap (ot ^+ 1)%f O (b' ^+ 1)%a (b' ^+ 2)%a (prot_sealed_B (b' ^+ 1)%a) v')
@@ -858,12 +851,7 @@ Section mutual_attest_B.
       iExists sealed_enclaveB; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveB_persistent. }
-      { iNext; iExists _,_,_. iSplit ; last done.
-        iPureIntro.
-        intros y Hy Hy'; rewrite elem_of_finz_seq_between in Hy.
-        assert (y = (b' ^+ 1)%a) as -> by solve_addr.
-        done.
-      }
+      { iNext; by iExists _,_,_. }
     }
     iAssert (
         interp (LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f)

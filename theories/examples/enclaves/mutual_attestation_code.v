@@ -580,8 +580,7 @@ Section mutual_attest_example.
     if (decide (a `mod` 2%nat = 0 )%Z) then f42 else f1.
 
   Definition sealed_enclaveA : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v, ⌜finz.seq_between b e ## reserved_addresses⌝ ∗
-             ⌜ w = LCap O b e (prot_sealed_A b) v ⌝)%I.
+    λ w, (∃ (b e : Addr) v, ⌜ w = LCap O b e (prot_sealed_A b) v ⌝)%I.
   Definition sealed_enclaveA_ne : (leibnizO LWord) -n> (iPropO Σ) :=
       λne (w : leibnizO LWord), sealed_enclaveA w%I.
 
@@ -593,7 +592,7 @@ Section mutual_attest_example.
   Lemma sealed_enclaveA_interp (lw : LWord) : sealed_enclaveA lw -∗ fixpoint interp1 lw.
   Proof.
     iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "[%Hreserved ->]".
+    iDestruct "Hsealed" as (b e v) "->".
     by rewrite fixpoint_interp1_eq /=.
   Qed.
 
@@ -606,8 +605,7 @@ Section mutual_attest_example.
     if (decide (a `mod` 2%nat = 0 )%Z) then f43 else f1.
 
   Definition sealed_enclaveB : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v, ⌜finz.seq_between b e ## reserved_addresses⌝ ∗
-             ⌜ w = LCap O b e (prot_sealed_B b) v ⌝)%I.
+    λ w, (∃ (b e : Addr) v, ⌜ w = LCap O b e (prot_sealed_B b) v ⌝)%I.
   Definition sealed_enclaveB_ne : (leibnizO LWord) -n> (iPropO Σ) :=
       λne (w : leibnizO LWord), sealed_enclaveB w%I.
 
@@ -619,7 +617,7 @@ Section mutual_attest_example.
   Lemma sealed_enclaveB_interp (lw : LWord) : sealed_enclaveB lw -∗ fixpoint interp1 lw.
   Proof.
     iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "[%Hreserved ->]".
+    iDestruct "Hsealed" as (b e v) "->".
     by rewrite fixpoint_interp1_eq /=.
   Qed.
 

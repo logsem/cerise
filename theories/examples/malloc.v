@@ -84,6 +84,7 @@ Section SimpleMalloc.
           ∗ (∃ (ba ea : Addr) size,
             ⌜wsize = LWInt size⌝
             ∗ ⌜(ba + size)%a = Some ea⌝
+            ∗ ⌜isWithin ba ea b e = true⌝
             ∗ r_t1 ↦ᵣ LCap RWX ba ea ba v
             ∗ [[ba, ea]] ↦ₐ{v} [[region_addrs_zeroesL ba ea v]])
           -∗ WP Seq (Instr Executable) {{ φ }}))
@@ -203,15 +204,25 @@ Section SimpleMalloc.
       rewrite insert_delete_insert.
       rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
       rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
-      iExists a_m, a_m', size. iFrame. auto. }
+      iExists a_m, a_m', size. iFrame.
+      iSplit; auto.
+      iSplit; auto.
+      iPureIntro.
+      rewrite !/isWithin in Ha_m'_within |- *.
+      rewrite -!Is_true_true !andb_True in Ha_m'_within |- *.
+      destruct Ha_m'_within; split; auto.
+      rewrite !Is_true_true in H1 |- *.
+      solve_addr.
+    }
     { auto. }
   Qed.
 
   Lemma simple_malloc_subroutine_valid N b e v :
+    finz.seq_between b e ## reserved_addresses ->
     na_inv logrel_nais N (malloc_inv b e v) -∗
     interp (LCap E b e b v).
   Proof.
-    iIntros "#Hmalloc".
+    iIntros (Hreserved) "#Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
@@ -226,11 +237,15 @@ Section SimpleMalloc.
     unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.
     iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
     iNext. iIntros "((Hown & Hregs) & Hr_t0 & HPC & Hres)".
-    iDestruct "Hres" as (ba ea size Hsizeq Hsize) "[Hr_t1 Hbe]".
+    iDestruct "Hres" as (ba ea size Hsizeq Hsize Hwithin) "[Hr_t1 Hbe]".
 
     iMod (region_integers_alloc _ _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
-    { admit. }
+    { apply isWithin_implies in Hwithin.
+      intros y Hy Hy'. eapply Hreserved; eauto.
+      rewrite !elem_of_finz_seq_between in Hy |- *.
+      solve_addr.
+    }
     rewrite -!(delete_insert_ne _ r_t1)//.
     iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
     rewrite -!(delete_insert_ne _ r_t0)//.
@@ -256,6 +271,6 @@ Section SimpleMalloc.
       simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
     repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr'].
     unshelve iSpecialize ("Hregs_valid" $! r' _ _ Hr'). done. done.
-  Admitted.
+  Qed.
 
 End SimpleMalloc.

@@ -98,11 +98,7 @@ Section logrel.
 
   Definition interp_z : D := λne lw, ⌜match lw with LInt z => True | _ => False end⌝%I.
 
-  Definition interp_cap_O : D :=
-    λne lw, (⌜match lw with
-              | LCap O b e a v => (finz.seq_between b e) ## reserved_addresses
-              | _ => False
-              end⌝)%I.
+  Definition interp_cap_O : D := λne _, True%I.
   (* Solve All Obligations with solve_proper. *)
 
   Program Definition interp_cap_RO (interp : D) : D :=
@@ -210,6 +206,11 @@ Section logrel.
   Proof.
     solve_proper_prepare.
     destruct_word x0; auto. destruct c; auto.
+    solve_contractive.
+  Qed.
+  Global Instance interp_cap_O_contractive :
+    Contractive (interp_cap_O).
+  Proof.
     solve_contractive.
   Qed.
   Global Instance interp_cap_RW_contractive :
@@ -426,15 +427,14 @@ Section logrel.
   Qed.
 
   Lemma read_allowed_not_reserved (a b e: Addr) v p :
-    p ≠ E ->
+    p ≠ E -> p ≠ O ->
     ⊢ interp (LCap p b e a v) -∗ ⌜ finz.seq_between b e ## reserved_addresses ⌝.
   Proof.
-    iIntros (HpnE) "#Hinterp".
+    iIntros (HpnE HpnO) "#Hinterp".
     rewrite fixpoint_interp1_eq /=; cbn.
     destruct p eqn:Hp; try contradiction;
       try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hread & Hwrite)"
            ; [eauto|iExists P;eauto]).
-    1: done.
     (* all: assert (readAllowed p *)
     all: iDestruct (big_sepL_sep with "Hinterp") as "[%Hreserved _]"; iPureIntro.
     all: intros a' Ha'.
@@ -691,7 +691,7 @@ Section logrel.
       iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
-      { iPureIntro. admit. }
+      { iPureIntro. admit. (* TODO easy, just permutation *) }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
@@ -726,7 +726,7 @@ Section logrel.
       iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
-      { iPureIntro. admit. }
+      { iPureIntro. admit. (* TODO easy, permutation *) }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].

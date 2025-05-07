@@ -86,9 +86,11 @@ Section cap_lang_rules.
   Qed.
 
 
-  Definition is_sealed (lw : LWord) :=
+  Definition is_updatable (lw : LWord) :=
     match lw with
-    | LCap E _ _ _ _ | LSealedCap _ _ _ _ _ _ => true
+    | LCap E _ _ _ _
+    | LCap O _ _ _ _
+    | LSealedCap _ _ _ _ _ _ => true
     | _ => false
     end.
 
@@ -122,7 +124,7 @@ Section cap_lang_rules.
   (* WPIsUniqueSuccessFull success branch *)
   | IsUnique_success_true_cap (p : Perm) (b e a : Addr) glmem (v : Version) :
     lregs !! src = Some (LCap p b e a v) ->
-    p ≠ E ->
+    p ≠ E -> p ≠ O ->
     (* we update the region of memory with the new version *)
     is_valid_updated_lmemory glmem lmem (finz.seq_between b e) v lmem' ->
     (finz.seq_between b e) ## reserved_addresses ->
@@ -134,7 +136,7 @@ Section cap_lang_rules.
 
   | IsUnique_success_true_is_sealed (lwsrc : LWord) :
     lregs !! src = Some lwsrc ->
-    is_sealed lwsrc ->
+    is_updatable lwsrc ->
     (* specific instance of unique_in_registers *)
     unique_in_registersL lregs (Some src) lwsrc ->
     lmem' = lmem ->
@@ -251,7 +253,7 @@ Section cap_lang_rules.
    *)
 
   Definition allows_sweep (lregs : LReg) (r : RegName) :=
-    ∀ p b e a v, lregs !! r = Some (LCap p b e a v) -> p ≠ E -> (finz.seq_between b e) ## reserved_addresses.
+    ∀ p b e a v, lregs !! r = Some (LCap p b e a v) -> p ≠ E -> p ≠ O -> (finz.seq_between b e) ## reserved_addresses.
 
   Definition exec_optL_IsUnique
     (lregs : LReg) (lmem : LMem)
@@ -262,7 +264,7 @@ Section cap_lang_rules.
     lregs' ← incrementLPC
       (if bsweep
        then
-         (if is_sealed lwsrc
+         (if is_updatable lwsrc
           then (<[dst:=LWInt 1%Z]> lregs)
           else (<[dst:=LWInt 1%Z]> (<[ src := next_version_lword lwsrc ]> lregs)))
        else (<[dst:=LWInt 0%Z]> lregs)
@@ -846,10 +848,10 @@ Section cap_lang_rules.
     destruct u1 as ((((p & b) & e) & a) & v).
     destruct u2 as (((p' & b') & e') & a').
     rewrite updatePC_incrementPC.
-    
+
     destruct bsweep eqn:Hsweep.
     - (* the sweep has succeeded *)
-      destruct (is_sealed lsrcv) eqn:Hslsrcv.
+      destruct (is_updatable lsrcv) eqn:Hslsrcv.
       + (* a sealed capability, we do not want to update the version map *)
         iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
         iApply wp_opt2_mono2.
@@ -890,7 +892,7 @@ Section cap_lang_rules.
         eapply state_corresponds_unique_in_registers; eauto.
         eapply sweep_reg_spec; eauto.
       + (* an unsealed capability, we do want to update the version map *)
-        assert (lsrcv = LCap p b e a v /\ p ≠ E) as  [-> HnpE].
+        assert (lsrcv = LCap p b e a v /\ (p ≠ E /\ p ≠ O)) as  [-> [HnpE HnpO] ].
         { now destruct lsrcv as [z|[ [ | | | | | ] ? ? ? ?|? ? ? ?]|? [? ? ? ? ?|? ? ? ?] ];
             inversion Hlclsrcv. }
         iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
@@ -900,8 +902,14 @@ Section cap_lang_rules.
           iApply transiently_wp_opt2.
           iMod "Hσ" as "(Hσr & Hσm & Hregs & Hmem)".
           rewrite map_full_own.
-          iMod (update_state_interp_next_version with "[$Hσr $Hσm $Hregs $Hmem]") as "(%Hvm & Hσr & Hσm & #Hcorr' & Hregs & Hmem)"; eauto. 
-          admit. (* DOMI: How do we know none of the addresses are reserved? Do the operational semantics need to check for this? *)
+          iMod (update_state_interp_next_version with "[$Hσr $Hσm $Hregs $Hmem]") as
+            "(%Hvm & Hσr & Hσm & #Hcorr' & Hregs & Hmem)"; eauto.
+          {
+            rewrite /allows_sweep in Hallowsweep.
+            specialize (Hallowsweep p b e a v Hlsrcv HnpE HnpO).
+            rewrite Forall_forall ; intros x Hx Hx'.
+            eapply Hallowsweep; eauto.
+          }
           iMod (gen_heap_update_inSepM _ _ dst (LInt 1) with "Hσr Hregs") as "(Hσr & Hregs)".
           { rewrite -elem_of_dom. set_solver. }
           iDestruct (gen_heap_valid_inclSepM with "Hσr Hregs") as "%Hlr2sub".
@@ -976,7 +984,7 @@ Section cap_lang_rules.
       iApply ("Hφ" with "[$Hregs $Hmem]").
       iPureIntro.
       eapply IsUnique_success_false; eauto.
-  Admitted.
+  Qed.
 
   Hint Resolve finz_seq_between_NoDup NoDup_logical_region : core.
 
@@ -993,7 +1001,7 @@ Section cap_lang_rules.
     pc_a ∉ finz.seq_between b e -> (* TODO is that necessary ? Or can I derive it ? *)
     (pc_a + 1)%a = Some pc_a' →
     length lws = length (finz.seq_between b e) ->
-    p ≠ E ->
+    p ≠ E -> p ≠ O ->
     finz.seq_between b e ## reserved_addresses ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
@@ -1018,7 +1026,7 @@ Section cap_lang_rules.
           ∗ [[ b , e ]] ↦ₐ{ v } [[ lws ]] )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca_notin Hpca Hlen_lws Hp Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
+    iIntros (Hinstr Hvpc Hpca_notin Hpca Hlen_lws HnpE HnpO Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a & >Hmap) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (big_sepL2_cons (λ _ la lw, la ↦ₐ lw)%I (pc_a, pc_v) lw with "[Hpc_a Hmap]")
@@ -1070,9 +1078,9 @@ Section cap_lang_rules.
 
       (* Registers *)
       rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
-      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
-      iClear "Hrmap".
-      iFrame.
+      (* iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"]. *)
+      (* iClear "Hrmap". *)
+      (* iFrame. *)
       (* destruct Hupd as ( lm & Hlm_incl & Hvalid ). *)
 
       (* assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca *)
@@ -1138,7 +1146,7 @@ Section cap_lang_rules.
     decodeInstrWL lw = IsUnique dst src →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
-    p ≠ E ->
+    p ≠ E -> p ≠ O ->
     finz.seq_between b e ## reserved_addresses ->
 
     {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
@@ -1160,7 +1168,7 @@ Section cap_lang_rules.
           ∗ (pc_a, pc_v) ↦ₐ lw )
         }}}.
   Proof.
-    iIntros (Hinstr Hvpc Hpca Hp Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
+    iIntros (Hinstr Hvpc Hpca HnpE HnpO Hreserved φ) "(>HPC & >Hsrc & >Hdst & >Hpc_a) Hφ".
     iDestruct (map_of_regs_3 with "HPC Hsrc Hdst") as "[Hrmap (%&%&%)]".
     rewrite /region_mapsto.
     iDestruct (memMap_resource_1 with "Hpc_a") as "Hmmap".
@@ -1202,13 +1210,13 @@ Section cap_lang_rules.
 
       (* Registers *)
       rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
-      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
-      iClear "Hrmap".
-      iFrame.
-      destruct Hupd as ( lm & Hlm_incl & Hvalid ).
+      (* iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"]. *)
+      (* iClear "Hrmap". *)
+      (* iFrame. *)
+      (* destruct Hupd as ( lm & Hlm_incl & Hvalid ). *)
 
-      assert ( Hpc_a : pc_a ∉ finz.seq_between b0 e0)
-               by (eapply unique_in_registersL_pc_no_overlap; eauto; by simplify_map_eq).
+      (* assert ( Hpc_a : pc_a ∉ finz.seq_between b0 e0) *)
+      (*          by (eapply unique_in_registersL_pc_no_overlap; eauto; by simplify_map_eq). *)
       (* assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca. *)
       (* { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto ; last by simplify_map_eq. } *)
 

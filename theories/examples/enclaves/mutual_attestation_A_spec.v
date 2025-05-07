@@ -550,8 +550,6 @@ Section mutual_attest_A.
     let pc_a := ((ma_addr_A ^+ 1) ^+ 39%nat)%a in
     (ot + 2)%f = Some (ot ^+ 2)%f ->
     (b' < e')%a ->
-    b' ∉ reserved_addresses →
-    (b' ^+1)%a ∉ reserved_addresses →
     (ma_addr_A + e)%a =
     Some (ma_addr_A ^+ e)%a ->
     custom_enclave_inv ma_enclaves_map
@@ -564,7 +562,7 @@ Section mutual_attest_A.
       -∗ interp (LCap E ma_addr_A (ma_addr_A ^+ e)%a pc_a v).
     Proof.
       intros e pc_a; subst e pc_a.
-    iIntros (Hot Hb' Hreserved Hreserved' He) "#(Henclaves_inv & Hma_inv & HPsign & Hinterp_sealr_ot)".
+    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign & Hinterp_sealr_ot)".
 
     iEval (rewrite fixpoint_interp1_eq /=).
     iIntros (lregs).
@@ -1021,7 +1019,7 @@ Section mutual_attest_A.
       by iRewrite "Heqv".
     }
     iDestruct (seal_pred_valid_sealed_eq with "[$Hma_B_Psign] Hseal_valid") as "Heqv".
-    iAssert (▷ sealed_enclaveB (LWSealable sb))%I as (fb fe fv) "[>%Hseal_b_reserved >%Hseal_B]".
+    iAssert (▷ sealed_enclaveB (LWSealable sb))%I as (fb fe fv) ">%Hseal_B".
     { iDestruct "Hseal_valid" as (sb') "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (LWSealable sb')).
@@ -1177,14 +1175,7 @@ Section mutual_attest_A.
       iExists sealed_enclaveA; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveA_persistent. }
-      { iNext; iExists _,_,_. iSplit ; last done.
-        destruct ( decide ((b' `mod` 2)%Z = 0%Z) ); iPureIntro.
-        all: intros y Hy Hy'; rewrite elem_of_finz_seq_between in Hy.
-        + assert (y = (b' ^+ 1)%a) as -> by solve_addr.
-          done.
-        + assert (y = b') as -> by solve_addr.
-          done.
-      }
+      { iNext; by iExists _,_,_. }
     }
 
     (* Close the opened invariant *)
@@ -1294,8 +1285,6 @@ Section mutual_attest_A.
     (b' < e')%a ->
     (ma_addr_A + e)%a =
     Some (ma_addr_A ^+ e)%a ->
-    b' ∉ reserved_addresses →
-    (b' ^+1)%a ∉ reserved_addresses →
     custom_enclave_inv ma_enclaves_map
     ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_A)
         ([[ma_addr_A,(ma_addr_A ^+ e)%a]]↦ₐ{v}
@@ -1307,7 +1296,7 @@ Section mutual_attest_A.
                    (ma_addr_A ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' He Hreserved Hreserved') "#(Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -1542,14 +1531,7 @@ Section mutual_attest_A.
       iExists sealed_enclaveA; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveA_persistent. }
-      { iNext; iExists _,_,_. iSplit ; last done.
-        destruct ( decide ((b' `mod` 2)%Z = 0%Z) ); iPureIntro.
-        all: intros a Ha Ha'; rewrite elem_of_finz_seq_between in Ha.
-        + assert (a = b') as -> by solve_addr.
-          done.
-        + assert (a = (b' ^+ 1)%a) as -> by solve_addr.
-          done.
-      }
+      { iNext; by iExists _,_,_. }
     }
     iAssert (
         interp (LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f)

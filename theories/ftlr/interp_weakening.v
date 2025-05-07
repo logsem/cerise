@@ -44,22 +44,12 @@ Section fundamental.
     destruct (decide (b' <= e')%a).
     2: { rewrite !fixpoint_interp1_eq. destruct p'; try done
       ; try (by iClear "HA"; rewrite /= !finz_seq_between_empty;[|solve_addr]).
-         - iDestruct (read_allowed_not_reserved with "[HA]") as "%Hreserved"; first eauto.
-           + rewrite fixpoint_interp1_eq; iFrame "HA".
-           + iEval (cbn); iPureIntro.
-             intros x Hx Hx'. eapply Hreserved ; eauto.
-             rewrite !elem_of_finz_seq_between in Hx |- *; solve_addr.
-         - iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
-           iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
-           iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
+         iIntros (r). iNext. iModIntro. iIntros "([Hfull Hreg] & Hregs & Hna)".
+         iApply ("IH" with "Hfull Hreg Hregs Hna"); auto. iModIntro.
+         iClear "HA". by rewrite !fixpoint_interp1_eq /= !finz_seq_between_empty;[|solve_addr].
     }
     destruct p'.
-    - rewrite !fixpoint_interp1_eq.
-      iDestruct (read_allowed_not_reserved with "[HA]") as "%Hreserved"; first eauto.
-      + rewrite fixpoint_interp1_eq; iFrame "HA".
-      + iEval (cbn); iPureIntro.
-        intros x Hx Hx'. eapply Hreserved ; eauto.
-        rewrite !elem_of_finz_seq_between in Hx |- *; solve_addr.
+    - by rewrite !fixpoint_interp1_eq.
     - rewrite !fixpoint_interp1_eq.
       destruct p;inversion Hp;
       (rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr]);

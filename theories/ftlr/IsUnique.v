@@ -115,7 +115,7 @@ Section fundamental.
     { iExists (repeat (λne _, True%I) (length la)); iFrame "%".
       iSplit; first by rewrite repeat_length.
       iSplit; last done.
-      iIntros (p b e a v Hlv Hp).
+      iIntros (p b e a v Hlv HnpE HnpO).
       destruct (decide (src = PC)) as [-> | Hneq_src_pc] ; simplify_map_eq.
       + iDestruct (read_allowed_not_reserved with "Hinterp_pc") as "%"; auto.
       + iAssert (interp (LCap p b e a v)) as "Hinterp_src".
@@ -153,9 +153,10 @@ Section fundamental.
       iExists Ps.
       iSplit ; first by subst.
       iSplit.
-      { iIntros (p b e a v Hsrc Hp).
+      { iIntros (p b e a v Hsrc HnpE HnpO).
         iDestruct (read_allowed_not_reserved with "Hinterp_pc") as "%"; auto.
         + destruct p_src ; cbn in HreadAllowed; auto.
+        + by simplify_map_eq.
         + by simplify_map_eq.
       }
       iMod "Hmod".
@@ -186,9 +187,10 @@ Section fundamental.
       iExists Ps.
       iSplit ; first by subst.
       iSplit.
-      { iIntros (p b e a v Hsrc Hp).
+      { iIntros (p b e a v Hsrc HnpE HnpO).
         iDestruct (read_allowed_not_reserved with "Hinterp_src") as "%"; auto.
         + destruct p_src ; cbn in HreadAllowed; auto.
+        + by simplify_map_eq.
         + by simplify_map_eq.
       }
       iMod "Hmod".
@@ -779,26 +781,26 @@ Section fundamental.
       destruct cond_open as [Hdecide|Hdecide]; cycle 1.
       - (* Case (p_src = O) *)
         apply reg_allows_sweep_unique_O in Hdecide; auto ; simplify_eq.
-        assert (src ≠ PC)
-          as Hr_ne_pc
-             by (intro ; subst
-                 ; inversion HcorrectLPC as [lpc ? ? ? ? Heq HcorrectPC Hlpc]
-                 ; inversion HcorrectPC as [? ? ? ? Hbounds Hperm]
-                 ; cbn in * ; simplify_map_eq
-                 ; by destruct Hperm).
-        do 2 (rewrite (insert_commute _ _ PC) //); rewrite !insert_insert.
-        simplify_map_eq.
-        iApply ("IH" $! (<[dst := LInt 1]> (<[src := _]> lregs)) with "[%] [] [Hmap] [$Hown]")
-        ; eauto.
-        { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
-        { iIntros (r1 lw1 Hr1 Hlw1).
-          destruct (decide (r1 = dst)) as [ |Hr1_dst]
-          ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=).
-          destruct (decide (r1 = src)) as [ |Hr1_src]
-          ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=).
-          iApply "Hreg"; eauto.
-        }
-        { rewrite !fixpoint_interp1_eq //= ; destruct p_pc'; destruct Hp ; try done. }
+        (* assert (src ≠ PC) *)
+        (*   as Hr_ne_pc *)
+        (*      by (intro ; subst *)
+        (*          ; inversion HcorrectLPC as [lpc ? ? ? ? Heq HcorrectPC Hlpc] *)
+        (*          ; inversion HcorrectPC as [? ? ? ? Hbounds Hperm] *)
+        (*          ; cbn in * ; simplify_map_eq *)
+        (*          ; by destruct Hperm). *)
+        (* do 2 (rewrite (insert_commute _ _ PC) //); rewrite !insert_insert. *)
+        (* simplify_map_eq. *)
+        (* iApply ("IH" $! (<[dst := LInt 1]> (<[src := _]> lregs)) with "[%] [] [Hmap] [$Hown]") *)
+        (* ; eauto. *)
+        (* { intro; by repeat (rewrite lookup_insert_is_Some'; right). } *)
+        (* { iIntros (r1 lw1 Hr1 Hlw1). *)
+        (*   destruct (decide (r1 = dst)) as [ |Hr1_dst] *)
+        (*   ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=). *)
+        (*   destruct (decide (r1 = src)) as [ |Hr1_src] *)
+        (*   ; simplify_map_eq; first (rewrite !fixpoint_interp1_eq //=). *)
+        (*   iApply "Hreg"; eauto. *)
+        (* } *)
+        (* { rewrite !fixpoint_interp1_eq //= ; destruct p_pc'; destruct Hp ; try done. } *)
       - destruct Hdecide as [ [Hsrc_lregs Hread_src] Hwf].
         destruct (decide (src = PC)) as [->|Hsrc_neq_pc]
         ; [clear Hwf | destruct Hwf ; simplify_eq]
