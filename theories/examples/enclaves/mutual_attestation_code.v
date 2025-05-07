@@ -18,6 +18,7 @@ Class MutualAttestation := {
 
 Section mutual_attest_example.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
+    `{reservedaddresses : ReservedAddresses}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
   Context {MA: MutualAttestation}.
 
@@ -168,7 +169,7 @@ Section mutual_attest_example.
         Mov r_t12 r_t2;
         Mov r_t13 r_t3;
         Mov r_t15 r_t5;
-        Mov r_t16 r_t6;
+        Mov r_t16 r_t6
       ]
       ++ hash_cap_instrs        (* r4 := #[a_idT;pc_E] *)
       ++ encodeInstrsLW [
@@ -178,6 +179,13 @@ Section mutual_attest_example.
         Mov r_t4 r_t8;
         Mov r_t5 r_t15;
         Mov r_t6 r_t16;
+        Mov r_t7 0;
+        Mov r_t8 0;
+        Mov r_t11 0;
+        Mov r_t12 0;
+        Mov r_t13 0;
+        Mov r_t15 0;
+        Mov r_t16 0;
 
         (* get hash_concat(idT(B),idT) in r_t3 *)
         HashConcat r_t3 r_t3 r_t4;  (* r3 := idT(B) || #[a_idT;pc_E] *)
@@ -331,7 +339,28 @@ Section mutual_attest_example.
       (* get hash(idT) in r_t4 *)
       GetA r_t5 r_t4;             (* r5 := a_idT *)
       Subseg r_t4 r_t5 r_t6;      (* r4 := (RX, a_idT pc_e, a_idT) *)
-      Hash r_t4 r_t4;             (* r4 := #[a_idT;pc_E] *)
+
+      Mov r_t11 r_t1;
+      Mov r_t12 r_t2;
+      Mov r_t13 r_t3;
+      Mov r_t15 r_t5;
+      Mov r_t16 r_t6
+      ]
+      ++ hash_cap_instrs        (* r4 := #[a_idT;pc_E] *)
+      ++ encodeInstrsLW [
+        Mov r_t1 r_t11;
+        Mov r_t2 r_t12;
+        Mov r_t3 r_t13;
+        Mov r_t4 r_t8;
+        Mov r_t5 r_t15;
+        Mov r_t6 r_t16;
+        Mov r_t7 0;
+        Mov r_t8 0;
+        Mov r_t11 0;
+        Mov r_t12 0;
+        Mov r_t13 0;
+        Mov r_t15 0;
+        Mov r_t16 0;
 
       (* get hash_concat(idT(A),idT) in r_t3 *)
       HashConcat r_t3 r_t3 r_t4;  (* r3 := idT(A) || #[a_idT;pc_E] *)
@@ -551,7 +580,7 @@ Section mutual_attest_example.
     if (decide (a `mod` 2%nat = 0 )%Z) then f42 else f1.
 
   Definition sealed_enclaveA : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v,
+    λ w, (∃ (b e : Addr) v, ⌜finz.seq_between b e ## reserved_addresses⌝ ∗
              ⌜ w = LCap O b e (prot_sealed_A b) v ⌝)%I.
   Definition sealed_enclaveA_ne : (leibnizO LWord) -n> (iPropO Σ) :=
       λne (w : leibnizO LWord), sealed_enclaveA w%I.
@@ -564,7 +593,7 @@ Section mutual_attest_example.
   Lemma sealed_enclaveA_interp (lw : LWord) : sealed_enclaveA lw -∗ fixpoint interp1 lw.
   Proof.
     iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "->".
+    iDestruct "Hsealed" as (b e v) "[%Hreserved ->]".
     by rewrite fixpoint_interp1_eq /=.
   Qed.
 
@@ -577,7 +606,7 @@ Section mutual_attest_example.
     if (decide (a `mod` 2%nat = 0 )%Z) then f43 else f1.
 
   Definition sealed_enclaveB : LWord → iProp Σ :=
-    λ w, (∃ (b e : Addr) v,
+    λ w, (∃ (b e : Addr) v, ⌜finz.seq_between b e ## reserved_addresses⌝ ∗
              ⌜ w = LCap O b e (prot_sealed_B b) v ⌝)%I.
   Definition sealed_enclaveB_ne : (leibnizO LWord) -n> (iPropO Σ) :=
       λne (w : leibnizO LWord), sealed_enclaveB w%I.
@@ -590,7 +619,7 @@ Section mutual_attest_example.
   Lemma sealed_enclaveB_interp (lw : LWord) : sealed_enclaveB lw -∗ fixpoint interp1 lw.
   Proof.
     iIntros "Hsealed".
-    iDestruct "Hsealed" as (b e v) "->".
+    iDestruct "Hsealed" as (b e v) "[%Hreserved ->]".
     by rewrite fixpoint_interp1_eq /=.
   Qed.
 

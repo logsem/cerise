@@ -5,6 +5,7 @@ From cap_machine Require Import mutual_attestation_code.
 
 Section mutual_attest_B.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
+    `{reservedaddresses : ReservedAddresses}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
   Context {MA: MutualAttestation}.
 
@@ -152,6 +153,8 @@ Section mutual_attest_B.
     let e := (length mutual_attest_enclave_B_code + 1)%Z in
     (ot + 2)%f = Some (ot ^+ 2)%f ->
     (b' < e')%a ->
+    b' ∉ reserved_addresses →
+    (b' ^+1)%a ∉ reserved_addresses →
     (ma_addr_B + e)%a =
     Some (ma_addr_B ^+ e)%a ->
     custom_enclave_inv ma_enclaves_map
@@ -165,7 +168,7 @@ Section mutual_attest_B.
                  (ma_addr_B ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot Hb' Hreserved Hreserved' He) "#(Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -174,8 +177,8 @@ Section mutual_attest_B.
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
     remember ma_addr_B as pc_b in |- * at 7.
-    remember (ma_addr_B ^+ (90%nat + 1))%a as pc_e in |- * at 4.
-    assert (SubBounds pc_b pc_e ma_addr_B (ma_addr_B ^+ (90%nat + 1))%a) by (subst; solve_addr).
+    remember (ma_addr_B ^+ (136%nat + 1))%a as pc_e in |- * at 4.
+    assert (SubBounds pc_b pc_e ma_addr_B (ma_addr_B ^+ (136%nat + 1))%a) by (subst; solve_addr).
 
     (* Prepare the necessary resources *)
     (* Registers *)
@@ -221,6 +224,48 @@ Section mutual_attest_B.
       with (<[r_t6:=w6]> (delete PC lregs)).
     2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
 
+    assert (exists w7, lregs !! r_t7 = Some w7) as Hrt7 by apply (Hfullmap r_t7).
+    destruct Hrt7 as [w7 Hr7].
+    replace (delete PC lregs)
+      with (<[r_t7:=w7]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w8, lregs !! r_t8 = Some w8) as Hrt8 by apply (Hfullmap r_t8).
+    destruct Hrt8 as [w8 Hr8].
+    replace (delete PC lregs)
+      with (<[r_t8:=w8]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w11, lregs !! r_t11 = Some w11) as Hrt11 by apply (Hfullmap r_t11).
+    destruct Hrt11 as [w11 Hr11].
+    replace (delete PC lregs)
+      with (<[r_t11:=w11]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w12, lregs !! r_t12 = Some w12) as Hrt12 by apply (Hfullmap r_t12).
+    destruct Hrt12 as [w12 Hr12].
+    replace (delete PC lregs)
+      with (<[r_t12:=w12]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w13, lregs !! r_t13 = Some w13) as Hrt13 by apply (Hfullmap r_t13).
+    destruct Hrt13 as [w13 Hr13].
+    replace (delete PC lregs)
+      with (<[r_t13:=w13]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w15, lregs !! r_t15 = Some w15) as Hrt15 by apply (Hfullmap r_t15).
+    destruct Hrt15 as [w15 Hr15].
+    replace (delete PC lregs)
+      with (<[r_t15:=w15]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w16, lregs !! r_t16 = Some w16) as Hrt16 by apply (Hfullmap r_t16).
+    destruct Hrt16 as [w16 Hr16].
+    replace (delete PC lregs)
+      with (<[r_t16:=w16]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
     (* EXTRACT REGISTERS FROM RMAP *)
     (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
     iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
@@ -237,8 +282,23 @@ Section mutual_attest_B.
     { by simplify_map_eq. }
     iDestruct (big_sepM_delete _ _ r_t6 with "Hrmap") as "[Hr6 Hrmap]".
     { by simplify_map_eq. }
-    replace (delete r_t6 _) with
-      ( delete r_t6 ( delete r_t5 ( delete r_t4 ( delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs)))))))).
+    iDestruct (big_sepM_delete _ _ r_t7 with "Hrmap") as "[Hr7 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t8 with "Hrmap") as "[Hr8 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t11 with "Hrmap") as "[Hr11 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t12 with "Hrmap") as "[Hr12 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t13 with "Hrmap") as "[Hr13 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t15 with "Hrmap") as "[Hr15 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t16 with "Hrmap") as "[Hr16 Hrmap]".
+    { by simplify_map_eq. }
+    replace (delete r_t16 _) with
+( delete r_t16 ( delete r_t15 ( delete r_t13 ( delete r_t12 ( delete r_t11 ( delete r_t8 ( delete r_t7
+      ( delete r_t6 ( delete r_t5 ( delete r_t4 ( delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs))))))))))))))).
     2:{
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t0) //.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t1) //.
@@ -247,6 +307,13 @@ Section mutual_attest_B.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t4) //.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t5) //.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t6) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t7) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t8) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t11) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t12) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t13) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t15) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t16) //.
       done.
     }
     iAssert (interp w1) as "Hinterp_w1".
@@ -265,23 +332,23 @@ Section mutual_attest_B.
     { solve_addr. }
     rewrite /mutual_attest_enclave_B_code.
 
-    iDestruct (region_mapsto_split _ _ (ma_addr_B ^+ (88%nat + 1))%a with "Hma_code") as "[Hma_code HidT]"; last iFrame.
+    iDestruct (region_mapsto_split _ _ (ma_addr_B ^+ (134%nat + 1))%a with "Hma_code") as "[Hma_code HidT]"; last iFrame.
     { solve_addr. }
     { cbn.
-      replace (ma_addr_B ^+ (88%nat + 1))%a
-        with ((ma_addr_B ^+ 1)%a ^+ 88%nat)%a by solve_addr.
+      replace (ma_addr_B ^+ (134%nat + 1))%a
+        with ((ma_addr_B ^+ 1)%a ^+ 134%nat)%a by solve_addr.
       rewrite finz_dist_add; solve_addr.
     }
     rewrite /mutual_attest_eid_table.
     iDestruct (region_mapsto_cons with "HidT") as "[HidTA HidTB]".
-    { transitivity (Some (ma_addr_B ^+ (88%nat + 2))%a); auto ; try solve_addr. }
+    { transitivity (Some (ma_addr_B ^+ (134%nat + 2))%a); auto ; try solve_addr. }
     { solve_addr. }
 
     iAssert (codefrag (ma_addr_B ^+ 1)%a v mutual_attest_enclave_B_code_pre)
       with "[Hma_code]" as "Hma_code".
     {
       rewrite /codefrag /=.
-      by replace ((ma_addr_B ^+ 1) ^+ 88%nat)%a with (ma_addr_B ^+ 89%nat)%a by solve_addr.
+      by replace ((ma_addr_B ^+ 1) ^+ 134%nat)%a with (ma_addr_B ^+ 135%nat)%a by solve_addr.
     }
     codefrag_facts "Hma_code".
 
@@ -321,7 +388,7 @@ Section mutual_attest_B.
     iInstr "Hma_code".
     { transitivity (Some (pc_e ^+ -2)%a); solve_addr. }
     (* Load r_t3 r_t3 *)
-    replace (pc_e ^+ -2)%a  with (ma_addr_B ^+ (88%nat + 1))%a by (subst;solve_addr).
+    replace (pc_e ^+ -2)%a  with (ma_addr_B ^+ (134%nat + 1))%a by (subst;solve_addr).
     iInstr "Hma_code".
     { subst; solve_addr. }
     (* GetA r_t5 r_t4 *)
@@ -329,17 +396,71 @@ Section mutual_attest_B.
     (* Subseg r_t4 r_t5 r_t6 *)
     iInstr "Hma_code".
     { solve_addr. }
-    (* Hash r_t4 r_t4 *)
-    iInstr_lookup "Hma_code" as "Hi" "Hma_code".
-    wp_instr.
+
+    (* Mov r_t11 r_t1; *)
+    iInstr "Hma_code".
+    (* Mov r_t12 r_t2; *)
+    iInstr "Hma_code".
+    (* Mov r_t13 r_t3; *)
+    iInstr "Hma_code".
+    (* Mov r_t15 r_t5; *)
+    iInstr "Hma_code".
+    (* Mov r_t16 r_t6 *)
+    iInstr "Hma_code".
+
+    unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
+    ; subst hcont_code hma_code.
+
+
+    focus_block 1 "Hma_code" as a_block1 Ha_block1 "Hma_code" "Hcont_code"
+    ; iHide "Hcont_code" as hcont_code.
     iDestruct (region_mapsto_cons _ _  with "[$HidTA $HidTB]") as "HidT".
+    { solve_addr+He. }
+    { solve_addr+He. }
+
+    iApply ( hash_cap.hash_cap_spec
+             with "[- $HPC $Hma_code $Hr1 $Hr2 $Hr3 $Hr4 $Hr5 $Hr6 $Hr7 $Hr8]" ); eauto.
+    { solve_pure. }
     { solve_addr. }
-    { solve_addr. }
-    iApply (wp_hash_success_same with "[$HPC $Hr4 $Hi HidT]"); try solve_pure.
-    { subst pc_e;iFrame. }
-    iNext; iIntros "(HPC & Hi & Hr4 & HidT)".
-    wp_pure; iInstr_close "Hma_code".
-    iEval (cbn) in "Hr4".
+    iSplitL "HidT".
+    {
+      rewrite (_: (ma_addr_B ^+ (136%nat + 1))%a = pc_e); last by solve_addr.
+      iFrame.
+    }
+    iNext; iIntros "(HPC & Hma_code & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hr7 & Hr8 & HidT)".
+
+    unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
+    ; subst hcont_code.
+
+    focus_block 2 "Hma_code" as a_block2 Ha_block2 "Hma_code" "Hcont_code"
+    ; iHide "Hcont_code" as hcont_code.
+
+    (* Mov r_t1 r_t11; *)
+    iInstr "Hma_code".
+    (* Mov r_t2 r_t12; *)
+    iInstr "Hma_code".
+    (* Mov r_t3 r_t13; *)
+    iInstr "Hma_code".
+    (* Mov r_t4 r_t8; *)
+    iInstr "Hma_code".
+    (* Mov r_t5 r_t15; *)
+    iInstr "Hma_code".
+    (* Mov r_t6 r_t16; *)
+    iInstr "Hma_code".
+    (* Mov r_t7 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t8 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t11 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t12 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t13 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t15 0; *)
+    iInstr "Hma_code".
+    (* Mov r_t16 0; *)
+    iInstr "Hma_code".
 
     (* HashConcat r_t3 r_t3 r_t4 *)
     wp_instr.
@@ -430,7 +551,8 @@ Section mutual_attest_B.
     wp_instr.
     iInstr_lookup "Hma_code" as "Hi" "Hma_code".
     iDestruct (map_of_regs_3 with "HPC Hr1 Hr2") as "[Hmap _]".
-    iApply (wp_UnSeal with "[$Hmap $Hi]") ; try (by simplify_map_eq) ; try solve_pure.
+    iApply (wp_UnSeal with "[$Hmap $Hi]")
+    ; [ solve_pure | | by rewrite lookup_insert | |  .. ].
     { apply isCorrectPC_isCorrectLPC ; cbn. constructor; last naive_solver.
       solve_addr.
     }
@@ -439,11 +561,17 @@ Section mutual_attest_B.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds Hregs'|]; cycle 1.
     { by wp_pure; wp_end; by iIntros (?). }
     Opaque mutual_attest_enclave_B_code_pre encodeInstrsLW.
-    incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs');
-      simplify_map_eq.
-    repeat (rewrite insert_commute //= insert_insert).
+    incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs').
+    repeat (rewrite (insert_commute _ _ r_t2) //= in H4); rewrite lookup_insert in H4.
+    repeat (rewrite (insert_commute _ _ r_t1) //= in H5); rewrite lookup_insert in H5.
+    repeat (rewrite (insert_commute _ _ PC) //= in HPC); rewrite lookup_insert in HPC.
+    simplify_eq.
+    iEval (rewrite insert_commute //=) in "Hmap";
+    iEval (rewrite !insert_insert) in "Hmap".
+    iEval (rewrite insert_commute //=) in "Hmap";
+    iEval (rewrite !insert_insert) in "Hmap".
     Transparent mutual_attest_enclave_B_code_pre encodeInstrsLW.
-    replace x with ((ma_addr_B ^+ 1) ^+ 29)%a by solve_addr.
+    replace x with ((a_block2) ^+ 30)%a by solve_addr+Z.
     clear Z.
     iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame.
     wp_pure; iInstr_close "Hma_code".
@@ -475,7 +603,7 @@ Section mutual_attest_B.
       by iRewrite "Heqv".
     }
     iDestruct (seal_pred_valid_sealed_eq with "[$Hma_A_Psign] Hseal_valid") as "Heqv".
-    iAssert (▷ sealed_enclaveA (LWSealable sb))%I as (fb fe fv) ">%Hseal_A".
+    iAssert (▷ sealed_enclaveA (LWSealable sb))%I as (fb fe fv) "[>%Hseal_A_reserved >%Hseal_A]".
     { iDestruct "Hseal_valid" as (sb') "(%Heq & _ & _ & HΦ)".
       inversion Heq; subst.
       iSpecialize ("Heqv" $! (LWSealable sb')).
@@ -545,7 +673,7 @@ Section mutual_attest_B.
     iInstr "Hma_code".
     (* Lea r_t5 r_t1 *)
     assert (
-        (((ma_addr_B ^+ 1) ^+ 44)%a + (ma_addr_B - ((ma_addr_B ^+ 1) ^+ 44)%a))%a
+        ((a_block2 ^+ 45) + (ma_addr_B - (a_block2 ^+ 45)%a))%a
         = Some (ma_addr_B)) by solve_addr+He.
     iInstr "Hma_code".
     (* Load r_t1 r_t5 *)
@@ -590,7 +718,7 @@ Section mutual_attest_B.
       destruct Hspec as [ ? ? ? ? ? ? ? Hdst HpE Hr3' Hr4' Hbounds' Hregs'
                         | ? ? ? ? ? ? Hdst HpE Hr3' Hr4' Hbounds' Hregs'
                         | ]; cycle 1.
-      - simplify_map_eq.
+      - exfalso; simplify_map_eq.
       - cbn. wp_pure; wp_end ; by iIntros (?).
       - exfalso.
         simplify_map_eq.
@@ -615,7 +743,7 @@ Section mutual_attest_B.
       destruct Hspec as [ ? ? ? ? ? ? ? Hdst HpE Hr3' Hr4' Hbounds' Hregs'
                         | ? ? ? ? ? ? Hdst HpE Hr3' Hr4' Hbounds' Hregs'
                         | ]; cycle 1.
-      - simplify_map_eq.
+      - exfalso; simplify_map_eq.
       - cbn. wp_pure; wp_end ; by iIntros (?).
       - exfalso.
         simplify_map_eq.
@@ -637,13 +765,13 @@ Section mutual_attest_B.
     { solve_addr. }
 
     unfocus_block "Hma_code" "Hcont_code" as "Hma_code"
-    ; subst hcont_code hma_code.
+    ; subst hcont_code.
 
 
 
 
 
-    focus_block 1 "Hma_code" as a_Mod Ha_Mod "Hma_code" "Hcont_code"
+    focus_block 3 "Hma_code" as a_Mod Ha_Mod "Hma_code" "Hcont_code"
     ; iHide "Hcont_code" as hcont_code.
     iApply ( enclave_B_mod_encoding_spec with "[- $HPC $Hma_code $Hr1 $Hr2 $Hr3 $Hr4 $Hr5]" ); eauto.
     iNext; iIntros "(HPC & Hma_code & Hr1 & Hr2 & Hr3 & Hr4 & Hr5)".
@@ -655,7 +783,7 @@ Section mutual_attest_B.
 
 
 
-    focus_block 2 "Hma_code" as a_block2 Ha_blobk2 "Hma_code" "Hcont_code"
+    focus_block 4 "Hma_code" as a_block4 Ha_blobk4 "Hma_code" "Hcont_code"
     ; iHide "Hcont_code" as hcont_code.
     (* Restrict r_t1 (encodePerm O) *)
     iInstr "Hma_code".
@@ -715,7 +843,12 @@ Section mutual_attest_B.
       iExists sealed_enclaveB; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveB_persistent. }
-      { iNext; by iExists _,_,_. }
+      { iNext; iExists _,_,_. iSplit ; last done.
+        iPureIntro.
+        intros y Hy Hy'; rewrite elem_of_finz_seq_between in Hy.
+        assert (y = b') as -> by solve_addr.
+        done.
+      }
     }
     iAssert (
         interp (LSealedCap (ot ^+ 1)%f O (b' ^+ 1)%a (b' ^+ 2)%a (prot_sealed_B (b' ^+ 1)%a) v')
@@ -725,7 +858,12 @@ Section mutual_attest_B.
       iExists sealed_enclaveB; iFrame "%#".
       iSplit.
       { iPureIntro; intro; apply sealed_enclaveB_persistent. }
-      { iNext; by iExists _,_,_. }
+      { iNext; iExists _,_,_. iSplit ; last done.
+        iPureIntro.
+        intros y Hy Hy'; rewrite elem_of_finz_seq_between in Hy.
+        assert (y = (b' ^+ 1)%a) as -> by solve_addr.
+        done.
+      }
     }
     iAssert (
         interp (LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f)
@@ -749,8 +887,8 @@ Section mutual_attest_B.
     rewrite -/mutual_attest_eid_table.
     iDestruct (region_mapsto_split
                  ma_addr_B
-                 (ma_addr_B ^+ (90%nat + 1))%a
-                 ((ma_addr_B ^+ 1) ^+ 88%nat)%a
+                 (ma_addr_B ^+ (136%nat + 1))%a
+                 ((ma_addr_B ^+ 1) ^+ 134%nat)%a
                 with "[$Hma_code HidT]") as "Hma_code"; last iFrame.
     { solve_addr. }
     { cbn.
@@ -758,8 +896,8 @@ Section mutual_attest_B.
       f_equal.
       rewrite finz_dist_add; solve_addr.
     }
-    { replace (ma_addr_B ^+ (88%nat + 1))%a with
-        ((ma_addr_B ^+ 1) ^+ 88%nat)%a by solve_addr.
+    { replace (ma_addr_B ^+ (134%nat + 1))%a with
+        ((ma_addr_B ^+ 1) ^+ 134%nat)%a by solve_addr.
       iFrame. }
     iDestruct (region_mapsto_cons with "[$Hma_keys $Hma_data]") as "Hma_data" ; last iFrame.
     { solve_addr. }
@@ -769,34 +907,53 @@ Section mutual_attest_B.
     (* Wrap up the registers *)
     Opaque mutual_attest_enclave_B_code_pre encodeInstrsLW.
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
-    { do 6 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 6 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 13 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 13 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
-    { do 5 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 5 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 12 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 12 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
-    { do 4 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 4 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 11 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 11 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap $Hr3]") as "Hrmap".
-    { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 3 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 10 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 10 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hrmap $Hr4]") as "Hrmap".
-    { do 2 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 2 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 9 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 9 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t5 with "[$Hrmap $Hr5]") as "Hrmap".
-    { do 1 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 1 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    { do 8 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 8 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t6 with "[$Hrmap $Hr6]") as "Hrmap".
+    { do 7 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 7 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hrmap $Hr7]") as "Hrmap".
+    { do 6 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 6 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hrmap $Hr8]") as "Hrmap".
+    { do 5 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 5 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t11 with "[$Hrmap $Hr11]") as "Hrmap".
+    { do 4 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 4 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t12 with "[$Hrmap $Hr12]") as "Hrmap".
+    { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 3 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t13 with "[$Hrmap $Hr13]") as "Hrmap".
+    { do 2 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 2 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t15 with "[$Hrmap $Hr15]") as "Hrmap".
+    { do 1 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 1 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t16 with "[$Hrmap $Hr16]") as "Hrmap".
     { do 0 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 0 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
-    set (rmap' := (<[r_t6:=LInt 0%nat]> _)).
+    do 0 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.
+    set (rmap' := (<[r_t16:=LInt 0%nat]> _)).
     iAssert ([∗ map] k↦y ∈ rmap', k ↦ᵣ y ∗ interp y)%I with "[Hrmap]" as "Hrmap".
     {
       subst rmap'.
       iApply (big_sepM_sep_2 with "[Hrmap]") ; first done.
-      iApply big_sepM_insert_2; first (iApply interp_int).
-      iApply big_sepM_insert_2; first (iApply interp_int).
-      iApply big_sepM_insert_2; first (iApply interp_int).
+      do 10 (iApply big_sepM_insert_2; first (iApply interp_int)).
       repeat (iApply big_sepM_insert_2; first done).
       iApply big_sepM_intro.
       iIntros "!>" (r w Hrr).

@@ -11,7 +11,8 @@ Open Scope Z_scope.
    for helping with reasoning and modularity ? *)
 Section sealed_42.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
-          {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+    `{reservedaddresses : ReservedAddresses}
+    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
   Definition sealed_42 : LWord → iProp Σ :=

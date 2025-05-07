@@ -11,11 +11,12 @@ Open Scope Z_scope.
    for helping with reasoning and modularity ? *)
 Section sealed_42.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+    `{reservedaddresses : ReservedAddresses}
           {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
   Definition sealed_42 : LWord → iProp Σ :=
-    λ w, (∃ b e v, ⌜w = LCap O b e f42 v⌝)%I.
+    λ w, (∃ b e v, ⌜finz.seq_between b e ## reserved_addresses⌝ ∗ ⌜w = LCap O b e f42 v⌝)%I.
   Definition sealed_42_ne : (leibnizO LWord) -n> (iPropO Σ) :=
       λne (w : leibnizO LWord), sealed_42 w%I.
 
@@ -34,6 +35,7 @@ End sealed_42.
 
 Section trusted_compute_example.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
+    `{reservedaddresses : ReservedAddresses}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
   (* --------------------------------- *)
