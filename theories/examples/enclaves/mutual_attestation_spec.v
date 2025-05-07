@@ -77,8 +77,10 @@ Section mutual_attest_main.
     ( PC ↦ᵣ LCap RX pc_b pc_e pc_a pc_v
       ∗ r ↦ᵣ w ∗ r_t5 ↦ᵣ w5 ∗ r_t6 ↦ᵣ w6
       ∗ codefrag pc_a pc_v code
-      ∗ ▷ ( (∃ tid,
+      ∗ custom_enclave_inv ma_enclaves_map
+      ∗ ▷ ( (∃ tid ECn,
                 ⌜ has_seal otype_w tid ⌝
+                ∗ ⌜ 0 <= tid < ECn ⌝
                 ∗ enclave_all tid expected_hash
                 ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_a' pc_v
                 ∗ r ↦ᵣ w ∗ (∃ w5', r_t5 ↦ᵣ w5') ∗ (∃ w6', r_t6 ↦ᵣ w6')
@@ -89,7 +91,7 @@ Section mutual_attest_main.
    ⊢ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}.
   Proof.
     intros code otype_w pc_a' Hpc_a' Hbounds; subst code.
-    iIntros "(HPC & Hr & Hr5 & Hr6 & Hcode & Hφ)".
+    iIntros "(HPC & Hr & Hr5 & Hr6 & Hcode & Hcemap_inv & Hφ)".
     codefrag_facts "Hcode".
     iInstr "Hcode".
     { transitivity (Some otype_w); auto.
@@ -99,10 +101,14 @@ Section mutual_attest_main.
 
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     wp_instr.
-    iApply (wp_estoreid_success_unknown with "[$HPC $Hr6 $Hr5 $Hi]"); try solve_pure.
-    iNext. iIntros (retv) "H".
-    iDestruct "H" as "(Hi & Hr5 & [(-> & HPC & H)|(-> & HPC & Hr6)])".
-    1: iDestruct "H" as (I tid) "(Hr6 & #Hma_env & %Hseal)".
+    iMod (inv_acc with "Hcemap_inv") as "(Hcemap & Hclose)"; first solve_ndisj.
+    iDestruct "Hcemap" as (ECn) "(>HEC & #Hcemap)".
+    iApply (wp_estoreid_success_unknown_ec with "[HPC Hr6 Hr5 Hi $HEC]"); try iFrame; try solve_pure.
+    iNext.
+    iIntros (retv) "H".
+    iDestruct "H" as "(Hi & Hr5 & HEC & [(-> & HPC & H)|(-> & HPC & Hr6)])".
+    1: iDestruct "H" as (I tid) "(Hr6 & #Htc_env & [%Hseal %Htidx])".
+    all: iMod ("Hclose" with "[HEC Hcemap]") as "_"; [ iExists ECn; iFrame "HEC Hcemap" | iModIntro].
     all: wp_pure; iInstr_close "Hcode".
     2:{ wp_end; by iRight. }
 
@@ -122,7 +128,7 @@ Section mutual_attest_main.
     iInstr "Hcode".
     iInstr "Hcode".
     iApply "Hφ".
-    iExists tid; iFrame "∗#%".
+    iExists tid, ECn; iFrame "∗#%".
     iSplitL "Hr5" ; iExists _ ; iFrame.
   Qed.
 
@@ -197,8 +203,8 @@ Section mutual_attest_main.
       )%I as "Hma".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      + iPureIntro. admit.
-      + iPureIntro; apply wf_ma_enclaves_map.
+      iPureIntro. rewrite /tcenclaves_map.
+      by simplify_map_eq.
     }
     rewrite HPenc.
     destruct (Z.even (finz.to_z a)) eqn:HEven_a
