@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">cap_machine.ftlr.EInit</h1>
+
+<div class="code">
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.proofmode</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">proofmode</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">iris.program_logic</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">weakestpre</span> <span class="id" title="library">adequacy</span> <span class="id" title="library">lifting</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">stdpp</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">base</span>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Export</span> <a class="idref" href="cap_machine.logrel.html#"><span class="id" title="library">logrel</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.ftlr</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.ftlr.ftlr_base.html#"><span class="id" title="library">ftlr_base</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine.rules</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.rules.rules_Jmp.html#"><span class="id" title="library">rules_Jmp</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <a id="fundamental" class="idref" href="#fundamental"><span class="id" title="section">fundamental</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> {<a id="0101b9beac487b383a5ba2a8f6922788" class="idref" href="#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="binder">Σ</span></a>:<span class="id" title="record">gFunctors</span>} {<a id="ceriseg:2" class="idref" href="#ceriseg:2"><span class="id" title="binder">ceriseg</span></a>:<a class="idref" href="cap_machine.logical_mapsto.html#ceriseG"><span class="id" title="class">ceriseG</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>} {<a id="sealsg:3" class="idref" href="#sealsg:3"><span class="id" title="binder">sealsg</span></a>: <a class="idref" href="cap_machine.seal_store.html#sealStoreG"><span class="id" title="class">sealStoreG</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<a id="nainv:4" class="idref" href="#nainv:4"><span class="id" title="binder">nainv</span></a>: <a class="idref" href="cap_machine.logrel.html#logrel_na_invs"><span class="id" title="class">logrel_na_invs</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#0101b9beac487b383a5ba2a8f6922788"><span class="id" title="variable">Σ</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="reservedaddresses:5" class="idref" href="#reservedaddresses:5"><span class="id" title="binder">reservedaddresses</span></a> : <a class="idref" href="cap_machine.logical_mapsto.html#ReservedAddresses"><span class="id" title="class">ReservedAddresses</span></a>}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`{<a id="H:6" class="idref" href="#H:6"><span class="id" title="binder">MachineParameters</span></a>}.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Notation</span> <a id="D" class="idref" href="#D"><span class="id" title="abbreviation">D</span></a> := (<span class="id" title="notation">(</span><span class="id" title="abbreviation">leibnizO</span> <a class="idref" href="cap_machine.logical_mapsto.html#LWord"><span class="id" title="inductive">LWord</span></a><span class="id" title="notation">)</span> <span class="id" title="notation">-</span><span class="id" title="notation">n</span><span class="id" title="notation">&gt;</span> <span class="id" title="abbreviation">iPropO</span> <a class="idref" href="cap_machine.ftlr.EInit.html#4b941bfe9a366b6b4ae4e200103593e7"><span class="id" title="variable">Σ</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Notation</span> <a id="R" class="idref" href="#R"><span class="id" title="abbreviation">R</span></a> := (<span class="id" title="notation">(</span><span class="id" title="abbreviation">leibnizO</span> <a class="idref" href="cap_machine.logical_mapsto.html#LReg"><span class="id" title="definition">LReg</span></a><span class="id" title="notation">)</span> <span class="id" title="notation">-</span><span class="id" title="notation">n</span><span class="id" title="notation">&gt;</span> <span class="id" title="abbreviation">iPropO</span> <a class="idref" href="cap_machine.ftlr.EInit.html#4b941bfe9a366b6b4ae4e200103593e7"><span class="id" title="variable">Σ</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Implicit</span> <span class="id" title="keyword">Types</span> <span class="id" title="var">lw</span> : (<span class="id" title="abbreviation">leibnizO</span> <a class="idref" href="cap_machine.logical_mapsto.html#LWord"><span class="id" title="inductive">LWord</span></a>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Implicit</span> <span class="id" title="keyword">Types</span> <span class="id" title="var">interp</span> : (<a class="idref" href="cap_machine.ftlr.EInit.html#D"><span class="id" title="abbreviation">D</span></a>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="einit_case" class="idref" href="#einit_case"><span class="id" title="lemma">einit_case</span></a> (<a id="lregs:7" class="idref" href="#lregs:7"><span class="id" title="binder">lregs</span></a> : <span class="id" title="abbreviation">leibnizO</span> <a class="idref" href="cap_machine.logical_mapsto.html#LReg"><span class="id" title="definition">LReg</span></a>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<a id="p:8" class="idref" href="#p:8"><span class="id" title="binder">p</span></a> : <a class="idref" href="cap_machine.machine_base.html#Perm"><span class="id" title="inductive">Perm</span></a>) (<a id="b:9" class="idref" href="#b:9"><span class="id" title="binder">b</span></a> <a id="e:10" class="idref" href="#e:10"><span class="id" title="binder">e</span></a> <a id="a:11" class="idref" href="#a:11"><span class="id" title="binder">a</span></a> : <a class="idref" href="cap_machine.addr_reg.html#Addr"><span class="id" title="abbreviation">Addr</span></a>) (<a id="v:12" class="idref" href="#v:12"><span class="id" title="binder">v</span></a> : <a class="idref" href="cap_machine.logical_mapsto.html#Version"><span class="id" title="definition">Version</span></a>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<a id="lw:13" class="idref" href="#lw:13"><span class="id" title="binder">lw</span></a> : <a class="idref" href="cap_machine.logical_mapsto.html#LWord"><span class="id" title="inductive">LWord</span></a>) (<a id="r:14" class="idref" href="#r:14"><span class="id" title="binder">r</span></a> : <a class="idref" href="cap_machine.addr_reg.html#RegName"><span class="id" title="inductive">RegName</span></a>) (<a id="P:15" class="idref" href="#P:15"><span class="id" title="binder">P</span></a> : <a class="idref" href="cap_machine.ftlr.EInit.html#D"><span class="id" title="abbreviation">D</span></a>):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.ftlr.ftlr_base.html#ftlr_instr"><span class="id" title="definition">ftlr_instr</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#lregs:7"><span class="id" title="variable">lregs</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#p:8"><span class="id" title="variable">p</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#b:9"><span class="id" title="variable">b</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#e:10"><span class="id" title="variable">e</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#a:11"><span class="id" title="variable">a</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#v:12"><span class="id" title="variable">v</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#lw:13"><span class="id" title="variable">lw</span></a> (<a class="idref" href="cap_machine.machine_base.html#EInit"><span class="id" title="constructor">EInit</span></a> <a class="idref" href="cap_machine.ftlr.EInit.html#r:14"><span class="id" title="variable">r</span></a>) <a class="idref" href="cap_machine.ftlr.EInit.html#P:15"><span class="id" title="variable">P</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;intros&nbsp;Hp&nbsp;Hsome&nbsp;i&nbsp;Hbae&nbsp;Hi.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iIntros&nbsp;"IH Hinv&nbsp;Hinva Hreg&nbsp;Hread Hown Ha HP Hcls HPC Hmap". *)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;rewrite&nbsp;delete_insert_delete.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(reg_eq_dec&nbsp;PC&nbsp;r);&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;*&nbsp;iApply&nbsp;(wp_jmp_successPC&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");&nbsp;eauto;&nbsp;first&nbsp;iFrame.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;iIntros&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>&nbsp;/=".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;reconstruct&nbsp;invariant&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>")&nbsp;as&nbsp;"_";<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;reconstruct&nbsp;registers&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;((big_sepM_delete&nbsp;_&nbsp;_&nbsp;PC)&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode"><span class="id" title="var">Hmap</span></span>")&nbsp;as&nbsp;"Hmap&nbsp;/=";&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" title="tactic">apply</span></span> <span class="inlinecode"><span class="id" title="var">lookup_insert</span>|<span class="id" title="tactic">rewrite</span></span> <span class="inlinecode"><span class="id" title="var">delete_insert_delete</span>;<span class="id" title="var">iFrame</span>|</span>.&nbsp;simpl.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;apply&nbsp;IH&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iPureIntro.&nbsp;apply&nbsp;Hsome.&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;*&nbsp;specialize&nbsp;Hsome&nbsp;with&nbsp;r&nbsp;as&nbsp;Hr.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Hr&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">wsrc</span></span> <span class="inlinecode"><span class="id" title="var">Hsomesrc</span></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;((big_sepM_delete&nbsp;_&nbsp;_&nbsp;r)&nbsp;with&nbsp;"Hmap")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hsrc</span></span> <span class="inlinecode"><span class="id" title="var">Hmap</span></span>";&nbsp;eauto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(lookup_delete_ne&nbsp;lregs&nbsp;PC&nbsp;r);&nbsp;eauto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_jmp_success&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">HPC</span></span> <span class="inlinecode">$<span class="id" title="var">Ha</span></span> <span class="inlinecode">$<span class="id" title="var">Hsrc</span></span>");&nbsp;eauto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;iIntros&nbsp;"<span class="inlinecode"><span class="id" title="var">HPC</span></span> <span class="inlinecode">[<span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">Hsrc</span>]</span>&nbsp;/=".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;reconstruct&nbsp;regions&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;((big_sepM_delete&nbsp;_&nbsp;_&nbsp;r)&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hsrc</span></span> <span class="inlinecode"><span class="id" title="var">Hmap</span></span>")&nbsp;as&nbsp;"Hmap&nbsp;/=";&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" title="tactic">apply</span></span> <span class="inlinecode"><span class="id" title="var">lookup_insert</span>|<span class="id" title="tactic">rewrite</span></span> <span class="inlinecode"><span class="id" title="var">delete_insert_delete</span>;<span class="id" title="var">iFrame</span>|</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-delete_insert_ne&nbsp;//&nbsp;insert_id;&nbsp;auto.&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HP</span></span> <span class="inlinecode"><span class="id" title="var">Ha</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Needed&nbsp;because&nbsp;IH&nbsp;disallows&nbsp;non-capability&nbsp;values&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;wsrc&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|</span> <span class="inlinecode">[<span class="id" title="var">p'</span></span> <span class="inlinecode"><span class="id" title="var">b'</span></span> <span class="inlinecode"><span class="id" title="var">e'</span></span> <span class="inlinecode"><span class="id" title="var">a'</span></span> <span class="inlinecode"><span class="id" title="var">v'</span></span> <span class="inlinecode">|</span> <span class="inlinecode">]</span> <span class="inlinecode">|</span> <span class="inlinecode"></span>;&nbsp;cycle&nbsp;1.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;/updatePcPerm.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Special&nbsp;case&nbsp;for&nbsp;E-values*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(p'&nbsp;=&nbsp;E))&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode"><span class="id" title="var">HneE</span></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unshelve&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iClear&nbsp;"Hinv".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;fixpoint_interp1_eq;&nbsp;simpl.&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert&nbsp;_&nbsp;_&nbsp;PC&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">HPC</span></span>")&nbsp;as&nbsp;"Hmap";&nbsp;<span class="inlinecode"><span class="id" title="tactic">apply</span></span> <span class="inlinecode"><span class="id" title="var">lookup_delete</span>|</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;insert_delete_insert;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("HPCv"&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">Hown</span></span>")&nbsp;as&nbsp;"Hcont";&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;iAssert&nbsp;(PC&nbsp;↦ᵣ&nbsp;LCap&nbsp;p'&nbsp;b'&nbsp;e'&nbsp;a'&nbsp;v')*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;destruct&nbsp;p';&nbsp;auto.&nbsp;congruence.&nbsp;}&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert&nbsp;_&nbsp;_&nbsp;PC&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">HPC</span></span>")&nbsp;as&nbsp;"Hmap";&nbsp;<span class="inlinecode"><span class="id" title="tactic">apply</span></span> <span class="inlinecode"><span class="id" title="var">lookup_delete</span>|</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;insert_delete_insert;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]").&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;cbn.&nbsp;intros.&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;lookup_insert_ne&nbsp;in&nbsp;Hvs;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;r));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;rewrite&nbsp;Hsomesrc&nbsp;in&nbsp;Hvs;&nbsp;inversion&nbsp;Hvs;&nbsp;subst;&nbsp;clear&nbsp;Hvs.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unshelve&nbsp;iSpecialize&nbsp;("Hreg"&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iApply&nbsp;"Hreg";&nbsp;auto.&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;rewrite&nbsp;insert_insert.&nbsp;iApply&nbsp;"Hmap".&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unshelve&nbsp;iSpecialize&nbsp;("Hreg"&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
+
+<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Non-capability&nbsp;cases&nbsp;*)</span>&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;rewrite&nbsp;/updatePcPerm;&nbsp;iApply&nbsp;(wp_bind&nbsp;(fill&nbsp;<span class="inlinecode"><span class="id" title="var">SeqCtx</span></span>));&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_notCorrectPC&nbsp;with&nbsp;"HPC");&nbsp;<span class="inlinecode"><span class="id" title="tactic">intros</span></span> <span class="inlinecode"><span class="id" title="var">HFalse</span>;</span> <span class="inlinecode"><span class="id" title="tactic">inversion</span></span> <span class="inlinecode"><span class="id" title="var">HFalse</span>;</span> <span class="inlinecode"><span class="id" title="var">cbn</span></span> <span class="inlinecode"><span class="id" title="tactic">in</span></span> <span class="inlinecode">*;</span> <span class="inlinecode"><span class="id" title="var">simplify_eq</span>|</span> <span class="inlinecode"></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;repeat&nbsp;iNext;&nbsp;iIntros&nbsp;"HPC&nbsp;/=".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iApply&nbsp;wp_value.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;Qed.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.ftlr.EInit.html#fundamental"><span class="id" title="section">fundamental</span></a>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
