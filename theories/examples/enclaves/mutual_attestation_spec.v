@@ -81,6 +81,17 @@ Section mutual_attest_main.
       ∗ ▷ ( (∃ tid ECn,
                 ⌜ has_seal otype_w tid ⌝
                 ∗ ⌜ 0 <= tid < ECn ⌝
+                ∗ (
+                    □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
+                      (⌜(0 <= tid < ECn)⌝) -∗
+                      (⌜ @custom_enclaves_map_wf Σ _ ma_enclaves_map ⌝) -∗
+                      enclave_all tid I
+                      ∗ ⌜ ma_enclaves_map !! I = Some ce ⌝
+                      ∗ ⌜ has_seal ot tid ⌝ -∗
+                      if (Z.even (finz.to_z ot))
+                      then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
+                      else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
+                  )%I
                 ∗ enclave_all tid expected_hash
                 ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_a' pc_v
                 ∗ r ↦ᵣ w ∗ (∃ w5', r_t5 ↦ᵣ w5') ∗ (∃ w6', r_t6 ↦ᵣ w6')
@@ -136,7 +147,7 @@ Section mutual_attest_main.
     (pc_b pc_e pc_a : Addr) (pc_v : Version)
     (r r' : RegName) (ot_w : OType) sb_w
     (w' w5 w6: LWord)
-    (tid : TIndex) (expected_hash : Z)
+    (tid : TIndex) (ECn : nat) (expected_hash : Z)
     (mutual_attest_enclave_pred : @CustomEnclave Σ)
     φ (Φ : LWord → iProp Σ)
     `{ HPenc : Penc mutual_attest_enclave_pred = (λ _ : LWord, False)%I}
@@ -151,7 +162,18 @@ Section mutual_attest_main.
 
     ( (∀ w, (Psign mutual_attest_enclave_pred w) -∗
           ⌜ ∃ b e a v, w = LCap O b e a v ∧ ( (b `mod` 2)%Z ≠ 0 -> a = f1) ⌝)
-      ∗ custom_enclave_inv ma_enclaves_map
+      ∗ ⌜ 0 <= tid < ECn ⌝
+      ∗ (
+          □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
+            (⌜(0 <= tid < ECn)⌝) -∗
+            (⌜ @custom_enclaves_map_wf Σ _ ma_enclaves_map ⌝) -∗
+            enclave_all tid I
+            ∗ ⌜ ma_enclaves_map !! I = Some ce ⌝
+            ∗ ⌜ has_seal ot tid ⌝ -∗
+            if (Z.even (finz.to_z ot))
+            then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce))
+            else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce))
+        )%I
       ∗ enclave_all tid expected_hash
       ∗ □ valid_sealed (LWSealed ot_w sb_w) ot_w Φ
       ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_a pc_v
@@ -166,26 +188,27 @@ Section mutual_attest_main.
    ⊢ WP Seq (Instr Executable) {{ v, φ v ∨ ⌜ v = FailedV ⌝ }}.
   Proof.
     intros code pc_a' Hpc_a' Hbounds Hseal Hma_expected_enclave; subst code.
-    iIntros "(Hpsign & #Henclaves_inv & #Htid & #Hseal_valid & HPC & Hr & Hr' & Hr5 & Hr6 & Hcode & Hφ)".
+    iIntros "(Hpsign & %Htid & #Hcemap & #Htid & #Hseal_valid & HPC & Hr & Hr' & Hr5 & Hr6 & Hcode & Hφ)".
     codefrag_facts "Hcode".
     iDestruct ( regname_neq with "[$HPC] [$Hr]") as %HPCr.
     iDestruct ( regname_neq with "[$HPC] [$Hr']") as %HPCr'.
     iDestruct ( regname_neq with "[$Hr] [$Hr']") as %Hrr'.
 
     wp_instr.
-    iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj.
+    (* iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj. *)
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     iDestruct (map_of_regs_3 with "HPC Hr Hr'") as "[Hmap _]".
     iApply (wp_UnSeal with "[$Hmap $Hi]") ; try (by simplify_map_eq) ; try solve_pure.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds' Hregs'|]; cycle 1.
-    { iMod ("Hclose_inv" with "Henclaves_inv_open") as "_". iModIntro.
+    {
+      (* iMod ("Hclose_inv" with "Henclaves_inv_open") as "_". iModIntro. *)
       by wp_pure; wp_end; by iRight.
     }
-    iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)".
-    iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; iModIntro.
-    { iExists ECn. iFrame "HEC Hcemap". }
+    (* iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)". *)
+    (* iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; iModIntro. *)
+    (* { iExists ECn. iFrame "HEC Hcemap". } *)
     incrementLPC_inv as (p''&pc_b'&pc_e'&pc_a''&pc_v'& ? & HPC & Z & Hregs');
       simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
@@ -203,8 +226,8 @@ Section mutual_attest_main.
       )%I as "Hma".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      iPureIntro. rewrite /tcenclaves_map.
-      by simplify_map_eq.
+      iPureIntro. rewrite /ma_enclaves_map.
+      by apply wf_ma_enclaves_map.
     }
     rewrite HPenc.
     destruct (Z.even (finz.to_z a)) eqn:HEven_a
@@ -263,7 +286,7 @@ Section mutual_attest_main.
     rewrite Hmod; auto.
     iApply "Hφ"; iFrame.
     iSplitL "Hr5" ; iExists _ ; iFrame.
-  Admitted.
+  Qed.
 
 
 
@@ -408,10 +431,10 @@ Section mutual_attest_main.
     focus_block_0 "Hcode" as "Hcode" "Hcode_cont".
     destruct (is_sealedL w0) eqn:Hw0; cycle 1.
     {
-      iApply (mutual_attestation_main_attest_or_fail_spec with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6]"); eauto.
+      iApply (mutual_attestation_main_attest_or_fail_spec with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
       { solve_addr. }
       iNext ; iIntros "H".
-      iDestruct "H" as (tid) "(%Hhas_seal & #Henclave_tid & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
+      iDestruct "H" as (tid ECn) "(%Hhas_seal & %Htid & #Hcemap & #Henclave_tid & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
       iDestruct "Hr5" as (w5') "Hr5".
       iDestruct "Hr6" as (w6') "Hr6".
       unfocus_block "Hcode" "Hcode_cont" as "Hcode".
@@ -422,18 +445,18 @@ Section mutual_attest_main.
     destruct w0 as [| | ot_w0 sb_w0]; cbn in Hw0; try congruence.
     iDestruct (interp_valid_sealed with "Hinterp_w0") as (Φ_A) "Hseal_valid_w0".
     iApply (mutual_attestation_main_attest_or_fail_spec
-             with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6]"); eauto.
+             with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
     { solve_addr. }
     iNext ; iIntros "H".
-    iDestruct "H" as (tid_A) "(%Hhas_seal_A & #Henclave_tid_A & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
+    iDestruct "H" as (tid_A ECn_A) "(%Hhas_seal_A & %Htid_A & Hcemap_A & #Henclave_tid_A & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
     iDestruct "Hr5" as (w5') "Hr5".
     iDestruct "Hr6" as (w6') "Hr6".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
     (* BLOCK 1: get confirm A *)
     focus_block 1 "Hcode" as a_block1 Ha_block1 "Hcode" "Hcode_cont".
-    iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_A_pred )
-             with "[- $HPC $Hcode $Hr0 $Hr1 $Hr5 $Hr6 $Hseal_valid_w0 $Henclave_tid_A $Hcemap_inv]"); eauto.
+    iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_A_pred )
+             with "[- $HPC $Hcode $Hr0 $Hr1 $Hr5 $Hr6 $Hseal_valid_w0 $Henclave_tid_A $Hcemap_A]"); eauto.
     { solve_addr. }
     { by rewrite /ma_enclaves_map ; simplify_map_eq. }
     iSplitR.
@@ -448,6 +471,7 @@ Section mutual_attest_main.
       destruct ( decide ((b `mod` 2%nat)%Z = 0%Z)); first lia.
       done.
     }
+    iSplitR; first done.
     iNext.
     iIntros "(HPC & Hr0 & Hr1 & Hr5 & Hr6 & Hcode)".
     clear w5' w6'.
@@ -461,10 +485,10 @@ Section mutual_attest_main.
     destruct (is_sealedL w2) eqn:Hw2; cycle 1.
     {
       iApply (mutual_attestation_main_attest_or_fail_spec
-               with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6]"); eauto.
+               with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
       { solve_addr. }
       iNext ; iIntros "H".
-      iDestruct "H" as (tid_B) "(%Hhas_seal_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
+      iDestruct "H" as (tid_B ECn_B) "(%Hhas_seal_B & %Htid_B & #Hcemap_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
       clear w5' w6'.
       iDestruct "Hr5" as (w5') "Hr5".
       iDestruct "Hr6" as (w6') "Hr6".
@@ -476,10 +500,10 @@ Section mutual_attest_main.
     destruct w2 as [| | ot_w2 sb_w2]; cbn in Hw2; try congruence.
     iDestruct (interp_valid_sealed with "Hinterp_w2") as (Φ_B) "Hseal_valid_w2".
     iApply (mutual_attestation_main_attest_or_fail_spec
-             with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6]"); eauto.
+             with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
     { solve_addr. }
     iNext ; iIntros "H".
-    iDestruct "H" as (tid_B) "(%Hhas_seal_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
+    iDestruct "H" as (tid_B ECn_B) "(%Hhas_seal_B & %Htid_B & #Hcemap_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
     clear w5' w6'.
     iDestruct "Hr5" as (w5') "Hr5".
     iDestruct "Hr6" as (w6') "Hr6".
@@ -488,8 +512,8 @@ Section mutual_attest_main.
     (* BLOCK 3: get confirm attest B *)
     focus_block 3 "Hcode" as a_block3 Ha_block3 "Hcode" "Hcode_cont".
     clear Ha_block2 a_block2.
-    iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_B_pred )
-             with "[- $HPC $Hcode $Hr2 $Hr3 $Hr5 $Hr6 $Hseal_valid_w2 $Henclave_tid_B $Hcemap_inv]"); eauto.
+    iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_B_pred )
+             with "[- $HPC $Hcode $Hr2 $Hr3 $Hr5 $Hr6 $Hseal_valid_w2 $Henclave_tid_B $Hcemap_B]"); eauto.
     { solve_addr. }
     { rewrite /ma_enclaves_map.
       rewrite lookup_insert_ne //; first by simplify_map_eq.
@@ -512,6 +536,7 @@ Section mutual_attest_main.
       destruct ( decide ((b `mod` 2%nat)%Z = 0%Z)); first lia.
       done.
     }
+    iSplitR; first done.
     iNext.
     iIntros "(HPC & Hr2 & Hr3 & Hr5 & Hr6 & Hcode)".
     clear w5' w6'.
