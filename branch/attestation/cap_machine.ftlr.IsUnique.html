@@ -155,12 +155,12 @@
 &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iExists</span> (<a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#repeat"><span class="id" title="definition">repeat</span></a> (<span class="id" title="notation">λne</span> <span class="id" title="var">_</span><span class="id" title="notation">,</span> <span class="id" title="notation">True</span>%<span class="id" title="var">I</span>) (<span class="id" title="abbreviation">length</span> <span class="id" title="var">la</span>)); <span class="id" title="var">iFrame</span> "%".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>; <span class="id" title="tactic">first</span> <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Lists.List.html#repeat_length"><span class="id" title="lemma">repeat_length</span></a>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>; <span class="id" title="var">last</span> <span class="id" title="var">done</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hlv</span> <span class="id" title="var">HnpE</span> <span class="id" title="var">HnpO</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hlv</span> <span class="id" title="var">HreadAllowed</span>).<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="definition">decide</span> (<span class="id" title="var">src</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a>)) <span class="id" title="keyword">as</span> [-&gt; | <span class="id" title="var">Hneq_src_pc</span>] ; <span class="id" title="var">simplify_map_eq</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#read_allowed_not_reserved"><span class="id" title="axiom">read_allowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_pc"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#readAllowed_not_reserved"><span class="id" title="axiom">readAllowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_pc"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="var">iAssert</span> (<a class="idref" href="cap_machine.logrel.html#interp"><span class="id" title="definition">interp</span></a> (<a class="idref" href="cap_machine.logical_mapsto.html#LCap"><span class="id" title="abbreviation">LCap</span></a> <span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span>)) <span class="id" title="keyword">as</span> "Hinterp_src".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iApply</span> "Hreg"; <span class="id" title="tactic">eauto</span>. }<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#read_allowed_not_reserved"><span class="id" title="axiom">read_allowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_src"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#readAllowed_not_reserved"><span class="id" title="axiom">readAllowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_src"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span> "%".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">Hapc_inbounds</span>.<br/>
@@ -194,11 +194,9 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">Ps</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span> ; <span class="id" title="tactic">first</span> <span class="id" title="tactic">by</span> <span class="id" title="tactic">subst</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hsrc</span> <span class="id" title="var">HnpE</span> <span class="id" title="var">HnpO</span>).<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#read_allowed_not_reserved"><span class="id" title="axiom">read_allowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_pc"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">destruct</span> <span class="id" title="var">p_src</span> ; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HreadAllowed</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hsrc</span> <span class="id" title="var">HreadAllowedp</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#readAllowed_not_reserved"><span class="id" title="axiom">readAllowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_pc"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> "Hmod".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> "Hmod" <span class="id" title="keyword">as</span> (<span class="id" title="var">lws</span>) "(%Hlws &amp; %Hpers &amp; Hmem &amp; HPs &amp; HPs' &amp; Hclose)".<br/>
@@ -229,11 +227,9 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> <span class="id" title="var">Ps</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span> ; <span class="id" title="tactic">first</span> <span class="id" title="tactic">by</span> <span class="id" title="tactic">subst</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hsrc</span> <span class="id" title="var">HnpE</span> <span class="id" title="var">HnpO</span>).<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#read_allowed_not_reserved"><span class="id" title="axiom">read_allowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_src"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">destruct</span> <span class="id" title="var">p_src</span> ; <span class="id" title="var">cbn</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HreadAllowed</span>; <span class="id" title="tactic">auto</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> (<span class="id" title="var">p</span> <span class="id" title="var">b</span> <span class="id" title="var">e</span> <span class="id" title="var">a</span> <span class="id" title="var">v</span> <span class="id" title="var">Hsrc</span> <span class="id" title="var">HreadAllowedp</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iDestruct</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.logrel.html#readAllowed_not_reserved"><span class="id" title="axiom">readAllowed_not_reserved</span></a> <span class="id" title="notation">with</span> "Hinterp_src"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "%"; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="var">simplify_map_eq</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> "Hmod".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="cap_machine.ftlr.IsUnique.html#allow_sweep_mask_remove_nodup"><span class="id" title="axiom">allow_sweep_mask_remove_nodup</span></a>; <span class="id" title="tactic">auto</span>.<br/>
@@ -825,7 +821,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<a class="idref" href="cap_machine.rules.rules_base.html#read_reg_inr"><span class="id" title="definition">read_reg_inr</span></a> <span class="id" title="var">Hlwsrc'</span> <span class="id" title="tactic">in</span> <span class="id" title="var">HV_Src</span> ; <span class="id" title="var">simplify_eq</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span><a class="idref" href="cap_machine.ftlr.IsUnique.html#mem_map_recover_res_update_version"><span class="id" title="axiom">mem_map_recover_res_update_version</span></a> <span class="id" title="notation">with</span> "Hread HP HSweepMem Hmem"<span class="id" title="notation">)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">as</span> "[Ha #Hinterp]"; <span class="id" title="tactic">eauto</span>.<br/>
-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">destruct</span> <span class="id" title="var">p_src</span> ; <span class="id" title="tactic">auto</span>. }<br/>
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[Ha HP]"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "_"; <span class="id" title="tactic">first</span> (<span class="id" title="var">iNext</span> ; <span class="id" title="var">iExists</span> <span class="id" title="var">_</span> ; <span class="id" title="var">iFrame</span> "#∗").<br/>
@@ -844,26 +840,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">cond_open</span> <span class="id" title="keyword">as</span> [<span class="id" title="var">Hdecide</span>|<span class="id" title="var">Hdecide</span>]; <span class="id" title="var">cycle</span> 1.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="comment">(*&nbsp;Case&nbsp;(p_src&nbsp;=&nbsp;O)&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.ftlr.IsUnique.html#reg_allows_sweep_unique_O"><span class="id" title="axiom">reg_allows_sweep_unique_O</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hdecide</span>; <span class="id" title="tactic">auto</span> ; <span class="id" title="var">simplify_eq</span>.<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;assert&nbsp;(src&nbsp;≠&nbsp;PC)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;as&nbsp;Hr_ne_pc&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;(intro&nbsp;;&nbsp;subst&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;inversion&nbsp;HcorrectLPC&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">lpc</span></span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Heq</span></span> <span class="inlinecode"><span class="id" title="var">HcorrectPC</span></span> <span class="inlinecode"><span class="id" title="var">Hlpc</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;inversion&nbsp;HcorrectPC&nbsp;as&nbsp;<span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Hbounds</span></span> <span class="inlinecode"><span class="id" title="var">Hperm</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;cbn&nbsp;in&nbsp;*&nbsp;;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;by&nbsp;destruct&nbsp;Hperm).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;do&nbsp;2&nbsp;(rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//);&nbsp;rewrite&nbsp;!insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;iApply&nbsp;("IH"&nbsp;Hown]")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;{&nbsp;iIntros&nbsp;(r1&nbsp;lw1&nbsp;Hr1&nbsp;Hlw1).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(r1&nbsp;=&nbsp;dst))&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|<span class="id" title="var">Hr1_dst</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq;&nbsp;first&nbsp;(rewrite&nbsp;!fixpoint_interp1_eq&nbsp;//=).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(r1&nbsp;=&nbsp;src))&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|<span class="id" title="var">Hr1_src</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq;&nbsp;first&nbsp;(rewrite&nbsp;!fixpoint_interp1_eq&nbsp;//=).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iApply&nbsp;"Hreg";&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;{&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;//=&nbsp;;&nbsp;destruct&nbsp;p_pc';&nbsp;destruct&nbsp;Hp&nbsp;;&nbsp;try&nbsp;done.&nbsp;}&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">p_src</span> ; <span class="id" title="tactic">auto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">destruct</span> <span class="id" title="var">Hdecide</span> <span class="id" title="keyword">as</span> [ [<span class="id" title="var">Hsrc_lregs</span> <span class="id" title="var">Hread_src</span>] <span class="id" title="var">Hwf</span>].<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="definition">decide</span> (<span class="id" title="var">src</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a>)) <span class="id" title="keyword">as</span> [-&gt;|<span class="id" title="var">Hsrc_neq_pc</span>]<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; [<span class="id" title="tactic">clear</span> <span class="id" title="var">Hwf</span> | <span class="id" title="tactic">destruct</span> <span class="id" title="var">Hwf</span> ; <span class="id" title="var">simplify_eq</span>]<br/>
@@ -871,451 +848,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="tactic">do</span> 2 (<span class="id" title="tactic">rewrite</span> (<span class="id" title="lemma">insert_commute</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <a class="idref" href="cap_machine.addr_reg.html#PC"><span class="id" title="constructor">PC</span></a>) //); <span class="id" title="tactic">rewrite</span> !<span class="id" title="lemma">insert_insert</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="comment">(*&nbsp;src&nbsp;=&nbsp;PC&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span>"IH" <span class="id" title="notation">$!</span> <span class="id" title="notation">(</span><span class="id" title="notation">&lt;[</span><span class="id" title="var">dst</span> <span class="id" title="notation">:=</span> <a class="idref" href="cap_machine.logical_mapsto.html#LInt"><span class="id" title="abbreviation">LInt</span></a> 1<span class="id" title="notation">]&gt;</span> <span class="id" title="notation">lregs</span><span class="id" title="notation">)</span> <span class="id" title="notation">with</span> "[%] [] [Hmap] [$Hown]"<span class="id" title="notation">)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Sweep&nbsp;false&nbsp;&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>";auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls_src"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HPrange</span></span>")&nbsp;as&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;region_inv_construct;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>")&nbsp;as&nbsp;"_";&nbsp;first&nbsp;(iNext&nbsp;;&nbsp;iExists&nbsp;_&nbsp;;&nbsp;iFrame).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Fail&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">Hrange</span></span>";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls_src"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hrange</span></span> <span class="inlinecode"><span class="id" title="var">HPrange</span></span>")&nbsp;as&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;region_inv_construct;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>")&nbsp;as&nbsp;"_";&nbsp;first&nbsp;(iNext&nbsp;;&nbsp;iExists&nbsp;_&nbsp;;&nbsp;iFrame).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_";&nbsp;iApply&nbsp;wp_value;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Sweep&nbsp;true&nbsp;cap&nbsp;:&nbsp;update&nbsp;*)</span>&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;(p_pc'&nbsp;&amp;&nbsp;b_pc'&nbsp;&amp;&nbsp;e_pc'&nbsp;&amp;a_pc'&nbsp;&amp;v_pc'&nbsp;&amp;&nbsp;?&nbsp;&amp;&nbsp;HPC&nbsp;&amp;&nbsp;Z&nbsp;&amp;&nbsp;Hregs')&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq);&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;2&nbsp;(rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//);&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Hupd&nbsp;as&nbsp;(lm&nbsp;&amp;&nbsp;Hlm_incl&nbsp;&amp;&nbsp;Hvalid).&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(&nbsp;lmem'&nbsp;!!&nbsp;(a_pc',&nbsp;v)&nbsp;=&nbsp;Some&nbsp;lw&nbsp;)&nbsp;as&nbsp;Hmem'_pca.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;eapply&nbsp;is_valid_updated_lmemory_preserves_lmem;&nbsp;cycle&nbsp;1&nbsp;;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;finz_seq_between_NoDup.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(NoDup&nbsp;(finz.seq_between&nbsp;b_pc'&nbsp;e_pc'))&nbsp;as&nbsp;HNoDup_pc&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;(by&nbsp;apply&nbsp;finz_seq_between_NoDup).&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(&nbsp;lmem'&nbsp;!!&nbsp;(a_pc',&nbsp;v+1)&nbsp;=&nbsp;Some&nbsp;lw&nbsp;)&nbsp;as&nbsp;Hmem'_pca_next.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;eapply&nbsp;is_valid_updated_lmemory_preserves_lmem_next;&nbsp;cycle&nbsp;1&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;by&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;Forall_forall;&nbsp;intros&nbsp;a&nbsp;Ha.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;lookup_insert_ne&nbsp;//=;&nbsp;last&nbsp;(intro&nbsp;;&nbsp;simplify_eq&nbsp;;&nbsp;lia).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;logical_region_version_neq;&nbsp;eauto&nbsp;;&nbsp;last&nbsp;lia.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(&nbsp;((logical_region_map&nbsp;la'&nbsp;lws)&nbsp;)&nbsp;v&nbsp;⊆&nbsp;lmem'&nbsp;)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;Hmem'_be.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;is_valid_updated_lmemory_lmem_incl&nbsp;with&nbsp;(la&nbsp;:=&nbsp;(finz.seq_between&nbsp;b_pc'&nbsp;e_pc'))&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;is_valid_updated_lmemory_insert';&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;Forall_forall;&nbsp;intros&nbsp;a&nbsp;Ha.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;logical_region_version_neq;&nbsp;eauto&nbsp;;&nbsp;last&nbsp;lia.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(&nbsp;((logical_region_map&nbsp;la'&nbsp;lws)&nbsp;)&nbsp;(v+1)&nbsp;⊆&nbsp;lmem'&nbsp;)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;Hmem'_be_next.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;map_subseteq_spec;&nbsp;intros&nbsp;<span class="inlinecode"><span class="id" title="var">a'</span></span> <span class="inlinecode"><span class="id" title="var">v'</span></span>&nbsp;lw'&nbsp;Hlw'.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(v'&nbsp;=&nbsp;v+1&nbsp;/\&nbsp;(a'&nbsp;∈&nbsp;la'))&nbsp;as&nbsp;<span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Ha'_in_be</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;(eapply&nbsp;logical_region_map_some_inv;&nbsp;eauto)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Hvalid&nbsp;as&nbsp;(Hupd_incl&nbsp;&amp;&nbsp;HmaxvMap&nbsp;&amp;&nbsp;HsomeMap).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;lookup_weaken;&nbsp;last&nbsp;eapply&nbsp;Hupd_incl.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;update_version_region_preserves_lmem_next;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;erewrite&nbsp;logical_region_map_lookup_versions&nbsp;with&nbsp;(v':=&nbsp;v)&nbsp;in&nbsp;Hlw';&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;lookup_weaken&nbsp;in&nbsp;Hlw';&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;insert_subseteq_r_inv;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;subst&nbsp;la'.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;elem_of_submseteq;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;rewrite&nbsp;lookup_insert_ne&nbsp;//=;&nbsp;last&nbsp;(intro&nbsp;;&nbsp;simplify_eq&nbsp;;&nbsp;lia).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;logical_region_version_neq;&nbsp;eauto;&nbsp;lia.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-(insert_id&nbsp;lmem'&nbsp;(a_pc',&nbsp;v)&nbsp;lw);&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert_delete&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>".&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-(insert_id&nbsp;(_&nbsp;lmem')&nbsp;(a_pc',&nbsp;v+1)&nbsp;lw);&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;2:&nbsp;{&nbsp;rewrite&nbsp;lookup_delete_ne&nbsp;;&nbsp;first&nbsp;by&nbsp;simplify_map_eq.&nbsp;intro&nbsp;;&nbsp;simplify_eq&nbsp;;&nbsp;lia.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert_delete&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha_next</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>".&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;delete_subseteq_r&nbsp;with&nbsp;(k&nbsp;:=&nbsp;((a_pc',&nbsp;v)&nbsp;:&nbsp;LAddr))&nbsp;in&nbsp;Hmem'_be&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;(eapply&nbsp;logical_region_notin;&nbsp;eauto).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;delete_subseteq_r&nbsp;with&nbsp;(k&nbsp;:=&nbsp;((a_pc',&nbsp;v+1)&nbsp;:&nbsp;LAddr))&nbsp;in&nbsp;Hmem'_be&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;(eapply&nbsp;logical_region_notin;&nbsp;eauto).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert_difference&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hrange</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;first&nbsp;(eapply&nbsp;Hmem'_be).&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;delete_subseteq_r&nbsp;with&nbsp;(k&nbsp;:=&nbsp;((a_pc',&nbsp;v)&nbsp;:&nbsp;LAddr))&nbsp;in&nbsp;Hmem'_be_next&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;(eapply&nbsp;logical_region_notin&nbsp;;&nbsp;eauto).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;delete_subseteq_r&nbsp;with&nbsp;(k&nbsp;:=&nbsp;((a_pc',&nbsp;v+1)&nbsp;:&nbsp;LAddr))&nbsp;in&nbsp;Hmem'_be_next&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;(eapply&nbsp;logical_region_notin&nbsp;;&nbsp;eauto).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;delete_subseteq_list_r&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;(m3&nbsp;:=&nbsp;list_to_map&nbsp;(zip&nbsp;(map&nbsp;(λ&nbsp;a&nbsp;:&nbsp;Addr,&nbsp;(a,&nbsp;v))&nbsp;la')&nbsp;lws))&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;Hmem'_be_next&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;last&nbsp;(by&nbsp;eapply&nbsp;update_logical_memory_region_disjoint).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert_difference&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hrange'</span></span> <span class="inlinecode"><span class="id" title="var">Hmem</span></span>"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;first&nbsp;(eapply&nbsp;Hmem'_be_next);&nbsp;iClear&nbsp;"Hmem".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;"HPrange"&nbsp;as&nbsp;"HPrange". *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;"HP"&nbsp;as&nbsp;"HP". *)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls_src"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hrange</span></span> <span class="inlinecode"><span class="id" title="var">HPrange</span></span>")&nbsp;as&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;region_inv_construct;&nbsp;try&nbsp;done.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iExists&nbsp;lws;&nbsp;iSplit&nbsp;;&nbsp;first&nbsp;done;&nbsp;iFrame&nbsp;"∗". *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>")&nbsp;as&nbsp;"_";&nbsp;first&nbsp;(iNext&nbsp;;&nbsp;iExists&nbsp;_&nbsp;;&nbsp;iFrame&nbsp;"∗"). *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;(region_valid_alloc'&nbsp;_&nbsp;b_pc'&nbsp;e_pc'&nbsp;a_pc'&nbsp;(a_pc'::la')&nbsp;(v&nbsp;+1)&nbsp;(lw::lws)&nbsp;p_pc'&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">HPrange</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>&nbsp;<span class="inlinecode"><span class="id" title="var">Hrange'</span></span> <span class="inlinecode"><span class="id" title="var">Ha_next</span></span>")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;"Hinterp_src_next". *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;destruct&nbsp;p_pc'&nbsp;;&nbsp;cbn&nbsp;in&nbsp;*&nbsp;;&nbsp;try&nbsp;congruence;&nbsp;done.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;eapply&nbsp;list_remove_list_region&nbsp;;&nbsp;auto.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iDestruct&nbsp;(big_sepL2_const_sepL_r&nbsp;_&nbsp;lws&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hread_cond</span></span>")&nbsp;as&nbsp;"Hread_P0".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iSplit&nbsp;;&nbsp;last&nbsp;iFrame&nbsp;"Hread_cond".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;Hlen_lws.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(&nbsp;big_sepL2_sep_sepL_r&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hread_cond</span></span> <span class="inlinecode">$<span class="id" title="var">HPrange</span></span>")&nbsp;as&nbsp;"HPs".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepL2_alt&nbsp;with&nbsp;"HPs")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">_</span></span> <span class="inlinecode"><span class="id" title="var">HPs'</span></span>".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iAssert&nbsp;(&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(∀&nbsp;(k&nbsp;:&nbsp;nat)&nbsp;(x0&nbsp;:&nbsp;leibnizO&nbsp;LWord&nbsp;*&nbsp;D),&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;⌜zip&nbsp;lws&nbsp;Ps&nbsp;!!&nbsp;k&nbsp;=&nbsp;Some&nbsp;x0⌝&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→&nbsp;x0.2&nbsp;x0.1&nbsp;∗&nbsp;□&nbsp;(∀&nbsp;lw0&nbsp;:&nbsp;LWord,&nbsp;x0.2&nbsp;lw0&nbsp;-∗&nbsp;fixpoint&nbsp;interp1&nbsp;lw0)&nbsp;-∗&nbsp;interp&nbsp;x0.1)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iIntros&nbsp;(?&nbsp;?&nbsp;?)&nbsp;"<span class="inlinecode"><span class="id" title="var">Ha</span></span> <span class="inlinecode"><span class="id" title="var">Hpa</span></span>";&nbsp;by&nbsp;iDestruct&nbsp;("Hpa"&nbsp;with&nbsp;"Ha")&nbsp;as&nbsp;"?".&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepL_impl&nbsp;_&nbsp;(fun&nbsp;_&nbsp;xy&nbsp;=&gt;&nbsp;interp&nbsp;xy.1)&nbsp;with&nbsp;"HPs'&nbsp;bla"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;as&nbsp;"blaa".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepL2_alt&nbsp;(fun&nbsp;_&nbsp;lw&nbsp;_&nbsp;=&gt;&nbsp;interp&nbsp;lw)&nbsp;lws&nbsp;Ps&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">blaa</span></span>")&nbsp;as&nbsp;"blaaa".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;Hlen_lws.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iSplit.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;iApply&nbsp;"Hread".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;iDestruct&nbsp;(big_sepL2_const_sepL_l&nbsp;(fun&nbsp;_&nbsp;lw&nbsp;=&gt;&nbsp;interp&nbsp;lw)&nbsp;lws&nbsp;Ps&nbsp;with&nbsp;"blaaa")&nbsp;as&nbsp;"<span class="inlinecode">?</span> <span class="inlinecode">?</span>".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iClear&nbsp;"". subst la'. clear -Hlen_Ps Hlen_lws HNoDup_la'. *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;big_sepL2_alt.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iSplit;&nbsp;first&nbsp;(iPureIntro;&nbsp;rewrite&nbsp;/=&nbsp;map_length;&nbsp;lia).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_list_to_map&nbsp;with&nbsp;"Hrange'")&nbsp;as&nbsp;"?"&nbsp;;&nbsp;last&nbsp;iFrame.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;fst_zip.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;NoDup_fmap;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;by&nbsp;intros&nbsp;x&nbsp;y&nbsp;Heq&nbsp;;&nbsp;simplify_eq.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;/logical_region&nbsp;map_length&nbsp;;&nbsp;lia.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;iIntros&nbsp;(r1&nbsp;lw1&nbsp;Hr1&nbsp;Hlw1).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(r1&nbsp;=&nbsp;dst))&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|<span class="id" title="var">Hr1_dst</span></span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq;&nbsp;first&nbsp;(rewrite&nbsp;!fixpoint_interp1_eq&nbsp;//=).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;"Hreg";&nbsp;eauto.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;//=&nbsp;;&nbsp;destruct&nbsp;p_pc';&nbsp;destruct&nbsp;Hp&nbsp;;&nbsp;done.&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;-&nbsp;pose&nbsp;proof&nbsp;(Hsome&nbsp;src)&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">wsrc</span></span> <span class="inlinecode"><span class="id" title="var">Hlregs_src</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;rewrite&nbsp;/read_reg_inr&nbsp;in&nbsp;HVsrc;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(is_lcap&nbsp;wsrc))&nbsp;as&nbsp;<span class="inlinecode"><span class="id" title="var">Hcap</span>|<span class="id" title="var">Hcap</span></span>;&nbsp;cycle&nbsp;1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;wsrc&nbsp;in&nbsp;not&nbsp;a&nbsp;lcap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct_lword&nbsp;wsrc&nbsp;;&nbsp;cbn&nbsp;in&nbsp;HVsrc;&nbsp;try&nbsp;done.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;rewrite&nbsp;memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iApply&nbsp;(wp_isunique&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">Ha</span></span>")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="tactic">by</span></span> <span class="inlinecode"><span class="id" title="var">simplify_map_eq</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;rewrite&nbsp;/subseteq&nbsp;/map_subseteq&nbsp;/set_subseteq_instance&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;intros&nbsp;rr&nbsp;_;&nbsp;apply&nbsp;elem_of_dom;&nbsp;rewrite&nbsp;lookup_insert_is_Some';&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;by&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|].&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;try&nbsp;done.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iNext;&nbsp;iIntros&nbsp;(lregs'&nbsp;lmem'&nbsp;retv)&nbsp;"(*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;inversion&nbsp;Hspec&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode">|</span> <span class="inlinecode">|</span> <span class="inlinecode">|</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Hfail</span></span>;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;try&nbsp;(rewrite&nbsp;H0&nbsp;in&nbsp;Hlregs_src;&nbsp;simplify_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iNext;&nbsp;iIntros&nbsp;"_";&nbsp;iApply&nbsp;wp_value;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all:&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;iAssert&nbsp;(interp&nbsp;wsrc)&nbsp;as&nbsp;"Hinterp_src" ; first (iApply "Hreg"; eauto). *)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;wsrc&nbsp;is&nbsp;a&nbsp;lcap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;destruct&nbsp;(is_sealed&nbsp;wsrc)&nbsp;eqn:His_sealed.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;+&nbsp;<span class="comment">(*&nbsp;wsrc&nbsp;is&nbsp;either&nbsp;E-cap&nbsp;or&nbsp;sealed&nbsp;cap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_isunique&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">Ha</span></span>")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="tactic">by</span></span> <span class="inlinecode"><span class="id" title="var">simplify_map_eq</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;rewrite&nbsp;/subseteq&nbsp;/map_subseteq&nbsp;/set_subseteq_instance&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;intros&nbsp;rr&nbsp;_;&nbsp;apply&nbsp;elem_of_dom;&nbsp;rewrite&nbsp;lookup_insert_is_Some';&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;by&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|].&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;(lregs'&nbsp;lmem'&nbsp;retv)&nbsp;"(*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inversion&nbsp;Hspec&nbsp;as&nbsp;<span class="inlinecode">|</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Hlwsrc</span></span> <span class="inlinecode"><span class="id" title="var">Hcannot_read</span></span> <span class="inlinecode"><span class="id" title="var">Hunique_regs</span></span> <span class="inlinecode"><span class="id" title="var">Hmem'</span></span> <span class="inlinecode"><span class="id" title="var">Hincr_PC</span></span> <span class="inlinecode">|</span> <span class="inlinecode">|</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;success&nbsp;cap&nbsp;:&nbsp;contradiction&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;H0&nbsp;in&nbsp;Hlregs_src;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;destruct&nbsp;p0&nbsp;;&nbsp;cbn&nbsp;in&nbsp;*&nbsp;;&nbsp;try&nbsp;congruence.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;success&nbsp;is_sealed&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn&nbsp;in&nbsp;*;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;false*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn&nbsp;in&nbsp;*;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;<span class="comment">(*&nbsp;Fail&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_";&nbsp;iApply&nbsp;wp_value;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;+&nbsp;<span class="comment">(*&nbsp;wsrc&nbsp;is&nbsp;an&nbsp;actual&nbsp;capability,&nbsp;with&nbsp;at&nbsp;least&nbsp;read&nbsp;permission&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct_lword&nbsp;wsrc&nbsp;;&nbsp;simplify_eq&nbsp;;&nbsp;clear&nbsp;Hcap.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(readAllowed&nbsp;p0)&nbsp;eqn:Hread;&nbsp;cycle&nbsp;1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;Case&nbsp;O-cap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;p0&nbsp;eqn:Hp0&nbsp;;&nbsp;cbn&nbsp;in&nbsp;His_sealed,&nbsp;Hread&nbsp;;&nbsp;try&nbsp;congruence.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_isunique&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">Ha</span></span>")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="tactic">by</span></span> <span class="inlinecode"><span class="id" title="var">simplify_map_eq</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;rewrite&nbsp;/subseteq&nbsp;/map_subseteq&nbsp;/set_subseteq_instance&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;intros&nbsp;rr&nbsp;_;&nbsp;apply&nbsp;elem_of_dom;&nbsp;rewrite&nbsp;lookup_insert_is_Some';&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;by&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|].&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;(lregs'&nbsp;lmem'&nbsp;retv)&nbsp;"(*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inversion&nbsp;Hspec&nbsp;as&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"></span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Hlwsrc'</span></span> <span class="inlinecode"><span class="id" title="var">Hp_neq_E</span></span> <span class="inlinecode"><span class="id" title="var">Hupd</span></span> <span class="inlinecode"><span class="id" title="var">Hunique_regs</span></span> <span class="inlinecode"><span class="id" title="var">Hincr_PC</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;Hlwsrc&nbsp;Hnot_sealed&nbsp;Hunique_regs&nbsp;Hmem'&nbsp;Hincr_PC&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;Hlwsrc&nbsp;Hlwsrc'&nbsp;Hmem'&nbsp;Hincr_PC&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;?&nbsp;Hfail]&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;try&nbsp;(rewrite&nbsp;Hlregs_src&nbsp;in&nbsp;Hlwsrc&nbsp;;&nbsp;simplify_eq)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;cycle&nbsp;1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;false*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn&nbsp;in&nbsp;*;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;<span class="comment">(*&nbsp;Fail&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_";&nbsp;iApply&nbsp;wp_value;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;true&nbsp;cap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Hupd&nbsp;as&nbsp;(lm&nbsp;&amp;&nbsp;Hlm_incl&nbsp;&amp;&nbsp;Hvalid).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(&nbsp;lmem'&nbsp;!!&nbsp;(a,&nbsp;v)&nbsp;=&nbsp;Some&nbsp;lw&nbsp;)&nbsp;as&nbsp;Hmem'_pca.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eapply&nbsp;is_valid_updated_lmemory_preserves_lmem;&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;finz_seq_between_NoDup.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-(insert_id&nbsp;lmem'&nbsp;(a,v)&nbsp;lw).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(big_sepM_insert_delete&nbsp;with&nbsp;"Hmem")&nbsp;as&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">_</span></span>".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;2&nbsp;(rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//)&nbsp;;&nbsp;rewrite&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;"<span class="inlinecode">%</span>&nbsp;<span class="inlinecode"></span>&nbsp;<span class="inlinecode"><span class="id" title="var">Hmap</span></span>&nbsp;<span class="inlinecode">$<span class="id" title="var">Hown</span></span>");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst))&nbsp;;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;first&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;src))&nbsp;;&nbsp;rewrite&nbsp;Hlwsrc'&nbsp;in&nbsp;Hlregs_src&nbsp;;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;first&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;done.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;clear&nbsp;His_sealed.&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(NoDup&nbsp;(finz.seq_between&nbsp;b0&nbsp;e0))&nbsp;as&nbsp;HNoDup_range&nbsp;by&nbsp;apply&nbsp;finz_seq_between_NoDup.&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(a&nbsp;∈&nbsp;finz.seq_between&nbsp;b0&nbsp;e0))&nbsp;as&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="var">Ha_in_src</span></span> <span class="inlinecode">|</span> <span class="inlinecode"><span class="id" title="var">Ha_notin_src</span></span> <span class="inlinecode"></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;<span class="comment">(*&nbsp;There's&nbsp;no&nbsp;need&nbsp;to&nbsp;open&nbsp;the&nbsp;invariant&nbsp;of&nbsp;the&nbsp;region,&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;because&nbsp;we&nbsp;know&nbsp;that&nbsp;pc&nbsp;and&nbsp;src&nbsp;overlap&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;(wp_isunique&nbsp;with&nbsp;"<span class="inlinecode">$<span class="id" title="var">Hmap</span></span> <span class="inlinecode">$<span class="id" title="var">Ha</span></span>")&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;<span class="inlinecode"></span> <span class="inlinecode"><span class="id" title="tactic">by</span></span> <span class="inlinecode"><span class="id" title="var">simplify_map_eq</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;rewrite&nbsp;/subseteq&nbsp;/map_subseteq&nbsp;/set_subseteq_instance&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;intros&nbsp;rr&nbsp;_;&nbsp;apply&nbsp;elem_of_dom;&nbsp;rewrite&nbsp;lookup_insert_is_Some';&nbsp;eauto&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;by&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|].&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;(lregs'&nbsp;lmem'&nbsp;retv)&nbsp;"(*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inversion&nbsp;Hspec&nbsp;as&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"></span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode">?</span> <span class="inlinecode"><span class="id" title="var">Hlwsrc'</span></span> <span class="inlinecode"><span class="id" title="var">Hp_neq_E</span></span> <span class="inlinecode"><span class="id" title="var">Hupd</span></span> <span class="inlinecode"><span class="id" title="var">Hunique_regs</span></span> <span class="inlinecode"><span class="id" title="var">Hincr_PC</span></span> <span class="inlinecode"></span>*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;Hlwsrc&nbsp;Hnot_sealed&nbsp;Hunique_regs&nbsp;Hmem'&nbsp;Hincr_PC&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;?&nbsp;Hlwsrc&nbsp;Hlwsrc'&nbsp;Hmem'&nbsp;Hincr_PC&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;?&nbsp;?&nbsp;Hfail]&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;simplify_map_eq&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;try&nbsp;(rewrite&nbsp;Hlregs_src&nbsp;in&nbsp;Hlwsrc'&nbsp;;&nbsp;simplify_eq)&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;try&nbsp;(rewrite&nbsp;Hlregs_src&nbsp;in&nbsp;Hlwsrc&nbsp;;&nbsp;simplify_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;true&nbsp;cap&nbsp;:&nbsp;contradiction&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exfalso.&nbsp;clear&nbsp;-Hunique_regs&nbsp;Ha_in_src&nbsp;Hsrc_neq_pc&nbsp;Hbae.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;map_Forall_insert_1_1&nbsp;in&nbsp;Hunique_regs.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;decide_False&nbsp;//=&nbsp;in&nbsp;Hunique_regs.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;Hunique_regs.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;elem_of_finz_seq_between&nbsp;in&nbsp;Ha_in_src.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;Ha_in_src;&nbsp;cbn.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(b1&nbsp;&lt;?&nbsp;b)*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;true&nbsp;is_sealed&nbsp;:&nbsp;contradiction&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exfalso.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;clear&nbsp;-Hread&nbsp;Hnot_sealed.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;destruct&nbsp;p0&nbsp;;&nbsp;cbn&nbsp;in&nbsp;*.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;<span class="comment">(*&nbsp;case&nbsp;sweep&nbsp;false*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cbn&nbsp;in&nbsp;*;&nbsp;simplify_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_".&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;incrementLPC_inv;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(dst&nbsp;≠&nbsp;PC)&nbsp;as&nbsp;Hdst_pc&nbsp;by&nbsp;(intro&nbsp;;&nbsp;simplify_map_eq).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;(insert_commute&nbsp;_&nbsp;_&nbsp;PC)&nbsp;//&nbsp;insert_insert.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;("IH"&nbsp;Hown]");&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;intro;&nbsp;by&nbsp;repeat&nbsp;(rewrite&nbsp;lookup_insert_is_Some';&nbsp;right).&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros&nbsp;(ri&nbsp;?&nbsp;Hri&nbsp;Hvs).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destruct&nbsp;(decide&nbsp;(ri&nbsp;=&nbsp;dst));&nbsp;simplify_map_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;rewrite&nbsp;!fixpoint_interp1_eq.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;("Hreg"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iModIntro.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;!fixpoint_interp1_eq&nbsp;/=;&nbsp;destruct&nbsp;Hp&nbsp;as&nbsp;<span class="inlinecode">-&gt;</span> <span class="inlinecode">|</span> <span class="inlinecode">-&gt;</span>;&nbsp;iFrame&nbsp;"Hinv";&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;<span class="comment">(*&nbsp;case&nbsp;fail&nbsp;*)</span>&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rewrite&nbsp;-memMap_resource_1.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;("Hcls"&nbsp;with&nbsp;"<span class="inlinecode"><span class="id" title="var">Hmem</span></span> <span class="inlinecode"><span class="id" title="var">HP</span></span>");<span class="inlinecode"><span class="id" title="var">iExists</span></span> <span class="inlinecode"><span class="id" title="var">lw</span>;<span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iApply&nbsp;wp_pure_step_later;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iNext;&nbsp;iIntros&nbsp;"_";&nbsp;iApply&nbsp;wp_value;&nbsp;auto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iIntros;&nbsp;discriminate.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;<span class="comment">(*&nbsp;src&nbsp;≠&nbsp;PC&nbsp;*)</span>&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(readAllowed&nbsp;p)&nbsp;as&nbsp;Hread_p&nbsp;by&nbsp;(destruct&nbsp;p&nbsp;;&nbsp;destruct&nbsp;Hp&nbsp;;&nbsp;done).&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iDestruct&nbsp;(interp_open_region&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;(Ps)&nbsp;"<span class="inlinecode">%<span class="id" title="var">Hlen_Ps</span></span> <span class="inlinecode"><span class="id" title="var">Hmod</span></span>";&nbsp;eauto.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;apply&nbsp;Forall_forall;&nbsp;intros&nbsp;a'&nbsp;Ha'.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert&nbsp;(a'&nbsp;≠&nbsp;a)&nbsp;by&nbsp;set_solver.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apply&nbsp;namespaces.coPset_subseteq_difference_r;&nbsp;<span class="inlinecode"><span class="id" title="var">solve_ndisj</span>|<span class="id" title="var">set_solver</span></span>.&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;*)</span><br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMod&nbsp;"Hmod"&nbsp;*)</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;(lws)&nbsp;"(Hpers&nbsp;&amp;&nbsp;Hrange&nbsp;&amp;&nbsp;HPrange&nbsp;&amp;&nbsp;Hread_cond & Hcls_src)" *)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;; <span class="id" title="tactic">eauto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="tactic">intro</span>; <span class="id" title="tactic">by</span> <span class="id" title="tactic">repeat</span> (<span class="id" title="tactic">rewrite</span> <span class="id" title="lemma">lookup_insert_is_Some'</span>; <span class="id" title="tactic">right</span>). }<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">iIntros</span> (<span class="id" title="var">r1</span> <span class="id" title="var">lw1</span> <span class="id" title="var">Hr1</span> <span class="id" title="var">Hlw1</span>).<br/>
