@@ -444,7 +444,7 @@ Section cap_lang_rules.
   Lemma state_interp_corr {σ lregs} {lmem : LMemF} :
     state_interp_with_res σ lregs lmem ⊢
       ⌜ ∃ lreg_t lmem_t cur_map,
-         lregs ⊆ lreg_t /\ (snd <$> lmem) ⊆ lmem_t /\ 
+         lregs ⊆ lreg_t /\ (snd <$> lmem) ⊆ lmem_t /\
         state_phys_log_corresponds σ.(reg) σ.(mem) lreg_t lmem_t cur_map ⌝.
   Proof.
     iIntros "(Hσ & Hregs & Hmem)".
@@ -461,7 +461,7 @@ Section cap_lang_rules.
   Qed.
 
   Lemma state_interp_transient_intro {φ : ExecConf} {lr : LReg} {lm : LMemF} :
-    state_interp_with_res φ lr lm 
+    state_interp_with_res φ lr lm
                 ⊢ state_interp_transient φ φ lr lr lm lm.
   Proof. iIntros. now iApply transiently_intro. Qed.
 
@@ -1053,8 +1053,6 @@ Definition regs_of (i: instr): gset RegName :=
   | EInit r => {[r]}
   | EDeInit r => {[r]}
   | EStoreId rs rd => {[rs; rd]}
-  (* TODO @June add hash instructions *)
-
   | _ => ∅
   end.
 
@@ -1240,40 +1238,6 @@ Definition incrementLPC (regs: LReg) : option LReg :=
   | _ => None
   end.
 
-(* Lemma incrementLPC_incrementPC_some regs regs' : *)
-(*   incrementLPC regs = Some regs' -> *)
-(*   incrementPC (lreg_strip regs) = Some (lreg_strip regs'). *)
-(* Proof. *)
-(*   rewrite /incrementPC /incrementLPC. *)
-(*   intros Hlpc. *)
-(*   rewrite /lreg_strip lookup_fmap; cbn. *)
-(*   destruct (regs !! PC) as [lw|] eqn:Heq ; rewrite Heq; cbn in *; last done. *)
-(*   destruct_lword lw; cbn in *; try done. *)
-(*   destruct (a + 1)%a; last done. *)
-(*   simplify_eq. *)
-(*   by rewrite fmap_insert. *)
-(* Qed. *)
-
-(* Lemma incrementLPC_incrementPC_none regs : *)
-(*   incrementLPC regs = None <-> incrementPC (lreg_strip regs) = None. *)
-(* Proof. *)
-(*   intros. *)
-(*   rewrite /incrementPC /incrementLPC. *)
-(*   rewrite /lreg_strip lookup_fmap; cbn. *)
-(*   destruct (regs !! PC) as [LX|] eqn:Heq ; rewrite Heq; cbn; last done. *)
-(*   destruct LX ; cbn ; [(clear; firstorder) | | (clear; firstorder)]. *)
-(*   destruct sb as [? ? ? a' | ] ; eauto; cbn; last done. *)
-(*   destruct (a' + 1)%a eqn:Heq'; done. *)
-(* Qed. *)
-
-(* Lemma incrementLPC_fail_updatePC regs m etbl ecur: *)
-(*   incrementLPC regs = None -> *)
-(*   updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} = None. *)
-(* Proof. *)
-(*   intro Hincr. apply incrementLPC_incrementPC_none in Hincr. *)
-(*   by apply incrementPC_fail_updatePC. *)
-(* Qed. *)
-
 Lemma incrementLPC_Some_inv lregs lregs' :
   incrementLPC lregs = Some lregs' ->
   exists p b e a v a',
@@ -1297,33 +1261,6 @@ Proof.
   destruct (lregs !! PC) as [ [ | [? ? ? u ? | ] | ] |]; try congruence.
   case_eq (u+1)%a; congruence.
 Qed.
-
-(* Lemma incrementLPC_success_updatePC regs m etbl ecur regs' : *)
-(*   incrementLPC regs = Some regs' -> *)
-(*   ∃ p b e a a' (v : Version), *)
-(*     regs !! PC = Some (LCap p b e a v) ∧ *)
-(*       (a + 1)%a = Some a' ∧ *)
-(*       updatePC {| reg := (lreg_strip regs); mem := m; etable := etbl ; enumcur := ecur |} = *)
-(*         Some (NextI, *)
-(*             {| reg := (<[PC:=WCap p b e a']> (lreg_strip regs)); *)
-(*               mem := m; *)
-(*               etable := etbl ; *)
-(*               enumcur := ecur |}) *)
-(*     ∧ regs' = <[ PC := (LCap p b e a' v) ]> regs. *)
-(* Proof. *)
-(*   intro Hincr. *)
-(*   opose proof (incrementLPC_incrementPC_some _ _ Hincr) as HincrPC. *)
-(*   eapply (incrementPC_success_updatePC _ m etbl ecur) in HincrPC. *)
-(*   destruct HincrPC as (p'&b'&e'&a''&a'''&Hregs&Heq&Hupd&Hregseq). *)
-(*   rewrite /incrementLPC in Hincr. *)
-(*   destruct (regs !! PC) as [wpc |]; last done. *)
-(*   destruct_lword wpc; try done. *)
-(*   destruct (a + 1)%a as [a'|] eqn:Heq'; last done; simplify_eq. *)
-(*   rewrite /lreg_strip fmap_insert //= -/(lreg_strip regs)  in Hregseq. *)
-(*   exists p, b, e, a, a', v. *)
-(*   repeat (split; try done). *)
-(*   by rewrite Hupd Hregseq. *)
-(* Qed. *)
 
 Ltac incrementLPC_inv :=
   match goal with
@@ -1730,7 +1667,7 @@ Section cap_lang_rules_opt.
     destruct src; cbn.
     - destruct (z_to_addr z); cbn; by iApply "Hk".
     - change (wp_opt2 _ _ _ _) with
-        (wp_opt2 
+        (wp_opt2
            ((lrt !! r ≫= fun y => match y with | LInt z => Some z | _ => None end)
               ≫= (λ n : Z, z_to_addr n))
           ((reg φt !! r ≫= fun y => match y with | WInt z => Some z | _ => None end)
@@ -1755,7 +1692,7 @@ Section cap_lang_rules_opt.
     destruct src; cbn.
     - destruct (z_to_otype z); cbn; by iApply "Hk".
     - change (wp_opt2 _ _ _ _) with
-        (wp_opt2 
+        (wp_opt2
            ((lrt !! r ≫= fun y => match y with | LInt z => Some z | _ => None end)
               ≫= (λ n : Z, z_to_otype n))
           ((reg φt !! r ≫= fun y => match y with | WInt z => Some z | _ => None end)
@@ -2039,54 +1976,6 @@ Qed.
     apply (map_Forall_lookup_1 _ _ _ _ Hcurregs Hreg).
   Qed.
 
-  (* Lemma updatePC_impl {φ} : *)
-  (*   updatePC φ = (reg' ← incrementPC (reg φ); Some (NextI , update_regs φ reg')). *)
-  (* Proof. *)
-  (*   unfold updatePC, incrementPC. *)
-  (*   destruct (reg φ !! PC); last done. *)
-  (*   destruct w; try done.  *)
-  (*   destruct sb; try done. *)
-  (*   now destruct (f1 + 1)%a. *)
-  (* Qed. *)
-
-  (* Lemma wp_opt_incrementPC {φ φt lr lrt Φs Φf} : *)
-  (*   PC ∈ dom lrt -> *)
-  (*   state_interp_regs_transient φ φt lr lrt ∗ *)
-  (*   (wp_opt (incrementLPC lrt) (∀ φt' lrt', state_interp_regs_transient φ φt' lr lrt' -∗ Φf) *)
-  (*      (fun lrt' => ∀ φt', state_interp_regs_transient φ φt' lr lrt' -∗ Φs (reg φt'))) *)
-  (*   ⊢ wp_opt (incrementPC (reg φt)) Φf Φs. *)
-  (* Proof. *)
-  (*   iIntros (Hdom) "(Hφr & Hk)". *)
-  (*   iApply wp_opt_bind. *)
-  (*   unfold incrementLPC, incrementPC. *)
-  (*   change (wp_opt match lrt !! PC with *)
-  (*             | Some (LCap p b e a v) => match (a + 1)%a with *)
-  (*                                       | Some a' => Some (<[PC:=LCap p b e a' v]> lrt) *)
-  (*                                       | None => None *)
-  (*                                       end *)
-  (*             | _ => None *)
-  (*             end ?Φf ?Φs) with (wp_opt ((lrt !! PC) ≫= (fun w => match w with *)
-  (*                                                   | (LCap p b e a v) => match (a + 1)%a with *)
-  (*                                                                             | Some a' => Some (<[PC:=LCap p b e a' v]> lrt) *)
-  (*                                                                             | None => None *)
-  (*                                                                             end *)
-  (*                                                   | _ => None *)
-  (*                                                   end) ) Φf Φs). *)
-  (*   rewrite <-wp_opt_bind. *)
-  (*   iApply ((wp_reg_lookup lrt (r := PC) (φt := φt)) with "[$Hφr Hk]"). *)
-  (*   iApply wp_opt_eqn. *)
-  (*   rewrite wp_opt_is_Some; last by apply elem_of_dom. *)
-  (*   iApply (wp_opt_mono with "[$Hk]"). *)
-  (*   iIntros (x) "Hk %Hltrpceqn Hφr". *)
-  (*   destruct x eqn:Heqx; try (now iApply "Hk"); cbn. *)
-  (*   destruct sb; try (now iApply "Hk"); cbn. *)
-  (*   destruct (f1 + 1)%a; try (now iApply "Hk"); cbn. *)
-  (*   iApply ("Hk" $! (update_reg φt PC (WCap p f f0 f2)) with "[Hφr]"). *)
-  (*   iApply (update_state_interp_transient_from_regs_mod Hdom with "Hφr"). *)
-  (*   intros cur_map Hcurregs. *)
-  (*   by eapply is_cur_word_cap_change, (map_Forall_lookup_1 _ _ _ _ Hcurregs). *)
-  (* Qed. *)
-
   Lemma wp2_opt_incrementPC2 {lregs σr σm lmem vmap lrt} :
     PC ∈ dom lrt ->
     lrt ⊆ lregs ->
@@ -2114,7 +2003,7 @@ Qed.
     refine (is_cur_regs_mono Hlrt _ PC _ _); last easy.
     now destruct Hcorr as [[_ Hcurregs] _].
   Qed.
-  
+
   Lemma wp2_opt_incrementPC {φ φt lr lrt lm lmt Φs Φf} :
     PC ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt ∗
@@ -2145,5 +2034,34 @@ Qed.
     by eapply (map_Forall_lookup_1 _ _ _ _ Hcurregs).
   Qed.
 
+  Lemma wp2_get_wcap_scap {Φf : iProp Σ} {w Φs} :
+         Φf ∧ (∀ p b e a v, Φs (p, b, e, a, v) (p, b, e, a))
+      ⊢ wp_opt2 (get_wlcap_slcap w) (get_wcap_scap (lword_get_word w)) Φf Φs.
+  Proof.
+    iIntros "HΦ".
+    destruct w as [ | [ | ] | [] [ | ] ]; cbn.
+    all: try now rewrite bi.and_elim_l.
+    all: try now rewrite bi.and_elim_r.
+  Qed.
+
+  Lemma state_interp_transient_unique_in_lregs
+    {σ σt lreg lrt lmemf lmt src lwsrc}:
+    sweep_reg (mem σ) (reg σ) src = true ->
+    lreg !! src = Some lwsrc ->
+    state_interp_transient σ σt lreg lrt lmemf lmt ⊢
+    ⌜ unique_in_registersL lreg (Some src) lwsrc ⌝.
+  Proof.
+    iIntros (Hsweep Hsrc) "Hσrm".
+    iDestruct (transiently_abort with "Hσrm") as "(Hσ & Hregs & Hmem)".
+    iDestruct "Hσ" as (lr lm vmap cur_tb prev_tb all_tb) "(Hr & Hm & %Hcurtbeq & Hcurtb & Hprevtb & Halltb & Hecauth & %Hcurprevdisj & %Hcompl & %Hcurprevdisj2 & %Hcompl2 & %HLinv)"; simpl in HLinv.
+    iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
+    iPureIntro.
+    eapply unique_in_registersL_mono; first done.
+    eapply lookup_weaken in Hsrc; eauto.
+    eapply state_corresponds_unique_in_registers; eauto.
+    eapply (sweep_reg_spec _ _ _ _ Hsweep) ; cbn.
+    eapply state_corresponds_reg_get_word; eauto.
+    eapply state_corresponds_reg_get_word; eauto.
+  Qed.
 
 End cap_lang_rules_opt.

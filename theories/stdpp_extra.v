@@ -1540,6 +1540,15 @@ Qed.
 Lemma not_or {P Q : Prop} : ¬(P \/ Q) ↔ ¬P /\ ¬Q.
 Proof. tauto. Qed.
 
+Lemma snd_fmap_pair_inv {K V1 V2} `{Countable K} (m : gmap K V1) (v2 : V2) :
+  (snd <$> ((λ v : V1, (v2, v)) <$> m)) = m.
+Proof.
+  induction m using map_ind.
+  - by rewrite !fmap_empty.
+  - by rewrite !fmap_insert /= IHm.
+Qed.
+
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

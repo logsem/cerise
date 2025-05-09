@@ -426,16 +426,16 @@ Section logrel.
         try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hiff)"; [eauto|iExists P;iSplit;eauto]).
   Qed.
 
-  Lemma read_allowed_not_reserved (a b e: Addr) v p :
-    p ≠ E -> p ≠ O ->
+  Lemma readAllowed_not_reserved (a b e: Addr) v p :
+    readAllowed p = true ->
     ⊢ interp (LCap p b e a v) -∗ ⌜ finz.seq_between b e ## reserved_addresses ⌝.
   Proof.
-    iIntros (HpnE HpnO) "#Hinterp".
+    iIntros (HreadAllowed) "#Hinterp".
     rewrite fixpoint_interp1_eq /=; cbn.
     destruct p eqn:Hp; try contradiction;
       try (iDestruct (extract_from_region_inv with "Hinterp") as (Hreserved P) "(Hinv & Hpers & Hread & Hwrite)"
            ; [eauto|iExists P;eauto]).
-    (* all: assert (readAllowed p *)
+    all: cbn in HreadAllowed; try done.
     all: iDestruct (big_sepL_sep with "Hinterp") as "[%Hreserved _]"; iPureIntro.
     all: intros a' Ha'.
     all: rewrite elem_of_list_lookup in Ha'; destruct Ha' as [? ?].
