@@ -691,7 +691,11 @@ Section logrel.
       iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
-      { iPureIntro. admit. (* TODO easy, just permutation *) }
+      { iPureIntro.
+        intros x Hx Hx' ; eapply Hreserved ; eauto.
+        rewrite !elem_of_app !elem_of_cons in Hx |- *.
+        naive_solver.
+      }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
@@ -726,7 +730,11 @@ Section logrel.
       iMod ("IH" $! (a :: l1) with "[] [] [] [] [] [] [Hl2]") as "HH";auto.
       { iPureIntro. simpl. rewrite Permutation_middle. auto. }
       { iPureIntro. apply NoDup_cons;auto. }
-      { iPureIntro. admit. (* TODO easy, permutation *) }
+      { iPureIntro.
+        intros x Hx Hx' ; eapply Hreserved ; eauto.
+        rewrite !elem_of_app !elem_of_cons in Hx |- *.
+        naive_solver.
+      }
       { iSimpl. iFrame "#". }
       { iApply (big_sepL_mono with "Hl2"). iIntros (k x Hx) "Hc".
         iDestruct "Hc" as (w) "[Hx [Hw|%Hw]]";iExists _;iFrame;[iLeft;auto|].
@@ -752,7 +760,7 @@ Section logrel.
           [iDestruct (big_sepL_elem_of with "Hl1v") as "?";eauto|iFrame "#"|
             iDestruct (big_sepL_elem_of with "Hl2v") as "?";eauto].
       Unshelve. all: apply _.
-  Admitted.
+  Qed.
 
   Lemma region_valid_in_region E (b e a: Addr) v l p  :
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
@@ -785,10 +793,10 @@ Section logrel.
     { rewrite list_to_set_nil compute_mask_id app_nil_l. iMod "HH".
       iModIntro.
       iApply fixpoint_interp1_eq. destruct p;try done.
-      (* all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl"; *)
-      (*   try iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. } *)
-  (* Qed. *)
-  Admitted.
+      all: iApply (big_sepL_mono with "HH");iIntros (k y Hy) "Hl".
+      all: iSplit; [iPureIntro ; intro Hy'; eapply Hreserved ; eauto; rewrite elem_of_list_lookup ; naive_solver|].
+      all: iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. }
+  Qed.
 
   (* Given all Otypes between b and e, we have the predicated associated that makes it
   safe to share, then we can conclude the range is also safe to share *)
