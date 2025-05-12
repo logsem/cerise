@@ -583,7 +583,7 @@ Section cap_lang_rules.
     rewrite -/(logical_range_map b e lws v).
     iDestruct "Hspec" as %Hspec.
     destruct Hspec as
-      [ ? ? ? ? ? ? Hlwsrc' HreadAllowedP Hupd Hnotres Hunique_regs Hincr_PC
+      [ ? ? ? ? ? ? Hlwsrc' HreadAllowedP Hvalid Hnotres Hunique_regs Hincr_PC
       | ? Hlwsrc Hnot_sealed Hmem' Hunique_regs Hincr_PC
       | ? ? ? ? ? ? Hlwsrc Hlwsrc' Hmem' Hincr_PC
       | ? ? Hfail]
@@ -612,62 +612,70 @@ Section cap_lang_rules.
 
       (* Registers *)
       rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
-      (* iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"]. *)
-      (* iClear "Hrmap". *)
-      (* iFrame. *)
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
       (* destruct Hupd as ( lm & Hlm_incl & Hvalid ). *)
 
-      (* assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca *)
-      (*     by (eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq). *)
+      assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca
+          by (eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto; by simplify_map_eq).
 
-      (* assert ( logical_range_map b0 e0 lws v0 ⊆ mem' ) *)
-      (*   as Hmem'_be. *)
-      (* { *)
-      (*   eapply is_valid_updated_lmemory_lmem_incl with (glmem := lm); eauto. *)
-      (*   (* destruct Hvalid as (Hupd&_&?). *) *)
-      (*   (* eapply is_valid_updated_lmemory_insert; eauto. *) *)
-      (*   admit. *)
-      (*   (* eapply logical_range_notin; eauto. *) *)
-      (*   (* eapply Forall_forall; intros a Ha. *) *)
-      (*   (* eapply logical_range_version_neq; eauto; lia. *) *)
-      (* } *)
-      (* assert *)
-      (*   (logical_range_map b0 e0 lws (v0 + 1) ⊆ mem') *)
-      (*   as Hmem'_be_next. *)
-      (* { clear -Hlm_incl Hvalid Hpca_notin Hlen_lws. *)
-      (*   (* TODO extract as a lemma *) *)
-      (*   eapply map_subseteq_spec; intros [a' v'] lw' Hlw'. *)
-      (*   assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be] *)
-      (*       by (eapply logical_range_map_some_inv; eauto) ; simplify_eq. *)
-      (*   (* erewrite logical_range_map_lookup_versions with (v':=v0) in Hlw'; eauto. *) *)
-      (*   (* rewrite /logical_range_map in Hlw'. *) *)
-      (*   admit. *)
-      (*   (* rewrite update_version_region_preserves_lmem_next; eauto. *) *)
-      (*   (* eapply lookup_weaken. ; last eauto. *) *)
-      (*   (* all: rewrite lookup_insert_ne //=; last (intro ; set_solver). *) *)
-      (*   (* eapply logical_range_version_neq; eauto; lia. *) *)
-      (* } *)
+      assert ( logical_range_map b0 e0 lws v0 ⊆ mem' )
+        as Hmem'_be.
+      {
+        eapply is_valid_updated_lmemory_lmem_incl with (glmem := glmem); eauto.
+        (* destruct Hvalid as (Hupd&_&?). *)
+        eapply is_valid_updated_lmemory_insert; eauto.
+        eapply logical_range_notin; eauto.
+        eapply Forall_forall; intros a Ha.
+        eapply logical_range_version_neq; eauto; lia.
+      }
+      assert
+        (logical_range_map b0 e0 lws (v0 + 1) ⊆ mem')
+        as Hmem'_be_next.
+      { clear -Hvalid Hpca_notin Hlen_lws reservedaddresses.
+        (* TODO extract as a lemma *)
+        eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
+        assert (v' = v0+1 /\ (a' ∈ (finz.seq_between b0 e0))) as [? Ha'_in_be]
+            by (eapply logical_range_map_some_inv; eauto) ; simplify_eq.
+        erewrite logical_range_map_lookup_versions with (v':=v0) in Hlw'; eauto.
+        rewrite /logical_range_map in Hlw'.
+        (* admit. *)
+        destruct Hvalid as ( Hvalid & Hincl & ? & ? ).
+        opose proof
+          (update_version_region_preserves_lmem_next
+             glmem
+             (<[(pc_a, pc_v):=lw]> (logical_range_map b0 e0 lws v0))
+             (finz.seq_between b0 e0) a' v0 _ Ha'_in_be _) as Hglmem; first apply finz_seq_between_NoDup.
+        {
+          rewrite Forall_forall in H.
+          by specialize (H a' Ha'_in_be).
+        }
+        eapply lookup_weaken ; last eauto.
+        rewrite Hglmem.
+        eapply lookup_weaken ; last eauto.
+        all: rewrite lookup_insert_ne //=; last (intro ; set_solver).
+      }
 
-      (* rewrite -(insert_id mem' (pc_a, pc_v) lw); auto. *)
-      (* iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame. *)
-      (* eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be *)
-      (* ; last (by eapply logical_region_notin; eauto). *)
-      (* iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]" *)
-      (* ; first (eapply Hmem'_be). *)
-      (* iSplitL "Hrange". *)
-      (* { iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length. } *)
-      (* eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next *)
-      (* ; last (eapply logical_region_notin ; eauto). *)
-      (* eapply delete_subseteq_list_r *)
-      (*   with (m3 := list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws)) *)
-      (*   in Hmem'_be_next *)
-      (* ; eauto *)
-      (* ; last by eapply update_logical_memory_region_disjoint. *)
-      (* iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]" *)
-      (* ; first (eapply Hmem'_be_next); iClear "Hmmap". *)
-      (* iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length. *)
-  (* Qed. *)
-  Admitted.
+      rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
+      iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be
+      ; last (by eapply logical_region_notin; eauto).
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
+      ; first (eapply Hmem'_be).
+      iSplitL "Hrange".
+      { iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length. }
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next
+      ; last (eapply logical_region_notin ; eauto).
+      eapply delete_subseteq_list_r
+        with (m3 := list_to_map (zip (map (λ a : Addr, (a, v0)) (finz.seq_between b0 e0)) lws))
+        in Hmem'_be_next
+      ; eauto
+      ; last by eapply update_logical_memory_region_disjoint.
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
+      ; first (eapply Hmem'_be_next); iClear "Hmmap".
+      iApply big_sepM_to_big_sepL2; last iFrame; eauto; by rewrite map_length.
+  Qed.
 
   Lemma wp_isunique_success'
     (Ep : coPset)
@@ -742,37 +750,39 @@ Section cap_lang_rules.
 
       (* Registers *)
       rewrite /incrementLPC in Hincr_PC; simplify_map_eq.
-      (* iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"]. *)
-      (* iClear "Hrmap". *)
-      (* iFrame. *)
+      iExtractList "Hrmap" [PC; dst; src] as ["HPC"; "Hdst"; "Hsrc"].
+      iClear "Hrmap".
+      iFrame.
       (* destruct Hupd as ( lm & Hlm_incl & Hvalid ). *)
 
-      (* assert ( Hpc_a : pc_a ∉ finz.seq_between b0 e0) *)
-      (*          by (eapply unique_in_registersL_pc_no_overlap; eauto; by simplify_map_eq). *)
-      (* assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca. *)
-      (* { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto ; last by simplify_map_eq. } *)
+      assert ( Hpc_a : pc_a ∉ finz.seq_between b0 e0)
+               by (eapply unique_in_registersL_pc_no_overlap; eauto; by simplify_map_eq).
+      assert ( mem' !! (pc_a, pc_v) = Some lw ) as Hmem'_pca.
+      { eapply is_valid_updated_lmemory_notin_preserves_lmem; eauto ; last by simplify_map_eq. }
 
       (* destruct Hvalid as (Hupd&_&?). *)
-      (* assert ( *)
-      (*     exists lws, *)
-      (*       length lws = length (finz.seq_between b0 e0) /\ *)
-      (*         logical_range_map b0 e0 lws (v0 + 1) ⊆ mem') *)
-      (*   as (lws & Hlen_lws & Hmem'_be_next). *)
-      (* { eapply logical_region_map_inv ; eauto. } *)
+      assert (
+          exists lws,
+            length lws = length (finz.seq_between b0 e0) /\
+              logical_range_map b0 e0 lws (v0 + 1) ⊆ mem')
+        as (lws & Hlen_lws & Hmem'_be_next).
+      { eapply logical_region_map_inv ; eauto.
+        destruct Hupd; naive_solver.
+      }
 
-      (* rewrite -(insert_id mem' (pc_a, pc_v) lw); auto. *)
-      (* iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame. *)
+      rewrite -(insert_id mem' (pc_a, pc_v) lw); auto.
+      iDestruct (big_sepM_insert_delete with "Hmmap") as "[HPC Hmmap]"; iFrame.
 
-      (* eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next *)
-      (* ; eauto *)
-      (* ; last (eapply logical_region_notin; eauto). *)
-      (* iExists lws. *)
+      eapply delete_subseteq_r with (k := ((pc_a, pc_v) : LAddr)) in Hmem'_be_next
+      ; eauto
+      ; last (eapply logical_region_notin; eauto).
+      iExists lws.
 
-      (* iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]" *)
-      (* ; first (eapply Hmem'_be_next); iClear "Hmmap". *)
-      (* iApply big_sepM_to_big_sepL2; last iFrame; eauto. *)
-      (* by rewrite map_length. *)
-  Admitted.
+      iDestruct (big_sepM_insert_difference with "Hmmap") as "[Hrange Hmmap]"
+      ; first (eapply Hmem'_be_next); iClear "Hmmap".
+      iApply big_sepM_to_big_sepL2; last iFrame; eauto.
+      by rewrite map_length.
+  Qed.
 
   (* TODO extend proofmode, which means cases such as:
      dst = PC, src = PC, dst = stc *)

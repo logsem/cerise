@@ -431,18 +431,18 @@ Section fundamental.
     case_decide as Hdecide ; cycle 1.
     - iDestruct "HSweepMem" as "->".
       apply reg_allows_sweep_unique_O in Hdecide; auto ; simplify_eq.
-      all: assert (src ≠ PC)
+      assert (src ≠ PC)
         as Hsrc_ne_pc
              by (intro ; subst
                  ; inversion Hcorrect_pc as [lpc ? ? ? ? Heq HcorrectPC Hlpc]
                  ; inversion HcorrectPC as [? ? ? ? Hbounds Hperm]
                  ; cbn in * ; simplify_map_eq
                  ; by destruct Hperm).
-      all: assert ( lmem' !! (a_pc, v_pc) = Some lw_pc )
+      assert ( lmem' !! (a_pc, v_pc) = Some lw_pc )
         as Hmem'_apc
              by (eapply is_valid_updated_lmemory_preserves_lmem; cycle 1 ; eauto; by simplify_map_eq).
-      all: rewrite -(insert_id lmem' (a_pc,v_pc) lw_pc);auto.
-      all: by iDestruct (big_sepM_insert_delete with "Hmem") as "[Hmem _]"; iFrame.
+      rewrite -(insert_id lmem' (a_pc,v_pc) lw_pc);auto.
+      by iDestruct (big_sepM_insert_delete with "Hmem") as "[Hmem _]"; iFrame.
     - destruct Hdecide as [ [Hsrc_lregs Hread_src] Hvalid_sweep].
       (* TODO @June: is there any part of the proof that is common
          and could be refactored beforehand ? *)
@@ -471,10 +471,11 @@ Section fundamental.
         { eapply is_valid_updated_lmemory_preserves_lmem_next; cycle 1
          ; eauto
          ; last by simplify_map_eq.
-          admit.
-          eapply Forall_forall; intros a' Ha'.
-          rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
-          eapply logical_region_version_neq; eauto ; last lia.
+          + rewrite /is_valid_updated_lmemory /update_version_region in Hvalid_lmem'.
+            destruct Hvalid_lmem' as (?&?&?).
+            eapply Forall_forall; intros a' Ha'.
+            rewrite lookup_insert_ne //=; last (intro ; simplify_eq ; lia).
+            eapply logical_region_version_neq; eauto ; last lia.
         }
 
         assert (logical_region_map la lws v_src !! (a_src, v_src) = None)
@@ -497,16 +498,14 @@ Section fundamental.
           assert (v' = v_src+1 /\ (a' ∈ la))
             as [? Ha'_in_be] by (subst la ; eapply logical_region_map_some_inv; eauto)
           ; simplify_eq.
-          destruct Hvalid_lmem' as [Hupdate_version_region _].
+          destruct Hvalid_lmem' as (Hupdate_version_region & Hgl_llmem & _).
           eapply lookup_weaken; last eapply Hupdate_version_region.
           rewrite update_version_region_preserves_lmem_next; eauto.
-          admit.
-          (* { rewrite lookup_insert_ne. *)
-          (*   erewrite logical_region_map_lookup_versions; eauto. *)
-          (*   clear -Ha'_in_be. *)
-          (*   intro ; simplify_eq. *)
-          (*   apply not_elemof_list_remove_elem in Ha'_in_be ; auto. *)
-          (* } *)
+          {
+            eapply lookup_weaken; eauto.
+            rewrite lookup_insert_ne //=; last (intro ; set_solver).
+            erewrite logical_region_map_lookup_versions; eauto.
+          }
           { eapply elem_of_submseteq; eauto.
             eapply list_remove_elem_submsteq.
           }
@@ -610,11 +609,14 @@ Section fundamental.
           eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
           assert (v' = v_src+1 /\ (a' ∈ (finz.seq_between b_src e_src)))
             as [? Ha'_in_be] by (eapply logical_range_map_some_inv; eauto); simplify_eq.
-          destruct Hvalid_lmem'.
+          destruct Hvalid_lmem' as (?&?&?&?).
           eapply lookup_weaken; last eauto.
           rewrite update_version_region_preserves_lmem_next; eauto.
-          admit.
-          (* erewrite logical_region_map_lookup_versions; eauto. *)
+          {
+            eapply lookup_weaken; eauto.
+            rewrite lookup_insert_ne //=; last (intro ; set_solver).
+            erewrite logical_region_map_lookup_versions; eauto.
+          }
           rewrite lookup_insert_ne //=; last (intro ; set_solver).
           eapply logical_region_version_neq; eauto; lia.
         }
@@ -671,7 +673,7 @@ Section fundamental.
           rewrite fst_zip; first (apply NoDup_logical_region).
           rewrite /logical_region map_length Hlen_lws ; lia.
         }
-  Admitted.
+  Qed.
 
   Local Instance if_Persistent
     p_pc b_pc e_pc a_pc v_pc lregs src p_src b_src e_src a_src v_src:

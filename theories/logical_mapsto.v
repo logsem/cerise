@@ -1613,6 +1613,7 @@ Qed.
 Definition is_valid_updated_lmemory
   (glmem llmem : LMem) (la : list Addr) (v : Version) (llmem' : LMem) : Prop :=
   (update_version_region glmem la v llmem) ⊆ llmem' /\
+  llmem ⊆ glmem ∧
     (* TODO unclear whether this is useful in the def *)
     (Forall (fun a => llmem !! (a, v+1) = None) la) /\
     (Forall (fun a => is_Some (llmem' !! (a, v+1))) la).
@@ -1627,7 +1628,7 @@ Lemma is_valid_updated_lmemory_notin_preserves_lmem
 Proof.
   move: glmem llmem llmem' a' v v' lw.
   induction la as [|a la IHla]
-  ; intros * Ha'_notin_la (Hcompatibility & HmaxMem & Hupdated) Hlmem
+  ; intros * Ha'_notin_la (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated) Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
   rewrite /= -/(update_version_region glmem la v llmem)
@@ -1649,7 +1650,7 @@ Lemma is_valid_updated_lmemory_preserves_lmem
 Proof.
   move: glmem llmem llmem' a' v v' lw.
   induction la as [|a la IHla]
-  ; intros * HNoDup (Hcompatibility & HmaxMem & Hupdated) Hlmem
+  ; intros * HNoDup (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated) Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
   assert ((a', v') ≠ (a, v+1)) as Hneq
@@ -1681,14 +1682,14 @@ Lemma is_valid_updated_lmemory_preserves_lmem_next
   NoDup la ->
   a' ∈ la ->
   is_valid_updated_lmemory glmem llmem la v llmem' ->
-  llmem ⊆ glmem ->
+  (* llmem ⊆ glmem -> *)
   Forall (fun a => llmem !! (a, v+1) = None) la ->
   llmem !! (a', v) = Some lw ->
   llmem' !! (a', v+1) = Some lw.
 Proof.
   move: glmem llmem llmem' a' v lw.
   induction la as [|a la IHla]
-  ; intros * HNoDup Ha'_in_la (Hcompatibility & HmaxMem & Hupdated) Hlgmem Hmax_la Hlmem
+  ; intros * HNoDup Ha'_in_la (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated) Hmax_la Hlmem
   ; first (cbn in *; eapply lookup_weaken ; eauto; set_solver).
   destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
   rewrite /= -/(update_version_region glmem la v llmem)
@@ -1724,16 +1725,16 @@ Lemma is_valid_updated_lmemory_insert
   is_valid_updated_lmemory glmem llmem la v llmem'.
 Proof.
   move: glmem llmem llmem' a' v v' lw.
-  induction la as [|a la IHla] ; intros * HNoDup Ha'_notin_la Hlmem_None HmaxMap Hvalid.
-  - destruct Hvalid as [Hvalid _].
-    split; cbn in *; last done.
-    eapply map_subseteq_spec ; intros [a0 v0] lw0 Hlw0.
-    eapply lookup_weaken ; last eapply Hvalid.
-    rewrite lookup_insert_ne //=; intro ; simplify_eq.
-    rewrite Hlmem_None in Hlw0 ; done.
-  - destruct Hvalid as (Hupd & HmaxMap' & HnextMap).
+  induction la as [|a la IHla] ; intros * HNoDup Ha'_notin_la Hlmem_None  HmaxMap Hvalid.
+  - destruct Hvalid as (Hvalid & Hgl_llmem & _).
+    split; cbn in *; try done.
+    + eapply insert_subseteq_r_inv; eauto.
+    + split; cbn in *; try done.
+      eapply insert_subseteq_r_inv; eauto.
+  - destruct Hvalid as (Hupd & Hgl_llmem & HmaxMap' & HnextMap).
+    split; first (eapply update_version_region_insert; eauto).
     split; auto.
-    eapply update_version_region_insert; eauto.
+    eapply insert_subseteq_r_inv; eauto.
 Qed.
 
 Lemma is_valid_updated_lmemory_insert'
@@ -1747,17 +1748,18 @@ Lemma is_valid_updated_lmemory_insert'
 Proof.
   move: glmem llmem llmem' a' v lw.
   induction la as [|a la IHla] ; intros * HNoDup Ha'_in_la Hlmem_None HmaxMap Hvalid.
-  - destruct Hvalid as [Hvalid _].
-    split; cbn in *; last done.
-    eapply map_subseteq_spec ; intros [a0 v0] lw0 Hlw0.
-    eapply lookup_weaken ; last eapply Hvalid.
-    rewrite lookup_insert_ne //=; intro ; simplify_eq.
-    rewrite Hlmem_None in Hlw0 ; done.
-  - destruct Hvalid as (Hupd & HmaxMap' & HnextMap).
-    split; auto.
-    eapply map_subseteq_trans.
-    by eapply update_version_region_insert_inv; eauto.
-    eauto.
+  - destruct Hvalid as (Hvalid & Hgl_llmem & _).
+    split; cbn in *; try done.
+    + eapply insert_subseteq_r_inv; eauto.
+    + split; cbn in *; try done.
+      eapply insert_subseteq_r_inv; eauto.
+  - destruct Hvalid as (Hupd & Hgl_llmem & HmaxMap' & HnextMap).
+    split; auto; cycle 1.
+    + split; auto.
+      eapply insert_subseteq_r_inv; eauto.
+    + eapply map_subseteq_trans.
+      by eapply update_version_region_insert_inv; eauto.
+      eauto.
 Qed.
 
 (** Logical machine *)
@@ -2038,8 +2040,9 @@ Lemma is_valid_updated_lmemory_update_version_region
 Proof.
   induction la as [|a la] ; intros Hincl HnoDup Hmax Hsome ; destruct_cons ; cbn
   ; rewrite /is_valid_updated_lmemory //=.
-  destruct IHla as (_ & Hla_max & Hla_upd) ; try by destruct_cons.
-  split; [|split] ; cbn.
+  destruct IHla as (_ & Hgl_llmem & Hla_max & Hla_upd) ; try by destruct_cons.
+  split; [|split ; [|split] ] ; cbn.
+  - done.
   - done.
   - apply Forall_cons; split; auto. eapply lookup_weaken_None; eauto.
   - rewrite -/(update_version_region glmem la v llmem).
