@@ -42,25 +42,25 @@ Section trusted_memory_readout_example.
   (* ------------------------ *)
 
   (* Expect:
-     - PC := (RX, sensor, sensor_end, init)
+     - PC := (RX, sensor, sensor_end, sensor_init)
      - r_t0 return pointer
      Returns:
-     - read_sensor entry point: r_t1 = (E, sensor, sensor_end, read)
+     - read_sensor entry point: r_t1 = (E, sensor, sensor_end, sensor_read)
      - public signing key:      r_t2 = (U, σ__a, σ__a+1, σ__a)
      - public encryption key:   r_t3 = (S, σ__a+1, σ__a+2, σ__a+1)
    *)
-  Definition sensor_enclave_code_init (init read : Z): list LWord :=
+  Definition sensor_enclave_code_init (sensor_init sensor_read : Z): list LWord :=
     let Eperm := encodePerm E in
     let Sperm := encodeSealPerms (true, false) in
     let Uperm := encodeSealPerms (false, true) in
     encodeInstrsLW [
-        Mov r_t1 PC;            (* r_t1 = (RX, sensor, sensor_end, init) *)
-                                (* (init is sensor+1)  *)
-        Mov r_t2 r_t1;          (* r_t1 = (RX, sensor, sensor_end, init) *)
+        Mov r_t1 PC;            (* r_t1 = (RX, sensor, sensor_end, sensor_init) *)
+                                (*        (sensor_init is sensor+1)  *)
+        Mov r_t2 r_t1;          (* r_t1 = (RX, sensor, sensor_end, sensor_init) *)
 
         (* Get the read_sensor entry point. *)
-        Lea r_t1 (read - init); (* r_t1 = (RX, sensor, sensor_end, read) *)
-        Restrict r_t1 Eperm;    (* r_t1 = (E, sensor, sensor_end, read) *)
+        Lea r_t1 (sensor_read - sensor_init); (* r_t1 = (RX, sensor, sensor_end, sensor_read) *)
+        Restrict r_t1 Eperm;    (* r_t1 = (E, sensor, sensor_end, sensor_read) *)
 
         (* Get the seal/unseal capability.  *)
         Lea r_t2 (-1)%Z;        (* r_t2 = (RX, sensor, sensor_end, sensor) *)
@@ -86,29 +86,148 @@ Section trusted_memory_readout_example.
         Jmp r_t0
       ].
 
-  Definition sensor_enclave_code_read (sensor read mmio : Z) : list LWord :=
-    (* Expect:
-     - PC := (RX, sensor, sensor_end, read)
+  (* Expect:
+     - PC := (RX, sensor, sensor_end, sensor_read)
      - r_t0 return pointer
-     - r_t1 encrypted pointer to buffer
-     *)
+     - r_t1 pointer to buffer (arg_read). encrypted with the sensor enclave's encryption key.
+     Returns:
+     - r_t1 signed read only pointer to return buffer of the sensor enclave (RO,data+1 data+2, data+1)
+   *)
+  Definition sensor_enclave_code_read (sensor sensor_read : Z) : list LWord :=
+    let ROperm := encodePerm RO in
     encodeInstrsLW [
-        Mov r_t2 PC;              (* r_t2 = (RX, sensor, sensor_end, read) *)
-        Lea r_t2 (sensor - read); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
-        Load r_t2 r_t2;           (* r_t2 = cap_data *)
-        GetB r_t3 r_t2;           (* r_t3 = base (b') of cap_data *)
-        GetA r_t4 r_t2;           (* r_t4 = addr (a') of cap_data *)
-        Sub r_t3 r_t3 r_t4;       (* r_t3 = base - addr *)
-        Lea r_t2 r_t3;            (* r_t2 = cap_data with address pointing to the beginning *)
-        Load r_t3 r_t2;           (* r_t3 = seal / unseal capability (SU, σ__a, σ__a+2, σ__a) *)
-        Lea r_t3 1;               (* r_t3 = private encryption key (SU, σ__a, σ__a+2, σ__a+1) *)
-        (* TODO(STEVE): Can I assume that the pointer points to the beginning of the buffer, i.e. the callers encryption key? *)
-        UnSeal r_t1 r_t3 r_t1;    (* r_t1 = decrypted pointer to buffer *)
+        Mov r_t2 PC;                     (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
+        Lea r_t2 (sensor - sensor_read); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
+        Load r_t2 r_t2;                  (* r_t2 = cap_data *)
+        GetB r_t3 r_t2;                  (* r_t3 = base (b') of cap_data *)
+        GetA r_t4 r_t2;                  (* r_t4 = addr (a') of cap_data *)
+        Sub r_t3 r_t3 r_t4;              (* r_t3 = base - addr *)
+        Lea r_t2 r_t3;                   (* r_t2 = cap_data with address pointing to the beginning *)
 
-        Lea r_t2 (mmio - sensor); (* r_t2 = cap_data with address pointing to the mmio address *)
-        Load r_t2 r_t2;           (* r_t2 = sensor reading *)
+        Load r_t3 r_t2;                  (* r_t3 = signing keys (SU, σ__s, σ__s+2, σ__s) *)
+        Mov r_t4 r_t3;
+        Lea r_t4 1;                      (* r_t4 = encryption keys (SU, σ__s, σ__s+2, σ__s+1) *)
 
-        (* WIP  *)
+        UnSeal r_t1 r_t4 r_t1;           (* r_t1 = decrypted pointer to buffer (arg_read) *)
+        Mov r_t4 r_t1;
+        Lea r_t4 2;                      (* r_t4 = pointer to store the result *)
+
+        (* "READ SENSOR" *)
+        (* cf https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/morello/project/enclaveMorello/src/EL1Code/enclavecode/sensor_enclave.S#L106 *)
+        Mov r_t5 123;                    (* r_t5 = sensor value *)
+        Store r_t4 r_t5;                 (*        Store sensor value through r_t3 *)
+
+        (* Encrypt and sign simultaneously using a memory indirection. *)
+        Load r_t4 r_t1;                  (* r_t4 = caller's public encryption key *)
+        Seal r_t1 r_t4 r_t1;             (* r_t1 = encrypted pointer to buffer (arg_read) using the caller's encryption key. *)
+
+        Lea r_t2 1;                      (* r_t2 = pointer to return buffer within the sensor's enclaves data section *)
+        Store r_t2 r_t1;                 (*        Store encryped pointer for signing *)
+
+        (* Restrict the pointer into the data section to only cover the return buffer. *)
+        GetA r_t4 r_t2;                  (* r_t4 = beginning of return buffer *)
+        Add r_t5 r_t4 1;                 (* r_t5 = end of return buffer *)
+        Subseg r_t2 r_t4 r_t5;           (* r_t2 = restricted pointer to the return buffer *)
+        Restrict r_t2 ROperm;            (* r_t2 = read only pointer to the return buffer *)
+        Seal r_t1 r_t3 r_t2;             (* r_t1 = read only pointer to the return buffer signed by sensor enclave *)
+        Mov r_t2 0;
+        Jmp r_t0
+      ].
+
+  Definition sensor_init_off : Z := 1.
+  Definition sensor_read_off : Z :=
+    sensor_init_off + length (sensor_enclave_code_init 0 0).
+
+  Definition sensor_code : list _ :=
+       sensor_enclave_code_init sensor_init_off sensor_read_off
+    ++ sensor_enclave_code_read 0 sensor_read_off sensor_mmio_off.
+
+  Definition hash_sensor : Z :=
+    hash (lword_get_word <$> sensor_code).
+
+  (* ------------------------ *)
+  (* --- CLIENT *ENCLAVE* --- *)
+  (* ------------------------ *)
+
+  (* Expect:
+     - PC := (RX, client, client_end, client_init)
+     - r_t0 return pointer
+     - r_t1 read_sensor entry point (E, sensor, sensor_end, sensor_read)
+     - r_t2 sensor public signing key     (U, σ__s, σ__s+1, σ__s)
+     - r_t3 sensor public encryption key  (S, σ__s+1, σ__s+2, σ__s+1)
+     Returns:
+     - r_t1 client_use_sensor entry point (E, client, client_end, client_use_sensor)
+     - r_t2 client public signing key:    (U, σ__c, σ__c+1, σ__c)
+     - r_t3 client public encryption key: (S, σ__c+1, σ__c+2, σ__c+1)
+   *)
+  Definition client_enclave_code_init
+    (client_init client_use client_fail : Z) : list LWord :=
+    let Eperm := encodePerm E in
+    let Sperm := encodeSealPerms (true, false) in
+    let Uperm := encodeSealPerms (false, true) in
+    encodeInstrsLW [
+
+        (* Get and keep a pointer to a fail instruction. *)
+        Mov r_t4 PC;
+        Lea r_t4 (client_fail - client_init);
+
+        (* Attest the sensor enclave's signing key. *)
+        GetA r_t5 r_t2;             (* r_t5 := ?σ__s *)
+        EStoreId r_t5 r_t5;         (* r_t5 := ?hash_sensor *)
+        (* Ensure the identity *)
+        Sub r_t5 r_t5 hash_sensor;
+        Jnz r_t4 r_t5;
+
+        (* Attest the sensor enclave's encryption key. *)
+        GetA r_t5 r_t3;             (* r_t5 := ?σ__s+1 *)
+        EStoreId r_t5 r_t5;         (* r_t5 := ?hash_sensor *)
+        (* Ensure the identity *)
+        Sub r_t5 r_t5 hash_sensor;
+        Jnz r_t4 r_t5;
+
+        (* Load the data capability. *)
+        Lea r_t4 ((client_init - 1) - client_fail);
+        Load r_t5 r_t4;             (* r_t4 = cap_data *)
+
+        (* The data capability comes from the adv which controls the cursor.
+           Move it to the beginning. *)
+        GetB r_t6 r_t5;             (* r_t6 = base (b') of cap_data *)
+        GetA r_t7 r_t5;             (* r_t7 = addr (a') of cap_data *)
+        Sub r_t6 r_t6 r_t7;         (* r_t6 = base - addr *)
+        Lea r_t5 r_t6;              (* r_t5 = cap_data with address pointing to the beginning *)
+
+        Mov r_t6 r_t5;
+        (* Store the sensor enclave's entry point.  *)
+        Lea r_t6 1;
+        Store r_t6 r_t1;
+        (* Store the sensor enclave's public signing key *)
+        Lea r_t6 1;
+        Store r_t6 r_t2;
+        (* Store the sensor enclave's public encryption key *)
+        Lea r_t6 1;
+        Store r_t6 r_t3;
+        Mov r_t6 0;
+
+        (* Get the use_sensor entry point. *)
+        Mov r_t1 r_t4;
+        Lea r_t1 (client_use - (client_init - 1));
+        Restrict r_t1 Eperm;    (* r_t1 = (E, client, client_end, client_use) *)
+
+        (* Get the seal/unseal capability.  *)
+        Load r_t2 r_t5;         (* r_t2 = seal / unseal capability (SU, σ__c, σ__c+2, σ__c) *)
+        Mov r_t3 r_t2;          (* r_t3 = seal / unseal capability (SU, σ__c, σ__c+2, σ__c) *)
+
+        (* Get public signing key, which is (U, σ__c, σ__c+1, σ__c) *)
+        GetB r_t4 r_t2;         (* r_t4 = σ__c *)
+        Add r_t5 r_t4 1;        (* r_t5 = σ__c+1 *)
+        Subseg r_t2 r_t4 r_t5;  (* r_t2 = (SU, σ__c, σ__c+1, σ__c) *)
+        Restrict r_t2 Uperm;    (* r_t2 = (U, σ__c, σ__c+1, σ__c) *)
+
+        (* Get public encryption key, which is (S, σ__c+1, σ__c+2, σ__c+1) *)
+        Lea r_t3 1%Z;          (* r_t3 = (SU, σ__c+1, σ__c+2, σ__c+1) *)
+        GetE r_t4 r_t3;        (* r_t4 = σ__c+2 *)
+        Subseg r_t3 r_t5 r_t4; (* r_t3 = (SU, σ__c+1, σ__c+2, σ__c+1) *)
+        Restrict r_t3 Sperm;   (* r_t3 = (S, σ__c+1, σ__c+2, σ__c+1) *)
 
         Jmp r_t0
       ].
