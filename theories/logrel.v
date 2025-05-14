@@ -798,51 +798,74 @@ Section logrel.
       all: iExists _;iFrame;iSplit;[iPureIntro; apply interp_persistent|];try iSplit;iIntros (?);auto. }
   Qed.
 
+  Lemma safe_to_attest_decomposition b e b' e':
+    (b <= b')%ot ->
+    (e' <= e)%ot ->
+    (b' <= e')%ot ->
+    safe_to_attest b e ⊣⊢
+    safe_to_attest b b' ∗
+    safe_to_attest b' e' ∗
+    safe_to_attest e' e.
+  Proof.
+    intros Hb He H'.
+    rewrite /safe_to_attest.
+    iSplit ; iIntros "HA".
+    all: rewrite /= (isWithin_finz_seq_between_decomposition b' e' b e); [|solve_addr].
+    all: rewrite !big_sepL_app; iDestruct "HA" as "[$ [$ $]]".
+  Qed.
+
   (* Given all Otypes between b and e, we have the predicated associated that makes it
   safe to share, then we can conclude the range is also safe to share *)
-  (* denis says: no longer holds since we need safe to attest... *)
-  (* Lemma region_seal_pred_interp E (b e a: OType) b1 b2 : *)
-  (*   ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ={E}=∗ *)
-  (*   interp (LSealRange (b1,b2) b e a). *)
-  (* Proof. *)
-  (*   remember (finz.seq_between b e) as l eqn:Hgen. rewrite Hgen; revert Hgen. *)
-  (*   generalize b e. clear b e. *)
-  (*   induction l as [|hd tl IH]. *)
-  (*   - iIntros (b e Hfinz) "_ !>". *)
-  (*     rewrite /interp fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal. *)
-  (*     rewrite -Hfinz. destruct b1, b2; iSplit; try done; try cbn ; try done. *)
-  (*   - iIntros (b e Hfinz). *)
-  (*     assert (b < e)%ot as Hlbe. *)
-  (*     {destruct (decide (b < e)%ot) as [|HF]; first auto. rewrite finz_seq_between_empty in Hfinz; [inversion Hfinz | solve_addr  ]. } *)
-  (*     apply finz_cons_tl in Hfinz as (b' & Hplus & Hfinz). *)
-  (*     specialize (IH b' e Hfinz). rewrite (finz_seq_between_split _ b' _). *)
-  (*     2 : split; solve_addr. *)
-  (*     iIntros "[#Hfirst Hca]". *)
-  (*     iMod (IH with "Hca") as "Hca". iModIntro. *)
-  (*     rewrite /interp !fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal. *)
-  (*     rewrite !(finz_seq_between_split b b' e). 2: { split ; solve_addr. } *)
-  (*     iDestruct "Hca" as "[Hseal Hunseal]". *)
-  (*     iSplitL "Hseal"; [destruct b1| destruct b2]; iFrame. *)
-  (*     all: iApply (big_sepL_mono with "Hfirst"). *)
-  (*     all: iIntros (k a' Hk) "H"; cbn. *)
-  (*     all: iExists _; iFrame; auto. *)
-  (*     iSplit; auto. iPureIntro; apply _. *)
-  (* Qed. *)
+  Lemma region_seal_pred_interp E (b e a: OType) b1 b2 :
+    ([∗ list] o ∈ finz.seq_between b e, seal_pred o interp) ∗ safe_to_attest b e ={E}=∗
+    interp (LSealRange (b1,b2) b e a).
+  Proof.
+    remember (finz.seq_between b e) as l eqn:Hgen. rewrite Hgen; revert Hgen.
+    generalize b e. clear b e.
+    induction l as [|hd tl IH].
+    - iIntros (b e Hfinz) "[_ ?] !>".
+      rewrite /interp fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
+      rewrite -Hfinz. destruct b1, b2; iSplit; try done; try cbn ; try done.
+      by iFrame.
+    - iIntros (b e Hfinz).
+      assert (b < e)%ot as Hlbe.
+      {destruct (decide (b < e)%ot) as [|HF]; first auto. rewrite finz_seq_between_empty in Hfinz; [inversion Hfinz | solve_addr  ]. }
+      apply finz_cons_tl in Hfinz as (b' & Hplus & Hfinz).
+      specialize (IH b' e Hfinz). rewrite (finz_seq_between_split _ b' _).
+      2 : split; solve_addr.
+      iIntros "[ [#Hfirst Hca] Hattest]".
+      iDestruct (safe_to_attest_decomposition b e b' e with "Hattest") as "(Hattest_1 & Hattest_2 & Hattest_3)"
+      ; [solve_addr|solve_addr|solve_addr |].
+      iMod (IH with "[$Hca $Hattest_2]") as "Hca". iModIntro.
+      rewrite /interp !fixpoint_interp1_eq /= /safe_to_seal /safe_to_unseal.
+      rewrite !(finz_seq_between_split b b' e). 2: { split ; solve_addr. }
+      iDestruct "Hca" as "(Hseal & Hunseal & Hattest)".
+      iSplitL "Hseal"; [destruct b1| destruct b2]; iFrame.
+      3: rewrite andb_false_r; iFrame.
+      2: rewrite andb_true_r; destruct b1 ; iFrame.
+      2: iDestruct (safe_to_attest_decomposition with "[$Hattest_1 $Hattest_3 $Hattest]") as "Hattest"
+      ; try solve_addr; iFrame.
+      all: iApply (big_sepL_mono with "Hfirst").
+      all: iIntros (k a' Hk) "H"; cbn.
+      all: iExists _; iFrame; auto.
+      iSplit; auto. iPureIntro; apply _.
+  Qed.
 
   (* Get the validity of sealing capabilities if we can allocate an arbitrary predicate, and can hence choose interp itself as the sealing predicate *)
   (* same as lemma above, but only used in salloc example *)
-  (* Lemma region_can_alloc_interp E (b e a: OType) b1 b2: *)
-  (*   ([∗ list] o ∈ finz.seq_between b e, can_alloc_pred o) ={E}=∗ *)
-  (*   interp (LSealRange (b1,b2) b e a). *)
-  (* Proof. *)
-  (*   iIntros "Hca". *)
-  (*   iDestruct (big_sepL_mono with "Hca") as "Hca". *)
-  (*   iIntros (k a' Hk) "H". iDestruct (seal_store_update_alloc _ interp  with "H") as "H". iExact "H". *)
+  Lemma region_can_alloc_interp E (b e a: OType) b1 b2:
+    ([∗ list] o ∈ finz.seq_between b e, can_alloc_pred o) ∗ safe_to_attest b e
+    ={E}=∗
+    interp (LSealRange (b1,b2) b e a).
+  Proof.
+    iIntros "[Hca Hattest]".
+    iDestruct (big_sepL_mono with "Hca") as "Hca".
+    iIntros (k a' Hk) "H". iDestruct (seal_store_update_alloc _ interp  with "H") as "H". iExact "H".
 
-  (*   iDestruct (big_sepL_bupd with "Hca") as "Hca". *)
-  (*   iMod "Hca". *)
-  (*   by iApply region_seal_pred_interp. *)
-  (* Qed. *)
+    iDestruct (big_sepL_bupd with "Hca") as "Hca".
+    iMod "Hca".
+    iApply region_seal_pred_interp; iFrame.
+  Qed.
 
   Definition logical_region_set (la : list Addr) (v : Version) : gset LAddr :=
     (list_to_set ((λ a, (a,v)) <$> la)).
