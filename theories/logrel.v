@@ -1181,9 +1181,12 @@ Section custom_enclaves.
     inv custom_enclaveN
       (
 
-        ∃ (n : ENum), EC⤇ n ∗
-                      (* dom sealStore = (list_to_set seq 0 n : gset nat)*)
-
+        ∃ (n : ENum) (ot_n : OType),
+          EC⤇ n ∗ ⌜ finz.of_z (2*(Z.of_nat n) + 1)%Z = Some ot_n⌝
+          ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between 0%ot ot_n) : list OType) : gset OType),
+               ∃ P , seal_pred o P)
+          ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between ot_n top_ot) : list OType) : gset OType), can_alloc_pred o)
+          ∗
         (
           □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave),
             ⌜(0 <= tid < n)⌝ -∗

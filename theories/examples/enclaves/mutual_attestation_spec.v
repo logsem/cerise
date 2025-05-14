@@ -113,13 +113,14 @@ Section mutual_attest_main.
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     wp_instr.
     iMod (inv_acc with "Hcemap_inv") as "(Hcemap & Hclose)"; first solve_ndisj.
-    iDestruct "Hcemap" as (ECn) "(>HEC & #Hcemap)".
+    iDestruct "Hcemap" as (ECn OTn) "(>HEC & ECn_OTn & Hallocated_seals & Hfree_seals & #Hcemap)".
     iApply (wp_estoreid_success_unknown_ec with "[HPC Hr6 Hr5 Hi $HEC]"); try iFrame; try solve_pure.
     iNext.
     iIntros (retv) "H".
     iDestruct "H" as "(Hi & Hr5 & HEC & [(-> & HPC & H)|(-> & HPC & Hr6)])".
     1: iDestruct "H" as (I tid) "(Hr6 & #Htc_env & [%Hseal %Htidx])".
-    all: iMod ("Hclose" with "[HEC Hcemap]") as "_"; [ iExists ECn; iFrame "HEC Hcemap" | iModIntro].
+    all: iMod ("Hclose" with "[HEC ECn_OTn Hallocated_seals Hfree_seals Hcemap]") as "_"
+    ; [ iExists ECn, OTn; iFrame "HEC Hcemap ECn_OTn Hallocated_seals Hfree_seals"; eauto | iModIntro].
     all: wp_pure; iInstr_close "Hcode".
     2:{ wp_end; by iRight. }
 

@@ -512,12 +512,13 @@ Section mutual_attest_B.
     iInstr_lookup "Hma_code" as "Hi" "Hma_code".
     wp_instr.
     iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj.
-    iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)".
+    iDestruct "Henclaves_inv_open" as (ECn OTn) "(>HEC & ECn_OTn & Hallocated_seals & Hfree_seals & #Hcemap)".
     iApply (wp_estoreid_success_unknown_ec with "[$HPC $Hr5 $Hr4 $Hi $HEC]"); try solve_pure.
     iNext. iIntros (retv) "H".
     iDestruct "H" as "(Hi & Hr5 & HEC  & [(-> & HPC & H)|(-> & HPC & Hr4)])".
     1: iDestruct "H" as (I tid) "(Hr4 & #Hma_env & [%Hseal %Htidx])".
-    all: iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; [ iExists ECn; iFrame "HEC Hcemap" | iModIntro].
+    all: iMod ("Hclose_inv" with "[HEC ECn_OTn Hallocated_seals Hfree_seals Hcemap]") as "_"
+    ; [ iExists ECn, OTn; iFrame "HEC Hcemap ECn_OTn Hallocated_seals Hfree_seals"; eauto | iModIntro].
     all: wp_pure; iInstr_close "Hma_code".
     2:{ wp_end; by iIntros (?). }
     iDestruct (interp_valid_sealed with "Hinterp_w1") as (Φ) "Hseal_valid".

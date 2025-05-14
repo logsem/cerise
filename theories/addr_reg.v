@@ -256,9 +256,10 @@ Notation "a ^+ off" := (@finz.incr_default ONum a off) (at level 50) : OType_sco
 Notation z_to_otype := (@finz.of_z ONum).
 Notation z_of_ot := (@finz.to_z ONum).
 
-Notation za_ot := (@finz.FinZ ONum 0%Z eq_refl eq_refl).
-Notation top_ot := (finz.largest za : OType).
-Notation "0" := (za_ot) : OType_scope.
+
+Notation zot := (@finz.FinZ ONum 0%Z eq_refl eq_refl).
+Notation top_ot := (finz.largest zot : OType).
+Notation "0" := (zot) : OType_scope.
 
 Notation eqb_otype := (λ (a1 a2: OType), Z.eqb a1 a2).
 Notation "a1 =? a2" := (eqb_otype a1 a2) : OType_scope.
