@@ -41,54 +41,72 @@ Section cap_lang_rules.
     | EInit_fail_dcap_no_rw :
       EInit_fail lregs lmem ot.
 
-  Definition EInit_spec_success (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex) (eid : EIdentity) (ot : OType) (rs : RegName) : iProp Σ :=
-    ∃ glmem code_b code_e code_a code_v data_b data_e data_a data_v ,
+  Definition EInit_spec_success (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex) (ot : OType) (rs : RegName) : iProp Σ :=
+    ∃ glmem lmem'' (code_b code_e code_a : Addr) (code_v : Version) (data_b data_e data_a : Addr) (data_v : Version) eid,
     ⌜incrementLPC lregs = Some lregs'⌝ ∗ (* PC can be incremented *)
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
-    ⌜eid = hash_lmemory_region lmem code_b code_e code_v⌝ ∗ (* eid = hash(ccap) *)
+    ⌜tid_of_otype ot = Some tidx⌝ ∗
+    ⌜eid = hash_concat code_b (hash_lmemory_region lmem (code_b ^+ 1)%a code_e code_v)⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
     ⌜(ot + 2)%ot = Some (ot ^+ 2)%ot ⌝ ∗ (* there are still otypes left in the pool *)
     ⌜lregs !! rs = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rs contains a valid capability *)
     ⌜lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v)⌝ ∗ (* the base address of the code capability points to a valid data capability *)
-    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between code_b code_e) code_v lmem' ⌝ ∗ (* all memory in the code capability is "current" w.r.t. revocation *)
-    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between data_b data_e) data_v lmem' ⌝ ∗ (* all memory in the data capability is "current" w.r.t. revocation *)
+    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between code_b code_e) code_v lmem'' ⌝ ∗ (* all memory in the code capability is "current" w.r.t. revocation *)
+    ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between data_b data_e) data_v lmem'' ⌝ ∗ (* all memory in the data capability is "current" w.r.t. revocation *)
+    ⌜ lmem' =
+    <[ ( data_b, (data_v+1)%nat ) := (LSealRange (true,true) ot (ot ^+ 2)%ot ot ) ]>
+      (<[ (code_b, code_v) := (LCap RW data_b data_e data_a (data_v + 1)%nat) ]> lmem'') ⌝ ∗
     ⌜unique_in_registersL lregs (Some rs) (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* the code capability is unique across all registers (except where it is stored: in `rs`) *)
     ⌜unique_in_registersL lregs None      (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* the data capability is unique across all registers *)
+    ⌜ (finz.seq_between code_b code_e) ## reserved_addresses ⌝ ∗
+    ⌜ (finz.seq_between data_b data_e) ## reserved_addresses ⌝ ∗
     ⌜incrementLPC (<[ rs := next_version_lword (LCap E code_b code_e (code_b ^+ 1)%a code_v)]> lregs) = Some lregs' ⌝ ∗ (* the pc will be incremented and rs will point to a "current" sentry capability *)
       enclave_cur tidx eid (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
-      (* @TODO Denis/June: seal predicates needed? *)
+  (* @TODO Denis: seal predicates needed? ---> no *)
   .
 
-      Definition EInit_spec_failure (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex) (eid : EIdentity) (ot : OType) (rs : RegName) : iProp Σ. Admitted.
+      Definition EInit_spec_failure (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex) (ot : OType) (rs : RegName) : iProp Σ. Admitted.
+
+  Definition allows_einit (lregs : LReg) (lmem : LMem) (r : RegName) :=
+    ∀ p b e a v p' b' e' a' v',
+    lregs !! r = Some (LCap p b e a v)
+    -> lmem !! (b, v) = Some (LCap p' b' e' a' v')
+    -> readAllowed p = true
+    -> readAllowed p' = true
+    -> (finz.seq_between b e) ## reserved_addresses
+    ∧ (finz.seq_between b' e') ## reserved_addresses.
 
   (*     lmem = lmem' → *)
   (*     (* ... *) *)
 
-  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v pc_a' lw lregs lmem tidx eid rs :
+  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v pc_a' lw lregs lmem tidx rs :
     decodeInstrWL lw = EInit rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     (pc_a + 1)%a = Some pc_a' →
     regs_of (EInit rs) ⊆ dom lregs →
+    allows_einit lregs lmem rs →
 
-    {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
-        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
-        (pc_a, pc_v) ↦ₐ lw ∗
-        EC⤇ tidx }}}
+    ( ∀ Φ,
+        ( (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
+          (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
+          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
+          (pc_a, pc_v) ↦ₐ lw ∗
+          EC⤇ tidx
+        ) -∗
+        ▷▷ ( ∀ lregs' lmem' retv tidx' ot,
+               ( ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
+                 ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
+                 (pc_a, pc_v) ↦ₐ lw ∗
+                 PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
+                 EC⤇ tidx' ∗
 
-      Instr Executable @ E
-
-    {{{ lregs' lmem' retv tidx' ot, RET retv;
-        ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
-        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
-        (pc_a, pc_v) ↦ₐ lw ∗
-        PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
-        EC⤇ tidx' ∗
-
-        (EInit_spec_success lregs lregs' lmem lmem' tidx tidx' eid ot rs
-      ∨ EInit_spec_failure lregs lregs' lmem lmem' tidx tidx' eid ot rs)
-    }}}.
+                 (EInit_spec_success lregs lregs' lmem lmem' tidx tidx' ot rs
+                  ∨ EInit_spec_failure lregs lregs' lmem lmem' tidx tidx' ot rs)
+               )
+               -∗ Φ retv) -∗
+        WP Instr Executable @ E {{ Φ }}
+    ).
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hregs & >Hmem & HPCCap & HPCv & HECv) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs Hallows φ) "(>Hregs & >Hmem & HPCCap & HPCv & HECv) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
