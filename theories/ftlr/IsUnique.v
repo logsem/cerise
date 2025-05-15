@@ -19,11 +19,22 @@ Section fundamental.
 
   Local Hint Resolve finz_seq_between_NoDup list_remove_elem_NoDup : core.
 
+  (* The crux of this proof (which is a special case of the proof in fundamental.v when the PC instruction is of the form `isUnique dst src`)
+     is that we need access to points-to predicates for the all the memory within the bounds of capability in the source register src
+     so that we can update the version map if the the memory sweep succeeds.
+     These are contained in the invariant that is assumed to hold during the Loeb induction,
+     where we prove that under the assumption that everything is safe-to-share, executing isUnique dst src is safe (to execute).
+     Obtaining the points-tos will require careful view shifting and opening invariants, keeping track of all the edge cases
+     e.g. PC = dst; PC = src; the capability in PC contains the address that PC points to, etc... *)
+
+  (** Predicate that defines when the contents of a register can be swept;
+      i.e. when the register contains a capability with at least R permissions... *)
   Definition reg_allows_sweep
     (lregs : LReg) (r : RegName)
     (p : Perm) (b e a : Addr) (v : Version):=
     lregs !! r = Some (LCap p b e a v) ∧ readAllowed p = true.
 
+  (* This mask is essentially... ⊤ \ a_pc \ ([b, e] - a_pc), but [b,e] is referred to as `la` *)
   Definition allow_sweep_mask
     (a_pc : Addr) (v_pc : Version) (la : list Addr) (v : Version): coPset :=
     compute_mask_region (⊤ ∖ ↑logN.@(a_pc, v_pc)) (list_remove_elem a_pc la) v.
@@ -38,6 +49,8 @@ Section fundamental.
     by rewrite /allow_sweep_mask list_remove_elem_idem.
   Qed.
 
+  (* this will help us close the invariant again... *)
+  (* it states which properties are enforced on all the lws *)
   Definition region_open_resources
     (a_pc : Addr) (v_pc : Version)
     (la : list Addr) (v : Version)
@@ -49,13 +62,15 @@ Section fundamental.
     let E' := allow_sweep_mask a_pc v_pc la v in
 
     ([∗ list] lw;Pw ∈ lws;Ps, (if has_later then ▷ (Pw : D) lw else (Pw : D) lw))
-    ∗ ( ⌜ Persistent ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw) ⌝ )
+    ∗ ( ⌜ Persistent ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw) ⌝ ) (* All properties P are persistent *)
     ∗ ( if has_later
-        then [∗ list] Pa ∈ Ps, read_cond Pa interp
+        then [∗ list] Pa ∈ Ps, read_cond Pa interp (* the read cond holds *)
         else [∗ list] Pa ∈ Ps, (□ ∀ (lw : LWord), (Pa : D) lw -∗ interp lw)
       )%I
     ∗ ( (▷ ([∗ list] a_Pa ∈ zip la Ps, (interp_ref_inv a_Pa.1 v a_Pa.2))) ={E', E }=∗ True).
 
+  (** Does the src register have a cap with R perms, and
+      is src the PC? or does the cap in src at least exclude what the PC is pointing at... *)
   Definition sweep_mask_cond
     (lregs : LReg) (src : RegName)
     (p_src : Perm) (b_src e_src a_src : Addr) (v_src : Version)
@@ -65,6 +80,7 @@ Section fundamental.
 
   (* Description of what the resources are supposed to look like after opening the region *)
   (*    if we need to, but before closing the region up again*)
+
   Definition allow_sweep_res
     (lregs : LReg) (src : RegName)
     (a_pc : Addr) (v_pc : Version)
@@ -80,14 +96,14 @@ Section fundamental.
      ⌜allows_sweep lregs src⌝ ∗
      if sweep_mask_cond lregs src p_src b_src e_src a_src v_src a_pc v_pc
      then
-      (|={E, E'}=>
+      (|={E, E'}=> (* we open this invariant with all the points-tos from b to e *)
          ∃ (lws :list LWord),
          ⌜ length lws = length la ⌝
-         ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v_src), la ↦ₐ lw)
-         ∗ region_open_resources a_pc v_pc la v_src lws Ps true
-      )%I
+         ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v_src), la ↦ₐ lw) (* here you get all the points-tos *)
+         ∗ region_open_resources a_pc v_pc la v_src lws Ps true)%I
      else True)%I.
 
+  (* this does not yet open the invariant *)
   Lemma create_sweep_res
     (lregs : LReg) (src : RegName)
     (p_pc : Perm) (b_pc e_pc a_pc : Addr) (v_pc : Version)
@@ -200,6 +216,12 @@ Section fundamental.
       by rewrite allow_sweep_mask_remove_nodup.
   Qed.
 
+  (** if the mask condition holds (i.e. there is a cap with R) then
+      lmem is the gmap from all addresses between b_src and e_src (except a_pc)
+      and assigns them an existentially quantified value at version v_src,
+      with in particular the address a_pc pointing to lw_pc (with version v_pc, not v_src!).
+      Moreover, region_open_resources holds for all addresses la and words lws
+      *)
   Definition allow_sweep_mem
     (lmem : LMem) (lregs : LReg) (src : RegName)
     (a_pc : Addr) (v_pc : Version) (lw_pc : LWord)
@@ -216,7 +238,7 @@ Section fundamental.
               ∗ region_open_resources a_pc v_pc la v_src lws Ps has_later)
      else ⌜lmem = <[(a_pc, v_pc):=lw_pc]> ∅⌝)%I.
 
-
+  (* Create the lmem with the points-tos we need for the is_unique case *)
   Lemma sweep_res_implies_mem_map
     (lregs : LReg) (src : RegName)
     (a_pc : Addr) (v_pc : Version) (lw_pc : LWord)
@@ -685,6 +707,7 @@ Section fundamental.
   Proof. intros; case_decide; apply _. Qed.
 
 
+  (* See the comment at the top of this file *)
   Lemma isunique_case (lregs : leibnizO LReg)
     (p_pc : Perm) (b_pc e_pc a_pc : Addr) (v_pc : Version)
     (lw_pc : LWord) (dst src : RegName) (P : D):
@@ -716,15 +739,17 @@ Section fundamental.
       by repeat eexists.
     }
 
-    (* Step 1: open the region, if necessary,
+    (* Step 1: prepare all resources necessary to open the invariants of the argument (the cap given in is_unique), if necessary,
        and store all the resources obtained from the region in allow_load_res *)
     iDestruct (create_sweep_res with "[$Hreg] [$Hinv]") as (Ps) "[%Hlen_Ps HSweepRes]"
     ; [ eassumption
       | by apply elem_of_finz_seq_between
       |].
 
+    (* Open the invariants! *)
     (* Step 2: derive the concrete map of memory we need, and any spatial predicates holding over it *)
     iMod (sweep_res_implies_mem_map with "HSweepRes Ha") as (mem) "[HSweepMem >HMemRes]".
+    (* rename the big masks to easy names *)
     set (E := ⊤ ∖ ↑logN.@(a_pc, v_pc)).
     set (E' := allow_sweep_mask a_pc v_pc (list_remove_elem a_pc (finz.seq_between b_src e_src)) v_src ).
 
@@ -760,6 +785,7 @@ Section fundamental.
 
     { (* Sweep true cap : update *)
       rewrite /read_reg_inr Hlwsrc' in HV_Src ; simplify_eq.
+      (* close the mask *)
       iMod (mem_map_recover_res_update_version with "Hread HP HSweepMem Hmem")
         as "[Ha #Hinterp]"; eauto.
       { destruct p_src ; auto. }

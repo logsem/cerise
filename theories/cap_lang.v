@@ -676,7 +676,7 @@ Section opsem.
 
     (* MEMORY SWEEP *)
     when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
-           (sweep_reg (mem φ) (reg φ) r) && (* sweep the registers excluding the code cap in register rs *)
+           (sweep_reg (mem φ) (reg φ) r) && (* sweep the registers excluding the code cap in register r *)
            (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
 
     (* ALLOCATION OF THE ENCLAVE'S SEALS *)

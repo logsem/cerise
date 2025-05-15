@@ -78,10 +78,10 @@ Section cap_lang_rules.
       Instr Executable @ E
 
     {{{ lregs' lmem' retv tidx' ot, RET retv;
+        ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
+        ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
         PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
-        [∗ map] la↦lw ∈ lmem', la ↦ₐ lw ∗
-        [∗ map] k↦y ∈ lregs', k ↦ᵣ y ∗
         EC⤇ tidx' ∗
 
         (EInit_spec_success lregs lregs' lmem lmem' tidx tidx' eid ot rs
