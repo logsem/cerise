@@ -78,25 +78,22 @@ Section cap_lang_rules.
   (*     lmem = lmem' → *)
   (*     (* ... *) *)
 
-  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v pc_a' lw lregs lmem tidx rs :
+  Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v lw lregs lmem tidx rs :
     decodeInstrWL lw = EInit rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
-    (pc_a + 1)%a = Some pc_a' →
+    lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (EInit rs) ⊆ dom lregs →
+    lmem !! (pc_a, pc_v) = Some lw →
     allows_einit lregs lmem rs →
 
     ( ∀ Φ,
         ( (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
           (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
-          PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v ∗
-          (pc_a, pc_v) ↦ₐ lw ∗
           EC⤇ tidx
         ) -∗
         ▷▷ ( ∀ lregs' lmem' retv tidx' ot,
                ( ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
                  ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
-                 (pc_a, pc_v) ↦ₐ lw ∗
-                 PC ↦ᵣ LCap pc_p pc_b pc_e pc_a' pc_v ∗
                  EC⤇ tidx' ∗
 
                  (EInit_spec_success lregs lregs' lmem lmem' tidx tidx' ot rs
@@ -106,7 +103,7 @@ Section cap_lang_rules.
         WP Instr Executable @ E {{ Φ }}
     ).
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hallows φ) "(>Hregs & >Hmem & HPCCap & HPCv & HECv) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc Halloweinit φ) "(>Hregs & >Hmem & HECv) Hφ".
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
     iApply wp_lift_atomic_head_step_no_fork; auto.
     iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
