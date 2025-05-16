@@ -7,39 +7,32 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import macros_new.
 Open Scope Z_scope.
 
-(* TODO @June is there a way to define a typeclass or something
-   for helping with reasoning and modularity ? *)
-Section sealed_42.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
-    `{reservedaddresses : ReservedAddresses}
-    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
-
-  Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
-  Definition sealed_42 : LWord → iProp Σ :=
-    λ w, (∃ b e v, ⌜w = LCap O b e f42 v⌝)%I.
-  Definition sealed_42_ne : (leibnizO LWord) -n> (iPropO Σ) :=
-      λne (w : leibnizO LWord), sealed_42 w%I.
-
-  Instance sealed_42_persistent w : Persistent (sealed_42 w).
-  Proof. apply _. Qed.
-
-  Definition seal_pred_42 τ := seal_pred τ sealed_42.
-  Definition valid_sealed_cap w τ := valid_sealed w τ sealed_42.
-  Lemma sealed_42_interp lw : sealed_42 lw -∗ fixpoint interp1 lw.
-  Proof.
-    iIntros "Hsealed". iDestruct "Hsealed" as (b e v) "->".
-    by rewrite fixpoint_interp1_eq /=.
-  Qed.
-End sealed_42.
-
-
 Section trusted_memory_readout_example.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
+    `{reservedaddresses : ReservedAddresses}
     {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
 
   (* ------------------------ *)
   (* --- SENSOR *ENCLAVE* --- *)
   (* ------------------------ *)
+
+  (* CODE LAYOUT:
+
+     sensor       sensor_init  sensor_read  sensor_end
+       │           │            │            │
+       ▽───────────▽────────────▽────────────▽
+       │ cap data  │    init    │    read    │
+       └───────────┴────────────┴────────────┘
+
+     DATA LAYOUT:
+
+      data        data+1             data+2
+       │           │                  │
+       ▽───────────▽──────────────────▽
+       │ seal pair │ enc cap arg_read │
+       └───────────┴──────────────────┘
+                   <    return buf    >
+  *)
 
   (* Expect:
      - PC := (RX, sensor, sensor_end, sensor_init)
@@ -90,6 +83,9 @@ Section trusted_memory_readout_example.
      - PC := (RX, sensor, sensor_end, sensor_read)
      - r_t0 return pointer
      - r_t1 pointer to buffer (arg_read). encrypted with the sensor enclave's encryption key.
+            contains 1. client encryption public key
+                     2. nonce value
+                     3. space for return value
      Returns:
      - r_t1 signed read only pointer to return buffer of the sensor enclave (RO,data+1 data+2, data+1)
    *)
@@ -98,11 +94,12 @@ Section trusted_memory_readout_example.
     encodeInstrsLW [
         Mov r_t2 PC;                     (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
         Lea r_t2 (sensor - sensor_read); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
-        Load r_t2 r_t2;                  (* r_t2 = cap_data *)
-        GetB r_t3 r_t2;                  (* r_t3 = base (b') of cap_data *)
-        GetA r_t4 r_t2;                  (* r_t4 = addr (a') of cap_data *)
+        Load r_t2 r_t2;                  (* r_t2 = cap_data (RW, data, data+2, _) *)
+        GetB r_t3 r_t2;                  (* r_t3 = base of cap_data *)
+        GetA r_t4 r_t2;                  (* r_t4 = addr of cap_data *)
         Sub r_t3 r_t3 r_t4;              (* r_t3 = base - addr *)
         Lea r_t2 r_t3;                   (* r_t2 = cap_data with address pointing to the beginning *)
+                                         (*        (RW, data, data+2, data) *)
 
         Load r_t3 r_t2;                  (* r_t3 = signing keys (SU, σ__s, σ__s+2, σ__s) *)
         Mov r_t4 r_t3;
@@ -138,16 +135,61 @@ Section trusted_memory_readout_example.
   Definition sensor_read_off : Z :=
     sensor_init_off + length (sensor_enclave_code_init 0 0).
 
-  Definition sensor_code : list _ :=
+  Definition sensor_code : list LWord :=
        sensor_enclave_code_init sensor_init_off sensor_read_off
-    ++ sensor_enclave_code_read 0 sensor_read_off sensor_mmio_off.
+    ++ sensor_enclave_code_read 0 sensor_read_off.
 
-  Definition hash_sensor : Z :=
-    hash (lword_get_word <$> sensor_code).
+  Definition hash_sensor (ts_addr : Addr) : Z :=
+    hash_concat (hash ts_addr) (hash (lword_get_word <$> sensor_code)).
+
+  (* Sealed predicate for sensor enclave *)
+  Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
+  Definition sealed_sensor : LWord → iProp Σ :=
+    λ w, (∃ (b e : Addr) v, ⌜ w = LCap O b e f42 v ⌝)%I.
+  Definition sealed_sensor_ne : (leibnizO LWord) -n> (iPropO Σ) :=
+    λne (w : leibnizO LWord), sealed_sensor w%I.
+
+  Instance sealed_sensor_persistent (w : LWord) : Persistent (sealed_sensor w).
+  Proof. apply _. Qed.
+
+  Definition seal_pred_sensor (τ : OType) := seal_pred τ sealed_sensor.
+  Definition valid_sealed_sensor_cap (w : LWord) (τ : OType) := valid_sealed w τ sealed_sensor.
+  Lemma sealed_sensor_interp (lw : LWord) : sealed_sensor lw -∗ fixpoint interp1 lw.
+  Proof.
+    iIntros "Hsealed".
+    iDestruct "Hsealed" as (b e v) "->".
+    by rewrite fixpoint_interp1_eq /=.
+  Qed.
+
+  (* Trusted Compute Custom Predicates *)
+  Definition sensor_enclave_pred ts_addr : CustomEnclave :=
+    @MkCustomEnclave Σ
+      sensor_code
+      ts_addr
+      (λ w, False%I)
+      sealed_sensor.
 
   (* ------------------------ *)
   (* --- CLIENT *ENCLAVE* --- *)
   (* ------------------------ *)
+
+  (* CODE LAYOUT:
+                                       client_callback
+     client      client_init   client_use │ client_fail client_end
+       │            │             │       │    │           │
+       ▽────────────▽─────────────▽───────▽────▽───────────▽
+       │  cap data  │    init     │ use_sensor │ fail      │
+       └────────────┴─────────────┴────────────┴───────────┘
+
+     DATA LAYOUT:
+
+      data        data+1                       data+4
+       │           │                            │
+       ▽───────────▽─────────┬─────────┬────────▽
+       │ seal pair │ enc key │  nonce  │ result │
+       └───────────┴─────────┴─────────┴────────┘
+                   <      argument buffer       >
+   *)
 
   (* Expect:
      - PC := (RX, client, client_end, client_init)
@@ -161,7 +203,9 @@ Section trusted_memory_readout_example.
      - r_t3 client public encryption key: (S, σ__c+1, σ__c+2, σ__c+1)
    *)
   Definition client_enclave_code_init
-    (client_init client_use client_fail : Z) : list LWord :=
+    (client_init client_use client_fail : Z)
+    (hash_sensor : Z)
+    : list LWord :=
     let Eperm := encodePerm E in
     let Sperm := encodeSealPerms (true, false) in
     let Uperm := encodeSealPerms (false, true) in
@@ -231,5 +275,28 @@ Section trusted_memory_readout_example.
 
         Jmp r_t0
       ].
+
+  (* Expect:
+     - PC := (RX, client, client_end, client_use_sensor)
+     - r_t1 pointer to buffer (arg). encrypted with the client enclave's encryption key.
+     Returns:
+   *)
+
+  Definition client_enclave_code_use_sensor
+    (client_use client_fail : Z) : list LWord :=
+
+    encodeInstrsLW [
+        Jmp r_t0
+    ].
+
+  Definition ts_enclaves_map ts_addr : custom_enclaves_map :=
+    {[hash_sensor ts_addr := sensor_enclave_pred ts_addr]}.
+
+  Lemma wf_ts_enclaves_map (ts_addr : Addr) :
+    custom_enclaves_map_wf (ts_enclaves_map ts_addr).
+  Proof.
+    rewrite /custom_enclaves_map_wf /ts_enclaves_map.
+    by rewrite map_Forall_singleton /hash_sensor /=.
+  Qed.
 
 End trusted_memory_readout_example.
