@@ -9,8 +9,10 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -116,7 +118,7 @@ Section fundamental.
        + iModIntro. iNext.
          rewrite memMap_resource_2ne; first iFrame.
          intro ; simplify_eq.
-    - rewrite /read_reg_inr in H0.
+    - rewrite /read_reg_inr in H.
       iExists _.
       iSplitL "HLoadRes".
       + iModIntro. rewrite /allow_load_mem. iSplitR; auto.
@@ -141,7 +143,7 @@ Section fundamental.
        iSplitR. by simplify_map_eq.
        iExists p,b,e,a0,v0. iSplitR; auto.
        case_decide; last by exfalso.
-       iExists lw0. rewrite H1.
+       iExists lw0. rewrite H0.
          by rewrite lookup_insert.
     - iDestruct "HLoadRes" as "->".
       iSplitR. by simplify_map_eq.
@@ -213,7 +215,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Load dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

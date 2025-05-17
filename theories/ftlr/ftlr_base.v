@@ -6,8 +6,10 @@ From cap_machine Require Export logrel.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -17,16 +19,17 @@ Section fundamental.
 
   (* NOTE: I think having PC:= wsrc in the IH in below definition, rather than restricting induction to capabilities only, would allow us to more generally apply the induction hypothesis in multiple cases. Now we do the `wp_notCorrectPC`-related reasoning in multiple places, not just in the top-level ftlr. *)
 
-  Definition ftlr_instr (lregs : leibnizO LReg) (p : Perm)
+  Definition ftlr_instr
+    (lregs : leibnizO LReg) (p : Perm)
         (b e a : Addr) (v : Version) (lw : LWord) (i: instr) (P : D) :=
       p = RX ∨ p = RWX
     → (∀ x : RegName, is_Some (lregs !! x))
     → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrWL lw = i
-
+    → custom_enclave_inv custom_enclaves
     (* Loeb induction hypothesis, but only for those assumptions that change in the recursive step *)
-    -> □ ▷ (∀ lregs' p' b' e' a' v',
+    -∗ □ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
           -∗ (∀ (r1 : RegName) (lv : LWord),
               ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)

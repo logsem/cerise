@@ -8,8 +8,10 @@ From cap_machine.rules Require Import rules_base rules_Seal.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -41,7 +43,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Seal dst r1 r2) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

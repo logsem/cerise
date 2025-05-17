@@ -8,8 +8,10 @@ From cap_machine.rules Require Import rules_Jmp.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -22,7 +24,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Jmp r) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r); simplify_map_eq.
     * iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.

@@ -10,6 +10,7 @@ Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
           `{reservedaddresses : ReservedAddresses}
+          `{contract_enclaves : CustomEnclavesMap}
           `{MachineParameters}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
@@ -39,11 +40,15 @@ Section fundamental.
     iSpecialize ("Hupdate" with "[Hmap]"); eauto.
   Qed.
 
-  Lemma fundamental_cap lregs p b e a v :
+  Lemma fundamental_cap
+    (custom_enclaves : custom_enclaves_map)
+    {contract_custom: custom_enclave_contract_gen custom_enclaves ⊤}
+    lregs p b e a v :
+    custom_enclave_inv custom_enclaves
     ⊢ interp (LCap p b e a v) → (* PC safe to share *)
       interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
-    iIntros "#Hinv /=".
+    iIntros "#Hsystem_inv #Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (lregs p b e a v).

@@ -9,8 +9,10 @@ From cap_machine.rules Require Import rules_base.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -30,7 +32,8 @@ Section fundamental.
        decodeInstrWL lw = Mod dst r1 r2 \/
        decodeInstrWL lw = HashConcat dst r1 r2 \/
        decodeInstrWL lw = Lt dst r1 r2)
-    -> (□ ▷ (∀ lregs' p' b' e' a' v',
+    → custom_enclave_inv custom_enclaves
+    -∗ (□ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
                -∗ (∀ (r1 : RegName) (lv : LWord),
                    ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
@@ -61,7 +64,7 @@ Section fundamental.
         }}.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

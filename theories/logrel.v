@@ -1302,4 +1302,12 @@ Section custom_enclaves.
     iModIntro.
     iApply (Hcontract with "[$Htc_inv]"); eauto.
   Qed.
+
+  Class CustomEnclavesMap :=
+    MkCustomEnclavesMap {
+        custom_enclaves : custom_enclaves_map ;
+        custom_enclaves_wf : custom_enclaves_map_wf custom_enclaves;
+        custom_enclaves_contract :
+        ∀ Ep, custom_enclave_contract_gen custom_enclaves Ep;
+    }.
 End custom_enclaves.

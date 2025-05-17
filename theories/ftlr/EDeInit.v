@@ -8,8 +8,10 @@ From cap_machine.rules Require Import rules_EDeInit.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -22,7 +24,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (EDeInit r) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HSysInv #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
     [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -82,7 +84,7 @@ Section fundamental.
           iModIntro.
           iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro].
           iNext. iIntros "_".
-          apply incrementLPC_Some_inv in H2 as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
+          apply incrementLPC_Some_inv in H1 as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
           simplify_map_eq. rewrite insert_insert.
 
           iApply ("IH" with "[%] [] [Hrmap] [$Hown]"); eauto.
@@ -128,7 +130,7 @@ Section fundamental.
       iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
       destruct HSpec as [Hincr |HFail].
       -  (* Success cannot be true! *)
-        exfalso. rewrite H1 in Hsealrange.
+        exfalso. rewrite H0 in Hsealrange.
         simplify_map_eq. solve_addr.
       - (* Fail case *)
         iApply wp_pure_step_later; auto.

@@ -10,8 +10,10 @@ Import uPred.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : CustomEnclavesMap}
+  .
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -188,7 +190,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Store dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
@@ -242,11 +244,11 @@ Section fundamental.
     destruct HSpec as [* ? ? ? -> Hincr|* -> Hincr].
     { apply incrementLPC_Some_inv in Hincr as (p''&b''&e''&a''& v''&? & HPC & Z & Hregs') .
       iApply wp_pure_step_later; auto.
-      specialize (store_inr_eq H1 HVdst) as (-> & -> & -> & -> & ->).
+      specialize (store_inr_eq H0 HVdst) as (-> & -> & -> & -> & ->).
 
       (* The stored value is valid *)
       iAssert (interp storev0) as "#Hvalidstore".
-      { destruct src; inversion H0. rewrite !fixpoint_interp1_eq. done.
+      { destruct src; inversion H. rewrite !fixpoint_interp1_eq. done.
         simplify_map_eq.
         destruct (<[PC:=LCap p'' b'' e'' a'' v'']> lregs !! r) eqn:Hsomer0; simplify_map_eq.
         2 : { rewrite Hsomer0 in Hwoa. done. }
