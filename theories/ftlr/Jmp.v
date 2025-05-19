@@ -23,7 +23,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Jmp r) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #Hread H£ Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r); simplify_map_eq.
     * iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.
@@ -38,7 +38,7 @@ Section fundamental.
         [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
       (* apply IH *)
       iIntros "_".
-      iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
+      iApply ("IH" $! _ _ b e a with "[$H£] [] [] [Hmap] [$Hown]"); eauto.
       { iPureIntro. apply Hsome. }
       destruct Hp as [-> | ->]; iFrame.
     * specialize Hsome with r as Hr.
@@ -75,7 +75,7 @@ Section fundamental.
           iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|].
           rewrite insert_delete_insert; auto.
           iNext; iIntros "_".
-          iApply ("IH" $! (<[PC:=LCap p' b' e' a' v']> lregs) with "[%] [] [Hmap] [$Hown]").
+          iApply ("IH" $! (<[PC:=LCap p' b' e' a' v']> lregs) with "[$] [%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
           { iIntros (ri ? Hri Hvs).
             rewrite lookup_insert_ne in Hvs; auto.

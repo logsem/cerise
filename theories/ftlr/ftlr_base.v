@@ -29,6 +29,7 @@ Section fundamental.
     → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     (* Loeb induction hypothesis, but only for those assumptions that change in the recursive step *)
     -∗ □ ▷ (∀ lregs' p' b' e' a' v',
+              £ 1 -∗
              full_map lregs'
           -∗ (∀ (r1 : RegName) (lv : LWord),
               ⌜r1 ≠ PC⌝ → ⌜lregs' !! r1 = Some lv⌝ → (fixpoint interp1) lv)
@@ -48,6 +49,7 @@ Section fundamental.
                else emp)
             ∗ (persistent_cond P) (* P v ⊢ P v ∗ P v *)
 
+    -∗ £ 1
     -∗ na_own logrel_nais ⊤ (* same as the Loeb induction cond: knowledge about the existence of nonatomic invariants *)
     -∗ (a,v) ↦ₐ lw (* points-to for the address of the PC cap *) (* as a consequence of (1) *)
     -∗ ▷ P lw (* as a consequence of (1) *)

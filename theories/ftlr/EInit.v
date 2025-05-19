@@ -37,7 +37,7 @@ Section fundamental.
     ftlr_instr lregs p_pc b_pc e_pc a_pc v_pc lw_pc (EInit src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) H£ Hown Ha HP Hcls HPC Hmap".
     specialize (HpersP lw_pc).
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
@@ -103,9 +103,123 @@ Section fundamental.
       iDestruct (interp_open_region $ (⊤ ∖ ↑logN.@(a_pc, v_pc)) with "Hinterp_wcode")
         as (Ps) "[%Hlen_Ps_code Hmod]" ; eauto.
       { admit. }
-      iMod "Hmod" as (lws) "(%Hlen_lws_code & %Hpers_Ps_code
+      iMod "Hmod" as (lws) "(%Hlen_lws_code & Hpers_Ps_code
       & Hcode & HPs_code & Hreadcond_Ps_code & Hcls_code)".
-      (* iEval (rewrite fixpoint_interp1_eq) *)
+      destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
+      { admit. (* opsem will fail *)
+      }
+      (* iEval (rewrite finz_seq_between_cons //) in "Hcls_code". *)
+
+      destruct Ps as [|P_data Ps].
+      { exfalso.
+        admit. (* contradiction in Hlen_Ps_code *)
+      }
+      destruct lws as [|w_data lws].
+      { exfalso.
+        admit. (* contradiction in Hlen_lw_code *)
+      }
+      iDestruct (big_sepL2_cons with "HPs_code") as "[HP_data HPs_code]".
+      iDestruct (big_sepL_cons with "Hreadcond_Ps_code") as
+        "[Hreadcond_P_data Hreadcond_Ps_code]".
+
+      destruct (decide (is_log_cap w_data)) as [Hlcap_w_data|Hlcap_w_data]; cycle 1.
+      { admit. (* opsem will fail *) }
+      destruct w_data as [| [ p_data b_data e_data a_data v_data|] |]
+      ; cbn in Hlcap_w_data ; try done; clear Hlcap_w_data.
+      destruct (decide (p_data = RW)) as [-> | Hp_data]; cycle 1.
+      { admit. (* opsem will fail *) }
+      iEval (rewrite /read_cond /=) in "Hreadcond_P_data".
+      assert (Persistent (P_data (LCap RW b_data e_data a_data v_data))) as Hpers_p_data.
+      { admit. (* see Hpers_Ps_code *) }
+      iDestruct "HP_data" as "#HP_data".
+      iDestruct "Hreadcond_P_data" as "#Hreadcond_P_data".
+      iAssert (▷ (interp (LCap RW b_data e_data a_data v_data)))%I as "Hinterp_wdata".
+      { iNext. iApply "Hreadcond_P_data"; done. }
+      set ( mask_code := compute_mask_region (⊤ ∖ ↑logN.@(a_pc, v_pc))
+                           (finz.seq_between b_code e_code) v_code ).
+
+      Set Nested Proofs Allowed.
+      (* Lemma interp_open_region_later *)
+      (*   (E : coPset) (p : Perm) (b e a : Addr) (la : list Addr) (v : Version) : *)
+      (*   let E' := compute_mask_region E la v in *)
+      (*   la ⊆+ (finz.seq_between b e) -> *)
+      (*   NoDup la -> *)
+      (*   Forall (fun a => ↑logN.@(a, v) ⊆ E) la -> *)
+      (*   readAllowed p -> *)
+      (*   ⊢ ▷ interp (LCap p b e a v) *)
+      (*     -∗ ▷ ∃ (Ps : list D), *)
+      (*            (⌜ length la = length Ps ⌝) *)
+      (*            ∗ |={E, E'}=> (∃ (lws : list LWord), *)
+      (*                             ( ⌜ length lws = length la ⌝) *)
+      (*                             ∗ ( ⌜ Persistent ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw) ⌝ ) *)
+      (*                             ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v), la ↦ₐ lw) *)
+      (*                             ∗ ([∗ list] lw;Pw ∈ lws;Ps, ▷ (Pw : D) lw) *)
+      (*                             ∗ ([∗ list] Pa ∈ Ps, read_cond Pa interp) *)
+      (*                             ∗ (▷ ([∗ list] a_Pa ∈ zip la Ps, (interp_ref_inv a_Pa.1 v a_Pa.2)) ={E', E}=∗ True)). *)
+      (* Proof. *)
+      (*   intros * Hsubmset HNoDup Hforall Hread. *)
+      (*   iIntros "#Hinterp". *)
+      (*   iNext. by iApply interp_open_region. *)
+      (* Qed. *)
+
+      destruct ( decide (a_pc ∈ (finz.seq_between b_data e_data)) ) as [Hapc_in_data|Hapc_in_data].
+      { admit. (* TODO opsem will fail, because is would mean that a_pc overlaps *) }
+
+      (* destruct ( decide ((finz.seq_between b_code e_code) ## (finz.seq_between b_data e_data) )) *)
+      (*   as [Hcode_data_overlap|Hcode_data_overlap]. *)
+      iDestruct (read_allowed_region_inv with "Hinterp_wdata") as "H".
+      done.
+      rewrite big_sepL_later.
+      assert (b_data < e_data)%a as hdata by admit.
+      iEval (rewrite finz_seq_between_cons //) in "H".
+      iEval ( rewrite big_sepL_cons ) in "H".
+      iDestruct "H" as "[H _]".
+      (* Unset Printing Notations. *)
+      iEval (erewrite bi.later_exist) in "H".
+      iDestruct "H" as (Pdata) "H".
+      iEval (erewrite bi.later_sep) in "H".
+      iDestruct "H" as "[H _]".
+
+      iDestruct (interp_open_region $ mask_code with "Hinterp_wdata")
+        as (Ps_data) "[>%Hlen_Ps_data Hmod]" ; eauto.
+      { admit. (* see the statement in comment above *) }
+      (* Unset Printing Notations. *)
+      iMod (lc_fupd_elim_later with "[$H£] [$Hmod]") as "Hmod'".
+      iMod "Hmod'" as (lws_data) "(%Hlen_lws_data & Hpers_Ps_data
+      & Hdata & HPs_data & Hreadcond_Ps_data & Hcls_data)".
+      iDestruct (big_sepM_union with "[$Hcode $Hdata]") as "Hmem".
+      { admit. }
+      iDestruct (big_sepM_insert with "[$Hmem $Ha]") as "Hmem".
+      { admit. }
+
+      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
+      { admit. }
+      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & Hcustom_inv)".
+
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]");eauto.
+      + by simplify_map_eq.
+      + admit.
+      + by simplify_map_eq.
+      + admit.
+      + iNext. iNext.
+        iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+        iDestruct "Hspec" as "[Hspec | Hspec]"; cycle 1.
+        { admit. (* contraduction  *)
+        }
+        iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
+          "(%Hincr & %Htidx_next & %Htidx & % & % & % & % & % & % & % & % & % & % & % & % & Henclave)".
+        simplify_map_eq.
+        incrementLPC_inv; simplify_map_eq.
+        match goal with
+        | _ : _ |- context [ enclave_cur ?ECN ?I ] =>
+            set (I_ECn := I)
+        end.
+        (* TODO I_ECn ∈ dom custom_enclaves *)
+
+      (* iDestruct (read_allowed_inv with "Hinterp_wdata") as "HH". *)
+
+      (* iEval (rewrite fixpoint_interp1_eq). *)
       (* (* wsrc is a lcap *) *)
       (* destruct (is_sealed wsrc) eqn:His_sealed. *)
       (* + (* wsrc is either E-cap or sealed cap *) *)

@@ -1,5 +1,5 @@
-From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
-  Subseg Get Lea Seal UnSeal IsUnique Hash EInit EDeInit EStoreId.
+(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict *)
+(*   Subseg Get Lea Seal UnSeal IsUnique Hash EInit EDeInit EStoreId. *)
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -43,10 +43,11 @@ Section fundamental.
   Lemma fundamental_cap
     lregs p b e a v :
     (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
-    ⊢ interp (LCap p b e a v) → (* PC safe to share *)
+    ⊢ £ 1 -∗
+      interp (LCap p b e a v) → (* PC safe to share *)
       interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
-    iIntros "[#Hcontract #Hsystem_inv] #Hinv /=".
+    iIntros "[#Hcontract #Hsystem_inv] H£ #Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (lregs p b e a v).
