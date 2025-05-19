@@ -11,8 +11,9 @@ Open Scope Z_scope.
    for helping with reasoning and modularity ? *)
 Section sealed_42.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
-    `{reservedaddresses : ReservedAddresses}
-          {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+          {nainv: logrel_na_invs Σ}
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}.
 
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
   Definition sealed_42 : LWord → iProp Σ :=
@@ -34,9 +35,11 @@ End sealed_42.
 
 
 Section trusted_compute_example.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
-    `{reservedaddresses : ReservedAddresses}
-    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+          {nainv: logrel_na_invs Σ}
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}.
+          (* {contract_enclaves : CustomEnclavesMap}. *)
 
   (* --------------------------------- *)
   (* --- TRUSTED COMPUTE *ENCLAVE* --- *)
@@ -96,18 +99,35 @@ Section trusted_compute_example.
     by rewrite map_Forall_singleton /hash_trusted_compute_enclave /=.
   Qed.
 
-  Lemma tc_contract tc_addr :
-    custom_enclave_contract (tcenclaves_map tc_addr).
-  Proof.
-    rewrite /custom_enclave_contract.
-    iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hwf_cemap Hcode_ce Hot Hb' HIhash Hb He)
-      "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
-    clear HIhash Hwf_cemap.
-    assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
+  Ltac iHide0 irisH coqH :=
+    let coqH := fresh coqH in
+    match goal with
+    | h: _ |- context [ environments.Esnoc _ (INamed irisH) ?prop ] =>
+        set (coqH := prop)
+    end.
 
+  Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
+    iHide0 irisH coqH.
+
+  Definition contract_tcenclaves_map tc_addr :=
+    MkCustomEnclavesMap
+      (tcenclaves_map tc_addr)
+      (wf_tc_enclaves_map tc_addr).
+
+  Lemma tc_contract tc_addr :
+    ⊢ custom_enclave_contract (enclaves_map := contract_tcenclaves_map tc_addr).
+  Proof.
+    iLöb as "IH".
+    rewrite -/custom_enclave_contract.
+    iEval (rewrite /custom_enclave_contract).
+    iIntros (I b e a v b' e' a' v' enclave_data ot ce
+      Hcode_ce Hot Hb' HIhash Hb He)
+      "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
+    assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
+    simplify_map_eq.
     rewrite /tcenclaves_map in Hcode_ce.
     simplify_map_eq.
+    rewrite -H; clear H.
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -115,7 +135,7 @@ Section trusted_compute_example.
     iMod (na_inv_acc with "Htc_inv Hna") as "(>[Htc_code Htc_data]  & Hna & Hclose)"; [solve_ndisj ..|].
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
-    remember tc_addr as pc_b in |- * at 11.
+    remember tc_addr as pc_b in |- * at 12.
     remember (tc_addr ^+ (20%nat + 1))%a as pc_e in |- * at 4.
     assert (SubBounds pc_b pc_e tc_addr (tc_addr ^+ (20%nat + 1))%a) by (subst; solve_addr).
 
@@ -260,9 +280,13 @@ Section trusted_compute_example.
       iNext ; iModIntro; iIntros (lw) "Hlw".
       by iApply sealed_42_interp.
     }
-    (* Safe to jump to safe value *)
-    iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
 
+    iDestruct (jmp_to_unknown with "[] [$Hinterp_w0]") as "Hjmp"; eauto.
+    {
+      iSplit; last iFrame "#".
+      iModIntro.
+      by iApply custom_enclave_contract_inv.
+    }
     iInstr "Htc_code". (* Jmp r_t0 *)
 
     (* Close the opened invariant *)
@@ -513,7 +537,7 @@ Section trusted_compute_example.
        assert_entry b_assert e_assert v_assert
     ∗ assert_inv b_assert a_flag e_assert v_assert
     ∗ flag_inv a_flag v_assert)
-    ∗ custom_enclave_inv (tcenclaves_map tc_addr)
+    ∗ (custom_enclave_inv (enclaves_map := contract_tcenclaves_map tc_addr))
     ∗ interp w1
     ∗ interp w0
 
@@ -561,7 +585,7 @@ Section trusted_compute_example.
       ; solve_addr.
 
     intros ?????? Hregion HE HE' Hassert Hlink Hpcbounds.
-    pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap.
+    (* pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap. *)
 
     iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv [ Hinterp_w1 Hinterp_w0]] ]
              (Hcode & Hlink_cap & Hdata1 & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna & Hcont)".
@@ -755,7 +779,7 @@ Section trusted_compute_example.
      ∗ flag_inv a_flag v_assert
      ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset tc_addr) a_data link_cap
     )
-    ∗ custom_enclave_inv (tcenclaves_map tc_addr)
+    ∗ (custom_enclave_inv (enclaves_map := contract_tcenclaves_map tc_addr))
     ⊢ interp (LCap E b_main (b_main ^+ trusted_compute_main_len)%a
                 (b_main ^+ trusted_compute_main_init_len)%a pc_v).
   Proof.
@@ -884,7 +908,7 @@ Section trusted_compute_example.
     ∗ flag_inv a_flag v_assert
     ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset tc_addr) a_data link_cap
     )
-    ∗ custom_enclave_inv (tcenclaves_map tc_addr)
+    ∗ (custom_enclave_inv (enclaves_map := contract_tcenclaves_map tc_addr))
     ∗ interp wadv
 
     ⊢ ( ((a_data)%a, pc_v) ↦ₐ link_cap
@@ -904,7 +928,12 @@ Section trusted_compute_example.
     iIntros "[  #(HlinkInv & HassertInv & HflagInv & HcodeInv) #[ Hcemap_inv Hinterp_wadv ] ]
              (Hadata & Hadata' & HPC & Hr0 & Hr1 & Hrmap & Hna)".
 
-    iDestruct (jmp_to_unknown with "Hinterp_wadv") as "Hjmp".
+    iDestruct (jmp_to_unknown wadv with "[] [$Hinterp_wadv]") as "Hjmp".
+    { iSplit; last iFrame "Hcemap_inv".
+      iModIntro.
+      iApply custom_enclave_contract_inv.
+      iApply tc_contract.
+    }
     iMod (na_inv_acc with "HcodeInv Hna") as "[>(Hcode & Hdata & Hdata') [Hna Hcls] ]"
     ;[solve_ndisj|solve_ndisj|].
     iApply (trusted_compute_main_init_spec with "[-]"); eauto; iFrame.

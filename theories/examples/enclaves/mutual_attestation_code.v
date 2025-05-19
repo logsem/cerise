@@ -652,4 +652,7 @@ Section mutual_attest_example.
     - by rewrite map_Forall_singleton /hash_mutual_attest_B /=.
   Qed.
 
+  Definition contract_ma_enclaves_map :=
+    MkCustomEnclavesMap ma_enclaves_map wf_ma_enclaves_map.
+
 End mutual_attest_example.

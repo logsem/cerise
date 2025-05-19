@@ -9,9 +9,9 @@ From cap_machine Require Export logrel.
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{contract_enclaves : CustomEnclavesMap}
-          `{MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : @CustomEnclavesMap Σ MP}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -41,14 +41,12 @@ Section fundamental.
   Qed.
 
   Lemma fundamental_cap
-    (custom_enclaves : custom_enclaves_map)
-    {contract_custom: custom_enclave_contract_gen custom_enclaves ⊤}
     lregs p b e a v :
-    custom_enclave_inv custom_enclaves
+    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     ⊢ interp (LCap p b e a v) → (* PC safe to share *)
       interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
-    iIntros "#Hsystem_inv #Hinv /=".
+    iIntros "[#Hcontract #Hsystem_inv] #Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (lregs p b e a v).
@@ -60,96 +58,93 @@ Section fundamental.
       assert ((b <= a)%a ∧ (a < e)%a) as Hbae.
       { eapply in_range_is_correctLPC; eauto. solve_addr. }
       assert (p = RX ∨ p = RWX) as Hp.
-      { inversion i. inversion H2; cbn in *; simplify_eq. auto. }
+      { inversion i. inversion H1; cbn in *; simplify_eq. auto. }
       iDestruct (read_allowed_inv_regs with "[] Hinv") as (P) "(#Hinva & #Hread)";[eauto|destruct Hp as [-> | ->];auto|iFrame "% #"|].
       rewrite /interp_ref_inv /=.
       iInv (logN.@(a, v)) as (lw) "[>Ha HP]" "Hcls".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
         first apply (lookup_insert _ _ (LCap p b e a v)).
+      iCombine "Hcontract Hsystem_inv" as "#Hsystem".
+
       destruct (decodeInstrWL lw) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
-        iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (jmp_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Jnz *)
-        iApply (jnz_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (jnz_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Mov *)
-        iApply (mov_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (mov_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Load *)
-        iApply (load_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (load_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Store *)
-        iApply (store_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (store_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Lt *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Add *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Sub *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Mod *)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* HashConcat*)
-        iApply (add_sub_lt_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (add_sub_lt_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Hash *)
-        iApply (hash_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (hash_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Lea *)
-        iApply (lea_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (lea_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Restrict *)
-        iApply (restrict_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (restrict_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Subseg *)
-        iApply (subseg_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (subseg_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetB *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetB _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetB _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetE *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetE _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetE _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetA *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetA _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetA _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetP *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetP _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetWType *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetWType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetWType _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* GetOType *)
-        iApply (get_case _ _ _ _ _ _ _ _ _ (GetOType _ _) with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (get_case _ _ _ _ _ _ _ _ _ (GetOType _ _) with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* Seal *)
-        iApply (seal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (seal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
       + (* UnSeal *)
-        iApply (unseal_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (unseal_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-
       + (* EInit *)
-        iApply (einit_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (einit_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-
       + (* EDeInit *)
-        iApply (edeinit_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (edeinit_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-
       + (* EStoreId *)
-        iApply (estoreid_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (estoreid_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-
       + (* IsUnique *)
-        iApply (isunique_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
+        iApply (isunique_case with "[] [] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
           try iAssumption; eauto.
-
       + (* Fail *)
         iApply (wp_fail with "[HPC Ha]"); eauto. iFrame.
         iNext. iIntros "[HPC Ha] /=".
@@ -186,10 +181,11 @@ Section fundamental.
   Admitted.
 
   Theorem fundamental w r :
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
     ⊢ interp w -∗ interp_expression r w.
   Proof.
-    iIntros "Hw". destruct w as [| [c | ] | ].
-    2: { iApply fundamental_cap. done. }
+    iIntros "#Hsys Hw". destruct w as [| [c | ] | ].
+    2: { iApply fundamental_cap; done. }
     all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
     all: iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
     all: iApply (wp_bind (fill [SeqCtx])); cbn.
@@ -206,11 +202,13 @@ Section fundamental.
     (∀ a r, ⌜a ∈ₐ [[ b , e ]]⌝ → ▷ □ interp_expression r (LCap p b e a v))%I.
 
   Lemma interp_exec_cond p b e a v :
-    p ≠ E -> interp (LCap p b e a v) -∗ exec_cond b e p v.
+    p ≠ E ->
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    ⊢ interp (LCap p b e a v) -∗ exec_cond b e p v.
   Proof.
-    iIntros (Hnp) "#Hw".
+    iIntros (Hnp) "#Hsys #Hw".
     iIntros (a0 r Hin). iNext. iModIntro.
-    iApply fundamental.
+    iApply fundamental; first done.
     rewrite !fixpoint_interp1_eq /=. destruct p; try done.
   Qed.
 
@@ -235,9 +233,10 @@ Section fundamental.
   (* updatePcPerm adds a later because of the case of E-capabilities, which
      unfold to ▷ interp_expr *)
   Lemma interp_updatePcPermL lw :
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
     ⊢ interp lw -∗ ▷ (∀ lregs, interp_expression lregs (updatePcPermL lw)).
   Proof.
-    iIntros "#Hw".
+    iIntros "#Hsys #Hw".
     assert ((∃ b e a v, lw = LCap E b e a v) ∨ updatePcPermL lw = lw) as [Hw | ->].
     { destruct lw as [ | [ | ] | ]; eauto. unfold updatePcPermL.
       case_match; eauto. left. eexists _,_,_,_; eauto.
@@ -245,10 +244,11 @@ Section fundamental.
     { destruct Hw as (b & e & a & v & ->). rewrite fixpoint_interp1_eq. cbn -[all_registers_s].
       iNext. iIntros (rmap). iSpecialize ("Hw" $! rmap). iDestruct "Hw" as "#Hw".
       iIntros "(HPC & Hr & ?)". iApply "Hw". iFrame. }
-    { iNext. iIntros (rmap). iApply fundamental. eauto. }
+    { iNext. iIntros (rmap). iApply fundamental; eauto. }
   Qed.
 
   Lemma jmp_to_unknown lw :
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
     ⊢ interp lw -∗
       ▷ (∀ rmap,
           ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
@@ -258,7 +258,7 @@ Section fundamental.
           -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
                ∃ lr : LReg, full_map lr ∧ registers_mapsto lr ∗ na_own logrel_nais ⊤ }}).
   Proof.
-    iIntros "#Hw". iDestruct (interp_updatePcPermL with "Hw") as "Hw'". iNext.
+    iIntros "#Hsys #Hw". iDestruct (interp_updatePcPermL with "Hsys Hw") as "Hw'". iNext.
     iIntros (rmap Hrmap).
     set rmap' := <[ PC := (LInt 0%Z: LWord) ]> rmap : LReg.
     iSpecialize ("Hw'" $! rmap').
@@ -280,30 +280,37 @@ Section fundamental.
   Lemma region_integers_alloc' E (b e a: Addr) (v : Version) l p :
     Forall (λ lw, is_zL lw = true) l →
     finz.seq_between b e ## reserved_addresses ->
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    ⊢
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hl Hreserved) "H". destruct p.
+    iIntros (Hl Hreserved) "#Hsys H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_integers_alloc _ _ _ a _ _ RX with "H") as ">#H"; auto.
          iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+         iNext. iModIntro.
+         iDestruct (fundamental _ r with "[$] [$]") as "H'"; eauto.
+    }
     all: iApply region_integers_alloc; eauto.
   Qed.
 
   Lemma region_valid_alloc' E (b e a: Addr) v l p :
     finz.seq_between b e ## reserved_addresses ->
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    ⊢
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hreserved) "#Hl H". destruct p.
+    iIntros (Hreserved) "#Hsys #Hl H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_alloc _ RX _ _ a _ _  with "Hl H") as ">#H"; auto.
          iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+         iNext. iModIntro.
+         iDestruct (fundamental _ r with "[$] [$]") as "H'"; eauto. }
     all: iApply (region_valid_alloc with "Hl"); eauto.
   Qed.
 
@@ -311,15 +318,18 @@ Section fundamental.
     finz.seq_between b e ## reserved_addresses ->
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
     Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l →
+    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    ⊢
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hreserved Hmasks Hl) "H". destruct p.
+    iIntros (Hreserved Hmasks Hl) "#Hsys H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_in_region _ _ _ a _ _ RX with "H") as ">#H"; auto.
          iModIntro. iIntros (r).
-         iDestruct (fundamental _ r with "H") as "H'". eauto. }
+         iNext. iModIntro.
+         iDestruct (fundamental _ r with "[$] [$]") as "H'"; eauto. }
     all: iApply (region_valid_in_region with "H"); eauto.
   Qed.
 

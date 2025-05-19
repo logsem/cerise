@@ -4,9 +4,10 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import mutual_attestation_code.
 
 Section mutual_attest_A.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
-    `{reservedaddresses : ReservedAddresses}
-    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+          {nainv: logrel_na_invs Σ}
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}.
   Context {MA: MutualAttestation}.
 
   Ltac iHide0 irisH coqH :=
@@ -552,7 +553,8 @@ Section mutual_attest_A.
     (b' < e')%a ->
     (ma_addr_A + e)%a =
     Some (ma_addr_A ^+ e)%a ->
-    custom_enclave_inv ma_enclaves_map
+    (□ custom_enclave_contract (enclaves_map := contract_ma_enclaves_map))
+    ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_A)
         ([[ma_addr_A,(ma_addr_A ^+ e)%a]]↦ₐ{v}
            [[LCap RW b' e' a' v' :: mutual_attest_enclave_A_code]]
@@ -562,7 +564,7 @@ Section mutual_attest_A.
       -∗ interp (LCap E ma_addr_A (ma_addr_A ^+ e)%a pc_a v).
     Proof.
       intros e pc_a; subst e pc_a.
-    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign & Hinterp_sealr_ot)".
+    iIntros (Hot Hb' He) "#(Hcustom_enclave_contract & Henclaves_inv & Hma_inv & HPsign & Hinterp_sealr_ot)".
 
     iEval (rewrite fixpoint_interp1_eq /=).
     iIntros (lregs).
@@ -723,7 +725,11 @@ Section mutual_attest_A.
     iAssert (interp w0) as "Hinterp_w0".
     { iApply "Hinterp_map";eauto;done. }
     (* Safe to jump to safe value *)
-    iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
+    iDestruct (jmp_to_unknown with "[] [$Hinterp_w0]") as "Hjmp"; eauto.
+    { iSplit; last iFrame "#".
+      iModIntro.
+      by iApply custom_enclave_contract_inv.
+    }
 
     (* Code memory *)
     iDestruct (region_mapsto_cons with "Hma_code") as "[Hma_addr_A Hma_code]"; last iFrame.
@@ -995,7 +1001,6 @@ Section mutual_attest_A.
       )%I as "Hma_B".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      + iPureIntro; apply wf_ma_enclaves_map.
       + iPureIntro; rewrite /ma_enclaves_map.
         rewrite lookup_insert_ne; first by rewrite lookup_insert.
         rewrite /hash_mutual_attest_A /hash_mutual_attest_B.
@@ -1286,7 +1291,8 @@ Section mutual_attest_A.
     (b' < e')%a ->
     (ma_addr_A + e)%a =
     Some (ma_addr_A ^+ e)%a ->
-    custom_enclave_inv ma_enclaves_map
+    (□▷ custom_enclave_contract (enclaves_map := contract_ma_enclaves_map))
+    ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_A)
         ([[ma_addr_A,(ma_addr_A ^+ e)%a]]↦ₐ{v}
            [[LCap RW b' e' a' v' :: mutual_attest_enclave_A_code]]
@@ -1297,7 +1303,7 @@ Section mutual_attest_A.
                    (ma_addr_A ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot Hb' He) "#(#Hcustom_enclave_contract & Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -1389,7 +1395,11 @@ Section mutual_attest_A.
     iAssert (interp w0) as "Hinterp_w0".
     { iApply "Hinterp_map";eauto;done. }
     (* Safe to jump to safe value *)
-    iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
+    iDestruct (jmp_to_unknown with "[] [$Hinterp_w0]") as "Hjmp"; eauto.
+    { iSplit; last iFrame "#".
+      iModIntro.
+      by iApply custom_enclave_contract_inv.
+    }
 
     (* Code memory *)
     iDestruct (region_mapsto_cons with "Hma_code") as "[Hma_addr_A Hma_code]"; last iFrame.

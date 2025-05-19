@@ -12,8 +12,7 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           {reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}
-          {contract_enclaves : CustomEnclavesMap}
-  .
+          {contract_enclaves : @CustomEnclavesMap Σ MP}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -190,7 +189,7 @@ Section fundamental.
     ftlr_instr lregs p b e a v lw (Store dst src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

@@ -11,8 +11,7 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           {reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}
-          {contract_enclaves : CustomEnclavesMap}
-  .
+          {contract_enclaves : @CustomEnclavesMap Σ MP}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -32,7 +31,7 @@ Section fundamental.
        decodeInstrWL lw = Mod dst r1 r2 \/
        decodeInstrWL lw = HashConcat dst r1 r2 \/
        decodeInstrWL lw = Lt dst r1 r2)
-    → custom_enclave_inv custom_enclaves
+    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     -∗ (□ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
                -∗ (∀ (r1 : RegName) (lv : LWord),
@@ -64,7 +63,7 @@ Section fundamental.
         }}.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "#HsysInv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

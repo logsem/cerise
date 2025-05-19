@@ -4,9 +4,10 @@ From cap_machine Require Import proofmode.
 From cap_machine Require Import mutual_attestation_code.
 
 Section mutual_attest_B.
-  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg : sealStoreG Σ}
-    `{reservedaddresses : ReservedAddresses}
-    {nainv: logrel_na_invs Σ} `{MP: MachineParameters}.
+  Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
+          {nainv: logrel_na_invs Σ}
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}.
   Context {MA: MutualAttestation}.
 
   Ltac iHide0 irisH coqH :=
@@ -155,7 +156,8 @@ Section mutual_attest_B.
     (b' < e')%a ->
     (ma_addr_B + e)%a =
     Some (ma_addr_B ^+ e)%a ->
-    custom_enclave_inv ma_enclaves_map
+    (□▷ custom_enclave_contract (enclaves_map := contract_ma_enclaves_map))
+    ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_B)
       ([[ma_addr_B,(ma_addr_B ^+ e)%a]]↦ₐ{v}
          [[LCap RW b' e' a' v' :: mutual_attest_enclave_B_code]]
@@ -166,7 +168,7 @@ Section mutual_attest_B.
                  (ma_addr_B ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' He) "#(Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot Hb' He) "#(#Hcustom_enclave_contract & Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -321,7 +323,11 @@ Section mutual_attest_B.
     iAssert (interp w0) as "Hinterp_w0".
     { iApply "Hinterp_map";eauto;done. }
     (* Safe to jump to safe value *)
-    iDestruct (jmp_to_unknown with "Hinterp_w0") as "Hjmp"; eauto.
+    iDestruct (jmp_to_unknown with "[] [$Hinterp_w0]") as "Hjmp"; eauto.
+    { iSplit; last iFrame "#".
+      iModIntro.
+      by iApply custom_enclave_contract_inv.
+    }
 
 
     (* Code memory *)
@@ -584,8 +590,8 @@ Section mutual_attest_B.
       )%I as "Hma_A".
     {
       iApply "Hcemap"; iFrame "%#∗".
-      + iPureIntro; apply wf_ma_enclaves_map.
-      + iPureIntro; by rewrite /ma_enclaves_map; simplify_map_eq.
+      iPureIntro; simplify_map_eq.
+      by rewrite /ma_enclaves_map; simplify_map_eq.
     }
 
     destruct (Z.even (finz.to_z a)) eqn:HEven_a

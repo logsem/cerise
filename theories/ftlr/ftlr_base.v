@@ -8,8 +8,7 @@ Section fundamental.
           {nainv: logrel_na_invs Σ}
           {reservedaddresses : ReservedAddresses}
           `{MP: MachineParameters}
-          {contract_enclaves : CustomEnclavesMap}
-  .
+          {contract_enclaves : @CustomEnclavesMap Σ MP}.
 
   Notation D := ((leibnizO LWord) -n> iPropO Σ).
   Notation R := ((leibnizO LReg) -n> iPropO Σ).
@@ -27,7 +26,7 @@ Section fundamental.
     → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrWL lw = i
-    → custom_enclave_inv custom_enclaves
+    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     (* Loeb induction hypothesis, but only for those assumptions that change in the recursive step *)
     -∗ □ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'

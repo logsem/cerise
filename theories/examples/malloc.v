@@ -19,8 +19,9 @@ From cap_machine Require Import logrel addr_reg_sample fundamental rules proofmo
 Section SimpleMalloc.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
-          `{reservedaddresses : ReservedAddresses}
-          `{MP: MachineParameters}.
+          {reservedaddresses : ReservedAddresses}
+          `{MP: MachineParameters}
+          {contract_enclaves : @CustomEnclavesMap Σ MP}.
 
   Definition malloc_subroutine_instrs' (offset: Z) :=
     encodeInstrsLW [
@@ -219,10 +220,12 @@ Section SimpleMalloc.
 
   Lemma simple_malloc_subroutine_valid N b e v :
     finz.seq_between b e ## reserved_addresses ->
+    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    ⊢
     na_inv logrel_nais N (malloc_inv b e v) -∗
     interp (LCap E b e b v).
   Proof.
-    iIntros (Hreserved) "#Hmalloc".
+    iIntros (Hreserved) "#Hsys #Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
@@ -235,7 +238,7 @@ Section SimpleMalloc.
     3: { iSimpl. iIntros (w) "[H | ->]". iExact "H". iIntros (Hcontr); done. }
     { rewrite !dom_delete_L dom_insert_L. apply regmap_full_dom in H as <-. set_solver. }
     unshelve iDestruct ("Hregs_valid" $! r_t0 _ _ H0) as "Hr0_valid";auto.
-    iDestruct (jmp_to_unknown with "Hr0_valid") as "Hcont".
+    iDestruct (jmp_to_unknown with "Hsys Hr0_valid") as "Hcont".
     iNext. iIntros "((Hown & Hregs) & Hr_t0 & HPC & Hres)".
     iDestruct "Hres" as (ba ea size Hsizeq Hsize Hwithin) "[Hr_t1 Hbe]".
 
