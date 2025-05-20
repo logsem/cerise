@@ -1216,24 +1216,21 @@ Section custom_enclaves.
      the restrictive but simpler version to prove the contract.
    *)
 
-  Definition custom_enclave_contract_gen
-    {enclaves_map : CustomEnclavesMap} : iProp Σ :=
-    ∀ (Ep : coPset)
+  Definition custom_enclave_contract_gen {enclaves_map : CustomEnclavesMap} : Prop :=
+    forall (Ep : coPset)
     (I : EIdentity)
-    (b e a : Addr) (v : Version)
+    (b e : Addr) (v : Version)
     (b' e' a' : Addr) (v' : Version)
     (enclave_data : list LWord)
     (ot : OType)
     (ce : CustomEnclave),
 
-    ⌜  custom_enclaves !! I = Some ce⌝ →
-    ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
-    (* TODO I think we can derive following from [b',e'] -> .... *)
-    ⌜ (b' < e')%a⌝ → (* Well-formness: data region contains at least one *)
+    custom_enclaves !! I = Some ce →
+    (ot + 2)%ot = Some (ot ^+ 2)%ot →(* Well-formness: otype does not overflow *)
 
-    ⌜ I = hash_concat (hash b) (hash (tail (code ce)))⌝ →
-    ⌜ b = (code_region ce)⌝ →
-    ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
+    I = hash_concat (hash b) (hash (tail (code ce))) →
+    b = (code_region ce) →
+    (b + (length (code ce) + 1))%a = Some e →
 
     custom_enclave_inv
     ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
@@ -1244,27 +1241,25 @@ Section custom_enclaves.
 
   (* TODO @June explanation of the contract *)
   Definition custom_enclave_contract
-    {enclaves_map : CustomEnclavesMap} : iProp Σ :=
-    ∀
+    {enclaves_map : CustomEnclavesMap} : Prop :=
+    forall
     (I : EIdentity)
-    (b e a : Addr) (v : Version)
+    (b e : Addr) (v : Version)
     (b' e' a' : Addr) (v' : Version)
     (enclave_data : list LWord)
     (ot : OType)
     (ce : CustomEnclave),
 
-    ⌜ custom_enclaves !! I = Some ce⌝ →
-    ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
-    (* TODO I think we can derive following from [b',e'] -> .... *)
-    ⌜ (b' < e')%a⌝ → (* Well-formness: data region contains at least one *)
+    custom_enclaves !! I = Some ce →
+    (ot + 2)%ot = Some (ot ^+ 2)%ot →(* Well-formness: otype does not overflow *)
 
-    ⌜ I = hash_concat (hash b) (hash (tail (code ce)))⌝ →
-    ⌜ b = (code_region ce)⌝ →
-    ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
+    I = hash_concat (hash b) (hash (tail (code ce))) →
+    b = (code_region ce) →
+    (b + (length (code ce) + 1))%a = Some e →
 
     custom_enclave_inv
 
-    ∗ na_inv logrel_nais (custom_enclaveN.@I)
+    ∗ inv (custom_enclaveN.@I)
       ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
        [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
 
@@ -1281,22 +1276,20 @@ Section custom_enclaves.
   Lemma custom_enclave_contract_inv
     {enclaves_map : CustomEnclavesMap}
     (E : coPset)
-    : ⊢ custom_enclave_contract ∗ na_own logrel_nais E -∗ custom_enclave_contract_gen.
+    : custom_enclave_contract -> custom_enclave_contract_gen.
   Proof.
-    iIntros "[Hcontract Hna]".
-    iIntros (Ep I b e a v b' e' a' v' enclave_data ot ce
-               Hdata_seal Hot Hb' HIhash Hb He)
+    intros Hcontract.
+    iIntros (Ep I b e v b' e' a' v' enclave_data ot ce
+               Hdata_seal Hot HIhash Hb He)
       "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign)".
+    rewrite /region_mapsto.
 
-    iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
+    iMod (inv_alloc (custom_enclaveN.@I) Ep
             ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
              [[ b' , e' ]] ↦ₐ{ v' } [[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])%I
-           with "[$Htc_code $Htc_data]")
-      as "#Htc_inv".
-    iModIntro.
-    rewrite /custom_enclave_contract.
-    by iSpecialize ("Hcontract" $! I b e a v b' e' a' v' enclave_data ot ce
-               Hdata_seal Hot Hb' HIhash Hb He with "[$]").
+         with "[$Htc_code $Htc_data]") as "#Htc_inv".
+
+    iApply Hcontract;eauto.
   Qed.
 
 

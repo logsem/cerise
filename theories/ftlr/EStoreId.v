@@ -22,8 +22,8 @@ Section fundamental.
     (lw : LWord) (rd rs : RegName) (P : D):
     ftlr_instr lregs p b e a v lw (EStoreId rd rs) P.
   Proof.
-    intros Hp Hsome i Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    intros Hcontract Hp Hsome i Hbae Hi.
+    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     specialize Hsome with rd as Hrd.
     specialize Hsome with rs as Hrs.

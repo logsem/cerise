@@ -714,8 +714,8 @@ Section fundamental.
     (lw_pc : LWord) (dst src : RegName) (P : D):
     ftlr_instr lregs p_pc b_pc e_pc a_pc v_pc lw_pc (IsUnique dst src) P.
   Proof.
-    intros Hp Hsome HcorrectLPC Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha #HP Hcls HPC Hmap".
+    intros Hcontract Hp Hsome HcorrectLPC Hbae Hi.
+    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha #HP Hcls HPC Hmap".
     specialize (HpersP lw_pc).
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";

@@ -36,8 +36,10 @@ Section fundamental.
     (lw_pc : LWord) (src : RegName) (P : D):
     ftlr_instr lregs p_pc b_pc e_pc a_pc v_pc lw_pc (EInit src) P.
   Proof.
-    intros Hp Hsome i Hbae Hi.
-    iIntros "[#Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) H£ Hown Ha HP Hcls HPC Hmap".
+    intros Hcontract Hp Hsome i Hbae Hi.
+    iIntros
+      "#Hsystem_inv #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    iAssert (£1)%I as "-#H£"; first admit.
     specialize (HpersP lw_pc).
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
@@ -293,32 +295,28 @@ Section fundamental.
           set ( new_enclave := {| code := Hcus_enclave_code; code_region := Hcus_enclave_addr; Penc := Hcus_enclave_enc; Psign := Hcus_enclave_sign |} ).
           iMod (seal_store_update_alloc _ Hcus_enclave_enc with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
           iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
-          iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
-          iEval (rewrite /custom_enclave_contract_gen) in "Hcontract'".
-          iSpecialize ("Hcontract'" $!
+          assert custom_enclave_contract_gen as Hcontract' by assumption.
+          rewrite /custom_enclave_contract_gen in Hcontract'.
+          specialize (Hcontract'
                          mask_sys I_ECn
-                         b_code e_code b_code (v_code+1)
+                         b_code e_code (v_code+1)
                          b_data e_data a_data (v_data+1)
                          lws_data ot_ec new_enclave).
-
           pose proof custom_enclaves_wf as Hwf_map.
-          iMod ("Hcontract'" with
-                 "[] [] [] [] [] [] [Hcode Hdata $Hseal_pred_enc $Hseal_pred_sign]")
+          iMod (Hcontract' with
+                 "[Hcode Hdata $Hseal_pred_enc $Hseal_pred_sign]")
                  as "#Hinterp_enclave"
           ; eauto.
-          { iPureIntro.
-            clear -Hwf_map HI_ECn.
+          { clear -Hwf_map HI_ECn.
             rewrite /custom_enclaves_map_wf in Hwf_map.
             opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
             apply H in Hwf_map; eauto; cbn in *.
             clear H.
             admit. (* should be true because well formed custom_enclaves *)
           }
-          { iPureIntro.
-            admit. (* should be true because well formed custom_enclaves *)
+          { admit. (* should be true because well formed custom_enclaves *)
           }
-          { iPureIntro.
-            admit. (* should be true because well formed custom_enclaves *)
+          { admit. (* should be true because well formed custom_enclaves *)
           }
           { iFrame "#".
             iSplitL "Hcode".
@@ -481,10 +479,10 @@ Section fundamental.
 
           iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
           rewrite (insert_commute _ src PC) // insert_insert.
-          iClear "Hmod Hcontract'".
+          iClear "Hmod".
           iApply wp_pure_step_later; auto.
           iNext; iIntros "_".
-          iApply ("IH" $! (<[src := _]> lregs) with "[$] [%] [] [Hregs] [$Hown]"); eauto.
+          iApply ("IH" $! (<[src := _]> lregs) with "[%] [] [Hregs] [$Hown]"); eauto.
           { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
           {
             iIntros (ri ? Hri Hvs).
@@ -727,7 +725,7 @@ Section fundamental.
           iClear "Hmod".
           iApply wp_pure_step_later; auto.
           iNext; iIntros "H£'".
-          iApply ("IH" $! (<[src := _]> lregs) with "[$] [%] [] [Hregs] [$Hown]"); eauto.
+          iApply ("IH" $! (<[src := _]> lregs) with "[%] [] [Hregs] [$Hown]"); eauto.
           { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
           {
             iIntros (ri ? Hri Hvs).
@@ -735,7 +733,7 @@ Section fundamental.
             iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
           }
           Unshelve. all: admit.
-  Admitted.
+  (* Admitted. *)
 
 
 

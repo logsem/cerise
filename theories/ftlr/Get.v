@@ -24,8 +24,8 @@ Section fundamental.
     is_Get ins dst r →
     ftlr_instr lregs p b e a v lw ins P.
   Proof.
-    intros Hinstr Hp Hsome i Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    intros Hinstr Hcontract Hp Hsome i Hbae Hi.
+    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     rewrite <- Hi in Hinstr. clear Hi.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";

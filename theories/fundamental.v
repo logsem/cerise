@@ -1,5 +1,5 @@
-(* From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict *)
-(*   Subseg Get Lea Seal UnSeal IsUnique Hash EInit EDeInit EStoreId. *)
+From cap_machine.ftlr Require Export Jmp Jnz Mov Load Store AddSubLt Restrict
+  Subseg Get Lea Seal UnSeal IsUnique Hash EInit EDeInit EStoreId.
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
 From stdpp Require Import base.
@@ -41,13 +41,12 @@ Section fundamental.
   Qed.
 
   Lemma fundamental_cap
-    lregs p b e a v :
-    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
-    ⊢ £ 1 -∗
-      interp (LCap p b e a v) → (* PC safe to share *)
+    lregs p b e a v (Hcontract: custom_enclave_contract_gen) :
+    custom_enclave_inv
+    ⊢ interp (LCap p b e a v) → (* PC safe to share *)
       interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
-    iIntros "[#Hcontract #Hsystem_inv] H£ #Hinv /=".
+    iIntros "#Hsystem_inv #Hinv /=".
     iIntros "[[Hfull Hreg] [Hmreg Hown]]".
     iRevert "Hinv".
     iLöb as "IH" forall (lregs p b e a v).
@@ -65,7 +64,6 @@ Section fundamental.
       iInv (logN.@(a, v)) as (lw) "[>Ha HP]" "Hcls".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
         first apply (lookup_insert _ _ (LCap p b e a v)).
-      iCombine "Hcontract Hsystem_inv" as "#Hsystem".
 
       destruct (decodeInstrWL lw) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
@@ -182,10 +180,10 @@ Section fundamental.
   Admitted.
 
   Theorem fundamental w r :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
-    ⊢ interp w -∗ interp_expression r w.
+    custom_enclave_contract_gen ->
+       custom_enclave_inv ⊢ interp w -∗ interp_expression r w.
   Proof.
-    iIntros "#Hsys Hw". destruct w as [| [c | ] | ].
+    iIntros (Hcontract) "#Hsys Hw". destruct w as [| [c | ] | ].
     2: { iApply fundamental_cap; done. }
     all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
     all: iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
@@ -204,12 +202,13 @@ Section fundamental.
 
   Lemma interp_exec_cond p b e a v :
     p ≠ E ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢ interp (LCap p b e a v) -∗ exec_cond b e p v.
   Proof.
-    iIntros (Hnp) "#Hsys #Hw".
+    iIntros (Hnp Hcontract) "#Hsys #Hw".
     iIntros (a0 r Hin). iNext. iModIntro.
-    iApply fundamental; first done.
+    iApply fundamental; try done.
     rewrite !fixpoint_interp1_eq /=. destruct p; try done.
   Qed.
 
@@ -234,10 +233,11 @@ Section fundamental.
   (* updatePcPerm adds a later because of the case of E-capabilities, which
      unfold to ▷ interp_expr *)
   Lemma interp_updatePcPermL lw :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢ interp lw -∗ ▷ (∀ lregs, interp_expression lregs (updatePcPermL lw)).
   Proof.
-    iIntros "#Hsys #Hw".
+    iIntros (Hcontract) "#Hsys #Hw".
     assert ((∃ b e a v, lw = LCap E b e a v) ∨ updatePcPermL lw = lw) as [Hw | ->].
     { destruct lw as [ | [ | ] | ]; eauto. unfold updatePcPermL.
       case_match; eauto. left. eexists _,_,_,_; eauto.
@@ -249,7 +249,8 @@ Section fundamental.
   Qed.
 
   Lemma jmp_to_unknown lw :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢ interp lw -∗
       ▷ (∀ rmap,
           ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
@@ -259,7 +260,9 @@ Section fundamental.
           -∗ WP Seq (Instr Executable) {{ λ v, ⌜v = HaltedV⌝ →
                ∃ lr : LReg, full_map lr ∧ registers_mapsto lr ∗ na_own logrel_nais ⊤ }}).
   Proof.
-    iIntros "#Hsys #Hw". iDestruct (interp_updatePcPermL with "Hsys Hw") as "Hw'". iNext.
+    iIntros (Hcontract) "#Hsys #Hw". iDestruct (interp_updatePcPermL with "Hsys Hw") as "Hw'"
+    ; first done.
+    iNext.
     iIntros (rmap Hrmap).
     set rmap' := <[ PC := (LInt 0%Z: LWord) ]> rmap : LReg.
     iSpecialize ("Hw'" $! rmap').
@@ -281,12 +284,13 @@ Section fundamental.
   Lemma region_integers_alloc' E (b e a: Addr) (v : Version) l p :
     Forall (λ lw, is_zL lw = true) l →
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hl Hreserved) "#Hsys H". destruct p.
+    iIntros (Hl Hreserved Hcontract) "#Hsys H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_integers_alloc _ _ _ a _ _ RX with "H") as ">#H"; auto.
@@ -299,13 +303,14 @@ Section fundamental.
 
   Lemma region_valid_alloc' E (b e a: Addr) v l p :
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hreserved) "#Hsys #Hl H". destruct p.
+    iIntros (Hreserved Hcontract) "#Hsys #Hl H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_alloc _ RX _ _ a _ _  with "Hl H") as ">#H"; auto.
@@ -319,12 +324,13 @@ Section fundamental.
     finz.seq_between b e ## reserved_addresses ->
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
     Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l →
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).
   Proof.
-    iIntros (Hreserved Hmasks Hl) "#Hsys H". destruct p.
+    iIntros (Hreserved Hmasks Hl Hcontract) "#Hsys H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
          iDestruct (region_valid_in_region _ _ _ a _ _ RX with "H") as ">#H"; auto.

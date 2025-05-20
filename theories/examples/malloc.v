@@ -220,12 +220,13 @@ Section SimpleMalloc.
 
   Lemma simple_malloc_subroutine_valid N b e v :
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    custom_enclave_contract_gen ->
+    custom_enclave_inv
     ⊢
     na_inv logrel_nais N (malloc_inv b e v) -∗
     interp (LCap E b e b v).
   Proof.
-    iIntros (Hreserved) "#Hsys #Hmalloc".
+    iIntros (Hreserved Hcontract) "#Hsys #Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
