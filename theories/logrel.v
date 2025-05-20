@@ -1188,7 +1188,7 @@ Section custom_enclaves.
       (
 
         ∃ (n : ENum) (ot_n : OType),
-          EC⤇ n ∗ ⌜ finz.of_z (2*(Z.of_nat n) + 1)%Z = Some ot_n⌝
+          EC⤇ n ∗ ⌜ finz.of_z (2*(Z.of_nat n))%Z = Some ot_n⌝
           ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between 0%ot ot_n) : list OType) : gset OType),
                ∃ P , seal_pred o P)
           ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between ot_n top_ot) : list OType) : gset OType), can_alloc_pred o)
@@ -1240,7 +1240,6 @@ Section custom_enclaves.
     ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce)
-    ∗ na_own logrel_nais Ep
     ={Ep}=∗ interp (LCap E b e (b^+1)%a v).
 
   (* TODO @June explanation of the contract *)
@@ -1281,12 +1280,13 @@ Section custom_enclaves.
    *)
   Lemma custom_enclave_contract_inv
     {enclaves_map : CustomEnclavesMap}
-    : ⊢ custom_enclave_contract -∗ custom_enclave_contract_gen.
+    (E : coPset)
+    : ⊢ custom_enclave_contract ∗ na_own logrel_nais E -∗ custom_enclave_contract_gen.
   Proof.
-    iIntros "Hcontract".
+    iIntros "[Hcontract Hna]".
     iIntros (Ep I b e a v b' e' a' v' enclave_data ot ce
                Hdata_seal Hot Hb' HIhash Hb He)
-      "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Hna)".
+      "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
             ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗

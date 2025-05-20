@@ -2210,6 +2210,18 @@ Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
 Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
   own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
+Lemma enclave_all_agree (tidx : TIndex) (id1 id2 : EIdentity) `{ceriseG Σ} :
+  enclave_all tidx id1 ∗ enclave_all tidx id2 -∗ ⌜ id1 = id2 ⌝.
+Proof.
+  iIntros "[E1 E2]".
+  iCombine "E1 E2" as "E".
+  rewrite own_valid auth_frag_validI.
+  iDestruct "E" as "%E".
+  rewrite (singleton_valid tidx) in E.
+  by apply to_agree_op_inv in E.
+Qed.
+
+
 #[global] Instance enclave_prev_timeless `{ceriseG Σ} (tidx : TIndex)  : Timeless (enclave_prev tidx).
 Proof. apply _. Defined.
 

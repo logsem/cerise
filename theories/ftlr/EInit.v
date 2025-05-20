@@ -37,7 +37,7 @@ Section fundamental.
     ftlr_instr lregs p_pc b_pc e_pc a_pc v_pc lw_pc (EInit src) P.
   Proof.
     intros Hp Hsome i Hbae Hi.
-    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) H£ Hown Ha HP Hcls HPC Hmap".
+    iIntros "[#Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) H£ Hown Ha HP Hcls HPC Hmap".
     specialize (HpersP lw_pc).
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
@@ -103,7 +103,7 @@ Section fundamental.
       iDestruct (interp_open_region $ (⊤ ∖ ↑logN.@(a_pc, v_pc)) with "Hinterp_wcode")
         as (Ps) "[%Hlen_Ps_code Hmod]" ; eauto.
       { admit. }
-      iMod "Hmod" as (lws) "(%Hlen_lws_code & Hpers_Ps_code
+      iMod "Hmod" as (lws) "(%Hlen_lws_code & %Hpers_Ps_code
       & Hcode & HPs_code & Hreadcond_Ps_code & Hcls_code)".
       destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
       { admit. (* opsem will fail *)
@@ -185,8 +185,16 @@ Section fundamental.
       { admit. (* see the statement in comment above *) }
       (* Unset Printing Notations. *)
       iMod (lc_fupd_elim_later with "[$H£] [$Hmod]") as "Hmod'".
-      iMod "Hmod'" as (lws_data) "(%Hlen_lws_data & Hpers_Ps_data
+      iMod "Hmod'" as (lws_data) "(%Hlen_lws_data & %Hpers_Ps_data
       & Hdata & HPs_data & Hreadcond_Ps_data & Hcls_data)".
+
+      destruct (decide (b_data < e_data)%a) as [Hdata|Hdata]; cycle 1.
+      { admit. (* opsem will fail *) }
+      rewrite (finz_seq_between_cons b_data) //.
+      rewrite (finz_seq_between_cons b_data) // in Hlen_lws_data.
+      destruct lws_data as [|lws_data1 lws_data]; first (by cbn in Hlen_lws_data).
+
+
       iDestruct (big_sepM_union with "[$Hcode $Hdata]") as "Hmem".
       { admit. }
       iDestruct (big_sepM_insert with "[$Hmem $Ha]") as "Hmem".
@@ -194,27 +202,565 @@ Section fundamental.
 
       iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
       { admit. }
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & Hcustom_inv)".
+      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
+
+      destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
+      { admit. (* opsem will fail *) }
 
       iApply (wp_einit with "[$Hmap $Hmem $HEC]");eauto.
       + by simplify_map_eq.
       + admit.
       + by simplify_map_eq.
       + admit.
-      + iNext. iNext.
-        iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      + iNext.
+        iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & H£ & Hspec)".
         iDestruct "Hspec" as "[Hspec | Hspec]"; cycle 1.
         { admit. (* contraduction  *)
         }
         iDestruct "Hspec"
           as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-          "(%Hincr & %Htidx_next & %Htidx & % & % & % & % & % & % & % & % & % & % & % & % & Henclave)".
+          "(%Hincr & %Htidx_next & %Htidx & % & % & % & % & % & % & % & % & % & % & % & % & % & -> & Henclave_live & #Henclave_all)".
         simplify_map_eq.
         incrementLPC_inv; simplify_map_eq.
         match goal with
         | _ : _ |- context [ enclave_cur ?ECN ?I ] =>
             set (I_ECn := I)
         end.
+
+        rewrite H2 in Hlregs_src; simplify_eq.
+        assert ( LCap RW data_b data_e data_a data_v = LCap RW b_data e_data a_data v_data ) as
+          Heq_data; simplify_eq.
+        { clear -H3.
+          rewrite lookup_insert_ne in H3; last admit.
+          rewrite lookup_union in H3.
+          assert ( logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data)
+                     (lws_data1 :: lws_data) v_data !! (b_code, v_code) = None ).
+          { admit. }
+          rewrite H in H3.
+          assert ( logical_region_map (finz.seq_between b_code e_code)
+                     (LCap RW b_data e_data a_data v_data :: lws) v_code !! (b_code, v_code)
+                 = Some (LCap RW b_data e_data a_data v_data)).
+          { admit. }
+          rewrite H0 in H3.
+          by rewrite option_union_right_id in H3; simplify_eq.
+        }
+
+        assert (ot = ot_ec) as ->.
+        {
+          clear -H1 H Htidx Hot_ec Hot_ec2.
+          rewrite  /tid_of_otype in Htidx.
+          rewrite H in Htidx.
+          assert (Ecn = (Z.to_nat ot `div` 2)) as -> by (by injection Htidx); clear Htidx.
+          assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat ot) 2)) = (Z.to_nat ot) ).
+          {
+            rewrite -(Nat2Z.inj_mul 2).
+            rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+            2:{
+              destruct ot.
+              rewrite /Z.even in H.
+              cbn in *.
+              destruct z; cbn in *.
+              + rewrite Z2Nat.inj_0.
+                apply PeanoNat.Nat.divide_0_r.
+              + rewrite Z2Nat.inj_pos.
+                destruct p; cbn in * ; try done.
+                rewrite Pos2Nat.inj_xO.
+                apply Nat.divide_factor_l.
+              + rewrite Z2Nat.inj_neg.
+                apply PeanoNat.Nat.divide_0_r.
+            }
+            rewrite PeanoNat.Nat.mul_comm.
+            rewrite (PeanoNat.Nat.div_mul (Z.to_nat ot) 2); done.
+          }
+          solve_addr.
+        }
+
+        rewrite (finz_seq_between_cons ot_ec); last solve_addr.
+        rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr.
+        iEval (rewrite !list_to_set_cons) in "Hfree".
+        iDestruct (big_sepS_union with "Hfree") as "[Hfree_ot_ec_0 Hfree]".
+        { admit. }
+        iDestruct (big_sepS_union with "Hfree") as "[Hfree_ot_ec_1 Hfree]".
+        { admit. }
+        rewrite !big_sepS_singleton.
+
+        iAssert (
+            [∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_code e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code,
+              la ↦ₐ lw
+          )%I as "-#Hcode_prev".
+        { admit. }
+        iAssert ([∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_data e_data)
+                   (lws_data1::lws_data) v_data, la ↦ₐ lw)%I as "-#Hdata_prev".
+        { admit. }
+        iAssert (
+            [∗ map] la↦lw ∈
+              logical_region_map (finz.seq_between b_code e_code)
+              (LCap RW b_data e_data a_data (v_data+1) :: lws) (v_code+1),
+              la ↦ₐ lw
+          )%I as "-#Hcode".
+        { admit. }
+        iAssert ([∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_data e_data)
+                   (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data+1), la ↦ₐ lw)%I as "-#Hdata".
+        { admit. }
+        iAssert ((x2,x3) ↦ₐ lw_pc)%I as "-#Hpca".
+        { admit. }
+        iClear "Hmem".
+        set ( mask_data := compute_mask_region mask_code (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) v_data ).
+        set ( mask_sys := mask_data ∖ ↑custom_enclaveN ).
+
+       destruct (custom_enclaves !! I_ECn) as
+         [ [Hcus_enclave_code Hcus_enclave_addr Hcus_enclave_enc Hcus_enclave_sign] |] eqn:HI_ECn.
+        * (* CASE WHERE THE IDENTITY IS A KNOWN ENCLAVE *)
+          set ( new_enclave := {| code := Hcus_enclave_code; code_region := Hcus_enclave_addr; Penc := Hcus_enclave_enc; Psign := Hcus_enclave_sign |} ).
+          iMod (seal_store_update_alloc _ Hcus_enclave_enc with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
+          iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
+          iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
+          iEval (rewrite /custom_enclave_contract_gen) in "Hcontract'".
+          iSpecialize ("Hcontract'" $!
+                         mask_sys I_ECn
+                         b_code e_code b_code (v_code+1)
+                         b_data e_data a_data (v_data+1)
+                         lws_data ot_ec new_enclave).
+          iMod ("Hcontract'" with
+                 "[] [] [] [] [] [] [Hcode Hdata $Hseal_pred_enc $Hseal_pred_sign]")
+                 as "#Hinterp_enclave"
+          ; eauto.
+          { iPureIntro.
+            admit. (* should be true because well formed custom_enclaves *)
+          }
+          { iPureIntro.
+            admit. (* should be true because well formed custom_enclaves *)
+          }
+          { iPureIntro.
+            admit. (* should be true because well formed custom_enclaves *)
+          }
+          { iFrame "#".
+            iSplitL "Hcode".
+            { rewrite /region_mapsto.
+              iApply big_sepM_to_big_sepL2.
+              { admit. }
+              { admit. }
+              rewrite /logical_region_map /logical_region.
+              (* (lws and code new_enclave should be the same) *)
+              admit.
+            }
+            rewrite /region_mapsto.
+            iApply big_sepM_to_big_sepL2.
+            { admit. }
+            { admit. }
+            rewrite /logical_region_map /logical_region.
+            rewrite /tid_of_otype in Htidx.
+            (* (ot_ec and ot should be the same) *)
+            admit.
+          }
+          iAssert (interp (LCap x x0 x1 x4 x3)) as "Hinterp_next_PC".
+          { admit. }
+
+
+          iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
+          { iNext.
+            iExists (Ecn +1), ot_ec2.
+            replace ((ot_ec ^+1) ^+1)%ot with ot_ec2 by solve_addr + Hot_ec2.
+            iFrame.
+            iSplitR.
+            { iPureIntro; solve_addr. }
+            iSplitL "Halloc".
+            { rewrite (finz_seq_between_split _ ot_ec ot_ec2); last solve_addr + Hot_ec2.
+              rewrite list_to_set_app_L.
+              rewrite big_sepS_union; last admit.
+              iFrame.
+              rewrite (finz_seq_between_cons ot_ec); last solve_addr + Hot_ec2.
+              rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr + Hot_ec2.
+              rewrite (finz_seq_between_empty ((ot_ec ^+ 1) ^+ 1)%ot); last solve_addr + Hot_ec2.
+              rewrite !list_to_set_cons list_to_set_nil.
+              rewrite big_sepS_union; last admit.
+              rewrite big_sepS_union; last admit.
+              rewrite big_sepS_empty.
+              rewrite !big_sepS_singleton.
+              iSplit; [|iSplit]; try (iExists _ ;iFrame "#"); done.
+            }
+            iModIntro.
+            iIntros (I tid_I ot_I ce_I) "%Htid_I (Henclave_I & %Hcustom_I & %Hhas_seal_I)".
+            destruct (decide (tid_I = Ecn)) as [-> |Htid_I_ECn].
+            { (* if tid_I = ECn, then it should be the predicate that had just been initialised *)
+              assert (ot_ec = if Z.even ot_I then ot_I else (ot_I ^+ -1)%ot) as Hot.
+              { rewrite /has_seal in Hhas_seal_I.
+                destruct (finz.of_z ot_I) eqn:Hot_I ; cbn in Hhas_seal_I; try done.
+                apply finz_of_z_is_Some_spec in Hot_I.
+                rewrite /tid_of_otype in Hhas_seal_I.
+                destruct ( Z.even ot_I ) eqn:Hot_I_even.
+                + assert (Z.even f = true) as Hf_even by (by rewrite Hot_I).
+                  rewrite Hf_even in Hhas_seal_I.
+                  assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by (by injection Hhas_seal_I).
+                  clear Hhas_seal_I.
+                  rewrite HEcn_eq in Hot_ec.
+                  clear -Hot_ec Hot_I Hf_even.
+                  assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat f) 2)) = (Z.to_nat f) ).
+                  {
+                  rewrite -(Nat2Z.inj_mul 2).
+                  rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+                    2:{
+                      destruct f.
+                      rewrite /Z.even in Hf_even.
+                      cbn in *.
+                      destruct z; cbn in *.
+                      + rewrite Z2Nat.inj_0.
+                        apply PeanoNat.Nat.divide_0_r.
+                      + rewrite Z2Nat.inj_pos.
+                        destruct p; cbn in * ; try done.
+                        rewrite Pos2Nat.inj_xO.
+                        apply Nat.divide_factor_l.
+                      + rewrite Z2Nat.inj_neg.
+                        apply PeanoNat.Nat.divide_0_r.
+                    }
+                    rewrite PeanoNat.Nat.mul_comm.
+                    rewrite (PeanoNat.Nat.div_mul (Z.to_nat f) 2); done.
+                  }
+                  solve_addr.
+                + assert (Z.even f = false) as Hf_even by (by rewrite Hot_I).
+                  rewrite Hf_even in Hhas_seal_I.
+                  assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by (by injection Hhas_seal_I).
+                  clear Hhas_seal_I.
+                  rewrite HEcn_eq in Hot_ec.
+                  clear -Hot_ec Hot_I Hf_even.
+                  assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat (f ^- 1)%f) 2)) = (Z.to_nat (f ^- 1)%f) ).
+                  {
+                  rewrite -(Nat2Z.inj_mul 2).
+                  rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+                    2:{
+                      destruct f.
+                      rewrite /Z.even in Hf_even.
+                      cbn in *.
+                      destruct z; cbn in *; try done.
+                      destruct p; cbn in * ; try done.
+                      (* destruct ( (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) ^- 1)%f. *)
+                      (* cbn. *)
+                      + remember (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) as p1.
+                        destruct (p1 ^- 1)%f eqn:HP1.
+                        assert (z = Z.pos p~0).
+                        { solve_finz. }
+
+                        assert (  (((Z.pos p~0) <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
+                        assert (  ((0 <=? (Z.pos p~0))%Z) = true ) as finz_nonneg2 by solve_finz.
+                        replace (finz.FinZ z finz_lt0 finz_nonneg0) with
+                          (finz.FinZ (Z.pos p~0) finz_lt2 finz_nonneg2) by solve_finz.
+                        cbn.
+                        rewrite Z2Nat.inj_pos.
+                        rewrite Pos2Nat.inj_xO.
+                        apply Nat.divide_factor_l.
+                      + remember (finz.FinZ 1 finz_lt finz_nonneg) as p1.
+                        destruct (p1 ^- 1)%f eqn:HP1.
+                        assert (z = 0).
+                        { solve_finz. }
+
+                        assert (  ((0 <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
+                        assert (  ((0 <=? 0)%Z) = true ) as finz_nonneg2 by solve_finz.
+                        replace (finz.FinZ z finz_lt0 finz_nonneg0) with
+                          (finz.FinZ 0 finz_lt2 finz_nonneg2) by solve_finz.
+                        cbn.
+                        rewrite Z2Nat.inj_0.
+                        apply PeanoNat.Nat.divide_0_r.
+                    }
+                    rewrite PeanoNat.Nat.mul_comm.
+                    rewrite (PeanoNat.Nat.div_mul (Z.to_nat (f ^- 1)%f) 2); done.
+                  }
+                  rewrite H in Hot_ec.
+                  solve_addr.
+              }
+              iDestruct (enclave_all_agree _ I_ECn I with "[$Henclave_all $Henclave_I]") as "->".
+              rewrite Hcustom_I in HI_ECn ; simplify_eq.
+              destruct (Z.even ot_I); cbn in *; iFrame "#".
+              replace (((ot_I ^+ -1) ^+ 1)%f) with ot_I by solve_finz.
+              iFrame "#".
+            }
+            { (* tid_I ≠ Ecn*)
+              assert (0 <= tid_I < Ecn) as Htid_I' by lia.
+              iApply ("Hcustom_inv" with "[] [$Henclave_I]"); eauto.
+            }
+          }
+          iModIntro.
+
+          iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
+          {
+            iNext.
+            admit.
+            (* iApply region_inv_construct; auto. *)
+          }
+          iModIntro.
+
+          iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
+          {
+            iNext.
+            admit.
+            (* iApply region_inv_construct; auto. *)
+          }
+          iModIntro.
+
+          iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
+          rewrite (insert_commute _ src PC) // insert_insert.
+          iClear "Hmod Hcontract'".
+          iApply wp_pure_step_later; auto.
+          iNext; iIntros "_".
+          iApply ("IH" $! (<[src := _]> lregs) with "[$] [%] [] [Hregs] [$Hown]"); eauto.
+          { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
+          {
+            iIntros (ri ? Hri Hvs).
+            destruct (decide (ri = src)); simplify_map_eq.
+            by rewrite !fixpoint_interp1_eq.
+            iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
+          }
+
+
+
+        * (* CASE WHERE THE IDENTITY IS NOT A KNOWN ENCLAVE *)
+          iMod (seal_store_update_alloc _ interp with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
+          iMod (seal_store_update_alloc _ interp with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
+
+          iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
+          { iNext.
+            iExists (Ecn +1), ot_ec2.
+            replace ((ot_ec ^+1) ^+1)%ot with ot_ec2 by solve_addr + Hot_ec2.
+            iFrame.
+            iSplitR.
+            { iPureIntro; solve_addr. }
+            iSplitL "Halloc".
+            { rewrite (finz_seq_between_split _ ot_ec ot_ec2); last solve_addr + Hot_ec2.
+              rewrite list_to_set_app_L.
+              rewrite big_sepS_union; last admit.
+              iFrame.
+              rewrite (finz_seq_between_cons ot_ec); last solve_addr + Hot_ec2.
+              rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr + Hot_ec2.
+              rewrite (finz_seq_between_empty ((ot_ec ^+ 1) ^+ 1)%ot); last solve_addr + Hot_ec2.
+              rewrite !list_to_set_cons list_to_set_nil.
+              rewrite big_sepS_union; last admit.
+              rewrite big_sepS_union; last admit.
+              rewrite big_sepS_empty.
+              rewrite !big_sepS_singleton.
+              iSplit; [|iSplit]; try (iExists _ ;iFrame "#"); done.
+            }
+            iModIntro.
+            iIntros (I tid_I ot_I ce_I) "%Htid_I (Henclave_I & %Hcustom_I & %Hhas_seal_I)".
+            destruct (decide (tid_I = Ecn)) as [-> |Htid_I_ECn].
+            { (* if tid_I = ECn, then it should be the predicate that had just been initialised *)
+              assert (ot_ec = if Z.even ot_I then ot_I else (ot_I ^+ -1)%ot) as Hot.
+              { rewrite /has_seal in Hhas_seal_I.
+                destruct (finz.of_z ot_I) eqn:Hot_I ; cbn in Hhas_seal_I; try done.
+                apply finz_of_z_is_Some_spec in Hot_I.
+                rewrite /tid_of_otype in Hhas_seal_I.
+                destruct ( Z.even ot_I ) eqn:Hot_I_even.
+                + assert (Z.even f = true) as Hf_even by (by rewrite Hot_I).
+                  rewrite Hf_even in Hhas_seal_I.
+                  assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by (by injection Hhas_seal_I).
+                  clear Hhas_seal_I.
+                  rewrite HEcn_eq in Hot_ec.
+                  clear -Hot_ec Hot_I Hf_even.
+                  assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat f) 2)) = (Z.to_nat f) ).
+                  {
+                  rewrite -(Nat2Z.inj_mul 2).
+                  rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+                    2:{
+                      destruct f.
+                      rewrite /Z.even in Hf_even.
+                      cbn in *.
+                      destruct z; cbn in *.
+                      + rewrite Z2Nat.inj_0.
+                        apply PeanoNat.Nat.divide_0_r.
+                      + rewrite Z2Nat.inj_pos.
+                        destruct p; cbn in * ; try done.
+                        rewrite Pos2Nat.inj_xO.
+                        apply Nat.divide_factor_l.
+                      + rewrite Z2Nat.inj_neg.
+                        apply PeanoNat.Nat.divide_0_r.
+                    }
+                    rewrite PeanoNat.Nat.mul_comm.
+                    rewrite (PeanoNat.Nat.div_mul (Z.to_nat f) 2); done.
+                  }
+                  solve_addr.
+                + assert (Z.even f = false) as Hf_even by (by rewrite Hot_I).
+                  rewrite Hf_even in Hhas_seal_I.
+                  assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by (by injection Hhas_seal_I).
+                  clear Hhas_seal_I.
+                  rewrite HEcn_eq in Hot_ec.
+                  clear -Hot_ec Hot_I Hf_even.
+                  assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat (f ^- 1)%f) 2)) = (Z.to_nat (f ^- 1)%f) ).
+                  {
+                  rewrite -(Nat2Z.inj_mul 2).
+                  rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+                    2:{
+                      destruct f.
+                      rewrite /Z.even in Hf_even.
+                      cbn in *.
+                      destruct z; cbn in *; try done.
+                      destruct p; cbn in * ; try done.
+                      (* destruct ( (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) ^- 1)%f. *)
+                      (* cbn. *)
+                      + remember (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) as p1.
+                        destruct (p1 ^- 1)%f eqn:HP1.
+                        assert (z = Z.pos p~0).
+                        { solve_finz. }
+
+                        assert (  (((Z.pos p~0) <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
+                        assert (  ((0 <=? (Z.pos p~0))%Z) = true ) as finz_nonneg2 by solve_finz.
+                        replace (finz.FinZ z finz_lt0 finz_nonneg0) with
+                          (finz.FinZ (Z.pos p~0) finz_lt2 finz_nonneg2) by solve_finz.
+                        cbn.
+                        rewrite Z2Nat.inj_pos.
+                        rewrite Pos2Nat.inj_xO.
+                        apply Nat.divide_factor_l.
+                      + remember (finz.FinZ 1 finz_lt finz_nonneg) as p1.
+                        destruct (p1 ^- 1)%f eqn:HP1.
+                        assert (z = 0).
+                        { solve_finz. }
+
+                        assert (  ((0 <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
+                        assert (  ((0 <=? 0)%Z) = true ) as finz_nonneg2 by solve_finz.
+                        replace (finz.FinZ z finz_lt0 finz_nonneg0) with
+                          (finz.FinZ 0 finz_lt2 finz_nonneg2) by solve_finz.
+                        cbn.
+                        rewrite Z2Nat.inj_0.
+                        apply PeanoNat.Nat.divide_0_r.
+                    }
+                    rewrite PeanoNat.Nat.mul_comm.
+                    rewrite (PeanoNat.Nat.div_mul (Z.to_nat (f ^- 1)%f) 2); done.
+                  }
+                  rewrite H in Hot_ec.
+                  solve_addr.
+              }
+              iDestruct (enclave_all_agree _ I_ECn I with "[$Henclave_all $Henclave_I]") as "->".
+              rewrite Hcustom_I in HI_ECn ; simplify_eq.
+            }
+            { (* tid_I ≠ Ecn*)
+              assert (0 <= tid_I < Ecn) as Htid_I' by lia.
+              iApply ("Hcustom_inv" with "[] [$Henclave_I]"); eauto.
+            }
+          }
+          iModIntro.
+
+
+          iDestruct "HPs_data" as "#HPs_data".
+          iDestruct "Hreadcond_Ps_data" as "#Hreadcond_Ps_data".
+          iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
+          {
+            iNext.
+            admit.
+            (* iApply region_inv_construct; auto. *)
+          }
+          iModIntro.
+
+          assert (Persistent (([∗ list] y1;y2 ∈ lws;Ps, (y2 : D) y1)%I)) as Hpers_Ps_code'.
+          { clear -Hpers_Ps_code.
+            admit. }
+          iDestruct "HPs_code" as "#HPs_code".
+          iDestruct "Hreadcond_Ps_code" as "#Hreadcond_Ps_code".
+          iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
+          {
+            iNext.
+            admit.
+            (* iApply region_inv_construct; auto. *)
+          }
+          iModIntro.
+
+          iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
+
+          iMod (inv_alloc (attestN.@Ecn) _ ((∃ I : EIdentity, enclave_cur Ecn I) ∨ enclave_prev Ecn) with "[Henclave_live]")
+                 as "#Hattest".
+          { by iNext; iLeft; iExists I_ECn. }
+          iAssert (interp (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec)) as "Hinterp_seal".
+          { iEval (rewrite fixpoint_interp1_eq /=).
+            assert (ot_ec < ot_ec ^+ 2)%ot as Hot by solve_finz.
+            assert (ot_ec ^+ 1 < ot_ec ^+ 2)%ot as Hot' by solve_finz.
+            assert (ot_ec ^+ 2 <= ot_ec ^+ 2)%ot as Hot'' by solve_finz.
+
+            iSplit;[|iSplit].
+            + rewrite /safe_to_seal.
+              iEval (rewrite finz_seq_between_cons //).
+              iEval (rewrite finz_seq_between_cons //).
+              replace ((ot_ec ^+ 1) ^+ 1)%f with (ot_ec ^+ 2)%ot by solve_finz.
+              iEval (rewrite finz_seq_between_empty //).
+              rewrite 2!big_sepL_cons big_sepL_nil.
+              iSplit; [|iSplit]; last done; iExists interp; iFrame "#";auto; iSplit.
+              * iPureIntro; intros w; apply interp_persistent.
+              * rewrite /write_cond /=; iNext ; iModIntro; iIntros (w) "$".
+              * iPureIntro; intros w; apply interp_persistent.
+              * rewrite /write_cond /=; iNext ; iModIntro; iIntros (w) "$".
+            + rewrite /safe_to_unseal.
+              iEval (rewrite finz_seq_between_cons //).
+              iEval (rewrite finz_seq_between_cons //).
+              replace ((ot_ec ^+ 1) ^+ 1)%f with (ot_ec ^+ 2)%ot by solve_finz.
+              iEval (rewrite finz_seq_between_empty //).
+              rewrite 2!big_sepL_cons big_sepL_nil.
+              iSplit; [|iSplit]; last done; iExists interp; iFrame "#";auto.
+              * rewrite /read_cond /=; iNext ; iModIntro; iIntros (w) "$".
+              * rewrite /read_cond /=; iNext ; iModIntro; iIntros (w) "$".
+            + rewrite /safe_to_attest.
+              iEval (rewrite finz_seq_between_cons //).
+              iEval (rewrite finz_seq_between_cons //).
+              replace ((ot_ec ^+ 1) ^+ 1)%f with (ot_ec ^+ 2)%ot by solve_finz.
+              iEval (rewrite finz_seq_between_empty //).
+              rewrite 2!big_sepL_cons big_sepL_nil.
+              iSplit; [|iSplit]; last done; iExists Ecn; iFrame "#"; iPureIntro; auto.
+              rewrite /tid_of_otype in Htidx |- *.
+              rewrite H in Htidx.
+              assert (Z.even (ot_ec ^+ 1)%f = false) as Heven'.
+              { admit. }
+              rewrite Heven'.
+              by replace ( (ot_ec ^+ 1 ^- 1)%f ) with ot_ec by solve_finz.
+          }
+
+          iMod (region_valid_alloc _ RW b_data e_data a_data (v_data + 1)
+                  (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec :: lws_data) with
+                 "[HPs_data] [Hdata]")
+          as "#Hinterp_data_new".
+          { done. }
+          { done. }
+          { rewrite big_sepL_cons; iFrame "#".
+            admit.
+          }
+          { iClear "#". clear.
+            admit.
+          }
+
+          iMod (region_valid_alloc _ RX b_code e_code a_code (v_code + 1)
+                  (LCap RW b_data e_data a_data (v_data + 1) :: lws) with
+                 "[HPs_code] [Hcode]")
+          as "#Hinterp_code_new".
+          { done. }
+          { done. }
+          { rewrite big_sepL_cons; iFrame "#".
+            admit.
+          }
+          { iClear "#". clear.
+            admit.
+          }
+
+          From cap_machine.ftlr Require Import interp_weakening.
+
+          iAssert (interp (LCap E b_code e_code (b_code ^+ 1)%a (v_code + 1))) as
+            "Hinterp_entry_enclave".
+          {
+            admit.
+            (* TODO  doesn't work *)
+
+          }
+
+          rewrite (insert_commute _ src PC) // insert_insert.
+          iClear "Hmod".
+          iApply wp_pure_step_later; auto.
+          iNext; iIntros "H£'".
+          iApply ("IH" $! (<[src := _]> lregs) with "[$] [%] [] [Hregs] [$Hown]"); eauto.
+          { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
+          {
+            iIntros (ri ? Hri Hvs).
+            destruct (decide (ri = src)); simplify_map_eq.
+            by rewrite !fixpoint_interp1_eq.
+            iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
+          }
+
+
+
+          (* iApply wp_pure_step_later; auto. *)
+
+          (* in the custom enclaves *)
         (* TODO I_ECn ∈ dom custom_enclaves *)
 
       (* iDestruct (read_allowed_inv with "Hinterp_wdata") as "HH". *)
