@@ -48,7 +48,7 @@ Section cap_lang_rules.
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
     ⌜tid_of_otype ot = Some tidx⌝ ∗
     ⌜Z.even ot = true⌝ ∗
-    ⌜eid = hash_concat code_b (hash_lmemory_region lmem (code_b ^+ 1)%a code_e code_v)⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
+    ⌜eid = hash_concat (hash code_b) (hash_lmemory_region lmem (code_b ^+ 1)%a code_e code_v)⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
     ⌜(ot + 2)%ot = Some (ot ^+ 2)%ot ⌝ ∗ (* there are still otypes left in the pool *)
     ⌜lregs !! rs = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rs contains a valid capability *)
     ⌜lmem !! (code_b, code_v) = Some (LCap RW data_b data_e data_a data_v)⌝ ∗ (* the base address of the code capability points to a valid data capability *)

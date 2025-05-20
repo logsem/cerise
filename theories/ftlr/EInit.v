@@ -138,30 +138,6 @@ Section fundamental.
       set ( mask_code := compute_mask_region (⊤ ∖ ↑logN.@(a_pc, v_pc))
                            (finz.seq_between b_code e_code) v_code ).
 
-      Set Nested Proofs Allowed.
-      (* Lemma interp_open_region_later *)
-      (*   (E : coPset) (p : Perm) (b e a : Addr) (la : list Addr) (v : Version) : *)
-      (*   let E' := compute_mask_region E la v in *)
-      (*   la ⊆+ (finz.seq_between b e) -> *)
-      (*   NoDup la -> *)
-      (*   Forall (fun a => ↑logN.@(a, v) ⊆ E) la -> *)
-      (*   readAllowed p -> *)
-      (*   ⊢ ▷ interp (LCap p b e a v) *)
-      (*     -∗ ▷ ∃ (Ps : list D), *)
-      (*            (⌜ length la = length Ps ⌝) *)
-      (*            ∗ |={E, E'}=> (∃ (lws : list LWord), *)
-      (*                             ( ⌜ length lws = length la ⌝) *)
-      (*                             ∗ ( ⌜ Persistent ([∗ list] lw;Pw ∈ lws;Ps, (Pw : D) lw) ⌝ ) *)
-      (*                             ∗ ([∗ map] la↦lw ∈ (logical_region_map la lws v), la ↦ₐ lw) *)
-      (*                             ∗ ([∗ list] lw;Pw ∈ lws;Ps, ▷ (Pw : D) lw) *)
-      (*                             ∗ ([∗ list] Pa ∈ Ps, read_cond Pa interp) *)
-      (*                             ∗ (▷ ([∗ list] a_Pa ∈ zip la Ps, (interp_ref_inv a_Pa.1 v a_Pa.2)) ={E', E}=∗ True)). *)
-      (* Proof. *)
-      (*   intros * Hsubmset HNoDup Hforall Hread. *)
-      (*   iIntros "#Hinterp". *)
-      (*   iNext. by iApply interp_open_region. *)
-      (* Qed. *)
-
       destruct ( decide (a_pc ∈ (finz.seq_between b_data e_data)) ) as [Hapc_in_data|Hapc_in_data].
       { admit. (* TODO opsem will fail, because is would mean that a_pc overlaps *) }
 
@@ -230,7 +206,7 @@ Section fundamental.
         rewrite H2 in Hlregs_src; simplify_eq.
         assert ( LCap RW data_b data_e data_a data_v = LCap RW b_data e_data a_data v_data ) as
           Heq_data; simplify_eq.
-        { clear -H3.
+        { clear -H3 H7.
           rewrite lookup_insert_ne in H3; last admit.
           rewrite lookup_union in H3.
           assert ( logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data)
@@ -308,6 +284,9 @@ Section fundamental.
         set ( mask_data := compute_mask_region mask_code (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) v_data ).
         set ( mask_sys := mask_data ∖ ↑custom_enclaveN ).
 
+        iAssert (interp (LCap x x0 x1 x4 x3)) as "Hinterp_next_PC".
+        { admit. }
+
        destruct (custom_enclaves !! I_ECn) as
          [ [Hcus_enclave_code Hcus_enclave_addr Hcus_enclave_enc Hcus_enclave_sign] |] eqn:HI_ECn.
         * (* CASE WHERE THE IDENTITY IS A KNOWN ENCLAVE *)
@@ -321,11 +300,18 @@ Section fundamental.
                          b_code e_code b_code (v_code+1)
                          b_data e_data a_data (v_data+1)
                          lws_data ot_ec new_enclave).
+
+          pose proof custom_enclaves_wf as Hwf_map.
           iMod ("Hcontract'" with
                  "[] [] [] [] [] [] [Hcode Hdata $Hseal_pred_enc $Hseal_pred_sign]")
                  as "#Hinterp_enclave"
           ; eauto.
           { iPureIntro.
+            clear -Hwf_map HI_ECn.
+            rewrite /custom_enclaves_map_wf in Hwf_map.
+            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
+            apply H in Hwf_map; eauto; cbn in *.
+            clear H.
             admit. (* should be true because well formed custom_enclaves *)
           }
           { iPureIntro.
@@ -353,9 +339,6 @@ Section fundamental.
             (* (ot_ec and ot should be the same) *)
             admit.
           }
-          iAssert (interp (LCap x x0 x1 x4 x3)) as "Hinterp_next_PC".
-          { admit. }
-
 
           iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
           { iNext.
@@ -733,14 +716,11 @@ Section fundamental.
             admit.
           }
 
-          From cap_machine.ftlr Require Import interp_weakening.
-
           iAssert (interp (LCap E b_code e_code (b_code ^+ 1)%a (v_code + 1))) as
             "Hinterp_entry_enclave".
           {
             admit.
-            (* TODO  doesn't work *)
-
+            (* TODO  doesn't work, interp_weakening doesn't hold with later credit *)
           }
 
           rewrite (insert_commute _ src PC) // insert_insert.
@@ -751,10 +731,12 @@ Section fundamental.
           { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
           {
             iIntros (ri ? Hri Hvs).
-            destruct (decide (ri = src)); simplify_map_eq.
-            by rewrite !fixpoint_interp1_eq.
+            destruct (decide (ri = src)); simplify_map_eq; auto.
             iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
           }
+          Unshelve. all: admit.
+  Admitted.
+
 
 
 
