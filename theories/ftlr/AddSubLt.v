@@ -22,8 +22,7 @@ Section fundamental.
   Lemma add_sub_lt_case (lregs : leibnizO LReg)
     (p : Perm) (b e a : Addr) (v : Version)
     (lw : LWord) (dst : RegName) (r1 r2: Z + RegName) (P : D):
-    custom_enclave_contract_gen
-    -> p = RX ∨ p = RWX
+    p = RX ∨ p = RWX
     → (∀ x : RegName, is_Some (lregs !! x))
     → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
@@ -32,7 +31,7 @@ Section fundamental.
        decodeInstrWL lw = Mod dst r1 r2 \/
        decodeInstrWL lw = HashConcat dst r1 r2 \/
        decodeInstrWL lw = Lt dst r1 r2)
-    → custom_enclave_inv
+    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     -∗ (□ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
                -∗ (∀ (r1 : RegName) (lv : LWord),
@@ -63,8 +62,8 @@ Section fundamental.
                }}
         }}.
   Proof.
-    intros Hcontract Hp Hsome i Hbae Hi.
-    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

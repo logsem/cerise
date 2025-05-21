@@ -120,8 +120,8 @@ Section trusted_compute_example.
     iLöb as "IH".
     rewrite -/custom_enclave_contract.
     iEval (rewrite /custom_enclave_contract).
-    iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hcode_ce Hot Hb' HIhash Hb He)
+    iIntros (I b e v b' e' a' v' enclave_data ot ce
+      Hcode_ce Hot  HIhash Hb He)
       "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
     assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
     simplify_map_eq.
@@ -197,6 +197,17 @@ Section trusted_compute_example.
     codefrag_facts "Htc_code".
 
     (* Data memory *)
+    iAssert (⌜ (b' < e')%a ⌝)%I as "%Hb'".
+    {
+      iDestruct (big_sepL2_length with "Htc_data") as "%Htc_data_len".
+      rewrite map_length /= in Htc_data_len.
+      iPureIntro.
+      clear - Htc_data_len.
+      destruct (decide (b' < e')) as [He' | He']; cycle 1.
+      - rewrite finz_seq_between_empty in Htc_data_len; last solve_addr.
+        cbn in * ; discriminate.
+      - done.
+    }
     iDestruct (region_mapsto_cons with "Htc_data") as "[Htc_keys Htc_data]"; last iFrame.
     { transitivity (Some (b' ^+ 1)%a); auto ; try solve_addr. }
     { solve_addr. }

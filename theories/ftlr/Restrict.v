@@ -49,8 +49,8 @@ Section fundamental.
     (dst : RegName) (r0 : Z + RegName) (P:D):
     ftlr_instr lregs p b e a v lw (Restrict dst r0) P.
   Proof.
-    intros Hcontract Hp Hsome i Hbae Hi.
-    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.

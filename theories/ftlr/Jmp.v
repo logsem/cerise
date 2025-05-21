@@ -22,8 +22,8 @@ Section fundamental.
     (lw : LWord) (r : RegName) (P : D):
     ftlr_instr lregs p b e a v lw (Jmp r) P.
   Proof.
-    intros Hcontract Hp Hsome i Hbae Hi.
-    iIntros "#Hsystem_inv #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "[Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
     rewrite delete_insert_delete.
     destruct (reg_eq_dec PC r); simplify_map_eq.
     * iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame.

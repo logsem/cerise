@@ -36,9 +36,8 @@ Section fundamental.
     (lw_pc : LWord) (src : RegName) (P : D):
     ftlr_instr lregs p_pc b_pc e_pc a_pc v_pc lw_pc (EInit src) P.
   Proof.
-    intros Hcontract Hp Hsome i Hbae Hi.
-    iIntros
-      "#Hsystem_inv #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
+    intros Hp Hsome i Hbae Hi.
+    iIntros "[#Hcontract #Hsystem_inv] #IH #Hinv #Hinva #Hreg #(Hread & Hwrite & %HpersP) Hown Ha HP Hcls HPC Hmap".
     iAssert (£1)%I as "-#H£"; first admit.
     specialize (HpersP lw_pc).
     rewrite delete_insert_delete.
@@ -295,47 +294,50 @@ Section fundamental.
           set ( new_enclave := {| code := Hcus_enclave_code; code_region := Hcus_enclave_addr; Penc := Hcus_enclave_enc; Psign := Hcus_enclave_sign |} ).
           iMod (seal_store_update_alloc _ Hcus_enclave_enc with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
           iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
-          assert custom_enclave_contract_gen as Hcontract' by assumption.
-          rewrite /custom_enclave_contract_gen in Hcontract'.
-          specialize (Hcontract'
+          iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
+          (* iEval (rewrite /custom_enclave_contract_egn) in "Hcontract'". *)
+          iSpecialize ("Hcontract'" $!
                          mask_sys I_ECn
                          b_code e_code (v_code+1)
                          b_data e_data a_data (v_data+1)
                          lws_data ot_ec new_enclave).
+
           pose proof custom_enclaves_wf as Hwf_map.
-          iMod (Hcontract' with
-                 "[Hcode Hdata $Hseal_pred_enc $Hseal_pred_sign]")
+
+          iDestruct ( big_sepM_to_big_sepL2 with "Hcode" ) as "Hcode".
+          { admit. }
+          { admit. }
+          iDestruct ( big_sepM_to_big_sepL2 with "Hdata" ) as "Hdata".
+          { admit. }
+          { admit. }
+          (* iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I_ECn) *)
+          (*         ([[ b_code , e_code ]] ↦ₐ{ v_code + 1 } [[ (LCap RW b_data e_data a_data (v_data + 1))::lws ]]  ∗ *)
+          (*          [[ b_data , e_data ]] ↦ₐ{ v_data + 1 } [[LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec :: lws_data]])%I *)
+          (*        with "[$Hcode $Hdata]") as "#Htc_inv". *)
+
+          iMod ("Hcontract'" with
+                 "[] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata]")
                  as "#Hinterp_enclave"
           ; eauto.
-          { clear -Hwf_map HI_ECn.
+          { iPureIntro.
+            clear -Hwf_map HI_ECn.
             rewrite /custom_enclaves_map_wf in Hwf_map.
             opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
             apply H in Hwf_map; eauto; cbn in *.
             clear H.
             admit. (* should be true because well formed custom_enclaves *)
           }
-          { admit. (* should be true because well formed custom_enclaves *)
+          { iPureIntro.
+            admit. (* should be true because well formed custom_enclaves *)
           }
-          { admit. (* should be true because well formed custom_enclaves *)
+          { iPureIntro.
+            admit. (* should be true because well formed custom_enclaves *)
           }
-          { iFrame "#".
-            iSplitL "Hcode".
-            { rewrite /region_mapsto.
-              iApply big_sepM_to_big_sepL2.
-              { admit. }
-              { admit. }
-              rewrite /logical_region_map /logical_region.
-              (* (lws and code new_enclave should be the same) *)
-              admit.
-            }
-            rewrite /region_mapsto.
-            iApply big_sepM_to_big_sepL2.
-            { admit. }
-            { admit. }
-            rewrite /logical_region_map /logical_region.
-            rewrite /tid_of_otype in Htidx.
-            (* (ot_ec and ot should be the same) *)
-            admit.
+          {
+            replace (code new_enclave) with lws.
+            2: admit.
+            iFrame "∗#".
+            (* (lws and code new_enclave should be the same) *)
           }
 
           iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
@@ -479,7 +481,7 @@ Section fundamental.
 
           iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
           rewrite (insert_commute _ src PC) // insert_insert.
-          iClear "Hmod".
+          iClear "Hmod Hcontract'".
           iApply wp_pure_step_later; auto.
           iNext; iIntros "_".
           iApply ("IH" $! (<[src := _]> lregs) with "[%] [] [Hregs] [$Hown]"); eauto.

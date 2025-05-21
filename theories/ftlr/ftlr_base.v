@@ -21,13 +21,12 @@ Section fundamental.
   Definition ftlr_instr
     (lregs : leibnizO LReg) (p : Perm)
         (b e a : Addr) (v : Version) (lw : LWord) (i: instr) (P : D) :=
-    custom_enclave_contract_gen
-    -> p = RX ∨ p = RWX
+      p = RX ∨ p = RWX
     → (∀ x : RegName, is_Some (lregs !! x))
     → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrWL lw = i
-    -> custom_enclave_inv
+    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
     (* Loeb induction hypothesis, but only for those assumptions that change in the recursive step *)
     -∗ □ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
