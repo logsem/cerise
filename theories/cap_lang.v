@@ -662,21 +662,21 @@ Section opsem.
     | _,_ => None
     end
     (* enclave initialization *)
-  | EInit r =>
+  | EInit r1 r2 =>
 
-    (* obtain RX_ permissions for code section *)
-    ccap          ← (reg φ) !! r; (* get code capability *)
+    (* obtain RX permissions for code section *)
+    ccap          ← (reg φ) !! r1; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
     when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
 
-    (* obtain RW_ permissions for data section *)
-    dcap              ← (mem φ) !! b;
+    (* obtain RW permissions for data section *)
+    dcap              ← (reg φ) !! r2;
     '(p', b', e', a') ← get_wcap dcap;
     when (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
 
     (* MEMORY SWEEP *)
-    when ( (sweep_addr (mem φ) (reg φ) b) && (* sweep the memory excluding the data cap at location b *)
-           (sweep_reg (mem φ) (reg φ) r) && (* sweep the registers excluding the code cap in register r *)
+    when ( (sweep_reg (mem φ) (reg φ) r1) && (* sweep the machine excluding the data cap at register r1 *)
+           (sweep_reg (mem φ) (reg φ) r2) && (* sweep the machine excluding the code cap in register r2 *)
            (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
 
     (* ALLOCATION OF THE ENCLAVE'S SEALS *)
@@ -695,10 +695,12 @@ Section opsem.
     fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
 
     (* UPDATE THE MACHINE STATE *)
-    φ  |>> update_mem b' seals    (* store seals at base address of enclave's data sec.*)
+    φ  |>> update_mem b' seals    (* store seals at base address of enclave's data section *)
+       |>> update_mem b dcap      (* store dcap at base address of enclave's code section *)
        |>> update_etable fresh_tid eid (* create a new index in the ETable *)
        |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
-       |>> update_reg r (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
+       |>> update_reg r1 (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
+       |>> update_reg r2 (WInt 0) (* Erase the dcap from its register *)
        |>> updatePC
 
     (* enclave deinitialization *)
