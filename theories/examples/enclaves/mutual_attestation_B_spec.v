@@ -24,7 +24,7 @@ Section mutual_attest_B.
     b' v' φ
     :
 
-    let code := mutual_attest_enclave_B_mod_encoding in
+    let code := mutual_attest_enclave_B_mod_encoding_lcode in
 
     ContiguousRegion pc_a (length code) ->
     SubBounds pc_b pc_e pc_a (pc_a ^+ length code)%a ->
@@ -153,14 +153,13 @@ Section mutual_attest_B.
     enclave_data ot :
     let e := (length mutual_attest_enclave_B_code + 1)%Z in
     (ot + 2)%f = Some (ot ^+ 2)%f ->
-    (b' < e')%a ->
     (ma_addr_B + e)%a =
     Some (ma_addr_B ^+ e)%a ->
     (□▷ custom_enclave_contract (enclaves_map := contract_ma_enclaves_map))
     ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_B)
       ([[ma_addr_B,(ma_addr_B ^+ e)%a]]↦ₐ{v}
-         [[LCap RW b' e' a' v' :: mutual_attest_enclave_B_code]]
+         [[LCap RW b' e' a' v' :: mutual_attest_enclave_B_lcode]]
        ∗ [[b',e']]↦ₐ{v'}[[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])
     ∗ seal_pred (ot ^+ 1)%f sealed_enclaveB
     -∗ interp (LCap E ma_addr_B
@@ -168,7 +167,7 @@ Section mutual_attest_B.
                  (ma_addr_B ^+ 1)%a v).
   Proof.
     intro e ; subst e.
-    iIntros (Hot Hb' He) "#(#Hcustom_enclave_contract & Henclaves_inv & Hma_inv & HPsign)".
+    iIntros (Hot He) "#(#Hcustom_enclave_contract & Henclaves_inv & Hma_inv & HPsign)".
     rewrite fixpoint_interp1_eq /=.
     iIntros (lregs); iNext ; iModIntro.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
@@ -348,7 +347,7 @@ Section mutual_attest_B.
     { transitivity (Some (ma_addr_B ^+ (134%nat + 2))%a); auto ; try solve_addr. }
     { solve_addr. }
 
-    iAssert (codefrag (ma_addr_B ^+ 1)%a v mutual_attest_enclave_B_code_pre)
+    iAssert (codefrag (ma_addr_B ^+ 1)%a v mutual_attest_enclave_B_code_pre_lcode)
       with "[Hma_code]" as "Hma_code".
     {
       rewrite /codefrag /=.
@@ -357,10 +356,24 @@ Section mutual_attest_B.
     codefrag_facts "Hma_code".
 
     (* Data memory *)
+    iAssert (⌜ (b' < e')%a ⌝)%I as "%Hb'".
+    {
+      iDestruct (big_sepL2_length with "Hma_data") as "%Hma_data_len".
+      rewrite map_length /= in Hma_data_len.
+      iPureIntro.
+      clear - Hma_data_len.
+      destruct (decide (b' < e')%a) as [He' | He']; cycle 1.
+      - rewrite finz_seq_between_empty in Hma_data_len; last solve_addr.
+        cbn in * ; discriminate.
+      - done.
+    }
     iDestruct (region_mapsto_cons with "Hma_data") as "[Hma_keys Hma_data]"; last iFrame.
     { transitivity (Some (b' ^+ 1)%a); auto ; try solve_addr. }
     { solve_addr. }
 
+    iEval (rewrite /mutual_attest_enclave_B_code_pre_lcode /mutual_attest_enclave_B_code_pre_instrs) in "Hma_code".
+    repeat (iEval (rewrite /encodeInstrsLW map_app) in "Hma_code").
+    repeat (iEval (rewrite -/encodeInstrsLW) in "Hma_code").
 
     focus_block_0 "Hma_code" as "Hma_code" "Hcont_code"
     ; iHide "Hcont_code" as hcont_code.
@@ -480,7 +493,7 @@ Section mutual_attest_B.
       hash_mutual_attest_A.
     2:{
       rewrite /hash_mutual_attest_A /hash_mutual_attest_A_pre /mutual_attest_enclave_A_code.
-      by rewrite -(assoc_L hash_concat) -/mutual_attest_eid_table fmap_app hash_concat_app.
+      by rewrite -(assoc_L hash_concat) -/mutual_attest_eid_ltable hash_concat_app.
     }
     wp_pure; iInstr_close "Hma_code".
 
@@ -565,7 +578,7 @@ Section mutual_attest_B.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds Hregs'|]; cycle 1.
     { by wp_pure; wp_end; by iIntros (?). }
-    Opaque mutual_attest_enclave_B_code_pre encodeInstrsLW.
+    Opaque mutual_attest_enclave_B_code_pre_lcode encodeInstrsLW.
     incrementLPC_inv as (p''&b_main'&e_main'&a_main'&pc_v'& ? & HPC & Z & Hregs').
     repeat (rewrite (insert_commute _ _ r_t2) //= in H4); rewrite lookup_insert in H4.
     repeat (rewrite (insert_commute _ _ r_t1) //= in H5); rewrite lookup_insert in H5.
@@ -575,7 +588,7 @@ Section mutual_attest_B.
     iEval (rewrite !insert_insert) in "Hmap".
     iEval (rewrite insert_commute //=) in "Hmap";
     iEval (rewrite !insert_insert) in "Hmap".
-    Transparent mutual_attest_enclave_B_code_pre encodeInstrsLW.
+    Transparent mutual_attest_enclave_B_code_pre_lcode encodeInstrsLW.
     replace x with ((a_block2) ^+ 30)%a by solve_addr+Z.
     clear Z.
     iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto; iFrame.
@@ -900,7 +913,7 @@ Section mutual_attest_B.
     iMod ("Hclose" with "[$Hna $Hma_code $Hma_data]") as "Hna".
 
     (* Wrap up the registers *)
-    Opaque mutual_attest_enclave_B_code_pre encodeInstrsLW.
+    Opaque mutual_attest_enclave_B_code_pre_lcode encodeInstrsLW.
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
     { do 13 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 13 (rewrite -delete_insert_ne //); rewrite insert_delete_insert.

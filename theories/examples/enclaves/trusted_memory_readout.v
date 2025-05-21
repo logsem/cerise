@@ -42,11 +42,11 @@ Section trusted_memory_readout_example.
      - public signing key:      r_t2 = (U, σ__a, σ__a+1, σ__a)
      - public encryption key:   r_t3 = (S, σ__a+1, σ__a+2, σ__a+1)
    *)
-  Definition sensor_enclave_code_init (sensor_init sensor_read : Z): list LWord :=
+  Definition sensor_enclave_code_init_instrs (sensor_init sensor_read : Z): list instr :=
     let Eperm := encodePerm E in
     let Sperm := encodeSealPerms (true, false) in
     let Uperm := encodeSealPerms (false, true) in
-    encodeInstrsLW [
+    [
         Mov r_t1 PC;            (* r_t1 = (RX, sensor, sensor_end, sensor_init) *)
                                 (*        (sensor_init is sensor+1)  *)
         Mov r_t2 r_t1;          (* r_t1 = (RX, sensor, sensor_end, sensor_init) *)
@@ -79,6 +79,12 @@ Section trusted_memory_readout_example.
         Jmp r_t0
       ].
 
+  Definition sensor_enclave_code_init_code (sensor_init sensor_read : Z): list Word :=
+    encodeInstrsW (sensor_enclave_code_init_instrs sensor_init sensor_read).
+
+  Definition sensor_enclave_code_init_lcode (sensor_init sensor_read : Z): list LWord :=
+    encodeInstrsLW (sensor_enclave_code_init_instrs sensor_init sensor_read).
+
   (* Expect:
      - PC := (RX, sensor, sensor_end, sensor_read)
      - r_t0 return pointer
@@ -89,9 +95,9 @@ Section trusted_memory_readout_example.
      Returns:
      - r_t1 signed read only pointer to return buffer of the sensor enclave (RO,data+1 data+2, data+1)
    *)
-  Definition sensor_enclave_code_read (sensor sensor_read : Z) : list LWord :=
+  Definition sensor_enclave_code_read_instrs (sensor sensor_read : Z) : list instr :=
     let ROperm := encodePerm RO in
-    encodeInstrsLW [
+    [
         Mov r_t2 PC;                     (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
         Lea r_t2 (sensor - sensor_read); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
         Load r_t2 r_t2;                  (* r_t2 = cap_data (RW, data, data+2, _) *)
@@ -131,16 +137,26 @@ Section trusted_memory_readout_example.
         Jmp r_t0
       ].
 
+  Definition sensor_enclave_code_read_code (sensor_init sensor_read : Z): list Word :=
+    encodeInstrsW (sensor_enclave_code_read_instrs sensor_init sensor_read).
+
+  Definition sensor_enclave_code_read_lcode (sensor_init sensor_read : Z): list LWord :=
+    encodeInstrsLW (sensor_enclave_code_read_instrs sensor_init sensor_read).
+
   Definition sensor_init_off : Z := 1.
   Definition sensor_read_off : Z :=
-    sensor_init_off + length (sensor_enclave_code_init 0 0).
+    sensor_init_off + length (sensor_enclave_code_init_instrs 0 0).
 
-  Definition sensor_code : list LWord :=
-       sensor_enclave_code_init sensor_init_off sensor_read_off
-    ++ sensor_enclave_code_read 0 sensor_read_off.
+  Definition sensor_code : list Word :=
+       sensor_enclave_code_init_code sensor_init_off sensor_read_off
+    ++ sensor_enclave_code_read_code 0 sensor_read_off.
+
+  Definition sensor_lcode : list LWord :=
+       sensor_enclave_code_init_lcode sensor_init_off sensor_read_off
+    ++ sensor_enclave_code_read_lcode 0 sensor_read_off.
 
   Definition hash_sensor (ts_addr : Addr) : Z :=
-    hash_concat (hash ts_addr) (hash (lword_get_word <$> sensor_code)).
+    hash_concat (hash ts_addr) (hash sensor_code).
 
   (* Sealed predicate for sensor enclave *)
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
@@ -202,14 +218,14 @@ Section trusted_memory_readout_example.
      - r_t2 client public signing key:    (U, σ__c, σ__c+1, σ__c)
      - r_t3 client public encryption key: (S, σ__c+1, σ__c+2, σ__c+1)
    *)
-  Definition client_enclave_code_init
+  Definition client_enclave_code_init_instrs
     (client_init client_use client_fail : Z)
     (hash_sensor : Z)
-    : list LWord :=
+    : list instr :=
     let Eperm := encodePerm E in
     let Sperm := encodeSealPerms (true, false) in
     let Uperm := encodeSealPerms (false, true) in
-    encodeInstrsLW [
+    [
 
         (* Get and keep a pointer to a fail instruction. *)
         Mov r_t4 PC;
@@ -276,6 +292,18 @@ Section trusted_memory_readout_example.
         Jmp r_t0
       ].
 
+  Definition client_enclave_code_init_code
+    (client_init client_use client_fail : Z)
+    (hash_sensor : Z)
+    : list Word :=
+    encodeInstrsW (client_enclave_code_init_instrs client_init client_use client_fail hash_sensor).
+
+  Definition client_enclave_code_init_lcode
+    (client_init client_use client_fail : Z)
+    (hash_sensor : Z)
+    : list LWord :=
+    encodeInstrsLW (client_enclave_code_init_instrs client_init client_use client_fail hash_sensor).
+
   (* Expect:
      - PC := (RX, client, client_end, client_use_sensor)
      - r_t1 pointer to buffer (arg). encrypted with the client enclave's encryption key.
@@ -296,7 +324,14 @@ Section trusted_memory_readout_example.
     custom_enclaves_map_wf (ts_enclaves_map ts_addr).
   Proof.
     rewrite /custom_enclaves_map_wf /ts_enclaves_map.
-    by rewrite map_Forall_singleton /hash_sensor /=.
+    split.
+    + by rewrite map_Forall_singleton /hash_sensor /=.
+    + rewrite map_Forall_singleton; cbn.
+      rewrite /encodeInstrW.
+      apply Forall_forall.
+      intros w Hw.
+      repeat (rewrite elem_of_cons in Hw ; destruct Hw as [-> | Hw]; first done).
+      by rewrite elem_of_nil in Hw.
   Qed.
 
 End trusted_memory_readout_example.

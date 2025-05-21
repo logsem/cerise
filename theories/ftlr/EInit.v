@@ -196,7 +196,7 @@ Section fundamental.
         }
         iDestruct "Hspec"
           as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-          "(%Hincr & %Htidx_next & %Htidx & % & % & % & % & % & % & % & % & % & % & % & % & % & -> & Henclave_live & #Henclave_all)".
+          "(%Hincr & %Htidx_next & %Htidx & % & % & % & % & % & % & % & % & % & % & % & % & % & % & -> & Henclave_live & #Henclave_all)".
         simplify_map_eq.
         incrementLPC_inv; simplify_map_eq.
         match goal with
@@ -302,7 +302,7 @@ Section fundamental.
                          b_data e_data a_data (v_data+1)
                          lws_data ot_ec new_enclave).
 
-          pose proof custom_enclaves_wf as Hwf_map.
+          pose proof custom_enclaves_wf as [Hwf_map Hwf_map_z].
 
           iDestruct ( big_sepM_to_big_sepL2 with "Hcode" ) as "Hcode".
           { admit. }
@@ -324,20 +324,116 @@ Section fundamental.
             rewrite /custom_enclaves_map_wf in Hwf_map.
             opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
             apply H in Hwf_map; eauto; cbn in *.
-            clear H.
-            admit. (* should be true because well formed custom_enclaves *)
+            clear -Hwf_map.
+            subst I_ECn.
+            apply hash_concat_inj' in Hwf_map.
+            destruct Hwf_map as [-> ?]; simplify_eq.
+            done.
           }
           { iPureIntro.
-            admit. (* should be true because well formed custom_enclaves *)
+            clear -Hwf_map HI_ECn.
+            rewrite /custom_enclaves_map_wf in Hwf_map.
+            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
+            apply H in Hwf_map; eauto; cbn in *.
+            clear -Hwf_map.
+            subst I_ECn.
+            apply hash_concat_inj' in Hwf_map.
+            destruct Hwf_map as [-> ?]; simplify_eq.
+            done.
           }
           { iPureIntro.
-            admit. (* should be true because well formed custom_enclaves *)
+            clear -Hwf_map HI_ECn Hlen_lws_code Hb_code.
+            rewrite /custom_enclaves_map_wf in Hwf_map.
+            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
+            apply H in Hwf_map; eauto; cbn in *.
+            clear -Hwf_map Hlen_lws_code Hb_code.
+            subst I_ECn.
+            apply hash_concat_inj' in Hwf_map.
+            destruct Hwf_map as [-> ?]; simplify_eq.
+            rewrite map_length.
+            setoid_rewrite <- LMemSort.Permuted_sort.
+            rewrite map_length.
+            rewrite map_to_list_length.
+
+            rewrite map_filter_insert_False.
+            2: admit.
+            rewrite map_filter_delete.
+            rewrite map_size_delete.
+            replace (
+                filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                  (logical_region_map (finz.seq_between Hcus_enclave_addr e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code
+                     ∪ <[(b_data, v_data):=lws_data1]>
+                     (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data))) !! (
+                    x2, x3)
+              ) with (None : option LWord).
+            2: admit.
+            cbn.
+            (* Set Printing Parentheses. *)
+            replace
+              (
+                (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                   (logical_region_map (finz.seq_between Hcus_enclave_addr e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code
+                      ∪ <[(b_data, v_data):=lws_data1]>
+                      (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data))))
+              )
+              with
+              (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code).
+            { rewrite map_size_list_to_map.
+              2: admit.
+
+              rewrite length_zip_l.
+              2: admit.
+              cbn.
+              rewrite map_length.
+              rewrite finz_seq_between_length.
+              pose proof (finz_incr_iff_dist Hcus_enclave_addr e_code
+                            (finz.dist Hcus_enclave_addr e_code))
+              as [_ ?].
+              replace
+                (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1))%a
+                  with (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1)%nat)%a.
+              2: solve_addr.
+              rewrite Z.add_1_r.
+              replace (Hcus_enclave_addr + Z.succ (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code))%a
+                with (Hcus_enclave_addr + (S (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code)))%a.
+              2: solve_addr.
+              rewrite -finz_dist_S; last solve_addr.
+              apply H; solve_addr.
+            }
+            (* Unset Printing Notations. *)
+            assert (
+                filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+               (logical_region_map (finz.seq_between Hcus_enclave_addr e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code)
+               = (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws v_code)
+              ).
+            { rewrite (finz_seq_between_cons Hcus_enclave_addr); last  solve_addr.
+              rewrite /logical_region_map.
+              rewrite !/logical_region.
+              rewrite fmap_cons.
+              simpl zip at 1.
+              simpl list_to_map at 1.
+              rewrite map_filter_insert_False.
+              2: admit.
+              rewrite map_filter_delete.
+              rewrite delete_notin.
+              2: admit.
+              rewrite map_filter_id; first done.
+              admit.
+            }
+            admit.
           }
           {
-            replace (code new_enclave) with lws.
-            2: admit.
+            replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws.
             iFrame "∗#".
-            (* (lws and code new_enclave should be the same) *)
+            clear -Hwf_map HI_ECn.
+            rewrite /custom_enclaves_map_wf in Hwf_map.
+            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
+            apply H in Hwf_map; eauto; cbn in *.
+            clear -Hwf_map.
+            subst I_ECn.
+            apply hash_concat_inj' in Hwf_map.
+            destruct Hwf_map as [-> ?]; simplify_eq.
+            admit. (* unclear how to prove this tbh *)
           }
 
           iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".

@@ -59,6 +59,7 @@ Section cap_lang_rules.
       (<[ (code_b, code_v) := (LCap RW data_b data_e data_a (data_v + 1)%nat) ]> lmem'') ⌝ ∗
     ⌜unique_in_registersL lregs (Some rs) (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* the code capability is unique across all registers (except where it is stored: in `rs`) *)
     ⌜unique_in_registersL lregs None      (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* the data capability is unique across all registers *)
+    ⌜ map_Forall (fun la lw => (laddr_get_addr la) ∈ (finz.seq_between (code_b ^+ 1)%a code_e) -> is_zL lw) lmem⌝ ∗
     ⌜ (finz.seq_between code_b code_e) ## reserved_addresses ⌝ ∗
     ⌜ (finz.seq_between data_b data_e) ## reserved_addresses ⌝ ∗
     ⌜incrementLPC (<[ rs := next_version_lword (LCap E code_b code_e (code_b ^+ 1)%a code_v)]> lregs) = Some lregs' ⌝ ∗ (* the pc will be incremented and rs will point to a "current" sentry capability *)

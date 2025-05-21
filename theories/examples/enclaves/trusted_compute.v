@@ -45,8 +45,8 @@ Section trusted_compute_example.
   (* --- TRUSTED COMPUTE *ENCLAVE* --- *)
   (* --------------------------------- *)
 
-  Definition trusted_compute_enclave_code : list LWord :=
-    encodeInstrsLW [
+  Definition trusted_compute_enclave_instrs : list instr :=
+    [
       (* get signing sealing key *)
       Mov r_t1 PC;
       Lea r_t1 (-1)%Z;
@@ -73,13 +73,19 @@ Section trusted_compute_example.
       Restrict r_t1 (encodeSealPerms (false, true)); (* restrict r1 U *)
       Jmp r_t0
     ].
+  Definition trusted_compute_enclave_code : list Word :=
+    encodeInstrsW trusted_compute_enclave_instrs.
 
-  Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::trusted_compute_enclave_code.
+  Definition trusted_compute_enclave_lcode : list LWord :=
+    encodeInstrsLW trusted_compute_enclave_instrs.
+
+  (* Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord := *)
+  (*   enclave_data_cap::trusted_compute_enclave_code. *)
+  (* Definition trusted_compute_enclave (enclave_data_cap : LWord) : list LWord := *)
+  (*   enclave_data_cap::trusted_compute_enclave_code. *)
 
   Definition hash_trusted_compute_enclave (tc_addr : Addr) : Z :=
-    hash_concat (hash tc_addr) (hash (lword_get_word <$> trusted_compute_enclave_code)).
-
+    hash_concat (hash tc_addr) (hash trusted_compute_enclave_code).
 
   (* Trusted Compute Custom Predicates *)
   Definition tc_enclave_pred tc_addr : CustomEnclave :=
@@ -96,7 +102,14 @@ Section trusted_compute_example.
     custom_enclaves_map_wf (tcenclaves_map tc_addr).
   Proof.
     rewrite /custom_enclaves_map_wf /tcenclaves_map.
-    by rewrite map_Forall_singleton /hash_trusted_compute_enclave /=.
+    split.
+    - by rewrite map_Forall_singleton /hash_trusted_compute_enclave /=.
+    - rewrite map_Forall_singleton; cbn.
+      rewrite /encodeInstrW.
+      apply Forall_forall.
+      intros w Hw.
+      repeat (rewrite elem_of_cons in Hw ; destruct Hw as [-> | Hw]; first done).
+      by rewrite elem_of_nil in Hw.
   Qed.
 
   Ltac iHide0 irisH coqH :=
@@ -126,6 +139,8 @@ Section trusted_compute_example.
     assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
     simplify_map_eq.
     rewrite /tcenclaves_map in Hcode_ce.
+    replace ((λ w : Word, word_to_lword w v) <$> code ce) with trusted_compute_enclave_lcode.
+    2:{ simplify_map_eq. cbn. rewrite /encodeInstrWL. done. }
     simplify_map_eq.
     rewrite -H; clear H.
     rewrite fixpoint_interp1_eq /=.
@@ -188,7 +203,7 @@ Section trusted_compute_example.
     iDestruct (region_mapsto_cons with "Htc_code") as "[Htc_addr Htc_code]"; last iFrame.
     { transitivity (Some (tc_addr ^+ 1)%a); auto ; try solve_addr. }
     { solve_addr. }
-    iAssert (codefrag (tc_addr ^+ 1%nat)%a v trusted_compute_enclave_code)
+    iAssert (codefrag (tc_addr ^+ 1%nat)%a v trusted_compute_enclave_lcode)
       with "[Htc_code]" as "Htc_code".
     {
       rewrite /codefrag /=.
@@ -307,7 +322,7 @@ Section trusted_compute_example.
     iDestruct (region_mapsto_cons with "[Htc_keys Htc_data]") as "Htc_data"
     ; try iFrame
     ; try solve_addr.
-    replace ((tc_addr ^+ 1%nat)%a ^+ length trusted_compute_enclave_code)%a with
+    replace ((tc_addr ^+ 1%nat)%a ^+ length trusted_compute_enclave_lcode)%a with
       (tc_addr ^+ 21%nat)%a by solve_addr.
     iMod ("Hclose" with "[$Hna $Htc_code $Htc_data]") as "Hna".
     (* Wrap up the registers *)

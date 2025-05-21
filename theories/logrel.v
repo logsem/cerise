@@ -1162,7 +1162,7 @@ Section custom_enclaves.
 
   Record CustomEnclave :=
     MkCustomEnclave {
-        code : list LWord;
+        code : list Word;
         code_region : Addr;
         Penc : LWord -> iProp Σ;
         Psign : LWord -> iProp Σ;
@@ -1172,9 +1172,8 @@ Section custom_enclaves.
     gmap EIdentity CustomEnclave.
 
   Definition custom_enclaves_map_wf (cenclaves : custom_enclaves_map) :=
-    map_Forall
-      (fun I ce => I = hash_concat (hash (code_region ce)) (hash (lword_get_word <$> (code ce))))
-      cenclaves.
+    map_Forall (fun I ce => I = hash_concat (hash (code_region ce)) (hash (code ce))) cenclaves
+    ∧ map_Forall (fun _ ce => Forall is_z (code ce)) cenclaves.
 
   Class CustomEnclavesMap :=
     MkCustomEnclavesMap {
@@ -1229,12 +1228,12 @@ Section custom_enclaves.
     ⌜  custom_enclaves !! I = Some ce⌝ →
     ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
 
-    ⌜ I = hash_concat (hash b) (hash (tail (code ce)))⌝ →
+    ⌜ I = hash_concat (hash b) (hash (code ce))⌝ →
     ⌜ b = (code_region ce)⌝ →
     ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
 
     custom_enclave_inv
-    ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]
+    ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]
     ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce)
@@ -1254,14 +1253,14 @@ Section custom_enclaves.
     ⌜ custom_enclaves !! I = Some ce⌝ →
     ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
 
-    ⌜ I = hash_concat (hash b) (hash (tail (code ce)))⌝ →
+    ⌜ I = hash_concat (hash b) (hash (code ce))⌝ →
     ⌜ b = (code_region ce)⌝ →
     ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
 
     custom_enclave_inv
 
     ∗ na_inv logrel_nais (custom_enclaveN.@I)
-      ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
+      ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]  ∗
        [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
 
     ∗ seal_pred ot (Penc ce)
@@ -1284,7 +1283,7 @@ Section custom_enclaves.
       "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
-            ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::(code ce) ]]  ∗
+            ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]  ∗
              [[ b' , e' ]] ↦ₐ{ v' } [[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])%I
            with "[$Htc_code $Htc_data]") as "#Htc_inv".
     iModIntro.

@@ -26,8 +26,8 @@ Section mutual_attest_main.
   Proof.
     iLöb as "IH".
     iEval (rewrite /custom_enclave_contract).
-    iIntros (I b e a v b' e' a' v' enclave_data ot ce
-      Hcode_ce Hot Hb' HIhash Hb He)
+    iIntros (I b e v b' e' a' v' enclave_data ot ce
+      Hcode_ce Hot HIhash Hb He)
       "(#Henclaves_inv & #Hma_inv & #HPenc & #HPsign)".
     assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
 
@@ -42,6 +42,9 @@ Section mutual_attest_main.
 		- rewrite H in HIhash.
 			simplify_map_eq.
 			rewrite /ma_enclaves_map lookup_insert // in Hcode_ce; simplify_eq.
+      replace ( ((λ w : Word, word_to_lword w v) <$> code mutual_attest_enclave_A_pred) )
+        with mutual_attest_enclave_A_lcode.
+      2:{ simplify_map_eq; cbn. rewrite /encodeInstrWL; done. }
 			iApply ( mutual_attest_A_contract with "[]") ; last iFrame "#"; eauto.
     - rewrite lookup_insert_ne // in Hcode_ce.
       2:{
@@ -52,9 +55,11 @@ Section mutual_attest_main.
           destruct Hcontra as [_ Hcontra].
           by injection Hcontra.
       }
+      replace ( ((λ w : Word, word_to_lword w v) <$> code ce) )
+        with mutual_attest_enclave_B_lcode.
+      2:{ simplify_map_eq; cbn. rewrite /encodeInstrWL; done. }
       simplify_map_eq.
       iApply ( mutual_attest_B_contract with "[]") ; last iFrame "#"; eauto.
-      by rewrite H0.
   Qed.
 
   (* -------------------------------------------------- *)

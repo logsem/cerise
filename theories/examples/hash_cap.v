@@ -20,7 +20,7 @@ Section HashCap.
 
   (* first we will define the list of Words making up the mclear macro *)
   Definition hash_cap_instrs :=
-    encodeInstrsLW [
+    [
        (* r4 := (p, b, e, a) *)
         GetB r_t1 r_t4; (* r1 := b *)
         GetA r_t2 r_t4; (* r2 := a *)
@@ -55,8 +55,10 @@ Section HashCap.
         Mov r_t5 0;
         Mov r_t6 0;
         Mov r_t7 0
-
       ].
+
+  Definition hash_cap_lcode : list LWord :=
+    encodeInstrsLW hash_cap_instrs.
 
   Lemma hash_cap_spec_iter
     (pc_p : Perm) (pc_b pc_e a_first : Addr) (pc_v : Version)
@@ -70,7 +72,7 @@ Section HashCap.
     readAllowed p_r = true ->
     (b_r < e_r)%a ->
 
-      ▷ codefrag a_first pc_v hash_cap_instrs
+      ▷ codefrag a_first pc_v hash_cap_lcode
     ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ 14)%a pc_v
     ∗ ▷ r_t1 ↦ᵣ LInt (b_r + i)
     ∗ ▷ r_t2 ↦ᵣ wend
@@ -83,7 +85,7 @@ Section HashCap.
     ∗ ▷ ([[ b_r , (b_r ^+ i)%a ]] ↦ₐ{v_r} [[ ws_hd ]])
     ∗ ▷ ([[ (b_r ^+ i)%a , e_r ]] ↦ₐ{v_r} [[ ws_tl ]])
     ∗ ▷ (PC ↦ᵣ updatePcPermL wend
-         ∗ codefrag a_first pc_v hash_cap_instrs
+         ∗ codefrag a_first pc_v hash_cap_lcode
          ∗ (∃ w1', r_t1 ↦ᵣ w1')
          ∗ r_t2 ↦ᵣ wend
          ∗ r_t3 ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ 14)%a pc_v (* cap to iter *)
@@ -209,7 +211,7 @@ Section HashCap.
     readAllowed p_r = true ->
     (b_r < e_r)%a ->
 
-      ▷ codefrag a_first pc_v hash_cap_instrs
+      ▷ codefrag a_first pc_v hash_cap_lcode
     ∗ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e a_first pc_v
     ∗ ▷ r_t1 ↦ᵣ w1
     ∗ ▷ r_t2 ↦ᵣ w2
@@ -221,7 +223,7 @@ Section HashCap.
     ∗ ▷ r_t8 ↦ᵣ w8
     ∗ ▷ ([[ b_r , e_r ]] ↦ₐ{v_r} [[ ws ]])
     ∗ ▷ (PC ↦ᵣ LCap pc_p pc_b pc_e (a_first ^+ length hash_cap_instrs)%a pc_v
-         ∗ codefrag a_first pc_v hash_cap_instrs
+         ∗ codefrag a_first pc_v hash_cap_lcode
          ∗ r_t1 ↦ᵣ LInt 0%Z
          ∗ r_t2 ↦ᵣ LInt 0%Z
          ∗ r_t3 ↦ᵣ LInt 0%Z

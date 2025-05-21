@@ -26,8 +26,8 @@ Section mutual_attest_example.
   (* ------- MUTUAL ATTEST ENCLAVE A ------- *)
   (* --------------------------------------- *)
 
-  Definition mutual_attest_enclave_A_mod_encoding_42 : list LWord :=
-    encodeInstrsLW [
+  Definition mutual_attest_enclave_A_mod_encoding_42_instrs : list instr :=
+     [
 
         (* r1 := (RW, data_b, data_e, data_b) *)
         (* prepare {42} *)
@@ -56,8 +56,14 @@ Section mutual_attest_example.
         Restrict r_t1 (encodePerm O)
       ].
 
-  Definition mutual_attest_enclave_A_mod_encoding_1 : list LWord :=
-    encodeInstrsLW [
+  Definition mutual_attest_enclave_A_mod_encoding_42_code : list Word :=
+    encodeInstrsW mutual_attest_enclave_A_mod_encoding_42_instrs.
+
+  Definition mutual_attest_enclave_A_mod_encoding_42_lcode : list LWord :=
+    encodeInstrsLW mutual_attest_enclave_A_mod_encoding_42_instrs.
+
+  Definition mutual_attest_enclave_A_mod_encoding_1_instrs : list instr :=
+    [
 
         (* r1 := (RW, data_b, data_e, data_b) *)
         (* prepare {42} *)
@@ -86,14 +92,20 @@ Section mutual_attest_example.
         Restrict r_t1 (encodePerm O)
       ].
 
+  Definition mutual_attest_enclave_A_mod_encoding_1_code : list Word :=
+    encodeInstrsW mutual_attest_enclave_A_mod_encoding_1_instrs.
+
+  Definition mutual_attest_enclave_A_mod_encoding_1_lcode : list LWord :=
+    encodeInstrsLW mutual_attest_enclave_A_mod_encoding_1_instrs.
+
   (* Expects:
      - r_t0 contains return pointer to adv
    *)
-  Definition mutual_attest_enclave_A_code_pre : list LWord :=
+  Definition mutual_attest_enclave_A_code_pre_instrs : list instr :=
     let size_idT : Z := 2 in
     let offset_idA : Z := 0 in
     let offset_idB : Z := 1 in
-    encodeInstrsLW [
+     [
 
       (* SEND {(O,a,a+1,42)}_signed_A ; with a%2=0 *)
 
@@ -112,8 +124,8 @@ Section mutual_attest_example.
       Lea r_t1 r_t2;        (* r1 := (RW, data_b, data_e, data_b) *)
       Load r_t6 r_t1       (* r6 := [SU, σ, σ+2, σ] *)
       ]
-      ++ mutual_attest_enclave_A_mod_encoding_42
-      ++ encodeInstrsLW [
+      ++ mutual_attest_enclave_A_mod_encoding_42_instrs
+      ++  [
         (* r1 :=  (RW, data_b, data_b+1, 42) *)
         (* r6 := [SU, σ, σ+2, σ] *)
 
@@ -137,7 +149,7 @@ Section mutual_attest_example.
         Mov r_t5 0;
         Mov r_t6 0;
         Jmp r_t0]
-      ++ encodeInstrsLW [
+      ++  [
         (* return from adversary *)
         (* Expect:
            r0 := ret_word
@@ -172,7 +184,7 @@ Section mutual_attest_example.
         Mov r_t16 r_t6
       ]
       ++ hash_cap_instrs        (* r4 := #[a_idT;pc_E] *)
-      ++ encodeInstrsLW [
+      ++  [
         Mov r_t1 r_t11;
         Mov r_t2 r_t12;
         Mov r_t3 r_t13;
@@ -254,8 +266,8 @@ Section mutual_attest_example.
         Lea r_t1 r_t2;       (* r1 := (RW, data_b, data_e, data_b) *)
         Load r_t6 r_t1      (* r6 := [SU, σ, σ+2, σ] *)
       ]
-      ++ mutual_attest_enclave_A_mod_encoding_1
-      ++ encodeInstrsLW [
+      ++ mutual_attest_enclave_A_mod_encoding_1_instrs
+      ++  [
         (* continue here  *)
         (* r1 := (RW, data_b, data_b+1, 1) *)
         (* r6 := [SU, σ, σ+2, σ] *)
@@ -278,13 +290,19 @@ Section mutual_attest_example.
         Jmp r_t0
     ].
 
+  Definition mutual_attest_enclave_A_code_pre_code : list Word :=
+    encodeInstrsW mutual_attest_enclave_A_code_pre_instrs.
+
+  Definition mutual_attest_enclave_A_code_pre_lcode : list LWord :=
+    encodeInstrsLW mutual_attest_enclave_A_code_pre_instrs.
+
 
   (* --------------------------------------- *)
   (* ------- MUTUAL ATTEST ENCLAVE B ------- *)
   (* --------------------------------------- *)
 
-  Definition mutual_attest_enclave_B_mod_encoding : list LWord :=
-    encodeInstrsLW [
+  Definition mutual_attest_enclave_B_mod_encoding_instrs : list instr :=
+     [
         (* if x%2 = 0 then mb=[42;1] else  mb=[1;42] *)
         Mod r_t3 r_t2 2;
         Mov r_t5 PC;
@@ -306,15 +324,22 @@ Section mutual_attest_example.
         Lea r_t4 r_t3 (*  r4 :=  (RW, data_b+1, data_b+2, 42) *)
       ].
 
+  Definition mutual_attest_enclave_B_mod_encoding_code : list Word :=
+    encodeInstrsW mutual_attest_enclave_B_mod_encoding_instrs.
+
+  Definition mutual_attest_enclave_B_mod_encoding_lcode : list LWord :=
+    encodeInstrsLW mutual_attest_enclave_B_mod_encoding_instrs.
+
+
   (* Expects:
      - r_t0 contains return pointer to caller
      - r_t1 contains entry point to ENCLAVE B, not attested yet
    *)
-  Definition mutual_attest_enclave_B_code_pre : list LWord :=
+  Definition mutual_attest_enclave_B_code_pre_instrs : list instr :=
     let size_idT : Z := 2 in
     let offset_idA : Z := 0 in
     let offset_idB : Z := 1 in
-    encodeInstrsLW [
+     [
       (* CODE INITIALISATION ENCLAVE B *)
 
       (* receives:
@@ -347,7 +372,7 @@ Section mutual_attest_example.
       Mov r_t16 r_t6
       ]
       ++ hash_cap_instrs        (* r4 := #[a_idT;pc_E] *)
-      ++ encodeInstrsLW [
+      ++  [
         Mov r_t1 r_t11;
         Mov r_t2 r_t12;
         Mov r_t3 r_t13;
@@ -436,8 +461,8 @@ Section mutual_attest_example.
       Add r_t5 r_t3 1;    (* r5 := data_b + 2 *)
       Subseg r_t4 r_t3 r_t5 (* r4 := (RW, data_b+1, data_b+2, data_b) *)
       ]
-      ++ mutual_attest_enclave_B_mod_encoding
-      ++ encodeInstrsLW [
+      ++ mutual_attest_enclave_B_mod_encoding_instrs
+      ++  [
       (* continue here  *)
       Restrict r_t1 (encodePerm O);
       Restrict r_t4 (encodePerm O);
@@ -460,31 +485,44 @@ Section mutual_attest_example.
       Jmp r_t0
     ].
 
+  Definition mutual_attest_enclave_B_code_pre_code : list Word :=
+    encodeInstrsW mutual_attest_enclave_B_code_pre_instrs.
+
+  Definition mutual_attest_enclave_B_code_pre_lcode : list LWord :=
+    encodeInstrsLW mutual_attest_enclave_B_code_pre_instrs.
+
   (* Enclave Identity Table --- pre-hashed code *)
   Definition hash_mutual_attest_A_pre : Z :=
-    hash_concat (hash ma_addr_A) (hash (lword_get_word <$> mutual_attest_enclave_A_code_pre)).
+    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code_pre_code).
   Definition hash_mutual_attest_B_pre : Z :=
-    hash_concat (hash ma_addr_B) (hash (lword_get_word <$> mutual_attest_enclave_B_code_pre)).
+    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code_pre_code).
 
-  Definition mutual_attest_eid_table : list LWord :=
+  Definition mutual_attest_eid_table : list Word :=
+    [ WInt hash_mutual_attest_A_pre ; WInt hash_mutual_attest_B_pre].
+
+  Definition mutual_attest_eid_ltable : list LWord :=
     [ LWInt hash_mutual_attest_A_pre ; LWInt hash_mutual_attest_B_pre].
 
-
   (* Fully hashed enclaves --- machine hashed enclaves *)
-  Definition mutual_attest_enclave_A_code : list LWord :=
-   (mutual_attest_enclave_A_code_pre ++ mutual_attest_eid_table).
-  Definition mutual_attest_enclave_B_code : list LWord :=
-   (mutual_attest_enclave_B_code_pre ++ mutual_attest_eid_table).
+  Definition mutual_attest_enclave_A_code : list Word :=
+   (mutual_attest_enclave_A_code_pre_code ++ mutual_attest_eid_table).
+  Definition mutual_attest_enclave_B_code : list Word :=
+   (mutual_attest_enclave_B_code_pre_code ++ mutual_attest_eid_table).
+
+  Definition mutual_attest_enclave_A_lcode : list LWord :=
+   (mutual_attest_enclave_A_code_pre_lcode ++ mutual_attest_eid_ltable).
+  Definition mutual_attest_enclave_B_lcode : list LWord :=
+   (mutual_attest_enclave_B_code_pre_lcode ++ mutual_attest_eid_ltable).
 
   Definition hash_mutual_attest_A : Z :=
-    hash_concat (hash ma_addr_A) (hash (lword_get_word <$> mutual_attest_enclave_A_code)).
+    hash_concat (hash ma_addr_A) (hash mutual_attest_enclave_A_code).
   Definition hash_mutual_attest_B : Z :=
-    hash_concat (hash ma_addr_B) (hash (lword_get_word <$> mutual_attest_enclave_B_code)).
+    hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code).
 
-  Definition mutual_attest_enclave_A (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table.
-  Definition mutual_attest_enclave_B (enclave_data_cap : LWord) : list LWord :=
-    enclave_data_cap::mutual_attest_enclave_B_code  ++ mutual_attest_eid_table.
+  (* Definition mutual_attest_enclave_A (enclave_data_cap : LWord) : list LWord := *)
+  (*   enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table. *)
+  (* Definition mutual_attest_enclave_B (enclave_data_cap : LWord) : list LWord := *)
+  (*   enclave_data_cap::mutual_attest_enclave_B_code  ++ mutual_attest_eid_table. *)
 
 
 
@@ -647,9 +685,23 @@ Section mutual_attest_example.
     custom_enclaves_map_wf ma_enclaves_map.
   Proof.
     rewrite /custom_enclaves_map_wf /ma_enclaves_map.
-    apply (map_Forall_insert_2 (λ (I : Z) (ce : CustomEnclave), _)).
-    - by rewrite /hash_mutual_attest_A /=.
-    - by rewrite map_Forall_singleton /hash_mutual_attest_B /=.
+    split.
+    - apply (map_Forall_insert_2 (λ (I : Z) (ce : CustomEnclave), _)).
+      + by rewrite /hash_mutual_attest_A /=.
+      + by rewrite map_Forall_singleton /hash_mutual_attest_B /=.
+    - apply (map_Forall_insert_2 (λ (I : Z) (ce : CustomEnclave), _)).
+      + cbn.
+        rewrite /encodeInstrW.
+        apply Forall_forall.
+        intros w Hw.
+        repeat (rewrite elem_of_cons in Hw ; destruct Hw as [-> | Hw]; first done).
+        by rewrite elem_of_nil in Hw.
+      + rewrite map_Forall_singleton; cbn.
+        rewrite /encodeInstrW.
+        apply Forall_forall.
+        intros w Hw.
+        repeat (rewrite elem_of_cons in Hw ; destruct Hw as [-> | Hw]; first done).
+        by rewrite elem_of_nil in Hw.
   Qed.
 
   Definition contract_ma_enclaves_map :=
