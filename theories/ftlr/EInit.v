@@ -29,7 +29,52 @@ Section fundamental.
   Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
     iHide0 irisH coqH.
 
+  Ltac name_current_mask name :=
+    match goal with
+    | _ : _ |- context [ wp _ ?mask _ _ ] =>
+        set (name := mask)
+    end.
 
+  (* TODO move *)
+  Global Instance elem_of_dec `{EqDecision A} (a : A) (l : list A) : Decision (a ∈ l).
+  Proof.
+    induction l; cbn.
+    - right. apply not_elem_of_nil.
+    - destruct (decide (a = a0)); subst.
+      + left; set_solver.
+      + destruct IHl.
+        * left; set_solver.
+        * right; set_solver.
+  Qed.
+
+  Global Instance disjoint_dec `{EqDecision A} (l1 l2 : list A) : Decision (l1 ## l2).
+  Proof.
+    induction l1; cbn.
+    - left; set_solver.
+    - destruct (decide (a ∈ l2)).
+      + right; set_solver.
+      + destruct IHl1.
+        * left; set_solver.
+        * right; set_solver.
+  Qed.
+
+  Lemma compute_mask_disjoint_namespace (E : coPset) (N : namespace) (ls : gset LAddr) :
+    disjoint (A:= coPset) (↑N) (↑logN) ->
+    ↑N ⊆ E ->
+    ↑N ⊆ compute_mask E ls.
+  Proof.
+    rewrite /compute_mask.
+    revert E.
+    induction ls using set_ind_L; intros E HN HNE.
+    { set_solver. }
+    rewrite set_fold_disj_union_strong; [|set_solver..].
+    rewrite set_fold_singleton.
+    apply IHls; [done|].
+    eapply namespaces.coPset_subseteq_difference_r; auto.
+    by apply ndot_preserve_disjoint_r.
+  Qed.
+
+  Set Nested Proofs Allowed.
 
   Lemma einit_case (lregs : leibnizO LReg)
     (p_pc : Perm) (b_pc e_pc a_pc : Addr) (v_pc : Version)
@@ -105,39 +150,15 @@ Section fundamental.
         admit.
       }
 
-      (* TODO move *)
-      Set Nested Proofs Allowed.
-      Global Instance elem_of_dec `{EqDecision A} (a : A) (l : list A) : Decision (a ∈ l).
-      Proof.
-        induction l; cbn.
-        - right. apply not_elem_of_nil.
-        - destruct (decide (a = a0)); subst.
-          + left; set_solver.
-          + destruct IHl.
-            * left; set_solver.
-            * right; set_solver.
-      Qed.
-
-      Global Instance disjoint_dec `{EqDecision A} (l1 l2 : list A) : Decision (l1 ## l2).
-      Proof.
-        induction l1; cbn.
-        - left; set_solver.
-        - destruct (decide (a ∈ l2)).
-          + right; set_solver.
-          + destruct IHl1.
-            * left; set_solver.
-            * right; set_solver.
-      Qed.
-
       destruct ( decide (a_pc ∈ (finz.seq_between b_code e_code)))
-      as [Hcode_apc_disjoint|Hcode_apc_disjoint]; cycle 1.
+      as [Hcode_apc_disjoint|Hcode_apc_disjoint].
       { (* code overlap with pc, the sweep will fail *)
         (* TODO opsem will fail *)
         admit.
       }
 
       destruct ( decide (a_pc ∈ (finz.seq_between b_data e_data)))
-      as [Hdata_apc_disjoint|Hdata_apc_disjoint]; cycle 1.
+      as [Hdata_apc_disjoint|Hdata_apc_disjoint].
       { (* data overlap with pc, the sweep will fail *)
         (* TODO opsem will fail *)
         admit.
@@ -151,29 +172,77 @@ Section fundamental.
       }
 
 
-      Ltac name_current_mask name :=
-        match goal with
-        | _ : _ |- context [ wp _ ?mask _ _ ] =>
-            set (name := mask)
-        end.
-
       name_current_mask mask_init.
 
       (* Open the code region *)
       iDestruct (interp_open_region $ mask_init with "Hinterp_wcode")
         as (Ps_code) "[%Hlen_Ps_code Hmod]" ; eauto.
-      { admit. }
+      { eapply Forall_forall. intros a' Ha'.
+        subst mask_init.
+        eapply namespaces.coPset_subseteq_difference_r; auto.
+        assert (a' ≠ a_pc) by set_solver.
+        solve_ndisj.
+      }
       iMod "Hmod" as (lws_code) "(%Hlen_lws_code & %Hpers_Ps_code
       & Hcode & HPs_code & Hreadcond_Ps_code & Hcls_code)".
-
       name_current_mask mask_code.
 
       (* Open the data region *)
       iDestruct (interp_open_region $ mask_code with "Hinterp_wdata")
         as (Ps_data) "[%Hlen_Ps_data Hmod]" ; eauto.
-      { admit. }
+      { eapply Forall_forall. intros a' Ha'.
+        subst mask_code mask_init.
+        rewrite /compute_mask_region.
+        rewrite -compute_mask_difference.
+        2: {
+          rewrite not_elem_of_list_to_set.
+          intro Hcontra.
+          rewrite elem_of_list_fmap in Hcontra.
+          destruct Hcontra as (a'' & ? & Ha'') ; simplify_eq.
+        }
+        eapply namespaces.coPset_subseteq_difference_r; auto.
+        + assert (a' ≠ a_pc) by set_solver.
+          solve_ndisj.
+        + apply compute_mask_elem_of; set_solver.
+      }
       iMod "Hmod" as (lws_data) "(%Hlen_lws_data & %Hpers_Ps_data
       & Hdata & HPs_data & Hreadcond_Ps_data & Hcls_data)".
+      name_current_mask mask_data.
+
+      iDestruct (big_sepM_union with "[$Hcode $Hdata]") as "Hmem".
+      { rewrite /logical_region_map.
+        apply map_disjoint_list_to_map_zip_r_2; auto.
+        + cbn in *; f_equal; simplify_eq.
+          by rewrite map_length.
+        + apply Forall_forall.
+          intros la Hla.
+          apply not_elem_of_list_to_map_1.
+          rewrite fst_zip; eauto.
+          * intro Hcontra.
+            rewrite !elem_of_list_fmap in Hla,Hcontra.
+            destruct Hla as (la' & -> & Hla').
+            destruct Hcontra as (la'' & ? & Hla''); simplify_eq.
+            set_solver.
+          * cbn.
+            rewrite map_length.
+            cbn in Hlen_lws_code; simplify_eq.
+            lia.
+      }
+      iDestruct (big_sepM_insert with "[$Hmem $Ha]") as "Hmem".
+      { rewrite lookup_union.
+        rewrite !logical_region_notin; auto.
+      }
+
+      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
+      {
+        subst mask_data mask_code mask_init.
+        rewrite /compute_mask_region.
+        eapply compute_mask_disjoint_namespace ; eauto; first solve_ndisj.
+        eapply compute_mask_disjoint_namespace ; eauto; first solve_ndisj.
+        eapply namespaces.coPset_subseteq_difference_r; auto; first solve_ndisj.
+      }
+      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
+      name_current_mask mask_sys.
 
       destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
       { (* The code cap is expected to have space for the data cap in its first address *)
@@ -190,15 +259,7 @@ Section fundamental.
       rewrite (finz_seq_between_cons b_data) // in Hlen_lws_data.
       destruct lws_data as [|lws_data1 lws_data]; first (by cbn in Hlen_lws_data).
 
-      iDestruct (big_sepM_union with "[$Hcode $Hdata]") as "Hmem".
-      { admit. }
-      iDestruct (big_sepM_insert with "[$Hmem $Ha]") as "Hmem".
-      { admit. }
 
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      { admit. }
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-      name_current_mask mask_sys.
 
       destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
       { (* The opsem expect to be able to allocate the 2 next otypes *)
@@ -206,12 +267,24 @@ Section fundamental.
         admit.
       }
 
+      iDestruct (readAllowed_not_reserved with "Hinterp_wcode") as "%Hreserved_code";
+        first done.
+      iDestruct (readAllowed_not_reserved with "Hinterp_wdata") as "%Hreserved_data";
+        first done.
+
       iApply (wp_einit with "[$Hmap $Hmem $HEC]");eauto.
       + by simplify_map_eq.
-      + admit.
+      + rewrite /subseteq /map_subseteq /set_subseteq_instance
+            ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto.
       + by simplify_map_eq.
-      + admit.
-      + admit.
+      + rewrite /allows_einit.
+        intros p' b' e' a' v' Hw' _.
+        simplify_map_eq.
+        by rewrite Hlregs_rcode in Hw'; simplify_eq.
+      + rewrite /allows_einit.
+        intros p' b' e' a' v' Hw' _.
+        simplify_map_eq.
+        by rewrite Hlregs_rdata in Hw'; simplify_eq.
       + iNext.
         iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & _ & Hspec)".
         iDestruct "Hspec" as "[Hspec | Hspec]"; cycle 1.
@@ -231,27 +304,11 @@ Section fundamental.
 
         rewrite Hrcode in Hlregs_rcode; simplify_eq.
         rewrite Hrdata in Hlregs_rdata; simplify_eq.
-        (* assert ( LCap RW data_b data_e data_a data_v = LCap RW b_data e_data a_data v_data ) as *)
-        (*   Heq_data; simplify_eq. *)
-        (* { clear -H3 H7. *)
-        (*   rewrite lookup_insert_ne in H3; last admit. *)
-        (*   rewrite lookup_union in H3. *)
-        (*   assert ( logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) *)
-        (*              (lws_data1 :: lws_data) v_data !! (b_code, v_code) = None ). *)
-        (*   { admit. } *)
-        (*   rewrite H in H3. *)
-        (*   assert ( logical_region_map (finz.seq_between b_code e_code) *)
-        (*              (LCap RW b_data e_data a_data v_data :: lws) v_code !! (b_code, v_code) *)
-        (*          = Some (LCap RW b_data e_data a_data v_data)). *)
-        (*   { admit. } *)
-        (*   rewrite H0 in H3. *)
-        (*   by rewrite option_union_right_id in H3; simplify_eq. *)
-        (* } *)
 
         (* TODO lemma *)
         assert (ot = ot_ec) as ->.
         {
-          clear -Htidx Hot Htidx_even Hot_ec Hot_ec2.
+          clear -Htidx Hot Htidx_even Hot_ec.
           rewrite /tid_of_otype in Htidx.
           rewrite Htidx_even in Htidx.
           assert (Ecn = (Z.to_nat ot `div` 2)) as -> by (by injection Htidx); clear Htidx.
@@ -288,6 +345,7 @@ Section fundamental.
         { admit. }
         rewrite !big_sepS_singleton.
 
+        (* TODO SEE the SEE HERE *)
         iAssert (
             [∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_code e_code) (lws_code1 :: lws_code) v_code,
               la ↦ₐ lw
@@ -309,8 +367,6 @@ Section fundamental.
         iAssert ((a'',v'') ↦ₐ lw_pc)%I as "-#Hpca".
         { admit. }
         iClear "Hmem".
-        (* set ( mask_data := compute_mask_region mask_code (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) v_data ). *)
-        (* set ( mask_sys := mask_data ∖ ↑custom_enclaveN ). *)
 
         iAssert (interp (LCap p'' b'' e'' x v'')) as "Hinterp_next_PC".
         { admit. }
@@ -1194,6 +1250,7 @@ Section fundamental.
 
       (*     { (* Sweep true  *) *)
 
+  (* TODO SEE HERE *)
       (*       incrementLPC_inv *)
       (*         as (p_pc' & b_pc' & e_pc' &a_pc' &v_pc' & ? & HPC & Z & Hregs') *)
       (*       ; simplify_map_eq. *)
