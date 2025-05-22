@@ -39,6 +39,8 @@ Class MachineParameters := {
 
     hash_inj `{A : Type} : @Inj A Z eq eq hash;
     hash_concat_inj: Inj2 eq eq eq hash_concat;
+    hash_unit : Z;
+    hash_unit_correct : forall A, hash ([] : list A) = hash_unit;
   }.
 
 (* Lift the encoding / decoding between Z and instructions on Words: simplify

@@ -19,7 +19,7 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EInit_fail (lregs : LReg) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : Prop :=
+  Inductive EInit_fail (lregs : LReg) (lmem : LMem) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : Prop :=
   (* Etable is now unbounded *)
   (* | EInit_fail_etable_full *)
 
@@ -27,33 +27,39 @@ Section cap_lang_rules.
   | EInit_fail_ccap_not_a_cap lw :
     lregs !! r_code = Some lw ->
     is_log_cap lw = false →
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem r_code r_data tidx ot
   (* the code capanility is not RX *)
   | EInit_fail_ccap_no_rx p b e a v :
     lregs !! r_code = Some (LCap p b e a v) ->
     p ≠ RX ->
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
   (* the code capanility does not contain enough space for the data_capability *)
   | EInit_fail_ccap_small p b e a v :
     lregs !! r_code = Some (LCap p b e a v) ->
     ¬ (b < e)%a ->
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
+  (* the code capanility does not contain enough space for the data_capability *)
+  | EInit_fail_hash_fail p b e a v :
+    lregs !! r_code = Some (LCap p b e a v) ->
+    (b < e)%a ->
+    (hash_lmemory_range lmem (b ^+ 1)%a e v) = None ->
+    EInit_fail lregs lmem  r_code r_data tidx ot
 
   (* the data register doesn't contain a capability *)
   | EInit_fail_dcap_not_a_cap lw :
     lregs !! r_data = Some lw ->
     is_log_cap lw = false →
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
   (* the data capability is not RW *)
   | EInit_fail_dcap_no_rx p b e a v :
     lregs !! r_data = Some (LCap p b e a v)->
     p ≠ RW ->
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
   (* the data capanility does not contain enough space for the data_capability *)
   | EInit_fail_dcap_small p b e a v :
     lregs !! r_data = Some (LCap p b e a v) ->
     ¬ (b < e)%a ->
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
 
   (* the PCC overflows *)
   | EInit_fail_pc_overflow
@@ -65,14 +71,14 @@ Section cap_lang_rules.
         <[ r_data := LWInt 0 ]>
           (<[ r_code := next_version_lword (LCap E b_code e_code (b_code ^+ 1)%a v_code)]>
              lregs)) = None →
-    EInit_fail lregs r_code r_data tidx ot
+    EInit_fail lregs lmem  r_code r_data tidx ot
 
   | EInit_fail_otype_overflow :
     tid_of_otype ot = Some tidx ->
     Z.even ot = true ->
     (ot + 2)%ot = None →
 
-    EInit_fail lregs r_code r_data tidx ot.
+    EInit_fail lregs lmem  r_code r_data tidx ot.
 
     (* | EInit_fail_ccap_not_unique : *)
     (*   EInit_fail lregs lmem ot *)
@@ -85,11 +91,13 @@ Section cap_lang_rules.
 
   Definition EInit_spec_success (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex)
     (ot : OType) (r_code r_data : RegName) (retv : val) : iProp Σ :=
-    ∃ glmem lmem'' (code_b code_e code_a : Addr) (code_v : Version) (data_b data_e data_a : Addr) (data_v : Version) eid,
+    ∃ glmem lmem'' (code_b code_e code_a : Addr) (code_v : Version) (data_b data_e data_a : Addr)
+      (data_v : Version) eid hash_instrs,
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
     ⌜tid_of_otype ot = Some tidx⌝ ∗
     ⌜Z.even ot = true⌝ ∗
-    ⌜eid = hash_concat (hash code_b) (hash_lmemory_region lmem (code_b ^+ 1)%a code_e code_v)⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
+    ⌜ (hash_lmemory_range lmem (code_b ^+ 1)%a code_e code_v) = Some hash_instrs
+    ∧ hash_concat (hash code_b) hash_instrs = eid⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
     ⌜(ot + 2)%ot = Some (ot ^+ 2)%ot ⌝ ∗ (* there are still otypes left in the pool *)
     ⌜lregs !! r_code = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rs contains a valid capability *)
     ⌜lregs !! r_data = Some (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* rs contains a valid capability *)
@@ -114,8 +122,8 @@ Section cap_lang_rules.
   .
 
   Definition EInit_spec_failure
-    (lregs : LReg) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : iProp Σ :=
-    ⌜ EInit_fail lregs r_code r_data tidx ot ⌝.
+    (lregs : LReg) (lmem : LMem) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : iProp Σ :=
+    ⌜ EInit_fail lregs lmem r_code r_data tidx ot ⌝.
 
   Definition allows_einit (lregs : LReg) (r : RegName) :=
     ∀ p b e a v,
@@ -147,7 +155,7 @@ Section cap_lang_rules.
 
         ( EInit_spec_success lregs lregs' lmem lmem' tidx tidx' ot r_code r_data retv
          ∨ (
-           EInit_spec_failure lregs r_code r_data tidx ot
+           EInit_spec_failure lregs lmem r_code r_data tidx ot
            ∗ ⌜ lmem' = lmem ⌝
            ∗ ⌜ tidx' = tidx ⌝
            ∗ ⌜ retv = FailedV ⌝
