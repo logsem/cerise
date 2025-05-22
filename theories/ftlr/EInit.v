@@ -29,16 +29,35 @@ Proof.
     by rewrite /pair_fst_leb.
 Qed.
 
-Lemma HdRel_merge_sort_cons {A} (R : A -> A -> bool) (a : A) (la : list A) :
-  HdRel R a la -> merge_sort R (a::la) = a::(merge_sort R la).
+Global Instance pair_fst_leb_total {A B} (R : A -> A -> bool) `{HTotal: Total A R} :
+  @Total (A*B) (pair_fst_leb R).
 Proof.
-  generalize dependent a.
-  induction la as [|a' la] ; intros a HdRel_a ; cbn in *; first done.
-  rewrite /merge_sort_aux.
-Admitted.
+  intros [a1 b1] [a2 b2].
+  specialize (HTotal a1 a2); cbn in HTotal.
+  by rewrite /pair_fst_leb ; cbn.
+Qed.
 
+Global Instance pair_fst_leb_transitive {A B} (R : A -> A -> bool) `{HTransitive: Transitive A R} :
+  @Transitive (A*B) (pair_fst_leb R).
+Proof.
+  intros [a1 b1] [a2 b2] [a3 b3].
+  specialize (HTransitive a1 a2 a3); cbn in HTransitive.
+  by rewrite /pair_fst_leb ; cbn.
+Qed.
 
-Lemma Sorted_sort_zip_fst {A B} (R : A -> A -> bool) (la : list A) (lb : list B) :
+Global Instance pair_fst_leb_antisymm {A B} (R : A -> A -> bool) `{HAntiSymm: AntiSymm A eq R} :
+  @AntiSymm (A*B) eq (pair_fst_leb R).
+Proof.
+  intros [a1 b1] [a2 b2] Hpair12 Hpair23.
+  rewrite /pair_fst_leb /= in Hpair12,Hpair23.
+  specialize (HAntiSymm a1 a2); cbn in HAntiSymm.
+Abort.
+
+Lemma Sorted_sort_zip_fst {A B} (R : A -> A -> bool)
+  `{Htotal: Total A R}
+  `{Htransitive: Transitive A R}
+  `{HAntiSymm: AntiSymm A eq R }
+  (la : list A) (lb : list B) :
   Sorted R la ->
   (merge_sort (pair_fst_leb R) (zip la lb)) = (zip la lb).
 Proof.
@@ -46,18 +65,35 @@ Proof.
   induction la as [|a la]; intros lb Hsorted ;cbn in *; first done.
   - destruct lb; first done.
     inversion Hsorted; simplify_eq.
-    eapply (HdRel_zip_fst _ _ b _ lb) in H2.
-    rewrite HdRel_merge_sort_cons; auto.
-    rewrite IHla; auto.
-Qed.
+    eapply (IHla lb) in H1.
+    assert (Sorted (pair_fst_leb R)
+              (
+                merge_sort (λ ab1 ab2 : A * B, pair_fst_leb R ab1 ab2) (zip la lb)
+           )) as Hsorted'.
+    { apply Sorted_merge_sort. apply _. }
+    pose proof Hsorted' as Hsorted''.
+    rewrite H1 in Hsorted'.
+    assert (
+       HdRel (pair_fst_leb R) (a,b) (zip la lb)
+      ) as HdRel'.
+    { admit. }
+    pose proof (Sorted_cons Hsorted' HdRel').
+    assert (
+        Sorted (pair_fst_leb R) ( merge_sort (pair_fst_leb R) ((a, b) :: zip la lb) )
+      ) as Hsorted'''.
+    { apply Sorted_merge_sort. apply _. }
+    eapply Sorted_unique; eauto; try apply _.
+    admit.
+    apply merge_sort_Permutation.
+Admitted.
 
 Lemma Sorted_sort_zip (la : list LAddr) (lw : list LWord) :
   Sorted laddr_leb la ->
   (merge_sort lmem_leb (zip la lw)) = (zip la lw).
 Proof.
   intros Hsorted.
-  by apply Sorted_sort_zip_fst.
-Qed.
+  apply Sorted_sort_zip_fst; try apply _.
+Admitted.
 
 Lemma finz_seq_between_addr_StronglySorted_aux (a : Addr) (n : nat) :
   StronglySorted addr_leb (finz.seq_between (a^- (n))%f a).
@@ -137,6 +173,7 @@ Proof.
   lia.
 Qed.
 
+(* Problem: this is not antisymm *)
 Global Instance lmem_leb_AntiSymm : AntiSymm eq lmem_leb.
 Proof.
   intros aw1 aw2.
@@ -1214,6 +1251,7 @@ Section fundamental.
           by rewrite map_union_empty.
         }
         {
+          (* TODO how to prove this? *)
           replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws_code
           ; first iFrame "∗#".
           (* clear -HI_ECn_eq. *)
@@ -1237,7 +1275,7 @@ Section fundamental.
             ).
           2: { admit. }
 
-
+          (* problem: it won't work because the order is not antisymm *)
           erewrite merge_sort_Permutation_proper; last apply map_to_list_to_map; try apply _.
           2:{ admit. }
 
