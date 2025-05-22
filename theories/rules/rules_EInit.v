@@ -19,27 +19,69 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Inductive EInit_fail (lregs : LReg) (lmem : LMem) (ot : OType) : Prop :=
-    (* Etable is now unbounded *)
-    (* | EInit_fail_etable_full *)
-    | EInit_fail_pc_overflow :
-      incrementLPC lregs = None →
-      EInit_fail lregs lmem ot
-    | EInit_fail_otype_overflow :
-      (ot + 2)%ot = None →
-      EInit_fail lregs lmem ot
-    | EInit_fail_ccap_not_unique :
-      EInit_fail lregs lmem ot
-    | EInit_fail_dcap_not_unique :
-      EInit_fail lregs lmem ot
-    | EInit_fail_ccap_not_a_cap :
-      EInit_fail lregs lmem ot
-    | EInit_fail_dcap_not_a_cap :
-      EInit_fail lregs lmem ot
-    | EInit_fail_ccap_no_rx :
-      EInit_fail lregs lmem ot
-    | EInit_fail_dcap_no_rw :
-      EInit_fail lregs lmem ot.
+  Inductive EInit_fail (lregs : LReg) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : Prop :=
+  (* Etable is now unbounded *)
+  (* | EInit_fail_etable_full *)
+
+  (* the code register doesn't contain a capability *)
+  | EInit_fail_ccap_not_a_cap lw :
+    lregs !! r_code = Some lw ->
+    is_log_cap lw = false →
+    EInit_fail lregs r_code r_data tidx ot
+  (* the code capanility is not RX *)
+  | EInit_fail_ccap_no_rx p b e a v :
+    lregs !! r_code = Some (LCap p b e a v) ->
+    p ≠ RX ->
+    EInit_fail lregs r_code r_data tidx ot
+  (* the code capanility does not contain enough space for the data_capability *)
+  | EInit_fail_ccap_small p b e a v :
+    lregs !! r_code = Some (LCap p b e a v) ->
+    ¬ (b < e)%a ->
+    EInit_fail lregs r_code r_data tidx ot
+
+  (* the data register doesn't contain a capability *)
+  | EInit_fail_dcap_not_a_cap lw :
+    lregs !! r_data = Some lw ->
+    is_log_cap lw = false →
+    EInit_fail lregs r_code r_data tidx ot
+  (* the data capability is not RW *)
+  | EInit_fail_dcap_no_rx p b e a v :
+    lregs !! r_data = Some (LCap p b e a v)->
+    p ≠ RW ->
+    EInit_fail lregs r_code r_data tidx ot
+  (* the data capanility does not contain enough space for the data_capability *)
+  | EInit_fail_dcap_small p b e a v :
+    lregs !! r_data = Some (LCap p b e a v) ->
+    ¬ (b < e)%a ->
+    EInit_fail lregs r_code r_data tidx ot
+
+  (* the PCC overflows *)
+  | EInit_fail_pc_overflow
+     b_code e_code a_code v_code
+     b_data e_data a_data v_data :
+    lregs !! r_code = Some (LCap RX b_code e_code a_code v_code) ->
+    lregs !! r_data = Some (LCap RW b_data e_data a_data v_data) ->
+    incrementLPC (
+        <[ r_data := LWInt 0 ]>
+          (<[ r_code := next_version_lword (LCap E b_code e_code (b_code ^+ 1)%a v_code)]>
+             lregs)) = None →
+    EInit_fail lregs r_code r_data tidx ot
+
+  | EInit_fail_otype_overflow :
+    tid_of_otype ot = Some tidx ->
+    Z.even ot = true ->
+    (ot + 2)%ot = None →
+
+    EInit_fail lregs r_code r_data tidx ot.
+
+    (* | EInit_fail_ccap_not_unique : *)
+    (*   EInit_fail lregs lmem ot *)
+    (* | EInit_fail_dcap_not_unique : *)
+    (*   EInit_fail lregs lmem ot *)
+    (* | EInit_fail_dcap_not_a_cap : *)
+    (*   EInit_fail lregs lmem ot *)
+    (* | EInit_fail_dcap_no_rw : *)
+    (*   EInit_fail lregs lmem ot. *)
 
   Definition EInit_spec_success (lregs lregs' : LReg) (lmem lmem' : LMem) (tidx tidx_incr : TIndex)
     (ot : OType) (r_code r_data : RegName) (retv : val) : iProp Σ :=
@@ -71,9 +113,9 @@ Section cap_lang_rules.
 
   .
 
-      Definition EInit_spec_failure (lregs lregs' : LReg) (lmem lmem' : LMem)
-        (tidx tidx_incr : TIndex) (ot : OType) (r_code r_data : RegName) (retv : val) : iProp Σ.
-      Admitted.
+  Definition EInit_spec_failure
+    (lregs : LReg) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : iProp Σ :=
+    ⌜ EInit_fail lregs r_code r_data tidx ot ⌝.
 
   Definition allows_einit (lregs : LReg) (r : RegName) :=
     ∀ p b e a v,
@@ -102,10 +144,15 @@ Section cap_lang_rules.
         ([∗ map] la↦lw ∈ lmem', la ↦ₐ lw) ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         EC⤇ tidx' ∗
-        £ 1 ∗
 
-        (EInit_spec_success lregs lregs' lmem lmem' tidx tidx' ot r_code r_data retv
-         ∨ EInit_spec_failure lregs lregs' lmem lmem' tidx tidx' ot r_code r_data retv)
+        ( EInit_spec_success lregs lregs' lmem lmem' tidx tidx' ot r_code r_data retv
+         ∨ (
+           EInit_spec_failure lregs r_code r_data tidx ot
+           ∗ ⌜ lmem' = lmem ⌝
+           ∗ ⌜ tidx' = tidx ⌝
+           ∗ ⌜ retv = FailedV ⌝
+           )
+        )
     }}}.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HrcodeAllowEInit HrdataAllowEInit φ) "(>Hregs & >Hmem & HECv) Hφ".
