@@ -158,4 +158,15 @@ Section fundamental.
     iApply (safe_to_attest_weakening with "Hattest"); auto.
   Qed.
 
+  Lemma interp_weakening_next_PC p b e a a' v:
+    p = RX ∨ p = RWX ->
+    (fixpoint interp1) (LCap p b e a v) -∗
+    (fixpoint interp1) (LCap p b e a' v).
+  Proof.
+    iIntros (Hp) "Hinterp".
+    destruct Hp as [-> | ->].
+    all: by rewrite !fixpoint_interp1_eq.
+  Qed.
+
+
 End fundamental.

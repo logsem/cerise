@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.algebra Require Import gmap excl agree.
-From Coq Require Import Sorting Orders.
+From stdpp Require Import sorting.
 From cap_machine Require Export cap_lang iris_extra stdpp_extra machine_parameters.
 
 Definition Version := nat.
@@ -149,21 +149,6 @@ Definition VMap : Type := gmap Addr Version.
 Definition LReg := gmap RegName LWord.
 Definition LMem := gmap LAddr LWord.
 Definition LDFrac := gmap LAddr iris.algebra.dfrac.dfrac.
-
-Module LMemOrder <: TotalLeBool.
-  Definition t : Type := (LAddr * LWord).
-  Definition leb (aw1 aw2 : t) :=
-    ((aw1).1.1 <=? (aw2).1.1)%a.
-  Infix "<=?" := leb (at level 70, no associativity).
-  Theorem leb_total : forall a1 a2 : t, ( (a1 <=? a2) = true \/ (a2 <=? a1) = true).
-  Proof.
-    destruct a1 as [ [a1 v1] w1], a2 as [ [a2 v2] w2].
-    rewrite /leb /finz.leb ; cbn.
-    pose proof (Zle_bool_total a1 a2).
-    destruct H ; [by left|by right].
-  Qed.
-End LMemOrder.
-Module Import LMemSort := Sort LMemOrder.
 
 
 Section Logical_mapsto.
@@ -2066,33 +2051,15 @@ Qed.
 Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
   lregs !! r = Some (LCap p b e a v) ∧ readAllowed p = true.
 
+Definition laddr_leb := pair_fst_leb (A:= Addr) (B:= Version) addr_leb.
+Definition lmem_leb := pair_fst_leb (A:= LAddr) (B:= LWord) laddr_leb.
+
 Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (b e : Addr) (v : Version) :=
   let instructions : list LWord :=
-    snd <$> (sort (map_to_list
-      (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e) /\ (laddr_get_version a) = v) lm)))
+    snd <$> (merge_sort lmem_leb
+               (map_to_list (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e) /\ (laddr_get_version a) = v) lm)))
   in
   hash (lword_get_word <$> instructions).
-
-
-Set Nested Proofs Allowed.
-Global Instance MemSort_Permutation_proper: Proper (Permutation ==> eq) (MemSort.sort).
-Proof.
-  induction 1 as [|x l k Hlk IH | |].
-  - by cbn.
-  - cbn. admit.
-  - cbn. admit.
-  - by rewrite IHPermutation1 IHPermutation2.
-Admitted.
-
-Global Instance LMemSort_Permutation_proper: Proper (Permutation ==> eq) (LMemSort.sort).
-Proof.
-  induction 1 as [|x l k Hlk IH | |].
-  - by cbn.
-  - cbn. admit.
-  - cbn. admit.
-  - by rewrite IHPermutation1 IHPermutation2.
-Admitted.
-
 
 Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
   forall p b e a v,
@@ -2129,33 +2096,34 @@ Proof.
   - rewrite map_filter_insert.
     destruct (decide (Fphy (i,x))) as [HFphy_true|HFphy_false]
     ; cbn in *.
-    + setoid_rewrite map_to_list_insert.
-      2: { apply map_lookup_filter_None_2; by left. }
-      Definition lmem_get_word (lalw : LAddr * LWord) : (LAddr * Word) := (lalw.1 , lword_get_word lalw.2).
-      Lemma lmem_get_word_iff (l : list (LAddr * LWord)) :
-        lword_get_word <$> l.*2 = (lmem_get_word <$> l).*2.
-      Proof.
-        induction l; cbn; first done.
-        destruct a as [ [a v] lw]; cbn in *.
-        by f_equal.
-      Qed.
-      pose proof HFphy_true as Hi_inbounds.
-      apply Hcur_word in HFphy_true.
-      eapply map_Forall_lookup_1 in HFphy_true; eauto; cbn in HFphy_true.
-      destruct HFphy_true as (lw & Hlw & Hlw_phy & _).
-      rewrite lookup_insert in Hlw_phy; simplify_eq.
-      (* pose proof (map_lookup_filter Flog lm (i,v)). *)
-      rewrite -(insert_id lm (i,v) lw); auto.
-      rewrite -(insert_delete_insert lm _ lw).
-      rewrite map_filter_insert.
-      rewrite decide_True.
-      2: {
-        subst Flog; cbn in *.
-        split; done.
-      }
-      setoid_rewrite map_to_list_insert.
-      2: { by rewrite map_filter_delete lookup_delete. }
-      erewrite lmem_get_word_iff.
+    +
+      (* setoid_rewrite map_to_list_insert. *)
+      (* 2: { apply map_lookup_filter_None_2; by left. } *)
+      (* Definition lmem_get_word (lalw : LAddr * LWord) : (LAddr * Word) := (lalw.1 , lword_get_word lalw.2). *)
+      (* Lemma lmem_get_word_iff (l : list (LAddr * LWord)) : *)
+      (*   lword_get_word <$> l.*2 = (lmem_get_word <$> l).*2. *)
+      (* Proof. *)
+      (*   induction l; cbn; first done. *)
+      (*   destruct a as [ [a v] lw]; cbn in *. *)
+      (*   by f_equal. *)
+      (* Qed. *)
+      (* pose proof HFphy_true as Hi_inbounds. *)
+      (* apply Hcur_word in HFphy_true. *)
+      (* eapply map_Forall_lookup_1 in HFphy_true; eauto; cbn in HFphy_true. *)
+      (* destruct HFphy_true as (lw & Hlw & Hlw_phy & _). *)
+      (* rewrite lookup_insert in Hlw_phy; simplify_eq. *)
+      (* (* pose proof (map_lookup_filter Flog lm (i,v)). *) *)
+      (* rewrite -(insert_id lm (i,v) lw); auto. *)
+      (* rewrite -(insert_delete_insert lm _ lw). *)
+      (* rewrite map_filter_insert. *)
+      (* rewrite decide_True. *)
+      (* 2: { *)
+      (*   subst Flog; cbn in *. *)
+      (*   split; done. *)
+      (* } *)
+      (* setoid_rewrite map_to_list_insert. *)
+      (* 2: { by rewrite map_filter_delete lookup_delete. } *)
+      (* erewrite lmem_get_word_iff. *)
 (* oh boy... @TODO *) Admitted.
 
 (** Instantiation of the program logic *)

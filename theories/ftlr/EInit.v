@@ -1,9 +1,180 @@
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Import weakestpre adequacy lifting.
-From stdpp Require Import base.
+From stdpp Require Import base sorting.
 From cap_machine Require Export logrel.
-From cap_machine.ftlr Require Import ftlr_base.
+From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_EInit.
+
+(* TODO move *)
+Lemma logical_range_map_insert (b e : Addr) (v : Version) (w w': LWord) (lw : list LWord) :
+  (b < e)%a ->
+  <[ (b,v) := w']> (logical_range_map b e (w::lw) v) = logical_range_map b e (w'::lw) v.
+Proof.
+  intros Hb.
+  rewrite /logical_range_map.
+  rewrite finz_seq_between_cons //.
+  cbn.
+  by rewrite insert_insert.
+Qed.
+
+Lemma HdRel_zip_fst {A B} (R: A -> A -> bool) (a : A) (b : B) (la : list A) (lb : list B) :
+  HdRel R a la ->
+  (HdRel (pair_fst_leb R) (a,b) (zip la lb)).
+Proof.
+  generalize dependent lb.
+  induction la as [|a' la]; intros lb Hsorted ;cbn in *; first done.
+  - destruct lb; first done.
+    apply HdRel_cons.
+    apply HdRel_inv in Hsorted.
+    by rewrite /pair_fst_leb.
+Qed.
+
+Lemma HdRel_merge_sort_cons {A} (R : A -> A -> bool) (a : A) (la : list A) :
+  HdRel R a la -> merge_sort R (a::la) = a::(merge_sort R la).
+Proof.
+  generalize dependent a.
+  induction la as [|a' la] ; intros a HdRel_a ; cbn in *; first done.
+  rewrite /merge_sort_aux.
+Admitted.
+
+
+Lemma Sorted_sort_zip_fst {A B} (R : A -> A -> bool) (la : list A) (lb : list B) :
+  Sorted R la ->
+  (merge_sort (pair_fst_leb R) (zip la lb)) = (zip la lb).
+Proof.
+  generalize dependent lb.
+  induction la as [|a la]; intros lb Hsorted ;cbn in *; first done.
+  - destruct lb; first done.
+    inversion Hsorted; simplify_eq.
+    eapply (HdRel_zip_fst _ _ b _ lb) in H2.
+    rewrite HdRel_merge_sort_cons; auto.
+    rewrite IHla; auto.
+Qed.
+
+Lemma Sorted_sort_zip (la : list LAddr) (lw : list LWord) :
+  Sorted laddr_leb la ->
+  (merge_sort lmem_leb (zip la lw)) = (zip la lw).
+Proof.
+  intros Hsorted.
+  by apply Sorted_sort_zip_fst.
+Qed.
+
+Lemma finz_seq_between_addr_StronglySorted_aux (a : Addr) (n : nat) :
+  StronglySorted addr_leb (finz.seq_between (a^- (n))%f a).
+Proof.
+  induction n.
+  - rewrite finz_add_0_default.
+    rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
+  - destruct (decide ( (a ^+ - S n)%a < a)%a); cycle 1.
+    + rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
+    + rewrite finz_seq_between_cons; last done.
+    replace ( ((a ^+ - S n) ^+ 1)%a ) with (a ^+ - n)%a; last solve_finz.
+    apply SSorted_cons; auto.
+    apply Forall_forall.
+    intros x Hx.
+    apply elem_of_finz_seq_between in Hx.
+    rewrite /addr_leb.
+    rewrite Is_true_true.
+    apply Z.leb_le.
+    solve_finz.
+Qed.
+
+Lemma finz_seq_between_addr_StronglySorted (b e : Addr) :
+  StronglySorted addr_leb (finz.seq_between b e).
+Proof.
+  destruct (decide (b < e))%a; cycle 1.
+  - rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
+  - assert (∃ n:nat, b = (e ^- n)%f) as [n ->].
+    { admit. }
+    apply finz_seq_between_addr_StronglySorted_aux.
+Admitted.
+Lemma finz_seq_between_laddr_Sorted (la : list Addr) v :
+  Sorted addr_leb la
+  -> Sorted laddr_leb ((λ a : Addr, (a, v)) <$> la).
+Proof.
+  apply Sorted_fmap.
+  intros a1 a2 Ha. rewrite /laddr_leb /pair_fst_leb //=.
+Qed.
+
+Global Instance merge_sort_Permutation_proper
+  {A} (R : relation A) `{Htotal: Total A R}
+  `{Htransitive: Transitive A R}
+  `{ AntiSymm A eq R }
+  `{∀ x y, Decision (R x y)} :
+  Proper (Permutation ==> eq) (merge_sort R).
+Proof.
+  rewrite /Proper /respectful.
+  intros l1 l2 Hp.
+  pose proof (Sorted_merge_sort R l1) as Hsorted1.
+  pose proof (Sorted_merge_sort R l2) as Hsorted2.
+  pose proof (merge_sort_Permutation R l1) as Hsort_l1.
+  pose proof (merge_sort_Permutation R l2) as Hsort_l2.
+  assert ( merge_sort R l1 ≡ₚ merge_sort R l2 ) as Hp'.
+  { eapply Permutation_trans; eauto.
+    eapply Permutation_trans; eauto.
+    done.
+  }
+  eapply Sorted_unique in Hp'; eauto.
+Qed.
+
+Global Instance lmem_leb_total : Total lmem_leb.
+Proof.
+  intros aw1 aw2.
+Admitted.
+
+Global Instance lmem_leb_transitive : Transitive lmem_leb.
+Proof.
+  intros aw1 aw2 aw3 H12 H13.
+  rewrite /lmem_leb /laddr_leb /= in H12,H13 |- *.
+  cbn in *.
+  rewrite /pair_fst_leb /addr_leb in H12,H13 |- *.
+  destruct aw1 as [ [] ]
+  ; destruct aw2 as [ [] ]
+  ; destruct aw3 as [ [] ]
+  ; cbn in *.
+  rewrite !Is_true_true in H12,H13 |- *.
+  rewrite !Z.leb_le in H12,H13 |- *.
+  lia.
+Qed.
+
+Global Instance lmem_leb_AntiSymm : AntiSymm eq lmem_leb.
+Proof.
+  intros aw1 aw2.
+Admitted.
+
+
+Lemma word_to_lword_get_word_int (w : LWord) (v : Version) :
+  is_zL w ->
+  word_to_lword (lword_get_word w) v = w.
+Proof.
+  intros Hw.
+  destruct w ; cbn in * ; done.
+Qed.
+
+Lemma unique_in_registersL_twice
+  (rcode rdata : RegName) (lregs : LReg)
+  p b e a v
+  p' b' e' a' v' :
+  rcode ≠ rdata ->
+  lregs !! rcode = Some (LCap p b e a v) ->
+  lregs !! rdata = Some (LCap p' b' e' a' v') ->
+  unique_in_registersL lregs (Some rcode) (LCap p b e a v) ->
+  unique_in_registersL lregs (Some rdata) (LCap p' b' e' a' v') ->
+  (finz.seq_between b e) ## (finz.seq_between b' e').
+Proof.
+  intros Hneq Hrcode Hrdata Hunique_code Hunique_data.
+  rewrite /unique_in_registersL in Hunique_code.
+  rewrite /unique_in_registersL in Hunique_data.
+  eapply map_Forall_lookup_1 in Hunique_code; last eapply Hrdata.
+  eapply map_Forall_lookup_1 in Hunique_data; last eapply Hrcode.
+  rewrite decide_False // in Hunique_code.
+  rewrite decide_False // in Hunique_data.
+  rewrite /overlap_wordL /overlap_word /= in Hunique_code, Hunique_data.
+  intros x Hx Hx'.
+  rewrite !elem_of_finz_seq_between in Hx, Hx'.
+  destruct ((b <? b')%a) eqn:Hbb'; solve_finz.
+Qed.
+
 
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
@@ -72,6 +243,30 @@ Section fundamental.
     apply IHls; [done|].
     eapply namespaces.coPset_subseteq_difference_r; auto.
     by apply ndot_preserve_disjoint_r.
+  Qed.
+
+  Lemma is_valid_updated_lmemory_lmem_subset
+    (glmem llmem llmem' llmem'' : LMem) (la : list Addr) (v : Version) :
+    llmem ⊆ llmem' ->
+    is_valid_updated_lmemory glmem llmem' la v llmem'' ->
+    is_valid_updated_lmemory glmem llmem la v llmem''.
+  Proof.
+    move: glmem llmem llmem' v.
+    induction la as [|a la IHla]
+    ; intros * Hsubset (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated)
+    ; first (cbn in * ; eauto).
+    - rewrite /is_valid_updated_lmemory.
+      repeat split; eauto; cbn; eapply map_subseteq_trans; eauto.
+    - destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
+      rewrite /is_valid_updated_lmemory.
+      repeat split; eauto.
+      + eapply update_version_region_mono in Hsubset; eauto.
+        eapply map_subseteq_trans; eauto.
+      + eapply map_subseteq_trans; eauto.
+      + rewrite Forall_cons; split; first eapply lookup_weaken_None; eauto.
+        rewrite !Forall_forall in HmaxMem |- *.
+        intros a' Ha'. apply HmaxMem in Ha'.
+        eapply lookup_weaken_None; eauto.
   Qed.
 
   Set Nested Proofs Allowed.
@@ -295,8 +490,10 @@ Section fundamental.
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
+
+
         simplify_map_eq.
-        incrementLPC_inv as (p''&b''&e''&a''&v''& ? & HPC & Z & Hregs'); simplify_map_eq.
+        incrementLPC_inv as (p_pc'&b_pc'&e_pc'&a_pc'&v_pc'& ? & HPC & Z & Hregs'); simplify_map_eq.
         match goal with
         | _ : _ |- context [ enclave_cur ?ECN ?I ] =>
             set (I_ECn := I)
@@ -345,31 +542,322 @@ Section fundamental.
         { admit. }
         rewrite !big_sepS_singleton.
 
-        (* TODO SEE the SEE HERE *)
-        iAssert (
-            [∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_code e_code) (lws_code1 :: lws_code) v_code,
-              la ↦ₐ lw
-          )%I as "-#Hcode_prev".
-        { admit. }
-        iAssert ([∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_data e_data)
-                   (lws_data1::lws_data) v_data, la ↦ₐ lw)%I as "-#Hdata_prev".
-        { admit. }
-        iAssert (
-            [∗ map] la↦lw ∈
-              logical_region_map (finz.seq_between b_code e_code)
-              (LCap RW b_data e_data a_data (v_data+1) :: lws_code) (v_code+1),
-              la ↦ₐ lw
-          )%I as "-#Hcode".
-        { admit. }
-        iAssert ([∗ map] la↦lw ∈ logical_region_map (finz.seq_between b_data e_data)
-                   (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data+1), la ↦ₐ lw)%I as "-#Hdata".
-        { admit. }
-        iAssert ((a'',v'') ↦ₐ lw_pc)%I as "-#Hpca".
-        { admit. }
-        iClear "Hmem".
+        set (lmem' :=
+              <[(b_data, v_data + 1):=LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec]>
+                             (<[(b_code, v_code+1):=LCap RW b_data e_data a_data (v_data + 1)]> lmem'')).
 
-        iAssert (interp (LCap p'' b'' e'' x v'')) as "Hinterp_next_PC".
-        { admit. }
+        (* Derive pure predicates about a_pc' *)
+        assert ( lmem'' !! (a_pc', v_pc') = Some lw_pc ) as Hmem''_pca.
+        { eapply is_valid_updated_lmemory_preserves_lmem; eauto.
+          by simplify_map_eq.
+        }
+        assert ( lmem' !! (a_pc', v_pc') = Some lw_pc ) as Hmem'_pca.
+        { subst lmem'.
+          rewrite lookup_insert_ne //=; cycle 1.
+          { intro; simplify_eq.
+            apply Hdata_apc_disjoint.
+            rewrite finz_seq_between_cons //=.
+            set_solver+.
+          }
+          rewrite lookup_insert_ne //=; cycle 1.
+          { intro; simplify_eq.
+            apply Hcode_apc_disjoint.
+            rewrite finz_seq_between_cons //=.
+            set_solver+.
+          }
+        }
+        rewrite -(insert_id lmem' (a_pc', v_pc') lw_pc); auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+
+        (* Derive pure predicates about the previous code_region*)
+        assert ( logical_range_map b_code e_code (lws_code1::lws_code) v_code ⊆ lmem'' )
+          as Hmem''_code.
+        {
+          eapply is_valid_updated_lmemory_lmem_incl
+            with (la := (finz.seq_between b_code e_code))
+                 (v:= v_code)
+          ; eauto.
+          eapply is_valid_updated_lmemory_lmem_subset; last eassumption.
+          eapply map_subseteq_trans; cycle 1.
+          + eapply insert_subseteq.
+            rewrite lookup_union.
+            rewrite !logical_region_notin; auto.
+            * by cbn ; f_equal.
+            * rewrite -finz_seq_between_cons //=.
+            * by cbn ; f_equal.
+            * rewrite -finz_seq_between_cons //=.
+          + eapply union_subseteq_l.
+            rewrite -finz_seq_between_cons //=.
+        }
+        assert ( logical_range_map b_code e_code (lws_code1::lws_code) v_code ⊆ lmem' )
+          as Hmem'_code.
+        {
+          subst lmem'.
+          eapply insert_subseteq_r.
+          { eapply logical_range_notin; admit. (* easy *) }
+          eapply insert_subseteq_r.
+          { eapply logical_range_version_neq; last lia. admit. (* easy *) }
+          done.
+        }
+        assert ( logical_range_map b_code e_code (lws_code1::lws_code) v_code ⊆ lmem0 )
+          as Hmem0_code.
+        {
+          subst lmem0.
+          eapply delete_subseteq_r; last done.
+          apply logical_range_notin; last done.
+          admit. (* easy *)
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode_prev Hmem]"
+        ; first (eapply Hmem0_code).
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem1 := m)
+        end.
+
+
+        (* Derive pure predicates about the new code_region*)
+        assert
+          (logical_range_map b_code e_code (lws_code1::lws_code) (v_code + 1) ⊆ lmem'')
+          as Hmem''_code_next.
+        {
+          clear -Hvalid_update_code Hlen_lws_code Hlen_lws_data Hcode_apc_disjoint
+                   Hdata_apc_disjoint Hcode_data_disjoint
+                   Hb_code Hdata.
+          eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
+          assert (v' = v_code+1 /\ (a' ∈ (finz.seq_between b_code e_code)))
+            as [-> Ha'_in_be].
+          {
+           eapply logical_range_map_some_inv; eauto.
+           rewrite finz_seq_between_cons //=.
+           by cbn ; f_equal.
+          }
+          destruct Hvalid_update_code as (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated).
+          eapply lookup_weaken; last eapply Hcompatibility.
+          rewrite update_version_region_preserves_lmem_next; eauto.
+          + eapply lookup_weaken;eauto.
+            rewrite lookup_insert_ne; last admit.
+            rewrite lookup_union.
+            replace (
+               logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data !! (a', v_code)
+              ) with (None : option LWord).
+            2:{ admit. }
+            rewrite option_union_right_id.
+            rewrite -finz_seq_between_cons //.
+            rewrite (logical_region_map_lookup_versions _ _ _ v_code) in Hlw'; eauto.
+            admit.
+          + rewrite lookup_insert_ne //=; last (intro ; set_solver).
+            rewrite lookup_union.
+            rewrite (logical_region_notin _ _ v_data); auto; cycle 1.
+            { by cbn ; f_equal. }
+            { rewrite -finz_seq_between_cons //=.
+              intro.
+              eapply elem_of_disjoint; eauto.
+            }
+            rewrite option_union_right_id.
+            rewrite -finz_seq_between_cons //=.
+            eapply logical_range_version_neq; eauto; last lia.
+            rewrite finz_seq_between_cons //=; cbn ; by f_equal.
+        }
+        assert
+          (logical_range_map b_code e_code (LCap RW b_data e_data a_data (v_data + 1)::lws_code) (v_code + 1) ⊆ lmem')
+          as Hmem'_code_next.
+        {
+          clear -Hvalid_update_code Hlen_lws_code Hlen_lws_data Hcode_apc_disjoint
+                   Hdata_apc_disjoint Hcode_data_disjoint
+                   Hb_code Hdata Hmem''_code_next.
+          subst lmem'.
+          eapply insert_subseteq_r.
+          { eapply logical_range_notin; admit. (* easy *) }
+          rewrite -(logical_range_map_insert _ _ _ lws_code1); auto.
+          by apply insert_mono.
+        }
+        assert ( logical_range_map b_code e_code (LCap RW b_data e_data a_data (v_data + 1)::lws_code) (v_code + 1) ⊆ lmem0 )
+          as Hmem0_code_next.
+        {
+          subst lmem0.
+          eapply delete_subseteq_r; last done.
+          apply logical_range_notin; last done.
+          admit. (* easy *)
+        }
+        assert ( logical_range_map b_code e_code (LCap RW b_data e_data a_data (v_data + 1)::lws_code) (v_code + 1) ⊆ lmem1 )
+          as Hmem1_code_next.
+        {
+          subst lmem1.
+          eapply (delete_subseteq_list_r); eauto.
+          rewrite /logical_range_map.
+          apply map_disjoint_list_to_map_zip_l.
+          { admit. }
+          apply Forall_forall.
+          intros y Hy.
+          apply not_elem_of_list_to_map.
+          intro Hcontra.
+          rewrite elem_of_list_fmap in Hcontra.
+          destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
+          eapply elem_of_zip_l in Hcontra.
+          rewrite /logical_region in Hy, Hcontra.
+          rewrite !elem_of_list_fmap in Hy,Hcontra.
+          destruct Hy as (? & ? & _); simplify_eq.
+          destruct Hcontra as (? & ? & _); simplify_eq.
+          cbn in H; simplify_eq.
+          lia.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem1_code_next).
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem2 := m)
+        end.
+
+        (* Derive pure predicates about the previous data_region*)
+        assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem'' )
+          as Hmem''_data.
+        {
+          eapply is_valid_updated_lmemory_lmem_incl
+            with (la := (finz.seq_between b_data e_data))
+                 (v:= v_data)
+          ; eauto.
+          eapply is_valid_updated_lmemory_lmem_subset; last eassumption.
+          eapply map_subseteq_trans; cycle 1.
+          + eapply insert_subseteq.
+            rewrite lookup_union.
+            rewrite !logical_region_notin; auto.
+            * by cbn ; f_equal.
+            * rewrite -finz_seq_between_cons //=.
+            * by cbn ; f_equal.
+            * rewrite -finz_seq_between_cons //=.
+          + eapply union_subseteq_r.
+            rewrite -finz_seq_between_cons //=.
+        }
+        assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem' )
+          as Hmem'_data.
+        {
+          subst lmem'.
+          eapply insert_subseteq_r.
+          { eapply logical_range_version_neq; last lia. admit. (* easy *) }
+          eapply insert_subseteq_r.
+          { eapply logical_range_notin; admit. (* easy *) }
+          done.
+        }
+        assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem0 )
+          as Hmem0_data.
+        {
+          subst lmem0.
+          eapply delete_subseteq_r; last done.
+          apply logical_range_notin; last done.
+          admit. (* easy *)
+        }
+        assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem1 )
+          as Hmem1_data.
+        {
+          subst lmem1.
+          admit.
+        }
+        assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem2 )
+          as Hmem2_data.
+        {
+          subst lmem2.
+          admit.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata_prev Hmem]"
+        ; first (eapply Hmem2_data).
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem3 := m)
+        end.
+
+        (* Derive pure predicates about the new data_region*)
+        assert
+          (logical_range_map b_data e_data (lws_data1::lws_data) (v_data + 1) ⊆ lmem'')
+          as Hmem''_data_next.
+        {
+          clear -Hvalid_update_data Hlen_lws_code Hlen_lws_data Hdata_apc_disjoint
+                   Hdata_apc_disjoint Hcode_data_disjoint
+                   Hb_code Hdata.
+          eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
+          assert (v' = v_data+1 /\ (a' ∈ (finz.seq_between b_data e_data)))
+            as [-> Ha'_in_be].
+          {
+           eapply logical_range_map_some_inv; eauto.
+           rewrite finz_seq_between_cons //=.
+           by cbn ; f_equal.
+          }
+          destruct Hvalid_update_data as (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated).
+          eapply lookup_weaken; last eapply Hcompatibility.
+          rewrite update_version_region_preserves_lmem_next; eauto.
+          + admit. (* see Hgl_llmem *)
+          + rewrite lookup_insert_ne //=; last (intro ; set_solver).
+            rewrite lookup_union.
+            rewrite (logical_region_notin _ _ v_code); auto; cycle 1.
+            { by cbn ; f_equal. }
+            { rewrite -finz_seq_between_cons //=.
+              intro.
+              eapply elem_of_disjoint; eauto.
+            }
+            rewrite option_union_left_id.
+            rewrite -finz_seq_between_cons //=.
+            eapply logical_range_version_neq; eauto; last lia.
+            rewrite finz_seq_between_cons //=; cbn ; by f_equal.
+        }
+        assert
+          (logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem')
+          as Hmem'_data_next.
+        {
+          clear -Hvalid_update_data Hlen_lws_code Hlen_lws_data
+                   Hcode_apc_disjoint Hdata_apc_disjoint Hcode_data_disjoint
+                   Hb_code Hdata Hmem''_data_next.
+          subst lmem'.
+          rewrite insert_commute.
+          2:{ intro ; simplify_eq. admit. (* should be easy with Hcode_data_disjoint *) }
+          eapply insert_subseteq_r.
+          { eapply logical_range_notin; admit. (* easy *) }
+          rewrite -(logical_range_map_insert _ _ _ lws_data1); auto.
+          by apply insert_mono.
+        }
+        assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem0 )
+          as Hmem0_data_next.
+        {
+          subst lmem0.
+          eapply delete_subseteq_r; last done.
+          apply logical_range_notin; last done.
+          admit. (* easy *)
+        }
+        assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem1 )
+          as Hmem1_data_next.
+        {
+          subst lmem1.
+          admit.
+        }
+        assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem2 )
+          as Hmem2_data_next.
+        {
+          subst lmem2.
+          admit.
+        }
+        assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem3 )
+          as Hmem3_data_next.
+        {
+          subst lmem3.
+          admit.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata Hmem]"
+        ; first (eapply Hmem3_data_next).
+        iClear "Hmem".
+        clear
+          Hmem''_data_next Hmem'_data_next Hmem0_data_next Hmem1_data_next Hmem2_data_next Hmem3_data_next lmem3
+          Hmem''_data Hmem'_data Hmem0_data Hmem1_data Hmem2_data lmem2
+          Hmem''_code_next Hmem'_code_next Hmem0_code_next Hmem1_code_next lmem1
+          Hmem''_code Hmem'_code Hmem0_code lmem0
+          Hmem''_pca Hmem'_pca lmem'
+        .
+        clear Hvalid_update_code Hvalid_update_data
+          Hunique_regs_data Hunique_regs_code.
+
+        iAssert (interp (LCap p_pc' b_pc' e_pc' x v_pc')) as "Hinterp_next_PC".
+        { iApply interp_weakening_next_PC; eauto. }
 
        destruct (custom_enclaves !! I_ECn) as
          [ [Hcus_enclave_code Hcus_enclave_addr Hcus_enclave_enc Hcus_enclave_sign] |] eqn:HI_ECn.
@@ -378,7 +866,6 @@ Section fundamental.
           iMod (seal_store_update_alloc _ Hcus_enclave_enc with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
           iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
           iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
-          (* iEval (rewrite /custom_enclave_contract_egn) in "Hcontract'". *)
           iSpecialize ("Hcontract'" $!
                          mask_sys I_ECn
                          b_code e_code (v_code+1)
@@ -388,138 +875,181 @@ Section fundamental.
           pose proof custom_enclaves_wf as [Hwf_map Hwf_map_z].
 
           iDestruct ( big_sepM_to_big_sepL2 with "Hcode" ) as "Hcode".
-          { admit. }
-          { admit. }
+          { admit. (* trivial *) }
+          { admit. (* trivial *) }
           iDestruct ( big_sepM_to_big_sepL2 with "Hdata" ) as "Hdata".
-          { admit. }
-          { admit. }
-          (* iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I_ECn) *)
-          (*         ([[ b_code , e_code ]] ↦ₐ{ v_code + 1 } [[ (LCap RW b_data e_data a_data (v_data + 1))::lws ]]  ∗ *)
-          (*          [[ b_data , e_data ]] ↦ₐ{ v_data + 1 } [[LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec :: lws_data]])%I *)
-          (*        with "[$Hcode $Hdata]") as "#Htc_inv". *)
+          { admit. (* trivial *) }
+          { admit. (* trivial *) }
+
+          assert (I_ECn = hash_concat (hash Hcus_enclave_addr) (hash Hcus_enclave_code)) as
+            HI_ECn_eq.
+          {
+            clear -Hwf_map HI_ECn new_enclave.
+            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
+            apply H in Hwf_map; eauto; cbn in *.
+          }
+          (* assert (I_ECn = hash_concat (hash b_code) (hash (code new_enclave))) as HI_ECn_eq. *)
+          (* { *)
+          (* } *)
 
           iMod ("Hcontract'" with
                  "[] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata]")
                  as "#Hinterp_enclave"
           ; eauto.
-          { iPureIntro.
-            clear -Hwf_map HI_ECn.
-            rewrite /custom_enclaves_map_wf in Hwf_map.
-            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
-            apply H in Hwf_map; eauto; cbn in *.
-            clear -Hwf_map.
+          {
+            iPureIntro.
+            clear -HI_ECn_eq.
             subst I_ECn.
-            apply hash_concat_inj' in Hwf_map.
-            destruct Hwf_map as [-> ?]; simplify_eq.
+            apply hash_concat_inj' in HI_ECn_eq.
+            destruct HI_ECn_eq as [-> ?]; simplify_eq.
             done.
-          }
-          { iPureIntro.
-            clear -Hwf_map HI_ECn.
-            rewrite /custom_enclaves_map_wf in Hwf_map.
-            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
-            apply H in Hwf_map; eauto; cbn in *.
-            clear -Hwf_map.
-            subst I_ECn.
-            apply hash_concat_inj' in Hwf_map.
-            destruct Hwf_map as [-> ?]; simplify_eq.
-            done.
-          }
-          { iPureIntro.
-            clear -Hwf_map HI_ECn Hlen_lws_code Hb_code.
-            rewrite /custom_enclaves_map_wf in Hwf_map.
-            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
-            apply H in Hwf_map; eauto; cbn in *.
-            clear -Hwf_map Hlen_lws_code Hb_code.
-            subst I_ECn.
-            (* apply hash_concat_inj' in Hwf_map. *)
-            (* destruct Hwf_map as [-> ?]; simplify_eq. *)
-            (* rewrite map_length. *)
-            (* setoid_rewrite <- LMemSort.Permuted_sort. *)
-            (* rewrite map_length. *)
-            (* rewrite map_to_list_length. *)
-
-            (* rewrite map_filter_insert_False. *)
-            (* 2: admit. *)
-            (* rewrite map_filter_delete. *)
-            (* rewrite map_size_delete. *)
-            (* replace ( *)
-            (*     filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code) *)
-            (*       (<[(Hcus_enclave_addr, v_code):=lws_code1]> *)
-            (*          (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code)) *)
-            (*            ∪ <[(b_data, v_data):=lws_data1]> *)
-            (*          (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data))) !! ( *)
-            (*         a'', v'') *)
-            (*   ) with (None : option LWord). *)
-            (* 2: admit. *)
-            (* cbn. *)
-            (* (* Set Printing Parentheses. *) *)
-            (* replace *)
-            (*   ( *)
-            (*     (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code) *)
-            (*        (<[(Hcus_enclave_addr, v_code):=lws_code1]> *)
-            (*           (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code)) *)
-            (*             ∪ <[(b_data, v_data):=lws_data1]> *)
-            (*           (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data)))) *)
-            (*   ) *)
-            (*   with *)
-            (*   (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code). *)
-            (* { rewrite map_size_list_to_map. *)
-            (*   2: admit. *)
-
-            (*   rewrite length_zip_l. *)
-            (*   2: admit. *)
-            (*   cbn. *)
-            (*   rewrite map_length. *)
-            (*   rewrite finz_seq_between_length. *)
-            (*   pose proof (finz_incr_iff_dist Hcus_enclave_addr e_code *)
-            (*                 (finz.dist Hcus_enclave_addr e_code)) *)
-            (*   as [_ ?]. *)
-            (*   replace *)
-            (*     (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1))%a *)
-            (*       with (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1)%nat)%a. *)
-            (*   2: solve_addr. *)
-            (*   rewrite Z.add_1_r. *)
-            (*   replace (Hcus_enclave_addr + Z.succ (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code))%a *)
-            (*     with (Hcus_enclave_addr + (S (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code)))%a. *)
-            (*   2: solve_addr. *)
-            (*   rewrite -finz_dist_S; last solve_addr. *)
-            (*   apply H; solve_addr. *)
-            (* } *)
-            (* (* Unset Printing Notations. *) *)
-            (* assert ( *)
-            (*     filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code) *)
-            (*    (logical_region_map (finz.seq_between Hcus_enclave_addr e_code) (LCap RW b_data e_data a_data v_data :: lws) v_code) *)
-            (*    = (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws v_code) *)
-            (*   ). *)
-            (* { rewrite (finz_seq_between_cons Hcus_enclave_addr); last  solve_addr. *)
-            (*   rewrite /logical_region_map. *)
-            (*   rewrite !/logical_region. *)
-            (*   rewrite fmap_cons. *)
-            (*   simpl zip at 1. *)
-            (*   simpl list_to_map at 1. *)
-            (*   rewrite map_filter_insert_False. *)
-            (*   2: admit. *)
-            (*   rewrite map_filter_delete. *)
-            (*   rewrite delete_notin. *)
-            (*   2: admit. *)
-            (*   rewrite map_filter_id; first done. *)
-            (*   admit. *)
-            (* } *)
-            admit.
           }
           {
-            replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws_code.
-            iFrame "∗#".
-            clear -Hwf_map HI_ECn.
-            rewrite /custom_enclaves_map_wf in Hwf_map.
-            opose proof (map_Forall_lookup_1 _ custom_enclaves I_ECn new_enclave) as H.
-            apply H in Hwf_map; eauto; cbn in *.
-            clear -Hwf_map.
+            iPureIntro.
+            clear -HI_ECn_eq.
             subst I_ECn.
-            apply hash_concat_inj' in Hwf_map.
-            destruct Hwf_map as [-> ?]; simplify_eq.
-            admit. (* unclear how to prove this tbh *)
+            apply hash_concat_inj' in HI_ECn_eq.
+            destruct HI_ECn_eq as [-> ?]; simplify_eq.
+            done.
           }
+          { iPureIntro.
+            clear -HI_ECn_eq Hb_code Hlen_lws_code.
+            subst I_ECn.
+            apply hash_concat_inj' in HI_ECn_eq.
+            destruct HI_ECn_eq as [-> ?]; simplify_eq.
+            rewrite map_length.
+            setoid_rewrite merge_sort_Permutation.
+            rewrite map_length.
+            rewrite map_to_list_length.
+
+            rewrite map_filter_insert_False.
+            2: admit.
+            rewrite map_filter_delete.
+            rewrite map_size_delete.
+            replace (
+                filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                  (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code
+                     ∪ logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data) !! (
+                    a_pc', v_pc')
+              ) with (None : option LWord).
+            2: admit.
+            simpl.
+            replace
+              (
+                (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                   (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code
+                      ∪ logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data))
+              )
+              with
+              (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code v_code).
+            { rewrite map_size_list_to_map.
+              2: admit.
+              rewrite length_zip_l.
+              2: admit.
+              rewrite map_length.
+              rewrite finz_seq_between_length.
+              pose proof (finz_incr_iff_dist Hcus_enclave_addr e_code
+                            (finz.dist Hcus_enclave_addr e_code))
+              as [_ ?].
+              replace
+                (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1))%a
+                  with (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1)%nat)%a; last solve_addr.
+              rewrite Z.add_1_r.
+              replace (Hcus_enclave_addr + Z.succ (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code))%a
+                with (Hcus_enclave_addr + (S (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code)))%a
+              ; last solve_addr.
+              rewrite -finz_dist_S; last solve_addr.
+              apply H; solve_addr.
+            }
+            rewrite map_filter_union; cycle 1.
+            { rewrite /logical_region_map.
+              (* eapply map_disjoint_list_to_map_zip_l; first admit. *)
+              (* rewrite Forall_forall *)
+              admit.
+            }
+            replace (
+                filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                  (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code)
+              ) with (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code v_code).
+            2: {
+              rewrite /logical_region_map.
+              rewrite !/logical_region.
+              rewrite fmap_cons.
+              simpl zip at 1.
+              simpl list_to_map at 1.
+              rewrite map_filter_insert_False.
+              2: admit.
+              rewrite map_filter_delete.
+              rewrite delete_notin.
+              2: admit.
+              rewrite map_filter_id; first done.
+              intros [a v] w Ha.
+              apply elem_of_list_to_map in Ha; last admit.
+              apply elem_of_zip_l in Ha.
+              rewrite elem_of_list_fmap in Ha.
+              destruct Ha as (? & -> & ?); auto.
+            }
+            replace (
+                filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                  (logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data)
+              ) with (∅ : LMem).
+            2: { symmetry.
+                 apply map_filter_empty_iff.
+                 admit.
+            }
+            by rewrite map_union_empty.
+          }
+          {
+            replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws_code
+            ; first iFrame "∗#".
+            (* clear -HI_ECn_eq. *)
+            subst I_ECn.
+            apply hash_concat_inj' in HI_ECn_eq.
+            destruct HI_ECn_eq as [-> ?]; simplify_eq.
+            cbn.
+
+            replace (
+                (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
+                   (<[(a_pc', v_pc'):=lw_pc]>
+                      (<[(Hcus_enclave_addr, v_code):=lws_code1]>
+                         (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code))
+                           ∪ <[(b_data, v_data):=lws_data1]>
+                         (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data)))))
+              )
+              with
+              (
+               (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between
+                                    (Hcus_enclave_addr ^+ 1)%a e_code) lws_code)) : gmap LAddr LWord
+              ).
+            2: { admit. }
+
+
+            erewrite merge_sort_Permutation_proper; last apply map_to_list_to_map; try apply _.
+            2:{ admit. }
+
+            rewrite Sorted_sort_zip.
+            2: {
+              apply finz_seq_between_laddr_Sorted.
+              apply StronglySorted_Sorted.
+              apply finz_seq_between_addr_StronglySorted.
+            }
+            rewrite snd_zip.
+            2: { admit. }
+            rewrite -list_fmap_compose.
+            rewrite (Forall_fmap_ext_1 _ id); first by rewrite list_fmap_id.
+            rewrite Forall_forall.
+            intros w Hw; cbn.
+
+            apply word_to_lword_get_word_int.
+            apply map_Forall_insert_1_2 in Hcode_z.
+            2: { admit. }
+            apply map_Forall_union in Hcode_z.
+            2: { admit. }
+            destruct Hcode_z as [Hcode_z _].
+            clear -Hcode_z Hw.
+            (* Should be fine from Hcode_z *)
+            admit.
+            }
 
           iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
           { iNext.
@@ -597,8 +1127,6 @@ Section fundamental.
                       cbn in *.
                       destruct z; cbn in *; try done.
                       destruct p; cbn in * ; try done.
-                      (* destruct ( (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) ^- 1)%f. *)
-                      (* cbn. *)
                       + remember (finz.FinZ (Z.pos p~1) finz_lt finz_nonneg) as p1.
                         destruct (p1 ^- 1)%f eqn:HP1.
                         assert (z = Z.pos p~0).
@@ -647,6 +1175,7 @@ Section fundamental.
           iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
           {
             iNext.
+            destruct Ps_data; first done.
             admit.
             (* iApply region_inv_construct; auto. *)
           }
@@ -660,7 +1189,7 @@ Section fundamental.
           }
           iModIntro.
 
-          iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
+          iMod ("Hcls" with "[Ha HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
           rewrite (insert_commute _ rcode PC) // (insert_commute _ rdata PC) // insert_insert.
           iClear "Hcontract'".
           iApply wp_pure_step_later; auto.
@@ -669,10 +1198,8 @@ Section fundamental.
           { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
           {
             iIntros (ri ? Hri Hvs).
-            destruct (decide (ri = rcode)); simplify_map_eq.
-            by rewrite !fixpoint_interp1_eq.
-            destruct (decide (ri = rdata)); simplify_map_eq.
-            by rewrite !fixpoint_interp1_eq.
+            destruct (decide (ri = rdata)); simplify_map_eq; first by rewrite !fixpoint_interp1_eq.
+            destruct (decide (ri = rcode)); simplify_map_eq; first by rewrite !fixpoint_interp1_eq.
             iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
           }
 
@@ -826,7 +1353,7 @@ Section fundamental.
           }
           iModIntro.
 
-          iMod ("Hcls" with "[Hpca HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
+          iMod ("Hcls" with "[Ha HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
 
           iMod (inv_alloc (attestN.@Ecn) _ ((∃ I : EIdentity, enclave_cur Ecn I) ∨ enclave_prev Ecn) with "[Henclave_live]")
                  as "#Hattest".
@@ -901,10 +1428,7 @@ Section fundamental.
 
           iAssert (interp (LCap E b_code e_code (b_code ^+ 1)%a (v_code + 1))) as
             "Hinterp_entry_enclave".
-          {
-            admit.
-            (* TODO  doesn't work, interp_weakening doesn't hold with later credit *)
-          }
+          { iApply (interp_weakening with "IH Hinterp_code_new"); eauto; solve_addr. }
 
           rewrite (insert_commute _ rcode PC) // (insert_commute _ rdata PC) // insert_insert.
           iApply wp_pure_step_later; auto.
@@ -913,8 +1437,8 @@ Section fundamental.
           { intro; by repeat (rewrite lookup_insert_is_Some'; right). }
           {
             iIntros (ri ? Hri Hvs).
-            destruct (decide (ri = rcode)); simplify_map_eq; auto.
-            destruct (decide (ri = rdata)); simplify_map_eq; auto.
+            destruct (decide (ri = rdata)); simplify_map_eq; first by rewrite !fixpoint_interp1_eq.
+            destruct (decide (ri = rcode)); simplify_map_eq; first by rewrite !fixpoint_interp1_eq.
             iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
           }
   Admitted.

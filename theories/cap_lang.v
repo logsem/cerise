@@ -1,8 +1,7 @@
 From iris.prelude Require Import prelude.
 From iris.program_logic Require Import language ectx_language ectxi_language.
-From stdpp Require Import gmap fin_maps list.
+From stdpp Require Import gmap fin_maps list sorting.
 From cap_machine Require Export addr_reg machine_base machine_parameters.
-From Coq Require Import Sorting Orders.
 Set Warnings "-redundant-canonical-projection".
 
 Ltac inv H := inversion H; clear H; subst.
@@ -402,23 +401,6 @@ Proof.
   ; [eapply sweep_registers_addr_spec | eapply sweep_memory_addr_spec].
 Qed.
 
-
-Module MemOrder <: TotalLeBool.
-  Definition t : Type := (Addr * Word).
-  Definition leb (aw1 aw2 : t) :=
-    ((aw1).1 <=? (aw2).1)%a.
-  Infix "<=?" := leb (at level 70, no associativity).
-  Theorem leb_total : forall a1 a2 : t, ( (a1 <=? a2) = true \/ (a2 <=? a1) = true).
-  Proof.
-    destruct a1 as [a1 w1], a2 as [a2 w2].
-    rewrite /leb /finz.leb ; cbn.
-    pose proof (Zle_bool_total a1 a2).
-    destruct H ; [by left|by right].
-  Qed.
-End MemOrder.
-Module Import MemSort := Sort MemOrder.
-
-
 Section opsem.
   Context `{MachineParameters}.
 
@@ -472,11 +454,15 @@ Section opsem.
   Definition otype_has_seal (ot : OType) (tid : TIndex) : Prop :=
     tid_of_otype ot = Some tid.
 
+  Definition addr_leb (a1 a2 : Addr) := (a1 <=? a2)%a.
+  Definition pair_fst_leb {A B} (A_leb : A -> A -> bool) (ab1 ab2 : A * B) := A_leb ab1.1 ab2.1.
+  Definition mem_leb := pair_fst_leb (A:= Addr) (B:= Word) addr_leb .
 
   Definition hash_memory_region (m : Mem) (b e : Addr) :=
     let instructions : list Word :=
       snd <$>
-        (sort ((map_to_list
+        (merge_sort mem_leb
+           ((map_to_list
                   (filter (fun '(a, _) => a ∈ (finz.seq_between b e)) m))))
     in
     hash instructions.
