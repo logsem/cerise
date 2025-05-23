@@ -174,6 +174,18 @@ Lemma logical_region_length (la : list Addr) (v : Version) :
   length (logical_region la v) = length la.
 Proof. by rewrite map_length. Qed.
 
+Lemma overlap_word_disjoint p b e a p' b' e' a' :
+  ¬ overlap_word (WCap p b e a) (WCap p' b' e' a')
+  -> finz.seq_between b e ## finz.seq_between b' e'.
+Proof.
+  intros Hoverlap.
+  rewrite elem_of_disjoint.
+  intros x Hx Hx'.
+  rewrite !elem_of_finz_seq_between in Hx, Hx'.
+  apply Hoverlap.
+  cbn.
+  destruct (b <? b')%a eqn:Hb; solve_addr.
+Qed.
 
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
@@ -242,6 +254,21 @@ Section fundamental.
     apply IHls; [done|].
     eapply namespaces.coPset_subseteq_difference_r; auto.
     by apply ndot_preserve_disjoint_r.
+  Qed.
+
+  Lemma compute_mask_difference_namespace (E : coPset) (la : gset LAddr) (N : namespace) :
+    disjoint (A:= coPset) (↑N) (↑logN) ->
+    ↑N ⊆ E ->
+    (compute_mask E la) ∖ (↑N) = (compute_mask (E  ∖ (↑N)) la).
+  Proof.
+    rewrite /compute_mask. revert N E.
+    induction la using set_ind_L; intros N E Hdis HNE.
+    { by rewrite !set_fold_empty. }
+    do 2 (rewrite set_fold_disj_union_strong; [|set_solver..]).
+    do 2 (rewrite set_fold_singleton).
+    rewrite IHla; eauto; last solve_ndisj.
+    rewrite !difference_difference_l_L.
+    by rewrite union_comm_L.
   Qed.
 
   Lemma is_valid_updated_lmemory_lmem_subset
@@ -428,12 +455,13 @@ Section fundamental.
       all: iDestruct (readAllowed_not_reserved with "Hinterp_wdata") as "%Hreserved_data"; done.
     }
 
+    iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
+    iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
+    name_current_mask mask_sys.
+
     destruct (is_log_cap wcode) eqn:Hwcode; cycle 1.
     { (* wcode in not a capability *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -473,9 +501,6 @@ Section fundamental.
     destruct (decide (p_code = RX)) as [->|Hrx]; cycle 1.
     { (* wcode in not a RX capability *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -513,9 +538,6 @@ Section fundamental.
     destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
     { (* Code capability is too small *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -553,9 +575,6 @@ Section fundamental.
     destruct (is_log_cap wdata) eqn:Hwdata; cycle 1.
     { (* wdata in not a capability *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -595,9 +614,6 @@ Section fundamental.
     destruct (decide (p_data = RW)) as [->|Hrx]; cycle 1.
     { (* wdata in not a RW capability *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -635,9 +651,6 @@ Section fundamental.
     destruct (decide (b_data < e_data)%a) as [Hb_data|Hb_data]; cycle 1.
     { (* Data capability is too small *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -675,9 +688,6 @@ Section fundamental.
     destruct (decide (is_Some (a_pc + 1)%a)) as [Hpca_next | Hpca_next]; cycle 1.
     { (* The PC overflows *)
       iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -713,22 +723,139 @@ Section fundamental.
     }
 
     destruct (decide (PC = rdata)) as [Heq|Hrdata_neq_pc]; first (clear -Heq Hlregs_rdata Hp; simplify_map_eq; naive_solver).
+    assert (rcode ≠ rdata) as Hrcode_neq_rdata by ( intros ->; simplify_map_eq ).
 
     destruct ( decide (a_pc ∈ (finz.seq_between b_data e_data)))
       as [Hdata_apc_disjoint|Hdata_apc_disjoint].
     { (* data overlap with pc, the sweep will fail *)
-      (* opsem will fail *)
-      admit.
+      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
+               & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        simplify_map_eq.
+        clear -Hunique_regs_data Hrdata Hrdata_neq_pc Hdata_apc_disjoint Hb_data i.
+        simplify_map_eq.
+        apply isCorrectLPC_isCorrectPC in i; cbn in i.
+        apply isCorrectPC_le_addr in i.
+        eapply (map_Forall_lookup_1 _ _ PC) in Hunique_regs_data ; last by simplify_map_eq.
+        rewrite decide_False in Hunique_regs_data; auto.
+        apply Hunique_regs_data.
+        rewrite /overlap_wordL /overlap_word /=.
+        rewrite elem_of_finz_seq_between in Hdata_apc_disjoint.
+        destruct (data_b <? b_pc)%a eqn:Hdata_b; solve_addr.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
 
     destruct ( decide ((finz.seq_between b_code e_code) ## (finz.seq_between b_data e_data)))
       as [Hcode_data_disjoint|Hcode_data_disjoint]; cycle 1.
     { (* code and data overlap, the sweep will fail *)
-      (* opsem will fail *)
-      admit.
+      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
+               & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        clear -Hunique_regs_data
+                 Hrdata Hrcode
+                 Hlregs_rdata Hlregs_rcode
+                 Hcode_data_disjoint
+                 Hrcode_neq_rdata.
+        simplify_map_eq.
+        rewrite Hrcode in Hlregs_rcode; simplify_eq.
+        rewrite Hrdata in Hlregs_rdata; simplify_eq.
+        eapply (map_Forall_lookup_1 _ _ rcode) in Hunique_regs_data ; last by simplify_map_eq.
+        rewrite decide_False in Hunique_regs_data; auto.
+        apply overlap_word_disjoint in Hunique_regs_data; eauto.
+        apply Hcode_data_disjoint; set_solver + Hunique_regs_data.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
     }
 
-
+    destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
+    { (* The OType overflows *)
+      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
+               & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
+        rewrite Hot in Hot_ec2; done.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
 
     destruct (decide (PC = rcode)) as [?|Hrcode_neq_pc]; simplify_map_eq.
     - (* TODO the other difficult part of the proof  *)
@@ -738,16 +865,56 @@ Section fundamental.
       destruct ( decide (a_pc ∈ (finz.seq_between b_code e_code)))
         as [Hcode_apc_disjoint|Hcode_apc_disjoint].
       { (* code overlap with pc, the sweep will fail *)
-        (* opsem will fail *)
-        admit.
+        iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+        iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+        ;eauto
+        ; [ by simplify_map_eq
+          | rewrite /subseteq /map_subseteq /set_subseteq_instance
+            ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+          | by simplify_map_eq
+          |
+          ].
+        iNext.
+        iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+        iDestruct "Hspec" as "[Hspec | Hspec]".
+        (* Contradiction *)
+        + iDestruct "Hspec"
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
+               & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+          exfalso.
+          simplify_map_eq.
+          clear -Hunique_regs_code Hlregs_rcode Hrcode_neq_pc Hcode_apc_disjoint Hb_code i.
+          simplify_map_eq.
+          apply isCorrectLPC_isCorrectPC in i; cbn in i.
+          apply isCorrectPC_le_addr in i.
+          eapply (map_Forall_lookup_1 _ _ PC) in Hunique_regs_code ; last by simplify_map_eq.
+          rewrite decide_False in Hunique_regs_code; auto.
+          apply Hunique_regs_code.
+          rewrite /overlap_wordL /overlap_word /=.
+          rewrite elem_of_finz_seq_between in Hcode_apc_disjoint.
+          destruct (b_code <? b_pc)%a eqn:Hcode_b; solve_addr.
+        + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+          iApply wp_pure_step_later; auto.
+          iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+          { iNext. iExists Ecn, ot_ec.
+            iFrame "∗#%".
+          }
+          iDestruct (memMap_resource_1 with "Hmem") as "Ha".
+          iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+          iNext; iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate.
       }
 
       (* Open the code region *)
-      iDestruct (interp_open_region $ mask_init with "Hinterp_wcode")
+      iDestruct (interp_open_region $ mask_sys with "Hinterp_wcode")
         as (Ps_code) "[%Hlen_Ps_code Hmod]" ; eauto.
       { eapply Forall_forall. intros a' Ha'.
-        subst mask_init.
-        eapply namespaces.coPset_subseteq_difference_r; auto.
+        subst mask_sys mask_init.
+        eapply namespaces.coPset_subseteq_difference_r; first solve_ndisj.
         assert (a' ≠ a_pc) by set_solver.
         solve_ndisj.
       }
@@ -759,8 +926,9 @@ Section fundamental.
       iDestruct (interp_open_region $ mask_code with "Hinterp_wdata")
         as (Ps_data) "[%Hlen_Ps_data Hmod]" ; eauto.
       { eapply Forall_forall. intros a' Ha'.
-        subst mask_code mask_init.
+        subst mask_code mask_sys mask_init.
         rewrite /compute_mask_region.
+        rewrite -compute_mask_difference_namespace; [| solve_ndisj | solve_ndisj].
         rewrite -compute_mask_difference.
         2: {
           rewrite not_elem_of_list_to_set.
@@ -768,6 +936,7 @@ Section fundamental.
           rewrite elem_of_list_fmap in Hcontra.
           destruct Hcontra as (a'' & ? & Ha'') ; simplify_eq.
         }
+        eapply namespaces.coPset_subseteq_difference_r; auto; first solve_ndisj.
         eapply namespaces.coPset_subseteq_difference_r; auto.
         + assert (a' ≠ a_pc) by set_solver.
           solve_ndisj.
@@ -801,28 +970,12 @@ Section fundamental.
         rewrite !logical_region_notin; auto.
       }
 
-      iInv "Hsystem_inv" as "Hsys" "Hcls_sys".
-      {
-        subst mask_data mask_code mask_init.
-        rewrite /compute_mask_region.
-        eapply compute_mask_disjoint_namespace ; eauto; first solve_ndisj.
-        eapply compute_mask_disjoint_namespace ; eauto; first solve_ndisj.
-        eapply namespaces.coPset_subseteq_difference_r; auto; first solve_ndisj.
-      }
-      iDestruct "Hsys" as (Ecn ot_ec) "(>HEC & >%Hot_ec & Halloc & Hfree & #Hcustom_inv)".
-      name_current_mask mask_sys.
-
       rewrite (finz_seq_between_cons b_code) //.
       rewrite (finz_seq_between_cons b_code) // in Hlen_lws_code.
       destruct lws_code as [|lws_code1 lws_code]; first (by cbn in Hlen_lws_code).
       rewrite (finz_seq_between_cons b_data) //.
       rewrite (finz_seq_between_cons b_data) // in Hlen_lws_data.
       destruct lws_data as [|lws_data1 lws_data]; first (by cbn in Hlen_lws_data).
-
-      destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
-      { (* opsem will fail *)
-        admit.
-      }
 
       destruct (hash_lmemory_range
                       (<[(a_pc, v_pc):=lw_pc]>
@@ -833,8 +986,101 @@ Section fundamental.
                                 (b_data :: finz.seq_between (b_data ^+ 1)%a e_data)
                                 (lws_data1 :: lws_data) v_data)) (b_code ^+ 1)%a e_code v_code
                ) as [|] eqn:Hhash_instrs; cycle 1.
-      { (* opsem will fail *)
-        admit.
+      { (* Computing the hash fails  *)
+        iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+        ;eauto
+        ; [ by simplify_map_eq
+          | rewrite /subseteq /map_subseteq /set_subseteq_instance
+            ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+          | by simplify_map_eq
+          |
+          ].
+        iNext.
+        iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+        iDestruct "Hspec" as "[Hspec | Hspec]".
+        (* Contradiction *)
+        + iDestruct "Hspec"
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs' %Heid] & %Hot & %Hrcode & %Hrdata
+               & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+          exfalso.
+          incrementLPC_inv as (p_pc'&b_pc'&e_pc'&a_pc'&v_pc'& ? & HPC & Z & Hregs'); simplify_map_eq.
+          by rewrite Hhash_instrs in Hhash_instrs'.
+        + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+          iApply wp_pure_step_later; auto.
+          (* Derive pure predicates about a_pc' *)
+          iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+          match goal with
+          | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+          set (lmem0 := m)
+          end.
+          assert (
+              logical_region_map (b_code :: finz.seq_between (b_code ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code
+               ⊆ lmem0) as Hmem_code.
+          { subst lmem0.
+            eapply delete_subseteq_r.
+            { eapply logical_region_notin; eauto.
+              rewrite -!finz_seq_between_cons //.
+            }
+            eapply map_union_subseteq_l.
+          }
+          iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+          ; first (eapply Hmem_code).
+          match goal with
+          | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+              set (lmem1 := m)
+          end.
+          assert (
+              logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data
+               ⊆ lmem1) as Hmem_data.
+          { subst lmem1.
+            eapply (delete_subseteq_list_r); eauto.
+            + apply logical_region_map_disjoint; auto.
+              rewrite -!finz_seq_between_cons //.
+              set_solver + Hcode_data_disjoint.
+            + subst lmem0.
+              eapply delete_subseteq_r.
+              { eapply logical_region_notin; eauto.
+                rewrite -!finz_seq_between_cons //.
+              }
+              eapply map_union_subseteq_r.
+              apply logical_region_map_disjoint; auto.
+              rewrite -!finz_seq_between_cons //.
+          }
+          iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata Hmem]"
+          ; first (eapply Hmem_data).
+          iMod ("Hcls_data" with "[Hdata HPs_data Hreadcond_Ps_data]") as "_".
+          {
+            iNext.
+            destruct Ps_data; first done.
+            replace (((b_data, o) :: zip (finz.seq_between (b_data ^+ 1)%a e_data) Ps_data))
+              with (zip (finz.seq_between b_data e_data) (o::Ps_data))
+                   by (rewrite finz_seq_between_cons //).
+            iApply region_inv_construct; auto.
+            + rewrite -finz_seq_between_cons //.
+            + rewrite -finz_seq_between_cons //.
+          }
+          iModIntro.
+          iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+          {
+            iNext.
+            destruct Ps_code; first done.
+            replace (((b_code, o) :: zip (finz.seq_between (b_code ^+ 1)%a e_code) Ps_code))
+              with (zip (finz.seq_between b_code e_code) (o::Ps_code))
+                   by (rewrite finz_seq_between_cons //).
+            iApply region_inv_construct; auto.
+            + rewrite -finz_seq_between_cons //.
+            + rewrite -finz_seq_between_cons //.
+          }
+          iModIntro.
+          iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+          { iNext. iExists Ecn, ot_ec. iFrame "∗#%". }
+          iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+          iNext; iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate.
       }
 
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
@@ -1250,7 +1496,7 @@ Section fundamental.
         iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
         iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
         iSpecialize ("Hcontract'" $!
-                       mask_sys I_ECn
+                       mask_data I_ECn
                        b_code e_code (v_code+1)
                        b_data e_data a_data (v_data+1)
                        lws_data ot_ec new_enclave).
@@ -1366,6 +1612,32 @@ Section fundamental.
           eapply (map_Forall_all_P _ _ lws_code); eauto.
         }
 
+        iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
+        {
+          iNext.
+          destruct Ps_data; first done.
+          replace (((b_data, o) :: zip (finz.seq_between (b_data ^+ 1)%a e_data) Ps_data))
+            with (zip (finz.seq_between b_data e_data) (o::Ps_data))
+          by (rewrite finz_seq_between_cons //).
+          iApply region_inv_construct; auto.
+          iExists (lws_data1 :: lws_data); iFrame.
+          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
+        }
+        iModIntro.
+
+        iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          destruct Ps_code; first done.
+          replace (((b_code, o) :: zip (finz.seq_between (b_code ^+ 1)%a e_code) Ps_code))
+            with (zip (finz.seq_between b_code e_code) (o::Ps_code))
+          by (rewrite finz_seq_between_cons //).
+          iApply region_inv_construct; auto.
+          iExists (lws_code1 :: lws_code); iFrame.
+          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
+        }
+        iModIntro.
+
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
         { iNext.
           iExists (Ecn +1), (ot_ec ^+ 2)%ot.
@@ -1447,7 +1719,6 @@ Section fundamental.
                       destruct (p1 ^- 1)%f eqn:HP1.
                       assert (z = Z.pos p~0).
                       { solve_finz. }
-
                       assert (  (((Z.pos p~0) <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
                       assert (  ((0 <=? (Z.pos p~0))%Z) = true ) as finz_nonneg2 by solve_finz.
                       replace (finz.FinZ z finz_lt0 finz_nonneg0) with
@@ -1460,7 +1731,6 @@ Section fundamental.
                       destruct (p1 ^- 1)%f eqn:HP1.
                       assert (z = 0).
                       { solve_finz. }
-
                       assert (  ((0 <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
                       assert (  ((0 <=? 0)%Z) = true ) as finz_nonneg2 by solve_finz.
                       replace (finz.FinZ z finz_lt0 finz_nonneg0) with
@@ -1488,32 +1758,6 @@ Section fundamental.
         }
         iModIntro.
 
-        iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
-        {
-          iNext.
-          destruct Ps_data; first done.
-          replace (((b_data, o) :: zip (finz.seq_between (b_data ^+ 1)%a e_data) Ps_data))
-            with (zip (finz.seq_between b_data e_data) (o::Ps_data))
-          by (rewrite finz_seq_between_cons //).
-          iApply region_inv_construct; auto.
-          iExists (lws_data1 :: lws_data); iFrame.
-          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
-        }
-        iModIntro.
-
-        iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
-        {
-          iNext.
-          destruct Ps_code; first done.
-          replace (((b_code, o) :: zip (finz.seq_between (b_code ^+ 1)%a e_code) Ps_code))
-            with (zip (finz.seq_between b_code e_code) (o::Ps_code))
-          by (rewrite finz_seq_between_cons //).
-          iApply region_inv_construct; auto.
-          iExists (lws_code1 :: lws_code); iFrame.
-          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
-        }
-        iModIntro.
-
         iMod ("Hcls" with "[Ha HP]") as "_";[iExists lw_pc;iFrame|iModIntro].
         rewrite (insert_commute _ rcode PC) // (insert_commute _ rdata PC) // insert_insert.
         iClear "Hcontract'".
@@ -1529,10 +1773,39 @@ Section fundamental.
         }
 
 
-
       * (* CASE WHERE THE IDENTITY IS NOT A KNOWN ENCLAVE *)
         iMod (seal_store_update_alloc _ interp with "Hfree_ot_ec_0") as "#Hseal_pred_enc".
         iMod (seal_store_update_alloc _ interp with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
+
+        iDestruct "HPs_data" as "#HPs_data".
+        iDestruct "Hreadcond_Ps_data" as "#Hreadcond_Ps_data".
+        iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
+        {
+          iNext.
+          destruct Ps_data; first done.
+          replace (((b_data, o) :: zip (finz.seq_between (b_data ^+ 1)%a e_data) Ps_data))
+            with (zip (finz.seq_between b_data e_data) (o::Ps_data))
+          by (rewrite finz_seq_between_cons //).
+          iApply region_inv_construct; auto.
+          iExists (lws_data1 :: lws_data); iFrame "∗#".
+          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
+        }
+        iModIntro.
+
+        iDestruct "HPs_code" as "#HPs_code".
+        iDestruct "Hreadcond_Ps_code" as "#Hreadcond_Ps_code".
+        iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          destruct Ps_code; first done.
+          replace (((b_code, o) :: zip (finz.seq_between (b_code ^+ 1)%a e_code) Ps_code))
+            with (zip (finz.seq_between b_code e_code) (o::Ps_code))
+          by (rewrite finz_seq_between_cons //).
+          iApply region_inv_construct; auto.
+          iExists (lws_code1 :: lws_code); iFrame "∗#".
+          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
+        }
+        iModIntro.
 
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
         { iNext.
@@ -1615,7 +1888,6 @@ Section fundamental.
                       destruct (p1 ^- 1)%f eqn:HP1.
                       assert (z = Z.pos p~0).
                       { solve_finz. }
-
                       assert (  (((Z.pos p~0) <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
                       assert (  ((0 <=? (Z.pos p~0))%Z) = true ) as finz_nonneg2 by solve_finz.
                       replace (finz.FinZ z finz_lt0 finz_nonneg0) with
@@ -1628,7 +1900,6 @@ Section fundamental.
                       destruct (p1 ^- 1)%f eqn:HP1.
                       assert (z = 0).
                       { solve_finz. }
-
                       assert (  ((0 <? ONum)%Z) = true ) as finz_lt2 by solve_finz.
                       assert (  ((0 <=? 0)%Z) = true ) as finz_nonneg2 by solve_finz.
                       replace (finz.FinZ z finz_lt0 finz_nonneg0) with
@@ -1650,40 +1921,6 @@ Section fundamental.
             assert (0 <= tid_I < Ecn) as Htid_I' by lia.
             iApply ("Hcustom_inv" with "[] [$Henclave_I]"); eauto.
           }
-        }
-        iModIntro.
-
-
-        iDestruct "HPs_data" as "#HPs_data".
-        iDestruct "Hreadcond_Ps_data" as "#Hreadcond_Ps_data".
-        iMod ("Hcls_data" with "[Hdata_prev HPs_data Hreadcond_Ps_data]") as "_".
-        {
-          iNext.
-          destruct Ps_data; first done.
-          replace (((b_data, o) :: zip (finz.seq_between (b_data ^+ 1)%a e_data) Ps_data))
-            with (zip (finz.seq_between b_data e_data) (o::Ps_data))
-          by (rewrite finz_seq_between_cons //).
-          iApply region_inv_construct; auto.
-          iExists (lws_data1 :: lws_data); iFrame "∗#".
-          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
-        }
-        iModIntro.
-
-        (* assert (Persistent (([∗ list] y1;y2 ∈ lws_code;Ps_code, (y2 : D) y1)%I)) as Hpers_Ps_code'. *)
-        (* { clear -Hpers_Ps_code. *)
-        (*   admit. } *)
-        iDestruct "HPs_code" as "#HPs_code".
-        iDestruct "Hreadcond_Ps_code" as "#Hreadcond_Ps_code".
-        iMod ("Hcls_code" with "[Hcode_prev HPs_code Hreadcond_Ps_code]") as "_".
-        {
-          iNext.
-          destruct Ps_code; first done.
-          replace (((b_code, o) :: zip (finz.seq_between (b_code ^+ 1)%a e_code) Ps_code))
-            with (zip (finz.seq_between b_code e_code) (o::Ps_code))
-          by (rewrite finz_seq_between_cons //).
-          iApply region_inv_construct; auto.
-          iExists (lws_code1 :: lws_code); iFrame "∗#".
-          iPureIntro; rewrite finz_seq_between_cons /=; f_equal;done.
         }
         iModIntro.
 
