@@ -458,18 +458,19 @@ Section opsem.
   Definition pair_fst_leb {A B} (A_leb : A -> A -> bool) (ab1 ab2 : A * B) := A_leb ab1.1 ab2.1.
   Definition mem_leb := pair_fst_leb (A:= Addr) (B:= Word) addr_leb .
 
-  Definition hash_memory_region (m : Mem) (la : list Addr) : option Z :=
+  Definition memory_get_instrs (m : Mem) (la : list Addr) : option (list Word) :=
     foldr
-      (fun (a : Addr) (opt_hash : option Z) =>
-         hash_next ← opt_hash ;
+      (fun (a : Addr) (opt_instrs_next : option (list Word)) =>
+         instrs_next ← opt_instrs_next ;
          w ← m !! a ;
-         Some (hash_concat (hash w) hash_next)
+         Some (w::instrs_next)
       )
-      (Some hash_unit)
+      (Some [])
       la.
 
   Definition hash_memory_range (m : Mem) (b e: Addr) : option Z :=
-    hash_memory_region m (finz.seq_between (b^+1)%a e).
+    instructions ← memory_get_instrs m (finz.seq_between b e) ;
+    Some (hash instructions).
 
   Definition measure (m : Mem) (b e: Addr) : option Z :=
     hash_instr ← hash_memory_range m (b^+1)%a e;

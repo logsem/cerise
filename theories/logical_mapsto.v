@@ -2054,25 +2054,19 @@ Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
 Definition laddr_leb := pair_fst_leb (A:= Addr) (B:= Version) addr_leb.
 Definition lmem_leb := pair_fst_leb (A:= LAddr) (B:= LWord) laddr_leb.
 
-Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (la : list LAddr) : option Z :=
+Definition lmemory_get_instrs (lm : LMem) (la : list Addr) (v : Version) : option (list Word) :=
   foldr
-    (fun (a : LAddr) (opt_hash : option Z) =>
-       hash_next ← opt_hash ;
-       w ← lm !! a ;
-       Some (hash_concat (hash (lword_get_word w)) hash_next)
+    (fun (a : Addr) (opt_instrs_next : option (list Word)) =>
+       instrs_next ← opt_instrs_next ;
+       w ← lm !! (a,v) ;
+       Some ((lword_get_word w)::instrs_next)
     )
-    (Some hash_unit)
+    (Some [])
     la.
 
-Definition hash_lmemory_range `{MachineParameters}
-  (lm : LMem) (b e: Addr) (v : Version) : option Z :=
-  hash_lmemory_region lm (logical_region (finz.seq_between (b^+1)%a e) v).
-(* Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (b e : Addr) (v : Version) := *)
-(*   let instructions : list LWord := *)
-(*     snd <$> (merge_sort lmem_leb *)
-(*                (map_to_list (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e) /\ (laddr_get_version a) = v) lm))) *)
-(*   in *)
-(*   hash (lword_get_word <$> instructions). *)
+Definition hash_lmemory_range `{MachineParameters} (lm : LMem) (b e: Addr) (v : Version) : option Z :=
+  instructions ← lmemory_get_instrs lm (finz.seq_between b e) v ;
+  Some (hash instructions).
 
 Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
   forall p b e a v,
@@ -2081,7 +2075,7 @@ Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LR
   hash_lmemory_range lm b e v = hash_memory_range phm b e.
 Proof.
   intros p b e a v Hcur_word [ _ (Hcur & Hroot & _) ].
-  unfold hash_lmemory_region, hash_memory_region.
+  unfold hash_lmemory_range, hash_memory_range.
   f_equal.
   rewrite /is_cur_word in Hcur_word.
   (* match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flog := f) end. *)
