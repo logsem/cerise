@@ -38,7 +38,7 @@ Section cap_lang_rules.
     lregs !! r_code = Some (LCap p b e a v) ->
     ¬ (b < e)%a ->
     EInit_fail lregs lmem  r_code r_data tidx ot
-  (* the code capanility does not contain enough space for the data_capability *)
+  (* the hashing fails *)
   | EInit_fail_hash_fail p b e a v :
     lregs !! r_code = Some (LCap p b e a v) ->
     (b < e)%a ->
@@ -99,8 +99,10 @@ Section cap_lang_rules.
     ⌜ (hash_lmemory_range lmem (code_b ^+ 1)%a code_e code_v) = Some hash_instrs
     ∧ hash_concat (hash code_b) hash_instrs = eid⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)
     ⌜(ot + 2)%ot = Some (ot ^+ 2)%ot ⌝ ∗ (* there are still otypes left in the pool *)
-    ⌜lregs !! r_code = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rs contains a valid capability *)
-    ⌜lregs !! r_data = Some (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* rs contains a valid capability *)
+    ⌜lregs !! r_code = Some (LCap RX code_b code_e code_a code_v) ⌝ ∗ (* rcode contains a valid code capability *)
+    ⌜lregs !! r_data = Some (LCap RW data_b data_e data_a data_v) ⌝ ∗ (* rdata contains a valid data capability *)
+    ⌜ (code_b < code_e)%a ⌝ ∗ (* the code capability contains at least one address *)
+    ⌜ (data_b < data_e)%a ⌝ ∗ (* the data capability contains at least one address *)
     ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between code_b code_e) code_v lmem'' ⌝ ∗ (* all memory in the code capability is "current" w.r.t. revocation *)
     ⌜is_valid_updated_lmemory glmem lmem (finz.seq_between data_b data_e) data_v lmem'' ⌝ ∗ (* all memory in the data capability is "current" w.r.t. revocation *)
     ⌜ lmem' =
