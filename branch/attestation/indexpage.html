@@ -56,7 +56,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2651 entries)</td>
+<td>(2645 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -216,7 +216,7 @@
 <td><a href="indexpage.html#lemma_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(1019 entries)</td>
+<td>(1017 entries)</td>
 </tr>
 <tr>
 <td>Constructor Index</td>
@@ -248,7 +248,7 @@
 <td>Z</td>
 <td>_</td>
 <td>other</td>
-<td>(191 entries)</td>
+<td>(192 entries)</td>
 </tr>
 <tr>
 <td>Axiom Index</td>
@@ -376,7 +376,7 @@
 <td><a href="indexpage.html#instance_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(162 entries)</td>
+<td>(155 entries)</td>
 </tr>
 <tr>
 <td>Section Index</td>
@@ -472,7 +472,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(814 entries)</td>
+<td>(816 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
@@ -944,6 +944,7 @@
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_small">EInit_fail_dcap_small</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_no_rx">EInit_fail_dcap_no_rx</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_not_a_cap">EInit_fail_dcap_not_a_cap</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
+<a href="cap_machine.rules.rules_EInit.html#EInit_fail_hash_fail">EInit_fail_hash_fail</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_small">EInit_fail_ccap_small</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_no_rx">EInit_fail_ccap_no_rx</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_not_a_cap">EInit_fail_ccap_not_a_cap</a> [constructor, in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
@@ -1108,9 +1109,6 @@
 <a href="machine_utils.classes.html#FinZOffsetLt">FinZOffsetLt</a> [record, in <a href="machine_utils.classes.html">machine_utils.classes</a>]<br/>
 <a href="machine_utils.classes.html#FinZOffsetLt">FinZOffsetLt</a> [inductive, in <a href="machine_utils.classes.html">machine_utils.classes</a>]<br/>
 <a href="machine_utils.class_instances.html#FinZOffsetLt_compute">FinZOffsetLt_compute</a> [lemma, in <a href="machine_utils.class_instances.html">machine_utils.class_instances</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_laddr_Sorted">finz_seq_between_laddr_Sorted</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_addr_StronglySorted">finz_seq_between_addr_StronglySorted</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_addr_StronglySorted_aux">finz_seq_between_addr_StronglySorted_aux</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="machine_utils.finz_lemmas.html#finz_add_0_default">finz_add_0_default</a> [lemma, in <a href="machine_utils.finz_lemmas.html">machine_utils.finz_lemmas</a>]<br/>
 <a href="machine_utils.finz_lemmas.html#finz_add_0">finz_add_0</a> [lemma, in <a href="machine_utils.finz_lemmas.html">machine_utils.finz_lemmas</a>]<br/>
 <a href="machine_utils.solve_pure.html#finz_of_z_ZToFinZ">finz_of_z_ZToFinZ</a> [lemma, in <a href="machine_utils.solve_pure.html">machine_utils.solve_pure</a>]<br/>
@@ -1323,8 +1321,11 @@
 <a href="cap_machine.ftlr.Hash.html">Hash</a> [library]<br/>
 <a href="cap_machine.examples.hash_cap.html#HashCap">HashCap</a> [section, in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.machine_base.html#HashConcat">HashConcat</a> [constructor, in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_correct">hash_lmemory_range_correct</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_correct_aux">hash_lmemory_range_correct_aux</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_delete_notin">hash_lmemory_range_delete_notin</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.ftlr.Hash.html#hash_case">hash_case</a> [lemma, in <a href="cap_machine.ftlr.Hash.html">cap_machine.ftlr.Hash</a>]<br/>
-<a href="cap_machine.cap_lang.html#hash_memory_region">hash_memory_region</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
+<a href="cap_machine.cap_lang.html#hash_memory_range">hash_memory_range</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.examples.enclaves.trusted_compute.html#hash_trusted_compute_enclave">hash_trusted_compute_enclave</a> [definition, in <a href="cap_machine.examples.enclaves.trusted_compute.html">cap_machine.examples.enclaves.trusted_compute</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_B">hash_mutual_attest_B</a> [definition, in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_A">hash_mutual_attest_A</a> [definition, in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
@@ -1334,7 +1335,7 @@
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_concat_assoc">hash_concat_assoc</a> [axiom, in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_concat_app">hash_concat_app</a> [axiom, in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.trusted_memory_readout.html#hash_sensor">hash_sensor</a> [definition, in <a href="cap_machine.examples.enclaves.trusted_memory_readout.html">cap_machine.examples.enclaves.trusted_memory_readout</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#hash_lmemory_region">hash_lmemory_region</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#hash_lmemory_range">hash_lmemory_range</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_spec">hash_cap_spec</a> [lemma, in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_spec_iter">hash_cap_spec_iter</a> [lemma, in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_lcode">hash_cap_lcode</a> [definition, in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
@@ -1358,7 +1359,6 @@
 <a href="cap_machine.logrel.html#hasValidAddress_dec">hasValidAddress_dec</a> [instance, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.logrel.html#hasValidLAddress">hasValidLAddress</a> [definition, in <a href="cap_machine.logrel.html">cap_machine.logrel</a>]<br/>
 <a href="cap_machine.cap_lang.html#has_seal">has_seal</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#HdRel_zip_fst">HdRel_zip_fst</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_reducible_from_step">head_reducible_from_step</a> [lemma, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_ctx_step_val">head_ctx_step_val</a> [lemma, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.proofmode.tactics_helpers.html#helpers">helpers</a> [section, in <a href="cap_machine.proofmode.tactics_helpers.html">cap_machine.proofmode.tactics_helpers</a>]<br/>
@@ -1721,9 +1721,7 @@
 <a href="cap_machine.logical_mapsto.html#lmeasure_measure">lmeasure_measure</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#LMem">LMem</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#LMemF">LMemF</a> [definition, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_AntiSymm">lmem_leb_AntiSymm</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_transitive">lmem_leb_transitive</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_total">lmem_leb_total</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#lmemory_get_instrs">lmemory_get_instrs</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#lmem_leb">lmem_leb</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#lmem_not_access_addrL">lmem_not_access_addrL</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#lmem_corresponds_current_word">lmem_corresponds_current_word</a> [lemma, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -1857,6 +1855,7 @@
 <a href="cap_machine.examples.malloc.html#malloc_subroutine_instrs_length">malloc_subroutine_instrs_length</a> [definition, in <a href="cap_machine.examples.malloc.html">cap_machine.examples.malloc</a>]<br/>
 <a href="cap_machine.examples.malloc.html#malloc_subroutine_instrs'">malloc_subroutine_instrs'</a> [definition, in <a href="cap_machine.examples.malloc.html">cap_machine.examples.malloc</a>]<br/>
 <a href="cap_machine.proofmode.region.html#mapsto_decomposition">mapsto_decomposition</a> [lemma, in <a href="cap_machine.proofmode.region.html">cap_machine.proofmode.region</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#map_Forall_all_P">map_Forall_all_P</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.rules.rules_IsUnique.html#map_full_own">map_full_own</a> [lemma, in <a href="cap_machine.rules.rules_IsUnique.html">cap_machine.rules.rules_IsUnique</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#map_subseteq_trans">map_subseteq_trans</a> [lemma, in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#map_to_list_delete_fst">map_to_list_delete_fst</a> [lemma, in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
@@ -1895,6 +1894,7 @@
 <a href="cap_machine.rules.rules_base.html#memMap_resource_1">memMap_resource_1</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#memMap_resource_0">memMap_resource_0</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.addr_reg.html#MemNum">MemNum</a> [definition, in <a href="cap_machine.addr_reg.html">cap_machine.addr_reg</a>]<br/>
+<a href="cap_machine.cap_lang.html#memory_get_instrs">memory_get_instrs</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.ftlr.IsUnique.html#mem_map_recover_res_update_version">mem_map_recover_res_update_version</a> [lemma, in <a href="cap_machine.ftlr.IsUnique.html">cap_machine.ftlr.IsUnique</a>]<br/>
 <a href="cap_machine.ftlr.IsUnique.html#mem_map_recover_res_no_update">mem_map_recover_res_no_update</a> [lemma, in <a href="cap_machine.ftlr.IsUnique.html">cap_machine.ftlr.IsUnique</a>]<br/>
 <a href="cap_machine.ftlr.IsUnique.html#mem_map_implies_pure_conds">mem_map_implies_pure_conds</a> [lemma, in <a href="cap_machine.ftlr.IsUnique.html">cap_machine.ftlr.IsUnique</a>]<br/>
@@ -1916,7 +1916,6 @@
 <a href="cap_machine.rules.rules_Load.html#mem_implies_allow_load_map">mem_implies_allow_load_map</a> [lemma, in <a href="cap_machine.rules.rules_Load.html">cap_machine.rules.rules_Load</a>]<br/>
 <a href="cap_machine.rules.rules_Load.html#mem_neq_implies_allow_load_map">mem_neq_implies_allow_load_map</a> [lemma, in <a href="cap_machine.rules.rules_Load.html">cap_machine.rules.rules_Load</a>]<br/>
 <a href="cap_machine.rules.rules_Load.html#mem_eq_implies_allow_load_map">mem_eq_implies_allow_load_map</a> [lemma, in <a href="cap_machine.rules.rules_Load.html">cap_machine.rules.rules_Load</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#merge_sort_Permutation_proper">merge_sort_Permutation_proper</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="machine_utils.classes.html#MkAsWeakFinZIncr">MkAsWeakFinZIncr</a> [projection, in <a href="machine_utils.classes.html">machine_utils.classes</a>]<br/>
 <a href="machine_utils.classes.html#MkAsWeakFinZIncr">MkAsWeakFinZIncr</a> [constructor, in <a href="machine_utils.classes.html">machine_utils.classes</a>]<br/>
 <a href="machine_utils.classes.html#MkCbvTc">MkCbvTc</a> [projection, in <a href="machine_utils.classes.html">machine_utils.classes</a>]<br/>
@@ -2100,9 +2099,6 @@
 <a href="cap_machine.logical_mapsto.html#overlap_wordL_dec">overlap_wordL_dec</a> [instance, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#overlap_wordL">overlap_wordL</a> [definition, in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="global_P"></a><h2>P </h2>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_antisymm">pair_fst_leb_antisymm</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_transitive">pair_fst_leb_transitive</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_total">pair_fst_leb_total</a> [instance, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#pair_eq_inv">pair_eq_inv</a> [lemma, in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="cap_machine.cap_lang.html#pair_fst_leb">pair_fst_leb</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.addr_reg.html#PC">PC</a> [constructor, in <a href="cap_machine.addr_reg.html">cap_machine.addr_reg</a>]<br/>
@@ -2521,8 +2517,6 @@
 <a href="machine_utils.solve_finz.html">solve_finz</a> [library]<br/>
 <a href="cap_machine.proofmode.solve_addr_extra.html">solve_addr_extra</a> [library]<br/>
 <a href="machine_utils.solve_finz.html#Some_eq_inj">Some_eq_inj</a> [lemma, in <a href="machine_utils.solve_finz.html">machine_utils.solve_finz</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#Sorted_sort_zip">Sorted_sort_zip</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#Sorted_sort_zip_fst">Sorted_sort_zip_fst</a> [lemma, in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.machine_base.html#SSealRange">SSealRange</a> [constructor, in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.cap_lang.html#state">state</a> [definition, in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#state_interp_transient_unique_in_lregs">state_interp_transient_unique_in_lregs</a> [lemma, in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
@@ -3589,9 +3583,6 @@
 <a href="cap_machine.cap_lang.html#fill_item_val">fill_item_val</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="machine_utils.class_instances.html#FinZOffsetLe_compute">FinZOffsetLe_compute</a> [in <a href="machine_utils.class_instances.html">machine_utils.class_instances</a>]<br/>
 <a href="machine_utils.class_instances.html#FinZOffsetLt_compute">FinZOffsetLt_compute</a> [in <a href="machine_utils.class_instances.html">machine_utils.class_instances</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_laddr_Sorted">finz_seq_between_laddr_Sorted</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_addr_StronglySorted">finz_seq_between_addr_StronglySorted</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#finz_seq_between_addr_StronglySorted_aux">finz_seq_between_addr_StronglySorted_aux</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="machine_utils.finz_lemmas.html#finz_add_0_default">finz_add_0_default</a> [in <a href="machine_utils.finz_lemmas.html">machine_utils.finz_lemmas</a>]<br/>
 <a href="machine_utils.finz_lemmas.html#finz_add_0">finz_add_0</a> [in <a href="machine_utils.finz_lemmas.html">machine_utils.finz_lemmas</a>]<br/>
 <a href="machine_utils.solve_pure.html#finz_of_z_ZToFinZ">finz_of_z_ZToFinZ</a> [in <a href="machine_utils.solve_pure.html">machine_utils.solve_pure</a>]<br/>
@@ -3680,11 +3671,13 @@
 <a href="cap_machine.seal_store.html#gmap_isSome_convert">gmap_isSome_convert</a> [in <a href="cap_machine.seal_store.html">cap_machine.seal_store</a>]<br/>
 <a href="cap_machine.seal_store.html#gmap_none_convert">gmap_none_convert</a> [in <a href="cap_machine.seal_store.html">cap_machine.seal_store</a>]<br/>
 <br/><br/><a id="lemma_H"></a><h2>H </h2>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_correct">hash_lmemory_range_correct</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_correct_aux">hash_lmemory_range_correct_aux</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#hash_lmemory_range_delete_notin">hash_lmemory_range_delete_notin</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.ftlr.Hash.html#hash_case">hash_case</a> [in <a href="cap_machine.ftlr.Hash.html">cap_machine.ftlr.Hash</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_spec">hash_cap_spec</a> [in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_spec_iter">hash_cap_spec_iter</a> [in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.machine_parameters.html#hash_concat_inj'">hash_concat_inj'</a> [in <a href="cap_machine.machine_parameters.html">cap_machine.machine_parameters</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#HdRel_zip_fst">HdRel_zip_fst</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_reducible_from_step">head_reducible_from_step</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#head_ctx_step_val">head_ctx_step_val</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <br/><br/><a id="lemma_I"></a><h2>I </h2>
@@ -3886,6 +3879,7 @@
 <a href="cap_machine.examples.macros_new.html#malloc_spec">malloc_spec</a> [in <a href="cap_machine.examples.macros_new.html">cap_machine.examples.macros_new</a>]<br/>
 <a href="cap_machine.examples.macros_new.html#malloc_spec_alt">malloc_spec_alt</a> [in <a href="cap_machine.examples.macros_new.html">cap_machine.examples.macros_new</a>]<br/>
 <a href="cap_machine.proofmode.region.html#mapsto_decomposition">mapsto_decomposition</a> [in <a href="cap_machine.proofmode.region.html">cap_machine.proofmode.region</a>]<br/>
+<a href="cap_machine.ftlr.EInit.html#map_Forall_all_P">map_Forall_all_P</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.rules.rules_IsUnique.html#map_full_own">map_full_own</a> [in <a href="cap_machine.rules.rules_IsUnique.html">cap_machine.rules.rules_IsUnique</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#map_subseteq_trans">map_subseteq_trans</a> [in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#map_to_list_delete_fst">map_to_list_delete_fst</a> [in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
@@ -4102,8 +4096,6 @@
 <a href="cap_machine.stdpp_extra.html#snd_prod_merge_subseteq">snd_prod_merge_subseteq</a> [in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="cap_machine.stdpp_extra.html#snd_prod_merge_inv">snd_prod_merge_inv</a> [in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="machine_utils.solve_finz.html#Some_eq_inj">Some_eq_inj</a> [in <a href="machine_utils.solve_finz.html">machine_utils.solve_finz</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#Sorted_sort_zip">Sorted_sort_zip</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#Sorted_sort_zip_fst">Sorted_sort_zip_fst</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#state_interp_transient_unique_in_lregs">state_interp_transient_unique_in_lregs</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#state_interp_transient_corr">state_interp_transient_corr</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#state_phys_log_corresponds_update_mem">state_phys_log_corresponds_update_mem</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
@@ -4439,6 +4431,7 @@
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_small">EInit_fail_dcap_small</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_no_rx">EInit_fail_dcap_no_rx</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_dcap_not_a_cap">EInit_fail_dcap_not_a_cap</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
+<a href="cap_machine.rules.rules_EInit.html#EInit_fail_hash_fail">EInit_fail_hash_fail</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_small">EInit_fail_ccap_small</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_no_rx">EInit_fail_ccap_no_rx</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
 <a href="cap_machine.rules.rules_EInit.html#EInit_fail_ccap_not_a_cap">EInit_fail_ccap_not_a_cap</a> [in <a href="cap_machine.rules.rules_EInit.html">cap_machine.rules.rules_EInit</a>]<br/>
@@ -4872,9 +4865,6 @@
 <a href="cap_machine.proofmode.NamedProp.html#is_existential_exist">is_existential_exist</a> [in <a href="cap_machine.proofmode.NamedProp.html">cap_machine.proofmode.NamedProp</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#is_cur_addr_dec">is_cur_addr_dec</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="instance_L"></a><h2>L </h2>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_AntiSymm">lmem_leb_AntiSymm</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_transitive">lmem_leb_transitive</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#lmem_leb_total">lmem_leb_total</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="machine_utils.tactics.html#LookupFramableMachineResource_later">LookupFramableMachineResource_later</a> [in <a href="machine_utils.tactics.html">machine_utils.tactics</a>]<br/>
 <a href="machine_utils.tactics.html#LookupFramableMachineResource_sep_r">LookupFramableMachineResource_sep_r</a> [in <a href="machine_utils.tactics.html">machine_utils.tactics</a>]<br/>
 <a href="machine_utils.tactics.html#LookupFramableMachineResource_sep_l">LookupFramableMachineResource_sep_l</a> [in <a href="machine_utils.tactics.html">machine_utils.tactics</a>]<br/>
@@ -4886,7 +4876,6 @@
 <a href="cap_machine.logical_mapsto.html#lword_inhabited">lword_inhabited</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="instance_M"></a><h2>M </h2>
 <a href="cap_machine.logical_mapsto.html#memG_irisG">memG_irisG</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#merge_sort_Permutation_proper">merge_sort_Permutation_proper</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.monotone.html#monotone_empty">monotone_empty</a> [in <a href="cap_machine.monotone.html">cap_machine.monotone</a>]<br/>
 <a href="cap_machine.monotone.html#monotone_cmra_discrete">monotone_cmra_discrete</a> [in <a href="cap_machine.monotone.html">cap_machine.monotone</a>]<br/>
 <a href="cap_machine.monotone.html#monotone_core_id">monotone_core_id</a> [in <a href="cap_machine.monotone.html">cap_machine.monotone</a>]<br/>
@@ -4910,9 +4899,6 @@
 <a href="cap_machine.cap_lang.html#overlap_word_dec">overlap_word_dec</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#overlap_wordL_dec">overlap_wordL_dec</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <br/><br/><a id="instance_P"></a><h2>P </h2>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_antisymm">pair_fst_leb_antisymm</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_transitive">pair_fst_leb_transitive</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
-<a href="cap_machine.ftlr.EInit.html#pair_fst_leb_total">pair_fst_leb_total</a> [in <a href="cap_machine.ftlr.EInit.html">cap_machine.ftlr.EInit</a>]<br/>
 <a href="cap_machine.machine_base.html#perm_countable">perm_countable</a> [in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.machine_base.html#perm_eq_dec">perm_eq_dec</a> [in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.monotone.html#principal_inj">principal_inj</a> [in <a href="cap_machine.monotone.html">cap_machine.monotone</a>]<br/>
@@ -5376,14 +5362,14 @@
 <a href="cap_machine.rules.rules_Get.html#Get_failure_rect">Get_failure_rect</a> [in <a href="cap_machine.rules.rules_Get.html">cap_machine.rules.rules_Get</a>]<br/>
 <br/><br/><a id="definition_H"></a><h2>H </h2>
 <a href="cap_machine.examples.addr_reg_sample.html#halt">halt</a> [in <a href="cap_machine.examples.addr_reg_sample.html">cap_machine.examples.addr_reg_sample</a>]<br/>
-<a href="cap_machine.cap_lang.html#hash_memory_region">hash_memory_region</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
+<a href="cap_machine.cap_lang.html#hash_memory_range">hash_memory_range</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.examples.enclaves.trusted_compute.html#hash_trusted_compute_enclave">hash_trusted_compute_enclave</a> [in <a href="cap_machine.examples.enclaves.trusted_compute.html">cap_machine.examples.enclaves.trusted_compute</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_B">hash_mutual_attest_B</a> [in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_A">hash_mutual_attest_A</a> [in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_B_pre">hash_mutual_attest_B_pre</a> [in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.mutual_attestation_code.html#hash_mutual_attest_A_pre">hash_mutual_attest_A_pre</a> [in <a href="cap_machine.examples.enclaves.mutual_attestation_code.html">cap_machine.examples.enclaves.mutual_attestation_code</a>]<br/>
 <a href="cap_machine.examples.enclaves.trusted_memory_readout.html#hash_sensor">hash_sensor</a> [in <a href="cap_machine.examples.enclaves.trusted_memory_readout.html">cap_machine.examples.enclaves.trusted_memory_readout</a>]<br/>
-<a href="cap_machine.logical_mapsto.html#hash_lmemory_region">hash_lmemory_region</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#hash_lmemory_range">hash_lmemory_range</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_lcode">hash_cap_lcode</a> [in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_instrs">hash_cap_instrs</a> [in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
 <a href="cap_machine.examples.hash_cap.html#hash_cap_off_iter">hash_cap_off_iter</a> [in <a href="cap_machine.examples.hash_cap.html">cap_machine.examples.hash_cap</a>]<br/>
@@ -5503,6 +5489,7 @@
 <a href="cap_machine.stdpp_extra.html#list_remove_elem">list_remove_elem</a> [in <a href="cap_machine.stdpp_extra.html">cap_machine.stdpp_extra</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#LMem">LMem</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.rules.rules_base.html#LMemF">LMemF</a> [in <a href="cap_machine.rules.rules_base.html">cap_machine.rules.rules_base</a>]<br/>
+<a href="cap_machine.logical_mapsto.html#lmemory_get_instrs">lmemory_get_instrs</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#lmem_leb">lmem_leb</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#lmem_not_access_addrL">lmem_not_access_addrL</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.examples.addr_reg_sample.html#load_r">load_r</a> [in <a href="cap_machine.examples.addr_reg_sample.html">cap_machine.examples.addr_reg_sample</a>]<br/>
@@ -5557,6 +5544,7 @@
 <a href="cap_machine.cap_lang.html#measure">measure</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.machine_base.html#Mem">Mem</a> [in <a href="cap_machine.machine_base.html">cap_machine.machine_base</a>]<br/>
 <a href="cap_machine.addr_reg.html#MemNum">MemNum</a> [in <a href="cap_machine.addr_reg.html">cap_machine.addr_reg</a>]<br/>
+<a href="cap_machine.cap_lang.html#memory_get_instrs">memory_get_instrs</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.cap_lang.html#mem_leb">mem_leb</a> [in <a href="cap_machine.cap_lang.html">cap_machine.cap_lang</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#mem_phys_log_corresponds">mem_phys_log_corresponds</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
 <a href="cap_machine.logical_mapsto.html#mem_gcroot">mem_gcroot</a> [in <a href="cap_machine.logical_mapsto.html">cap_machine.logical_mapsto</a>]<br/>
@@ -6064,7 +6052,7 @@
 <td><a href="indexpage.html#global_Z">Z</a></td>
 <td>_</td>
 <td><a href="indexpage.html#global_*">other</a></td>
-<td>(2651 entries)</td>
+<td>(2645 entries)</td>
 </tr>
 <tr>
 <td>Notation Index</td>
@@ -6224,7 +6212,7 @@
 <td><a href="indexpage.html#lemma_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(1019 entries)</td>
+<td>(1017 entries)</td>
 </tr>
 <tr>
 <td>Constructor Index</td>
@@ -6256,7 +6244,7 @@
 <td>Z</td>
 <td>_</td>
 <td>other</td>
-<td>(191 entries)</td>
+<td>(192 entries)</td>
 </tr>
 <tr>
 <td>Axiom Index</td>
@@ -6384,7 +6372,7 @@
 <td><a href="indexpage.html#instance_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(162 entries)</td>
+<td>(155 entries)</td>
 </tr>
 <tr>
 <td>Section Index</td>
@@ -6480,7 +6468,7 @@
 <td><a href="indexpage.html#definition_Z">Z</a></td>
 <td>_</td>
 <td>other</td>
-<td>(814 entries)</td>
+<td>(816 entries)</td>
 </tr>
 <tr>
 <td>Record Index</td>
