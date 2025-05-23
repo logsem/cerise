@@ -458,17 +458,23 @@ Section opsem.
   Definition pair_fst_leb {A B} (A_leb : A -> A -> bool) (ab1 ab2 : A * B) := A_leb ab1.1 ab2.1.
   Definition mem_leb := pair_fst_leb (A:= Addr) (B:= Word) addr_leb .
 
-  Definition hash_memory_region (m : Mem) (b e : Addr) :=
-    let instructions : list Word :=
-      snd <$>
-        (merge_sort mem_leb
-           ((map_to_list
-                  (filter (fun '(a, _) => a ∈ (finz.seq_between b e)) m))))
-    in
-    hash instructions.
+  Definition memory_get_instrs (m : Mem) (la : list Addr) : option (list Word) :=
+    foldr
+      (fun (a : Addr) (opt_instrs_next : option (list Word)) =>
+         instrs_next ← opt_instrs_next ;
+         w ← m !! a ;
+         Some (w::instrs_next)
+      )
+      (Some [])
+      la.
 
-  Definition measure (m : Mem) (b e: Addr) :=
-    hash_concat (hash b) (hash_memory_region m (b^+1)%a e).
+  Definition hash_memory_range (m : Mem) (b e: Addr) : option Z :=
+    instructions ← memory_get_instrs m (finz.seq_between b e) ;
+    Some (hash instructions).
+
+  Definition measure (m : Mem) (b e: Addr) : option Z :=
+    hash_instr ← hash_memory_range m (b^+1)%a e;
+    Some (hash_concat (hash b) hash_instr).
 
   (* cannot stand the nested indentation *)
   Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
@@ -676,7 +682,7 @@ Section opsem.
     let seals := (WSealRange (true, true) s_b s_e s_b) in (* permitSeal & permitUnseal *)
 
     (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
-    let eid := measure (mem φ) b e in
+    eid ← measure (mem φ) b e;
 
     fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
 
@@ -972,7 +978,8 @@ Proof. solve_decision. Defined.
     all: repeat destruct (finz.of_z _); cbn in *
     ; repeat destruct (get_sealing_cap _); cbn in *
     ; repeat destruct (get_otype_from_wint _); cbn in *
-    ; repeat destruct (get_wcap_scap _); cbn in *.
+    ; repeat destruct (get_wcap_scap _); cbn in *
+    ; repeat (destruct (measure (mem φ) _ _)); cbn in *.
     all: repeat destruct p.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: simplify_eq; try by exfalso.

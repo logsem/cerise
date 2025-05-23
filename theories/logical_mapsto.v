@@ -2054,49 +2054,56 @@ Definition reg_allows_hash (lregs : LReg) (r : RegName) p b e a v :=
 Definition laddr_leb := pair_fst_leb (A:= Addr) (B:= Version) addr_leb.
 Definition lmem_leb := pair_fst_leb (A:= LAddr) (B:= LWord) laddr_leb.
 
-Definition hash_lmemory_region `{MachineParameters} (lm : LMem) (b e : Addr) (v : Version) :=
-  let instructions : list LWord :=
-    snd <$> (merge_sort lmem_leb
-               (map_to_list (filter (fun '(a, _) => (laddr_get_addr a) ∈ (finz.seq_between b e) /\ (laddr_get_version a) = v) lm)))
-  in
-  hash (lword_get_word <$> instructions).
+Definition lmemory_get_instrs (lm : LMem) (la : list Addr) (v : Version) : option (list Word) :=
+  foldr
+    (fun (a : Addr) (opt_instrs_next : option (list Word)) =>
+       instrs_next ← opt_instrs_next ;
+       w ← lm !! (a,v) ;
+       Some ((lword_get_word w)::instrs_next)
+    )
+    (Some [])
+    la.
+
+Definition hash_lmemory_range `{MachineParameters} (lm : LMem) (b e: Addr) (v : Version) : option Z :=
+  instructions ← lmemory_get_instrs lm (finz.seq_between b e) v ;
+  Some (hash instructions).
 
 Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
   forall p b e a v,
   is_cur_word (LCap p b e a v) vmap ->
   state_phys_log_corresponds phr phm lr lm vmap →
-  hash_lmemory_region lm b e v = hash_memory_region phm b e.
+  hash_lmemory_range lm b e v = hash_memory_range phm b e.
 Proof.
   intros p b e a v Hcur_word [ _ (Hcur & Hroot & _) ].
-  unfold hash_lmemory_region, hash_memory_region.
+  unfold hash_lmemory_range, hash_memory_range.
   f_equal.
   rewrite /is_cur_word in Hcur_word.
-  match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flog := f) end.
-  match goal with | _ : _ |- context [ (filter ?f phm) ] => set (Fphy := f) end.
-  generalize dependent lm.
-  generalize dependent vmap.
-  generalize dependent phm.
-  induction phm using map_ind; intros vmap Hcur_word lm Hcur Hroot.
-  - pose proof (map_filter_empty_iff Flog lm) as [_ HFlog].
-    rewrite HFlog.
-    2: { apply map_Forall_lookup_2.
-         intros la lw Hla.
-         subst Fphy; cbn.
-         destruct la as [a' v'].
-         intros [Hcontra _]; simplify_eq.
-         cbn in *.
-         apply Hcur_word in Hcontra.
-         eapply map_Forall_lookup_1 in Hcontra; last eapply Hroot; cbn in Hcontra.
-         destruct Hcontra as (lw' & _ & Hphm & _).
-         set_solver.
-    }
-    rewrite map_filter_empty.
-    rewrite map_to_list_empty.
-    by rewrite !fmap_nil.
-  - rewrite map_filter_insert.
-    destruct (decide (Fphy (i,x))) as [HFphy_true|HFphy_false]
-    ; cbn in *.
-    +
+  (* match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flog := f) end. *)
+  (* match goal with | _ : _ |- context [ (filter ?f phm) ] => set (Fphy := f) end. *)
+  (* generalize dependent lm. *)
+  (* generalize dependent vmap. *)
+  (* generalize dependent phm. *)
+  (* induction phm using map_ind; intros vmap Hcur_word lm Hcur Hroot. *)
+  (* - pose proof (map_filter_empty_iff Flog lm) as [_ HFlog]. *)
+  (*   rewrite HFlog. *)
+  (*   2: { apply map_Forall_lookup_2. *)
+  (*        intros la lw Hla. *)
+  (*        subst Fphy; cbn. *)
+  (*        destruct la as [a' v']. *)
+  (*        intros [Hcontra _]; simplify_eq. *)
+  (*        cbn in *. *)
+  (*        apply Hcur_word in Hcontra. *)
+  (*        eapply map_Forall_lookup_1 in Hcontra; last eapply Hroot; cbn in Hcontra. *)
+  (*        destruct Hcontra as (lw' & _ & Hphm & _). *)
+  (*        set_solver. *)
+  (*   } *)
+  (*   rewrite map_filter_empty. *)
+  (*   rewrite map_to_list_empty. *)
+  (*   by rewrite !fmap_nil. *)
+  (* - rewrite map_filter_insert. *)
+  (*   destruct (decide (Fphy (i,x))) as [HFphy_true|HFphy_false] *)
+  (*   ; cbn in *. *)
+  (*   + *)
       (* setoid_rewrite map_to_list_insert. *)
       (* 2: { apply map_lookup_filter_None_2; by left. } *)
       (* Definition lmem_get_word (lalw : LAddr * LWord) : (LAddr * Word) := (lalw.1 , lword_get_word lalw.2). *)

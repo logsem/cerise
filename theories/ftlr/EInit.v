@@ -17,168 +17,83 @@ Proof.
   by rewrite insert_insert.
 Qed.
 
-Lemma HdRel_zip_fst {A B} (R: A -> A -> bool) (a : A) (b : B) (la : list A) (lb : list B) :
-  HdRel R a la ->
-  (HdRel (pair_fst_leb R) (a,b) (zip la lb)).
+Lemma hash_lmemory_range_delete_notin
+  (lmem : LMem) (l : list Addr) (v : Version) (a : Addr) (lws : list LWord) :
+  a ∉ l ->
+  NoDup l ->
+  length lws = length l ->
+  lmemory_get_instrs (delete (a, v) lmem) l v = lmemory_get_instrs lmem l v.
 Proof.
-  generalize dependent lb.
-  induction la as [|a' la]; intros lb Hsorted ;cbn in *; first done.
-  - destruct lb; first done.
-    apply HdRel_cons.
-    apply HdRel_inv in Hsorted.
-    by rewrite /pair_fst_leb.
+  generalize dependent a.
+  generalize dependent lws.
+  generalize dependent v.
+  generalize dependent lmem.
+  induction l as [|a' l]; intros lmem v lws a Hnotin Hnodup Hlen; first by cbn.
+  destruct lws as [|lw1 lws] ; first (by cbn in Hlen); cbn in Hlen; simplify_eq.
+  apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+  apply not_elem_of_cons in Hnotin as [Ha_neq_a' Hnotin].
+  opose proof (IHl lmem v lws a Hnotin Hnodup Hlen) as IH ; eauto.
+  rewrite /= IH.
+  apply option_bind_ext_fun.
+  intros w.
+  rewrite lookup_delete_ne; first done.
+  intro ; simplify_eq.
 Qed.
 
-Global Instance pair_fst_leb_total {A B} (R : A -> A -> bool) `{HTotal: Total A R} :
-  @Total (A*B) (pair_fst_leb R).
+Lemma hash_lmemory_range_correct_aux
+  (lmem : LMem) (l : list Addr) (v : Version) (lws : list LWord) :
+  NoDup l ->
+  length lws = length l ->
+  list_to_map (zip (logical_region l v) lws) ⊆ lmem ->
+  lmemory_get_instrs lmem l v = Some (lword_get_word <$> lws).
 Proof.
-  intros [a1 b1] [a2 b2].
-  specialize (HTotal a1 a2); cbn in HTotal.
-  by rewrite /pair_fst_leb ; cbn.
-Qed.
-
-Global Instance pair_fst_leb_transitive {A B} (R : A -> A -> bool) `{HTransitive: Transitive A R} :
-  @Transitive (A*B) (pair_fst_leb R).
-Proof.
-  intros [a1 b1] [a2 b2] [a3 b3].
-  specialize (HTransitive a1 a2 a3); cbn in HTransitive.
-  by rewrite /pair_fst_leb ; cbn.
-Qed.
-
-Global Instance pair_fst_leb_antisymm {A B} (R : A -> A -> bool) `{HAntiSymm: AntiSymm A eq R} :
-  @AntiSymm (A*B) eq (pair_fst_leb R).
-Proof.
-  intros [a1 b1] [a2 b2] Hpair12 Hpair23.
-  rewrite /pair_fst_leb /= in Hpair12,Hpair23.
-  specialize (HAntiSymm a1 a2); cbn in HAntiSymm.
-Abort.
-
-Lemma Sorted_sort_zip_fst {A B} (R : A -> A -> bool)
-  `{Htotal: Total A R}
-  `{Htransitive: Transitive A R}
-  `{HAntiSymm: AntiSymm A eq R }
-  (la : list A) (lb : list B) :
-  Sorted R la ->
-  (merge_sort (pair_fst_leb R) (zip la lb)) = (zip la lb).
-Proof.
-  generalize dependent lb.
-  induction la as [|a la]; intros lb Hsorted ;cbn in *; first done.
-  - destruct lb; first done.
-    inversion Hsorted; simplify_eq.
-    eapply (IHla lb) in H1.
-    assert (Sorted (pair_fst_leb R)
-              (
-                merge_sort (λ ab1 ab2 : A * B, pair_fst_leb R ab1 ab2) (zip la lb)
-           )) as Hsorted'.
-    { apply Sorted_merge_sort. apply _. }
-    pose proof Hsorted' as Hsorted''.
-    rewrite H1 in Hsorted'.
-    assert (
-       HdRel (pair_fst_leb R) (a,b) (zip la lb)
-      ) as HdRel'.
-    { admit. }
-    pose proof (Sorted_cons Hsorted' HdRel').
-    assert (
-        Sorted (pair_fst_leb R) ( merge_sort (pair_fst_leb R) ((a, b) :: zip la lb) )
-      ) as Hsorted'''.
-    { apply Sorted_merge_sort. apply _. }
-    eapply Sorted_unique; eauto; try apply _.
-    admit.
-    apply merge_sort_Permutation.
-Admitted.
-
-Lemma Sorted_sort_zip (la : list LAddr) (lw : list LWord) :
-  Sorted laddr_leb la ->
-  (merge_sort lmem_leb (zip la lw)) = (zip la lw).
-Proof.
-  intros Hsorted.
-  apply Sorted_sort_zip_fst; try apply _.
-Admitted.
-
-Lemma finz_seq_between_addr_StronglySorted_aux (a : Addr) (n : nat) :
-  StronglySorted addr_leb (finz.seq_between (a^- (n))%f a).
-Proof.
-  induction n.
-  - rewrite finz_add_0_default.
-    rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
-  - destruct (decide ( (a ^+ - S n)%a < a)%a); cycle 1.
-    + rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
-    + rewrite finz_seq_between_cons; last done.
-    replace ( ((a ^+ - S n) ^+ 1)%a ) with (a ^+ - n)%a; last solve_finz.
-    apply SSorted_cons; auto.
-    apply Forall_forall.
-    intros x Hx.
-    apply elem_of_finz_seq_between in Hx.
-    rewrite /addr_leb.
-    rewrite Is_true_true.
-    apply Z.leb_le.
-    solve_finz.
-Qed.
-
-Lemma finz_seq_between_addr_StronglySorted (b e : Addr) :
-  StronglySorted addr_leb (finz.seq_between b e).
-Proof.
-  destruct (decide (b < e))%a; cycle 1.
-  - rewrite finz_seq_between_empty; last solve_addr; apply SSorted_nil.
-  - assert (∃ n:nat, b = (e ^- n)%f) as [n ->].
-    { admit. }
-    apply finz_seq_between_addr_StronglySorted_aux.
-Admitted.
-Lemma finz_seq_between_laddr_Sorted (la : list Addr) v :
-  Sorted addr_leb la
-  -> Sorted laddr_leb ((λ a : Addr, (a, v)) <$> la).
-Proof.
-  apply Sorted_fmap.
-  intros a1 a2 Ha. rewrite /laddr_leb /pair_fst_leb //=.
-Qed.
-
-Global Instance merge_sort_Permutation_proper
-  {A} (R : relation A) `{Htotal: Total A R}
-  `{Htransitive: Transitive A R}
-  `{ AntiSymm A eq R }
-  `{∀ x y, Decision (R x y)} :
-  Proper (Permutation ==> eq) (merge_sort R).
-Proof.
-  rewrite /Proper /respectful.
-  intros l1 l2 Hp.
-  pose proof (Sorted_merge_sort R l1) as Hsorted1.
-  pose proof (Sorted_merge_sort R l2) as Hsorted2.
-  pose proof (merge_sort_Permutation R l1) as Hsort_l1.
-  pose proof (merge_sort_Permutation R l2) as Hsort_l2.
-  assert ( merge_sort R l1 ≡ₚ merge_sort R l2 ) as Hp'.
-  { eapply Permutation_trans; eauto.
-    eapply Permutation_trans; eauto.
+  generalize dependent lws.
+  generalize dependent v.
+  generalize dependent lmem.
+  induction l; intros lmem v lws Hnodup Hlen Hsubset.
+  + apply nil_length_inv in Hlen; simplify_eq.
+    by rewrite fmap_nil.
+  + destruct lws as [|lw1 lws] ; first (by cbn in Hlen).
+    apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+    cbn in Hlen ; simplify_eq.
+    cbn in Hsubset.
+    apply insert_weaken in Hsubset as Ha_lmem.
+    rewrite fmap_cons.
+    rewrite /lmemory_get_instrs.
+    apply insert_delete_subseteq in Hsubset.
+    2: { rewrite -not_elem_of_list_to_map.
+         intro Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as ([x vx] & Hx & Hcontra)
+         ; cbn in Hx ; simplify_eq.
+         apply elem_of_zip_l in Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as (y & Hy & Hcontra)
+         ; cbn in Hy ; simplify_eq.
+         set_solver.
+    }
+    rewrite -/(logical_region l v) in Hsubset.
+    opose proof (IHl (delete (a, v) lmem) v lws Hnodup Hlen _) as IH ; eauto.
+    erewrite hash_lmemory_range_delete_notin in IH; eauto.
+    rewrite /= -/(lmemory_get_instrs lmem l v) IH /= Ha_lmem /=.
     done.
-  }
-  eapply Sorted_unique in Hp'; eauto.
 Qed.
 
-Global Instance lmem_leb_total : Total lmem_leb.
+Lemma hash_lmemory_range_correct `{MP: MachineParameters} (lmem : LMem) (b e : Addr) (v : Version) (lws : list LWord) (eid : Z) :
+  length lws = length (finz.seq_between b e) ->
+  logical_range_map b e lws v ⊆ lmem ->
+  hash_lmemory_range lmem b e v = Some eid ->
+  eid = hash (lword_get_word <$> lws).
 Proof.
-  intros aw1 aw2.
-Admitted.
-
-Global Instance lmem_leb_transitive : Transitive lmem_leb.
-Proof.
-  intros aw1 aw2 aw3 H12 H13.
-  rewrite /lmem_leb /laddr_leb /= in H12,H13 |- *.
-  cbn in *.
-  rewrite /pair_fst_leb /addr_leb in H12,H13 |- *.
-  destruct aw1 as [ [] ]
-  ; destruct aw2 as [ [] ]
-  ; destruct aw3 as [ [] ]
-  ; cbn in *.
-  rewrite !Is_true_true in H12,H13 |- *.
-  rewrite !Z.leb_le in H12,H13 |- *.
-  lia.
+  intros Hlen Hlmem Hhash.
+  rewrite /logical_range_map in Hlmem.
+  rewrite /hash_lmemory_range in Hhash.
+  rewrite bind_Some in Hhash.
+  destruct Hhash as (instrs & Hinstrs & ?); simplify_eq.
+  erewrite (hash_lmemory_range_correct_aux) in Hinstrs
+  ; eauto; simplify_eq; first done.
+  apply finz_seq_between_NoDup.
 Qed.
-
-(* Problem: this is not antisymm *)
-Global Instance lmem_leb_AntiSymm : AntiSymm eq lmem_leb.
-Proof.
-  intros aw1 aw2.
-Admitted.
-
 
 Lemma word_to_lword_get_word_int (w : LWord) (v : Version) :
   is_zL w ->
@@ -364,6 +279,46 @@ Section fundamental.
     set_solver.
   Qed.
 
+  (* TODO generalise *)
+  Lemma map_Forall_all_P (w : LWord) (la : list Addr) (lws : list LWord) (v : Version)
+    (P : LWord -> Prop) :
+    NoDup la ->
+    length lws = length la ->
+    w ∈ lws ->
+    map_Forall
+      (λ (a : LAddr) (lw : LWord), laddr_get_addr a ∈ la → P lw)
+      (logical_region_map la lws v)
+    -> P w.
+  Proof.
+    generalize dependent lws.
+    generalize dependent w.
+    induction la as [|a la]; intros w lws Hnodup Hlen Hw Hall_z.
+    - destruct lws ; set_solver.
+    - destruct lws as [|w1 lws] ; first set_solver.
+      cbn in Hlen ; simplify_eq.
+      apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+      cbn in Hall_z.
+      apply map_Forall_insert in Hall_z as [Hladdr Hall_z].
+      2: { rewrite -not_elem_of_list_to_map.
+           intro Hcontra.
+           rewrite elem_of_list_fmap in Hcontra.
+           destruct Hcontra as ([x vx] & Hx & Hcontra)
+           ; cbn in Hx ; simplify_eq.
+           apply elem_of_zip_l in Hcontra.
+           rewrite elem_of_list_fmap in Hcontra.
+           destruct Hcontra as (y & Hy & Hcontra)
+           ; cbn in Hy ; simplify_eq.
+           set_solver.
+      }
+      apply elem_of_cons in Hw as [-> | Hw].
+      * apply Hladdr; set_solver.
+      * eapply IHla; eauto.
+        eapply map_Forall_impl; eauto.
+        intros [y vy] wy IH Hy; cbn in *.
+        apply IH.
+        set_solver.
+  Qed.
+
   Set Nested Proofs Allowed.
 
   Lemma einit_case (lregs : leibnizO LReg)
@@ -412,16 +367,13 @@ Section fundamental.
     }
     name_current_mask mask_init.
 
-
-    (* rewrite /custom_enclave_inv. *)
-    (* iInv (custom_enclaveN) as "Hsystem" "Hsystem_cls". *)
-    (* iDestruct "Hsystem" as (ecn otn) "(>HEC & >%Hot & Hseal_alloc & Hseal_free & Hcontract)". *)
-      (* iHide "Hsystem_cls" as hsystem_cls. *)
+    destruct (decide (PC = rdata)) as [?|Hrdata_neq_pc]; simplify_map_eq.
+    { (* the opsem will fail, because rdata is supposed to contain RW capability *)
+      admit. }
 
     destruct (decide (PC = rcode)) as [?|Hrcode_neq_pc]; simplify_map_eq.
-    { admit. }
-    destruct (decide (PC = rdata)) as [?|Hrdata_neq_pc]; simplify_map_eq.
-    { admit. }
+    { (* TODO the other difficult part of the proof  *)
+      admit. }
 
     - pose proof (Hsome rcode) as [wcode Hlregs_rcode].
       rewrite /read_reg_inr in HVrcode; simplify_map_eq.
@@ -464,8 +416,8 @@ Section fundamental.
         iDestruct "Hspec" as "[Hspec | Hspec]".
         (* Contradiction *)
         + iDestruct "Hspec"
-            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-                 "(%Htidx_next & %Htidx & %Htidx_even & %Heid & %Hot & %Hrcode & %Hrdata
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
@@ -505,8 +457,8 @@ Section fundamental.
         iDestruct "Hspec" as "[Hspec | Hspec]".
         (* Contradiction *)
         + iDestruct "Hspec"
-            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-                 "(%Htidx_next & %Htidx & %Htidx_even & %Heid & %Hot & %Hrcode & %Hrdata
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
@@ -545,8 +497,8 @@ Section fundamental.
         iDestruct "Hspec" as "[Hspec | Hspec]".
         (* Contradiction *)
         + iDestruct "Hspec"
-            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-                 "(%Htidx_next & %Htidx & %Htidx_even & %Heid & %Hot & %Hrcode & %Hrdata
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
@@ -586,8 +538,8 @@ Section fundamental.
         iDestruct "Hspec" as "[Hspec | Hspec]".
         (* Contradiction *)
         + iDestruct "Hspec"
-            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-                 "(%Htidx_next & %Htidx & %Htidx_even & %Heid & %Hot & %Hrcode & %Hrdata
+            as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+                 "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
@@ -717,14 +669,26 @@ Section fundamental.
 
 
       destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
-      { (* The opsem expect to be able to allocate the 2 next otypes *)
-        (* opsem will fail *)
+      { (* opsem will fail *)
         admit.
       }
 
       destruct (decide (is_Some (a_pc + 1)%a)) as [Hpca_next | Hpca_next]; cycle 1.
       { (* The opsem expect to be able to allocate the 2 next otypes *)
         (* opsem will fail *)
+        admit.
+      }
+
+      destruct (hash_lmemory_range
+                      (<[(a_pc, v_pc):=lw_pc]>
+                           (logical_region_map
+                              (b_code :: finz.seq_between (b_code ^+ 1)%a e_code)
+                              (lws_code1 :: lws_code) v_code
+                            ∪ logical_region_map
+                                (b_data :: finz.seq_between (b_data ^+ 1)%a e_data)
+                                (lws_data1 :: lws_data) v_data)) (b_code ^+ 1)%a e_code v_code
+               ) as [|] eqn:Hhash_instrs; cycle 1.
+      { (* opsem will fail *)
         admit.
       }
 
@@ -746,6 +710,7 @@ Section fundamental.
           as [ wcode Hrcode Hwcode
              | p b e a v Hrcode Hrx
              | p b e a v Hrcode Hbe
+             | p b e a v Hrcode Hbe Hhash
              | wdata Hrdata Hwdata
              | p b e a v Hrdata Hrx
              | p b e a v Hrdata Hbe
@@ -755,6 +720,8 @@ Section fundamental.
         - rewrite lookup_insert_ne // Hlregs_rcode in Hrcode; simplify_eq.
         - rewrite lookup_insert_ne // Hlregs_rcode in Hrcode; simplify_eq.
         - rewrite lookup_insert_ne // Hlregs_rcode in Hrcode; simplify_eq.
+        - rewrite lookup_insert_ne // Hlregs_rcode in Hrcode; simplify_eq.
+          rewrite Hhash in Hhash_instrs; simplify_eq.
         - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
         - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
         - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
@@ -763,11 +730,11 @@ Section fundamental.
         - opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
           by rewrite Hot in Hot_ec2.
       }
-      clear Hpca_next.
+      clear Hpca_next Hhash_instrs.
 
       iDestruct "Hspec"
-        as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v eid)
-             "(%Htidx_next & %Htidx & %Htidx_even & %Heid & %Hot & %Hrcode & %Hrdata
+        as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+             "(%Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot & %Hrcode & %Hrdata
           & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
           & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
           & %Hincr & -> & Henclave_live & #Henclave_all)".
@@ -1143,6 +1110,23 @@ Section fundamental.
           apply H in Hwf_map; eauto; cbn in *.
         }
 
+        apply hash_lmemory_range_correct with (lws:= lws_code) in Hhash_instrs as ->; auto; cycle 1.
+        { apply insert_subseteq_r.
+          + apply logical_range_notin; eauto.
+            clear -Hcode_apc_disjoint Hb_code.
+            apply not_elem_of_finz_seq_between in Hcode_apc_disjoint.
+            apply not_elem_of_finz_seq_between.
+            solve_addr.
+          + apply map_subseteq_trans with
+              (m2 := logical_region_map (b_code :: finz.seq_between (b_code ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code)
+              ; last eapply map_union_subseteq_l.
+            rewrite /logical_range_map /logical_region_map /=.
+            apply insert_subseteq_r; last done.
+            rewrite -/(logical_range_map (b_code ^+ 1)%a e_code lws_code v_code).
+            apply logical_range_notin; auto.
+            apply not_elem_of_finz_seq_between; solve_addr.
+        }
+
         iMod ("Hcontract'" with
                "[] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata]")
           as "#Hinterp_enclave"
@@ -1163,144 +1147,54 @@ Section fundamental.
           destruct HI_ECn_eq as [-> ?]; simplify_eq.
           done.
         }
-        { iPureIntro.
-          clear -HI_ECn_eq Hb_code Hlen_lws_code.
-          subst I_ECn.
-          apply hash_concat_inj' in HI_ECn_eq.
-          destruct HI_ECn_eq as [-> ?]; simplify_eq.
-          rewrite map_length.
-          setoid_rewrite merge_sort_Permutation.
-          rewrite map_length.
-          rewrite map_to_list_length.
-
-          rewrite map_filter_insert_False.
-          2: admit.
-          rewrite map_filter_delete.
-          rewrite map_size_delete.
-          replace (
-              filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
-                (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code
-                   ∪ logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data) !! (
-                  a_pc', v_pc')
-            ) with (None : option LWord).
-          2: admit.
-          simpl.
-          replace
-            (
-              (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
-                 (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code
-                    ∪ logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data))
-            )
-            with
-            (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code v_code).
-          { rewrite map_size_list_to_map.
-            2: admit.
-            rewrite length_zip_l.
-            2: admit.
-            rewrite map_length.
-            rewrite finz_seq_between_length.
-            pose proof (finz_incr_iff_dist Hcus_enclave_addr e_code
-                          (finz.dist Hcus_enclave_addr e_code))
-              as [_ ?].
-            replace
-              (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1))%a
-              with (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1)%nat)%a; last solve_addr.
-            rewrite Z.add_1_r.
-            replace (Hcus_enclave_addr + Z.succ (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code))%a
-              with (Hcus_enclave_addr + (S (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code)))%a
-            ; last solve_addr.
-            rewrite -finz_dist_S; last solve_addr.
-            apply H; solve_addr.
-          }
-          rewrite map_filter_union; cycle 1.
-          { rewrite /logical_region_map.
-            (* eapply map_disjoint_list_to_map_zip_l; first admit. *)
-            (* rewrite Forall_forall *)
-            admit.
-          }
-          replace (
-              filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
-                (logical_region_map (Hcus_enclave_addr :: finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code)
-            ) with (logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code v_code).
-          2: {
-            rewrite /logical_region_map.
-            rewrite !/logical_region.
-            rewrite fmap_cons.
-            simpl zip at 1.
-            simpl list_to_map at 1.
-            rewrite map_filter_insert_False.
-            2: admit.
-            rewrite map_filter_delete.
-            rewrite delete_notin.
-            2: admit.
-            rewrite map_filter_id; first done.
-            intros [a v] w Ha.
-            apply elem_of_list_to_map in Ha; last admit.
-            apply elem_of_zip_l in Ha.
-            rewrite elem_of_list_fmap in Ha.
-            destruct Ha as (? & -> & ?); auto.
-          }
-          replace (
-              filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
-                (logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data)
-            ) with (∅ : LMem).
-          2: { symmetry.
-               apply map_filter_empty_iff.
-               admit.
-          }
-          by rewrite map_union_empty.
-        }
         {
-          (* TODO how to prove this? *)
-          replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws_code
-          ; first iFrame "∗#".
-          (* clear -HI_ECn_eq. *)
+          iPureIntro.
+          clear -HI_ECn_eq Hlen_lws_code Hb_code.
           subst I_ECn.
           apply hash_concat_inj' in HI_ECn_eq.
           destruct HI_ECn_eq as [-> ?]; simplify_eq.
           cbn.
-
-          replace (
-              (filter (λ '(a, _), laddr_get_addr a ∈ finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code ∧ laddr_get_version a = v_code)
-                 (<[(a_pc', v_pc'):=lw_pc]>
-                    (<[(Hcus_enclave_addr, v_code):=lws_code1]>
-                       (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code) lws_code))
-                         ∪ <[(b_data, v_data):=lws_data1]>
-                       (list_to_map (zip ((λ a : Addr, (a, v_data)) <$> finz.seq_between (b_data ^+ 1)%a e_data) lws_data)))))
-            )
-            with
-            (
-              (list_to_map (zip ((λ a : Addr, (a, v_code)) <$> finz.seq_between
-                                   (Hcus_enclave_addr ^+ 1)%a e_code) lws_code)) : gmap LAddr LWord
-            ).
-          2: { admit. }
-
-          (* problem: it won't work because the order is not antisymm *)
-          erewrite merge_sort_Permutation_proper; last apply map_to_list_to_map; try apply _.
-          2:{ admit. }
-
-          rewrite Sorted_sort_zip.
-          2: {
-            apply finz_seq_between_laddr_Sorted.
-            apply StronglySorted_Sorted.
-            apply finz_seq_between_addr_StronglySorted.
-          }
-          rewrite snd_zip.
-          2: { admit. }
+          rewrite map_length.
+          rewrite Hlen_lws_code.
+          rewrite finz_seq_between_length.
+          pose proof (finz_incr_iff_dist Hcus_enclave_addr e_code
+                        (finz.dist Hcus_enclave_addr e_code))
+            as [_ ?].
+          replace
+            (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1))%a
+            with (Hcus_enclave_addr + (finz.dist Hcus_enclave_addr e_code + 1)%nat)%a; last solve_addr.
+          rewrite Z.add_1_r.
+          replace (Hcus_enclave_addr + Z.succ (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code))%a
+            with (Hcus_enclave_addr + (S (finz.dist (Hcus_enclave_addr ^+ 1)%a e_code)))%a
+          ; last solve_addr.
+          rewrite -finz_dist_S; last solve_addr.
+          apply H; solve_addr.
+        }
+        {
+          replace ((λ w : Word, word_to_lword w (v_code + 1)) <$> code new_enclave) with lws_code
+          ; first iFrame "∗#".
+          subst I_ECn.
+          apply hash_concat_inj' in HI_ECn_eq.
+          destruct HI_ECn_eq as [-> ?]; simplify_eq.
           rewrite -list_fmap_compose.
           rewrite (Forall_fmap_ext_1 _ id); first by rewrite list_fmap_id.
           rewrite Forall_forall.
           intros w Hw; cbn.
 
+
           apply word_to_lword_get_word_int.
+
           apply map_Forall_insert_1_2 in Hcode_z.
           2: { admit. }
           apply map_Forall_union in Hcode_z.
           2: { admit. }
           destruct Hcode_z as [Hcode_z _].
-          clear -Hcode_z Hw.
-          (* Should be fine from Hcode_z *)
-          admit.
+          cbn in Hcode_z.
+          rewrite -/(logical_region_map (finz.seq_between (Hcus_enclave_addr ^+ 1)%a e_code)
+                          lws_code v_code) in Hcode_z.
+          apply map_Forall_insert_1_2 in Hcode_z.
+          2: { admit. }
+          eapply (map_Forall_all_P _ _ lws_code); eauto.
         }
 
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_".
