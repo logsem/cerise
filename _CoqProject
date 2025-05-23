@@ -142,7 +142,9 @@ theories/examples/macros_new.v
 theories/examples/enclaves/trusted_compute.v
 
 # Trusted Memory Readout example
-theories/examples/enclaves/trusted_memory_readout.v
+theories/examples/enclaves/trusted_memory_readout_code.v
+theories/examples/enclaves/trusted_memory_readout_enclaves_spec.v
+theories/examples/enclaves/trusted_memory_readout_sensor_spec.v
 
 # Mutual attestation example
 theories/examples/enclaves/mutual_attestation_code.v
