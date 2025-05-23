@@ -976,6 +976,10 @@ Section fundamental.
       rewrite (finz_seq_between_cons b_data) //.
       rewrite (finz_seq_between_cons b_data) // in Hlen_lws_data.
       destruct lws_data as [|lws_data1 lws_data]; first (by cbn in Hlen_lws_data).
+      assert (length (lws_code1 :: lws_code) = length (finz.seq_between b_code e_code))
+        as Hlen_lws_code' by (rewrite finz_seq_between_cons //).
+      assert (length (lws_data1 :: lws_data) = length (finz.seq_between b_data e_data))
+        as Hlen_lws_data' by (rewrite finz_seq_between_cons //).
 
       destruct (hash_lmemory_range
                       (<[(a_pc, v_pc):=lw_pc]>
@@ -1207,12 +1211,11 @@ Section fundamental.
       {
         subst lmem'.
         eapply insert_subseteq_r.
-        { eapply logical_range_notin.
-          + admit. (* easy *)
-          + admit. (* easy *)
+        { eapply logical_range_notin; auto.
+          admit. (* easy *)
         }
         eapply insert_subseteq_r.
-        { eapply logical_range_version_neq; last lia. admit. (* easy *) }
+        { eapply logical_range_version_neq; auto; lia. }
         done.
       }
       assert ( logical_range_map b_code e_code (lws_code1::lws_code) v_code ⊆ lmem0 )
@@ -1220,8 +1223,7 @@ Section fundamental.
       {
         subst lmem0.
         eapply delete_subseteq_r; last done.
-        apply logical_range_notin; last done.
-        admit. (* easy *)
+        apply logical_range_notin; auto; done.
       }
       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode_prev Hmem]"
       ; first (eapply Hmem0_code).
@@ -1236,7 +1238,10 @@ Section fundamental.
         (logical_range_map b_code e_code (lws_code1::lws_code) (v_code + 1) ⊆ lmem'')
         as Hmem''_code_next.
       {
-        clear -Hvalid_update_code Hlen_lws_code Hlen_lws_data Hcode_apc_disjoint
+        clear -Hvalid_update_code
+                 Hlen_lws_code Hlen_lws_data
+                 Hlen_lws_code' Hlen_lws_data'
+                 Hcode_apc_disjoint
                  Hdata_apc_disjoint Hcode_data_disjoint
                  Hb_code Hb_data.
         eapply map_subseteq_spec; intros [a' v'] lw' Hlw'.
@@ -1257,13 +1262,12 @@ Section fundamental.
               logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data !! (a', v_code)
             ) with (None : option LWord).
           2:{ symmetry; apply logical_region_notin; auto.
-              + admit. (* easy *)
+              + cbn; f_equal; done.
               + admit. (* easy *)
           }
           rewrite option_union_right_id.
           rewrite -finz_seq_between_cons //.
           rewrite (logical_region_map_lookup_versions _ _ _ v_code) in Hlw'; eauto.
-          admit. (* easy *)
         + rewrite lookup_insert_ne //=; last (intro ; set_solver).
           rewrite lookup_union.
           rewrite (logical_region_notin _ _ v_data); auto; cycle 1.
@@ -1275,7 +1279,6 @@ Section fundamental.
           rewrite option_union_right_id.
           rewrite -finz_seq_between_cons //=.
           eapply logical_range_version_neq; eauto; last lia.
-          rewrite finz_seq_between_cons //=; cbn ; by f_equal.
       }
       assert
         (logical_range_map b_code e_code (LCap RW b_data e_data a_data (v_data + 1)::lws_code) (v_code + 1) ⊆ lmem')
@@ -1286,8 +1289,8 @@ Section fundamental.
                  Hb_code Hb_data Hmem''_code_next.
         subst lmem'.
         eapply insert_subseteq_r.
-        { eapply logical_range_notin.
-          + admit. (* easy *)
+        { eapply logical_range_notin; auto.
+          + rewrite finz_seq_between_cons //; cbn; f_equal; done.
           + admit. (* easy *)
         }
         rewrite -(logical_range_map_insert _ _ _ lws_code1); auto.
@@ -1298,8 +1301,7 @@ Section fundamental.
       {
         subst lmem0.
         eapply delete_subseteq_r; last done.
-        apply logical_range_notin; last done.
-        admit. (* easy *)
+        apply logical_range_notin; auto; done.
       }
       assert ( logical_range_map b_code e_code (LCap RW b_data e_data a_data (v_data + 1)::lws_code) (v_code + 1) ⊆ lmem1 )
         as Hmem1_code_next.
@@ -1308,7 +1310,7 @@ Section fundamental.
         eapply (delete_subseteq_list_r); eauto.
         rewrite /logical_range_map.
         apply map_disjoint_list_to_map_zip_l.
-        { admit. (* easy *) }
+        { rewrite logical_region_length finz_seq_between_cons; cbn ; f_equal; done. }
         apply Forall_forall.
         intros y Hy.
         apply not_elem_of_list_to_map.
@@ -1350,16 +1352,17 @@ Section fundamental.
         + rewrite -!finz_seq_between_cons //=.
           eapply map_union_subseteq_r.
           apply logical_region_map_disjoint; auto.
-          by rewrite finz_seq_between_cons //=; cbn ; f_equal.
       }
       assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem' )
         as Hmem'_data.
       {
         subst lmem'.
         eapply insert_subseteq_r.
-        { eapply logical_range_version_neq; last lia. admit. (* easy *) }
+        { eapply logical_range_version_neq; auto; lia. }
         eapply insert_subseteq_r.
-        { eapply logical_range_notin; admit. (* easy *) }
+        { eapply logical_range_notin; auto.
+          admit. (* easy *)
+        }
         done.
       }
       assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem0 )
@@ -1367,8 +1370,7 @@ Section fundamental.
       {
         subst lmem0.
         eapply delete_subseteq_r; last done.
-        apply logical_range_notin; last done.
-        admit. (* easy *)
+        apply logical_range_notin; auto; done.
       }
       assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem1 )
         as Hmem1_data.
@@ -1439,8 +1441,8 @@ Section fundamental.
         }
 
         eapply insert_subseteq_r.
-        { eapply logical_range_notin.
-          + admit. (* easy *)
+        { eapply logical_range_notin; auto.
+          + rewrite finz_seq_between_cons //; cbn; f_equal; done.
           + admit. (* easy *)
         }
         rewrite -(logical_range_map_insert _ _ _ lws_data1); auto.
@@ -1451,8 +1453,7 @@ Section fundamental.
       {
         subst lmem0.
         eapply delete_subseteq_r; last done.
-        apply logical_range_notin; last done.
-        admit. (* easy *)
+        apply logical_range_notin; auto; done.
       }
       assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem1 )
         as Hmem1_data_next.
@@ -1505,12 +1506,10 @@ Section fundamental.
 
         iDestruct ( big_sepM_to_big_sepL2 with "Hcode" ) as "Hcode".
         { apply logical_region_NoDup, finz_seq_between_NoDup. }
-        { rewrite logical_region_length.
-          admit. (* easy *) }
+        { rewrite logical_region_length; auto. }
         iDestruct ( big_sepM_to_big_sepL2 with "Hdata" ) as "Hdata".
         { apply logical_region_NoDup, finz_seq_between_NoDup. }
-        { rewrite logical_region_length.
-          admit. (* easy *) }
+        { rewrite logical_region_length; auto. }
 
         assert (I_ECn = hash_concat (hash Hcus_enclave_addr) (hash Hcus_enclave_code)) as
           HI_ECn_eq.
