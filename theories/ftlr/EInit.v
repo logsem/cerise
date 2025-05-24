@@ -161,6 +161,16 @@ Proof.
   destruct ((b <? b')%a) eqn:Hbb'; solve_finz.
 Qed.
 
+Lemma list_remove_elem_ne {A} `{EqDecision A} (a a' : A) (la : list A):
+  a ∈ list_remove_elem a' la ->
+  a ∈ la.
+Proof.
+  intros ?.
+  eapply elem_of_submseteq; eauto.
+  apply list_remove_elem_submsteq.
+Qed.
+
+
 Lemma logical_region_NoDup (la : list Addr) (v : Version) :
   NoDup la -> NoDup (logical_region la v).
 Proof.
@@ -174,6 +184,56 @@ Lemma logical_region_length (la : list Addr) (v : Version) :
   length (logical_region la v) = length la.
 Proof. by rewrite map_length. Qed.
 
+Lemma logical_range_map_disjoint
+  (b e : Addr) (lws : list LWord) (v : Version)
+  (b' e' : Addr) (lws' : list LWord) (v' : Version) :
+  length (finz.seq_between b e) = length lws ->
+  finz.seq_between b e ## finz.seq_between b' e' ->
+  logical_range_map b e lws v ##ₘ logical_range_map b' e' lws' v'.
+Proof.
+  intros Hlen Hdis.
+  rewrite /logical_range_map.
+  apply map_disjoint_list_to_map_zip_l.
+  { rewrite logical_region_length; cbn ; f_equal; done. }
+  apply Forall_forall.
+  intros y Hy.
+  apply not_elem_of_list_to_map.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
+  eapply elem_of_zip_l in Hcontra.
+  rewrite /logical_region in Hy, Hcontra.
+  rewrite !elem_of_list_fmap in Hy,Hcontra.
+  destruct Hy as (? & ? & Hy); simplify_eq.
+  destruct Hcontra as (? & ? & Hy'); simplify_eq.
+  cbn in H; simplify_eq.
+  set_solver.
+Qed.
+
+Lemma logical_range_map_disjoint_version
+  (b e b' e' : Addr) (lws lws' : list LWord) (v v' : Version) :
+  length (finz.seq_between b e) = length lws ->
+  v ≠ v' ->
+  logical_range_map b e lws v ##ₘ logical_range_map b' e' lws' v'.
+Proof.
+  intros Hlen Hneq.
+  rewrite /logical_range_map.
+  apply map_disjoint_list_to_map_zip_l.
+  { rewrite logical_region_length; cbn ; f_equal; done. }
+  apply Forall_forall.
+  intros y Hy.
+  apply not_elem_of_list_to_map.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
+  eapply elem_of_zip_l in Hcontra.
+  rewrite /logical_region in Hy, Hcontra.
+  rewrite !elem_of_list_fmap in Hy,Hcontra.
+  destruct Hy as (? & ? & _); simplify_eq.
+  destruct Hcontra as (? & ? & _); simplify_eq.
+  cbn in H; simplify_eq.
+Qed.
+
 Lemma overlap_word_disjoint p b e a p' b' e' a' :
   ¬ overlap_word (WCap p b e a) (WCap p' b' e' a')
   -> finz.seq_between b e ## finz.seq_between b' e'.
@@ -186,6 +246,133 @@ Proof.
   cbn.
   destruct (b <? b')%a eqn:Hb; solve_addr.
 Qed.
+
+Global Instance elem_of_dec `{EqDecision A} (a : A) (l : list A) : Decision (a ∈ l).
+Proof.
+  induction l; cbn.
+  - right. apply not_elem_of_nil.
+  - destruct (decide (a = a0)); subst.
+    + left; set_solver.
+    + destruct IHl.
+      * left; set_solver.
+      * right; set_solver.
+Qed.
+
+Global Instance disjoint_dec `{EqDecision A} (l1 l2 : list A) : Decision (l1 ## l2).
+Proof.
+  induction l1; cbn.
+  - left; set_solver.
+  - destruct (decide (a ∈ l2)).
+    + right; set_solver.
+    + destruct IHl1.
+      * left; set_solver.
+      * right; set_solver.
+Qed.
+
+Lemma compute_mask_disjoint_namespace (E : coPset) (N : namespace) (ls : gset LAddr) :
+  disjoint (A:= coPset) (↑N) (↑logN) ->
+  ↑N ⊆ E ->
+  ↑N ⊆ compute_mask E ls.
+Proof.
+  rewrite /compute_mask.
+  revert E.
+  induction ls using set_ind_L; intros E HN HNE.
+  { set_solver. }
+  rewrite set_fold_disj_union_strong; [|set_solver..].
+  rewrite set_fold_singleton.
+  apply IHls; [done|].
+  eapply namespaces.coPset_subseteq_difference_r; auto.
+  by apply ndot_preserve_disjoint_r.
+Qed.
+
+Lemma is_valid_updated_lmemory_lmem_subset
+  (glmem llmem llmem' llmem'' : LMem) (la : list Addr) (v : Version) :
+  llmem ⊆ llmem' ->
+  is_valid_updated_lmemory glmem llmem' la v llmem'' ->
+  is_valid_updated_lmemory glmem llmem la v llmem''.
+Proof.
+  move: glmem llmem llmem' v.
+  induction la as [|a la IHla]
+  ; intros * Hsubset (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated)
+  ; first (cbn in * ; eauto).
+  - rewrite /is_valid_updated_lmemory.
+    repeat split; eauto; cbn; eapply map_subseteq_trans; eauto.
+  - destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
+    rewrite /is_valid_updated_lmemory.
+    repeat split; eauto.
+    + eapply update_version_region_mono in Hsubset; eauto.
+      eapply map_subseteq_trans; eauto.
+    + eapply map_subseteq_trans; eauto.
+    + rewrite Forall_cons; split; first eapply lookup_weaken_None; eauto.
+      rewrite !Forall_forall in HmaxMem |- *.
+      intros a' Ha'. apply HmaxMem in Ha'.
+      eapply lookup_weaken_None; eauto.
+Qed.
+
+Lemma logical_region_map_disjoint
+  (la1 la2 : list Addr) (lw1 lw2 : list LWord) (v1 v2 : Version) :
+  la1 ## la2 ->
+  length la1 = length lw1 ->
+  logical_region_map la1 lw1 v1 ##ₘ logical_region_map la2 lw2 v2.
+Proof.
+  intros Hdis Hlen.
+  rewrite /logical_region_map.
+  eapply map_disjoint_list_to_map_zip_l ; first by rewrite map_length.
+  rewrite Forall_forall.
+  intros a Ha.
+  apply elem_of_list_fmap in Ha.
+  destruct Ha as (x & -> & Hx).
+  apply not_elem_of_list_to_map_1.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ( [y vy] & ? & Hy); simplify_eq.
+  cbn in *.
+  apply elem_of_zip_l in Hy.
+  apply elem_of_list_fmap in Hy.
+  destruct Hy as (y' & -> & Hy').
+  set_solver.
+Qed.
+
+(* TODO generalise *)
+Lemma map_Forall_all_P (w : LWord) (la : list Addr) (lws : list LWord) (v : Version)
+  (P : LWord -> Prop) :
+  NoDup la ->
+  length lws = length la ->
+  w ∈ lws ->
+  map_Forall
+    (λ (a : LAddr) (lw : LWord), laddr_get_addr a ∈ la → P lw)
+    (logical_region_map la lws v)
+  -> P w.
+Proof.
+  generalize dependent lws.
+  generalize dependent w.
+  induction la as [|a la]; intros w lws Hnodup Hlen Hw Hall_z.
+  - destruct lws ; set_solver.
+  - destruct lws as [|w1 lws] ; first set_solver.
+    cbn in Hlen ; simplify_eq.
+    apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+    cbn in Hall_z.
+    apply map_Forall_insert in Hall_z as [Hladdr Hall_z].
+    2: { rewrite -not_elem_of_list_to_map.
+         intro Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as ([x vx] & Hx & Hcontra)
+         ; cbn in Hx ; simplify_eq.
+         apply elem_of_zip_l in Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as (y & Hy & Hcontra)
+         ; cbn in Hy ; simplify_eq.
+         set_solver.
+    }
+    apply elem_of_cons in Hw as [-> | Hw].
+    * apply Hladdr; set_solver.
+    * eapply IHla; eauto.
+      eapply map_Forall_impl; eauto.
+      intros [y vy] wy IH Hy; cbn in *.
+      apply IH.
+      set_solver.
+Qed.
+
 
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
@@ -218,44 +405,6 @@ Section fundamental.
     end.
 
   (* TODO move *)
-  Global Instance elem_of_dec `{EqDecision A} (a : A) (l : list A) : Decision (a ∈ l).
-  Proof.
-    induction l; cbn.
-    - right. apply not_elem_of_nil.
-    - destruct (decide (a = a0)); subst.
-      + left; set_solver.
-      + destruct IHl.
-        * left; set_solver.
-        * right; set_solver.
-  Qed.
-
-  Global Instance disjoint_dec `{EqDecision A} (l1 l2 : list A) : Decision (l1 ## l2).
-  Proof.
-    induction l1; cbn.
-    - left; set_solver.
-    - destruct (decide (a ∈ l2)).
-      + right; set_solver.
-      + destruct IHl1.
-        * left; set_solver.
-        * right; set_solver.
-  Qed.
-
-  Lemma compute_mask_disjoint_namespace (E : coPset) (N : namespace) (ls : gset LAddr) :
-    disjoint (A:= coPset) (↑N) (↑logN) ->
-    ↑N ⊆ E ->
-    ↑N ⊆ compute_mask E ls.
-  Proof.
-    rewrite /compute_mask.
-    revert E.
-    induction ls using set_ind_L; intros E HN HNE.
-    { set_solver. }
-    rewrite set_fold_disj_union_strong; [|set_solver..].
-    rewrite set_fold_singleton.
-    apply IHls; [done|].
-    eapply namespaces.coPset_subseteq_difference_r; auto.
-    by apply ndot_preserve_disjoint_r.
-  Qed.
-
   Lemma compute_mask_difference_namespace (E : coPset) (la : gset LAddr) (N : namespace) :
     disjoint (A:= coPset) (↑N) (↑logN) ->
     ↑N ⊆ E ->
@@ -269,94 +418,6 @@ Section fundamental.
     rewrite IHla; eauto; last solve_ndisj.
     rewrite !difference_difference_l_L.
     by rewrite union_comm_L.
-  Qed.
-
-  Lemma is_valid_updated_lmemory_lmem_subset
-    (glmem llmem llmem' llmem'' : LMem) (la : list Addr) (v : Version) :
-    llmem ⊆ llmem' ->
-    is_valid_updated_lmemory glmem llmem' la v llmem'' ->
-    is_valid_updated_lmemory glmem llmem la v llmem''.
-  Proof.
-    move: glmem llmem llmem' v.
-    induction la as [|a la IHla]
-    ; intros * Hsubset (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated)
-    ; first (cbn in * ; eauto).
-    - rewrite /is_valid_updated_lmemory.
-      repeat split; eauto; cbn; eapply map_subseteq_trans; eauto.
-    - destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
-      rewrite /is_valid_updated_lmemory.
-      repeat split; eauto.
-      + eapply update_version_region_mono in Hsubset; eauto.
-        eapply map_subseteq_trans; eauto.
-      + eapply map_subseteq_trans; eauto.
-      + rewrite Forall_cons; split; first eapply lookup_weaken_None; eauto.
-        rewrite !Forall_forall in HmaxMem |- *.
-        intros a' Ha'. apply HmaxMem in Ha'.
-        eapply lookup_weaken_None; eauto.
-  Qed.
-
-  Lemma logical_region_map_disjoint
-    (la1 la2 : list Addr) (lw1 lw2 : list LWord) (v1 v2 : Version) :
-    la1 ## la2 ->
-    length la1 = length lw1 ->
-    logical_region_map la1 lw1 v1 ##ₘ logical_region_map la2 lw2 v2.
-  Proof.
-    intros Hdis Hlen.
-    rewrite /logical_region_map.
-    eapply map_disjoint_list_to_map_zip_l ; first by rewrite map_length.
-    rewrite Forall_forall.
-    intros a Ha.
-    apply elem_of_list_fmap in Ha.
-    destruct Ha as (x & -> & Hx).
-    apply not_elem_of_list_to_map_1.
-    intro Hcontra.
-    rewrite elem_of_list_fmap in Hcontra.
-    destruct Hcontra as ( [y vy] & ? & Hy); simplify_eq.
-    cbn in *.
-    apply elem_of_zip_l in Hy.
-    apply elem_of_list_fmap in Hy.
-    destruct Hy as (y' & -> & Hy').
-    set_solver.
-  Qed.
-
-  (* TODO generalise *)
-  Lemma map_Forall_all_P (w : LWord) (la : list Addr) (lws : list LWord) (v : Version)
-    (P : LWord -> Prop) :
-    NoDup la ->
-    length lws = length la ->
-    w ∈ lws ->
-    map_Forall
-      (λ (a : LAddr) (lw : LWord), laddr_get_addr a ∈ la → P lw)
-      (logical_region_map la lws v)
-    -> P w.
-  Proof.
-    generalize dependent lws.
-    generalize dependent w.
-    induction la as [|a la]; intros w lws Hnodup Hlen Hw Hall_z.
-    - destruct lws ; set_solver.
-    - destruct lws as [|w1 lws] ; first set_solver.
-      cbn in Hlen ; simplify_eq.
-      apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
-      cbn in Hall_z.
-      apply map_Forall_insert in Hall_z as [Hladdr Hall_z].
-      2: { rewrite -not_elem_of_list_to_map.
-           intro Hcontra.
-           rewrite elem_of_list_fmap in Hcontra.
-           destruct Hcontra as ([x vx] & Hx & Hcontra)
-           ; cbn in Hx ; simplify_eq.
-           apply elem_of_zip_l in Hcontra.
-           rewrite elem_of_list_fmap in Hcontra.
-           destruct Hcontra as (y & Hy & Hcontra)
-           ; cbn in Hy ; simplify_eq.
-           set_solver.
-      }
-      apply elem_of_cons in Hw as [-> | Hw].
-      * apply Hladdr; set_solver.
-      * eapply IHla; eauto.
-        eapply map_Forall_impl; eauto.
-        intros [y vy] wy IH Hy; cbn in *.
-        apply IH.
-        set_solver.
   Qed.
 
   Lemma list_readcond_interp (lws : list LWord) (Ps : list D) :
@@ -857,15 +918,6 @@ Section fundamental.
         iApply wp_value; auto. iIntros; discriminate.
     }
 
-    Lemma list_remove_elem_ne {A} `{EqDecision A} (a a' : A) (la : list A):
-      a ∈ list_remove_elem a' la ->
-      a ∈ la.
-    Proof.
-      intros ?.
-      eapply elem_of_submseteq; eauto.
-      apply list_remove_elem_submsteq.
-    Qed.
-
     destruct (decide (PC = rcode)) as [?|Hrcode_neq_pc]; simplify_map_eq.
     - (* TODO if rcode = PC, PC will contain an E-cap,
          which will fail at the next execution,
@@ -1105,9 +1157,9 @@ Section fundamental.
         - exfalso; simplify_map_eq.
         - incrementLPC_inv; simplify_map_eq; eauto.
           admit.
-          (* unclear how to prove that case,
-             I think it should have its own case for continuing and fail
-           *)
+          (* unclear how to prove that case, *)
+      (*        I think it should have its own case for continuing and fail *)
+      (*      *)
         - opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
           by rewrite Hot in Hot_ec2.
       }
@@ -1767,9 +1819,21 @@ Section fundamental.
       rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr.
       iEval (rewrite !list_to_set_cons) in "Hfree".
       iDestruct (big_sepS_union with "Hfree") as "[Hfree_ot_ec_0 Hfree]".
-      { admit. (* easy *) }
+      { apply disjoint_union_r.
+        split.
+        + assert (ot_ec ≠ ot_ec ^+1)%f as Hneq by solve_finz+Hot.
+          set_solver+Hneq.
+        + apply disjoint_singleton_l.
+          apply not_elem_of_list_to_set.
+          apply not_elem_of_finz_seq_between.
+          solve_finz+Hot.
+      }
       iDestruct (big_sepS_union with "Hfree") as "[Hfree_ot_ec_1 Hfree]".
-      { admit. (* easy *) }
+      { apply disjoint_singleton_l.
+        apply not_elem_of_list_to_set.
+        apply not_elem_of_finz_seq_between.
+        solve_finz+Hot.
+      }
       rewrite !big_sepS_singleton.
 
       set (lmem' :=
@@ -1829,7 +1893,11 @@ Section fundamental.
         subst lmem'.
         eapply insert_subseteq_r.
         { eapply logical_range_notin; auto.
-          admit. (* easy *)
+          clear -Hb_data Hb_code Hcode_data_disjoint.
+          intro.
+          rewrite elem_of_disjoint in Hcode_data_disjoint.
+          apply (Hcode_data_disjoint b_data); eauto.
+          rewrite elem_of_finz_seq_between; solve_addr.
         }
         eapply insert_subseteq_r.
         { eapply logical_range_version_neq; auto; lia. }
@@ -1848,7 +1916,6 @@ Section fundamental.
       | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
           set (lmem1 := m)
       end.
-
 
       (* Derive pure predicates about the new code_region*)
       assert
@@ -1873,14 +1940,17 @@ Section fundamental.
         eapply lookup_weaken; last eapply Hcompatibility.
         rewrite update_version_region_preserves_lmem_next; eauto.
         + eapply lookup_weaken;eauto.
-          rewrite lookup_insert_ne; last admit. (* easy *)
+          rewrite lookup_insert_ne; last (intro ; simplify_eq;done).
           rewrite lookup_union.
           replace (
               logical_region_map (b_data :: finz.seq_between (b_data ^+ 1)%a e_data) (lws_data1 :: lws_data) v_data !! (a', v_code)
             ) with (None : option LWord).
           2:{ symmetry; apply logical_region_notin; auto.
               + cbn; f_equal; done.
-              + admit. (* easy *)
+              + rewrite -finz_seq_between_cons //.
+                intro.
+                rewrite elem_of_disjoint in Hcode_data_disjoint.
+                apply (Hcode_data_disjoint a'); eauto.
           }
           rewrite option_union_right_id.
           rewrite -finz_seq_between_cons //.
@@ -1908,7 +1978,11 @@ Section fundamental.
         eapply insert_subseteq_r.
         { eapply logical_range_notin; auto.
           + rewrite finz_seq_between_cons //; cbn; f_equal; done.
-          + admit. (* easy *)
+          + clear -Hb_data Hb_code Hcode_data_disjoint.
+            intro.
+            rewrite elem_of_disjoint in Hcode_data_disjoint.
+            apply (Hcode_data_disjoint b_data); eauto.
+            rewrite elem_of_finz_seq_between; solve_addr.
         }
         rewrite -(logical_range_map_insert _ _ _ lws_code1); auto.
         by apply insert_mono.
@@ -1925,21 +1999,7 @@ Section fundamental.
       {
         subst lmem1.
         eapply (delete_subseteq_list_r); eauto.
-        rewrite /logical_range_map.
-        apply map_disjoint_list_to_map_zip_l.
-        { rewrite logical_region_length finz_seq_between_cons; cbn ; f_equal; done. }
-        apply Forall_forall.
-        intros y Hy.
-        apply not_elem_of_list_to_map.
-        intro Hcontra.
-        rewrite elem_of_list_fmap in Hcontra.
-        destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
-        eapply elem_of_zip_l in Hcontra.
-        rewrite /logical_region in Hy, Hcontra.
-        rewrite !elem_of_list_fmap in Hy,Hcontra.
-        destruct Hy as (? & ? & _); simplify_eq.
-        destruct Hcontra as (? & ? & _); simplify_eq.
-        cbn in H; simplify_eq.
+        apply logical_range_map_disjoint_version; auto.
         lia.
       }
       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
@@ -1948,6 +2008,7 @@ Section fundamental.
       | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
           set (lmem2 := m)
       end.
+
 
       (* Derive pure predicates about the previous data_region*)
       assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem'' )
@@ -1978,7 +2039,11 @@ Section fundamental.
         { eapply logical_range_version_neq; auto; lia. }
         eapply insert_subseteq_r.
         { eapply logical_range_notin; auto.
-          admit. (* easy *)
+          clear -Hb_data Hb_code Hcode_data_disjoint.
+          intro.
+          rewrite elem_of_disjoint in Hcode_data_disjoint.
+          apply (Hcode_data_disjoint b_code); eauto.
+          rewrite elem_of_finz_seq_between; solve_addr.
         }
         done.
       }
@@ -1993,13 +2058,17 @@ Section fundamental.
         as Hmem1_data.
       {
         subst lmem1.
-        admit. (* easy *)
+        eapply (delete_subseteq_list_r); eauto.
+        apply logical_range_map_disjoint; auto.
+        set_solver+Hcode_data_disjoint.
       }
       assert ( logical_range_map b_data e_data (lws_data1::lws_data) v_data ⊆ lmem2 )
         as Hmem2_data.
       {
         subst lmem2.
-        admit. (* easy *)
+        eapply (delete_subseteq_list_r); eauto.
+        apply logical_range_map_disjoint; auto.
+        set_solver+Hcode_data_disjoint.
       }
       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata_prev Hmem]"
       ; first (eapply Hmem2_data).
@@ -2027,7 +2096,24 @@ Section fundamental.
         destruct Hvalid_update_data as (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated).
         eapply lookup_weaken; last eapply Hcompatibility.
         rewrite update_version_region_preserves_lmem_next; eauto.
-        + admit. (* easy *)
+        + eapply lookup_weaken;eauto.
+          rewrite lookup_insert_ne; last (intro ; simplify_eq;done).
+          rewrite lookup_union.
+          replace (
+              logical_region_map (b_code :: finz.seq_between (b_code ^+ 1)%a e_code) (lws_code1 :: lws_code) v_code !! (a', v_data)
+            ) with (None : option LWord).
+          2:{ symmetry; apply logical_region_notin; auto.
+              + cbn; f_equal; done.
+              + rewrite -finz_seq_between_cons //.
+                intro.
+                rewrite elem_of_disjoint in Hcode_data_disjoint.
+                apply (Hcode_data_disjoint a'); eauto.
+          }
+          rewrite option_union_left_id.
+          rewrite -finz_seq_between_cons //.
+          rewrite (logical_region_map_lookup_versions _ _ _ v_data) in Hlw'; eauto.
+          rewrite finz_seq_between_cons //.
+          cbn ; f_equal; auto.
         + rewrite lookup_insert_ne //=; last (intro ; set_solver).
           rewrite lookup_union.
           rewrite (logical_region_notin _ _ v_code); auto; cycle 1.
@@ -2059,7 +2145,10 @@ Section fundamental.
         eapply insert_subseteq_r.
         { eapply logical_range_notin; auto.
           + rewrite finz_seq_between_cons //; cbn; f_equal; done.
-          + admit. (* easy *)
+          + intro.
+            rewrite elem_of_disjoint in Hcode_data_disjoint.
+            apply (Hcode_data_disjoint b_code); eauto.
+            rewrite elem_of_finz_seq_between; solve_addr.
         }
         rewrite -(logical_range_map_insert _ _ _ lws_data1); auto.
         by apply insert_mono.
@@ -2075,19 +2164,25 @@ Section fundamental.
         as Hmem1_data_next.
       {
         subst lmem1.
-        admit. (* easy *)
+        eapply (delete_subseteq_list_r); eauto.
+        apply logical_range_map_disjoint; auto.
+        set_solver+Hcode_data_disjoint.
       }
       assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem2 )
         as Hmem2_data_next.
       {
         subst lmem2.
-        admit. (* easy *)
+        eapply (delete_subseteq_list_r); eauto.
+        apply logical_range_map_disjoint; auto.
+        set_solver+Hcode_data_disjoint.
       }
       assert ( logical_range_map b_data e_data (LSealRange (true, true) ot_ec (ot_ec ^+ 2)%f ot_ec::lws_data) (v_data + 1) ⊆ lmem3 )
         as Hmem3_data_next.
       {
         subst lmem3.
-        admit. (* easy *)
+        eapply (delete_subseteq_list_r); eauto.
+        apply logical_range_map_disjoint_version; auto.
+        lia.
       }
       iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata Hmem]"
       ; first (eapply Hmem3_data_next).
@@ -2211,7 +2306,14 @@ Section fundamental.
           apply word_to_lword_get_word_int.
 
           apply map_Forall_insert_1_2 in Hcode_z.
-          2: { admit. (* easy *) }
+          2: {
+            rewrite lookup_union union_None.
+            split; apply logical_region_notin; auto.
+            + cbn; f_equal; done.
+            + rewrite -finz_seq_between_cons //.
+            + cbn; f_equal; done.
+            + rewrite -finz_seq_between_cons //.
+          }
           apply map_Forall_union in Hcode_z.
           2: { apply logical_region_map_disjoint.
                + by rewrite -!finz_seq_between_cons //.
@@ -2265,7 +2367,15 @@ Section fundamental.
           { rewrite (finz_seq_between_split _ ot_ec (ot_ec ^+ 2)%ot); last solve_addr + Hot.
             assert ( ot_ec ≠ (ot_ec ^+ 1)%f ) as Hot_ec1 by solve_addr.
             rewrite list_to_set_app_L.
-            rewrite big_sepS_union; last admit. (* easy *)
+            rewrite big_sepS_union.
+            2: {
+              apply list_to_set_disj.
+              clear -Hot.
+              rewrite elem_of_disjoint.
+              intros o Ho Ho'.
+              rewrite !elem_of_finz_seq_between in Ho, Ho'.
+              solve_finz.
+            }
             iFrame.
             rewrite (finz_seq_between_cons ot_ec); last solve_addr + Hot.
             rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr + Hot.
@@ -2434,7 +2544,15 @@ Section fundamental.
           { rewrite (finz_seq_between_split _ ot_ec (ot_ec ^+2)%ot); last solve_addr + Hot.
             assert ( ot_ec ≠ (ot_ec ^+ 1)%f ) as Hot_ec1 by solve_addr.
             rewrite list_to_set_app_L.
-            rewrite big_sepS_union; last admit. (* easy *)
+            rewrite big_sepS_union.
+            2: {
+              apply list_to_set_disj.
+              clear -Hot.
+              rewrite elem_of_disjoint.
+              intros o Ho Ho'.
+              rewrite !elem_of_finz_seq_between in Ho, Ho'.
+              solve_finz.
+            }
             iFrame.
             rewrite (finz_seq_between_cons ot_ec); last solve_addr + Hot.
             rewrite (finz_seq_between_cons (ot_ec ^+ 1)%ot); last solve_addr + Hot.
