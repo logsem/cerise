@@ -48,8 +48,10 @@ Section trusted_memory_readout_example.
      - public signing key:      r_t1 = (U, σ__a+1, σ__a+2, σ__a+1)
      - read_sensor entry point: r_t2 = (E, sensor, sensor_end, sensor_read)
    *)
-  Definition sensor_instrs_init1 (begin init read fail : Z) : list instr :=
+  Definition sensor_instrs_init (begin init read fail : Z) : list instr :=
     let RW := encodePerm RW in
+    let E := encodePerm E in
+    let U := encodeSealPerms (false, true) in
     let WCapType := encodeWordType (WCap O 0 0 0)%a in
     [ Mov r_t2 PC;             (* r_t2 = (RX, sensor, sensor_end, sensor_init) *)
 
@@ -69,6 +71,9 @@ Section trusted_memory_readout_example.
       Sub r_t3 1 r_t3;         (* r_t3 = 0: unique  1: not unique *)
       Jnz r_t2 r_t3;           (* Jump to fail if not unique *)
 
+      (* "Initialize" the sensor. *)
+      Store r_t1 42;
+
       (* Get the data capability *)
       Lea r_t2 (begin - fail); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
       Load r_t3 r_t2;          (* r_t3 = (RW, data, data_end, addr) *)
@@ -76,46 +81,32 @@ Section trusted_memory_readout_example.
       GetA r_t5 r_t3;          (* r_t5 = addr *)
       Sub r_t4 r_t4 r_t5;      (* r_t4 = data - addr *)
       Lea r_t3 r_t4;           (* r_t3 = (RW, data, data_end, data) *)
-      Lea r_t3 1               (* r_t3 = (RW, data, data_end, data+1) *)
+
+      (* Store mmio capability in private data. *)
+      Lea r_t3 1;              (* r_t3 = (RW, data, data_end, data+1) *)
+      Store r_t3 r_t1;
+
+      (* Get the seal/unseal master capability and switch to signing.  *)
+      Lea r_t3 (-1)%Z;         (* r_t3 = (RW, data, data_end, data) *)
+      Load r_t1 r_t3;          (* r_t1 = (SU, σ__a, σ__a+2, σ__a) *)
+      Lea r_t1 1%Z;            (* r_t1 = (SU, σ__a, σ__a+2, σ__a+1) *)
+
+      (* Construct read_sensor entry point. *)
+      Lea r_t2 (read - begin); (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
+      Restrict r_t2 E;         (* r_t2 = (E, sensor, sensor_end, sensor_read) *)
+
+      (* Sign the entry point capability. *)
+      Seal r_t2 r_t1 r_t2 ;    (* r_t2 = Sealed σ__a+1 (E, sensor, sensor_end, sensor_read) *)
+
+      (* Create signing public key *)
+      GetA r_t3 r_t1;          (* r_t3 = σ__a+1 *)
+      GetE r_t4 r_t1;          (* r_t4 = σ__a+2 *)
+      Subseg r_t1 r_t3 r_t4;   (* r_t1 = (SU, σ__a+1, σ__a+2, σ__a+1) *)
+      Restrict r_t1 U;         (* r_t1 = (U, σ__a+1, σ__a+2, σ__a+1) *)
+
+      (* Jump back to adversary. *)
+      Jmp r_t0
     ].
-
-  Definition sensor_instrs_init2 (begin init read fail : Z) : list instr :=
-    [ (* "Initialize" the sensor. *)
-      Store r_t1 42;
-      (* Store mmio capability. *)
-      Store r_t3 r_t1
-    ].
-
-
-  Definition sensor_instrs_init3 (begin init read fail : Z) : list instr :=
-    let E := encodePerm E in
-    let U := encodeSealPerms (false, true) in
-    [   (* Get the seal/unseal master capability and switch to signing.  *)
-        Lea r_t3 (-1)%Z;         (* r_t3 = (RW, data, data_end, data) *)
-        Load r_t1 r_t3;          (* r_t1 = (SU, σ__a, σ__a+2, σ__a) *)
-        Lea r_t1 1%Z;            (* r_t1 = (SU, σ__a, σ__a+2, σ__a+1) *)
-
-        (* Construct read_sensor entry point. *)
-        Lea r_t2 (read - begin); (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
-        Restrict r_t2 E;         (* r_t2 = (E, sensor, sensor_end, sensor_read) *)
-
-        (* Sign the entry point capability. *)
-        Seal r_t2 r_t1 r_t2 ;    (* r_t2 = Sealed σ__a+1 (E, sensor, sensor_end, sensor_read) *)
-
-        (* Create signing public key *)
-        GetA r_t3 r_t1;          (* r_t3 = σ__a+1 *)
-        GetE r_t4 r_t1;          (* r_t4 = σ__a+2 *)
-        Subseg r_t1 r_t3 r_t4;   (* r_t1 = (SU, σ__a+1, σ__a+2, σ__a+1) *)
-        Restrict r_t1 U;         (* r_t1 = (U, σ__a+1, σ__a+2, σ__a+1) *)
-
-        (* Jump back to adversary. *)
-        Jmp r_t0
-    ].
-
-  Definition sensor_instrs_init (begin init read fail : Z) : list instr :=
-       sensor_instrs_init1 begin init read fail
-    ++ sensor_instrs_init2 begin init read fail
-    ++ sensor_instrs_init3 begin init read fail.
 
   Definition sensor_precode_init (begin init read fail : Z): list Word :=
     encodeInstrsW (sensor_instrs_init begin init read fail).
