@@ -131,6 +131,16 @@ Section cap_lang_rules.
         left ; solve_addr.
   Qed.
 
+  Lemma nwanwb_implies_allow_store_map r1 lregs lmem p b e a v :
+      lregs !! r1 = Some (LCap p b e a v)
+    → writeAllowed p = false ∨ withinBounds b e a = false
+    → allow_store_map_or_true r1 lregs lmem.
+  Proof.
+    intros Hr1 Hnw. exists p, b, e, a, v. split.
+    rewrite /read_reg_inr Hr1 //.
+    destruct decide as [(_ & ? & ?)|]; [|easy].
+    intuition congruence.
+  Qed.
 
   Definition exec_optL_Store
     (lregs : LReg) (lmem : LMem)
@@ -783,5 +793,76 @@ Section cap_lang_rules.
        destruct o. all: try congruence.
      }
     Qed.
+
+  Lemma wp_store_fail_reg Ep dst src pc_p pc_b pc_e pc_a pc_v lw p b e a v lw' :
+    decodeInstrWL lw = Store dst (inr src) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (writeAllowed p = false ∨ withinBounds b e a = false) →
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+      ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+      ∗ ▷ dst ↦ᵣ LCap p b e a v
+      ∗ ▷ src ↦ᵣ lw'
+    }}}
+      Instr Executable @ Ep
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hnwawb φ) "(>HPC & >Hi & >Hdst & >Hsrc) Hφ".
+
+    iDestruct (map_of_regs_3 with "HPC Hdst Hsrc") as "(Hmap & %Hpcdst & %Hpcsrc & %Hdstsrc)".
+    iDestruct (memMap_resource_1 with "Hi") as "Hmem".
+
+    iApply (wp_store _ pc_p with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { set_solver. }
+    { eapply nwanwb_implies_allow_store_map; by simplify_map_eq. }
+
+    iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec.
+    { (* Success (contradiction) *)
+      exfalso. destruct H0 as (Hdst & Hwa & Hwb). simplify_map_eq.
+      apply lookup_insert_Some in H1.
+      destruct H1 as [[]|[]]; simplify_eq.
+      intuition congruence.
+    }
+    { (* Failure  *)
+      by iApply "Hφ".
+    }
+  Qed.
+
+  Lemma wp_store_fail_z Ep dst pc_p pc_b pc_e pc_a pc_v lw p b e a v z :
+    decodeInstrWL lw = Store dst (inl z) →
+    isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
+    (writeAllowed p = false ∨ withinBounds b e a = false) →
+    {{{ ▷ PC ↦ᵣ LCap pc_p pc_b pc_e pc_a pc_v
+      ∗ ▷ (pc_a, pc_v) ↦ₐ lw
+      ∗ ▷ dst ↦ᵣ LCap p b e a v
+    }}}
+      Instr Executable @ Ep
+      {{{ RET FailedV; True }}}.
+  Proof.
+    iIntros (Hinstr Hvpc Hnwawb φ) "(>HPC & >Hi & >Hdst) Hφ".
+
+    iDestruct (map_of_regs_2 with "HPC Hdst") as "(Hmap & %Hpcdst)".
+    iDestruct (memMap_resource_1 with "Hi") as "Hmem".
+
+    iApply (wp_store _ pc_p with "[$Hmap $Hmem]"); eauto; simplify_map_eq; eauto.
+    { set_solver. }
+    { eapply nwanwb_implies_allow_store_map; by simplify_map_eq. }
+
+    iNext. iIntros (regs' mem' retv) "(#Hspec & Hmem & Hmap)".
+    iDestruct "Hspec" as %Hspec.
+
+    destruct Hspec.
+    { (* Success (contradiction) *)
+      exfalso. destruct H0 as (Hdst & Hwa & Hwb). simplify_map_eq.
+      apply lookup_insert_Some in H1.
+      destruct H1 as [[]|[]]; simplify_eq.
+      intuition congruence.
+    }
+    { (* Failure  *)
+      by iApply "Hφ".
+    }
+  Qed.
 
  End cap_lang_rules.

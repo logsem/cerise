@@ -150,6 +150,7 @@ theories/examples/enclaves/trusted_compute_adequacy.v
 # Trusted Memory Readout example
 theories/examples/enclaves/trusted_memory_readout_code.v
 theories/examples/enclaves/trusted_memory_readout_enclaves_spec.v
+theories/examples/enclaves/trusted_memory_readout_client_spec.v
 theories/examples/enclaves/trusted_memory_readout_sensor_spec.v
 
 # Mutual attestation example

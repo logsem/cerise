@@ -3,7 +3,8 @@ From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
 From cap_machine Require Import trusted_memory_readout_code
-                 trusted_memory_readout_sensor_spec.
+  trusted_memory_readout_client_spec
+  trusted_memory_readout_sensor_spec.
 
 Section EnclavesProof.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
@@ -34,25 +35,51 @@ Section EnclavesProof.
     { transitivity (Some (data_b ^+ 1)%a); try solve_addr. }
     { solve_addr. }
 
-    assert (I = hash_sensor) as ->.
+    assert (I = hash_sensor \/ I = hash_client) as HI.
     { rewrite lookup_insert_Some in Hcode_ce.
+      destruct Hcode_ce as [ [? _] | [_ Hcode_ce] ]; first auto.
+      rewrite lookup_insert_Some in Hcode_ce.
       destruct Hcode_ce as [ [? _] | [_ Hcode_ce] ]; first auto.
       done.
     }
 
-    rewrite /ts_enclaves_map lookup_insert in Hcode_ce. simplify_eq.
-    change (code_region sensor_enclave_pred) with sensor_begin_addr in *.
-    assert (code_e = sensor_begin_addr ^+ (length sensor_lcode + 1)%nat)%a
-      as -> by solve_addr.
+    destruct HI as [-> | ->].
+    - (* Sensor enclave *)
+      rewrite /ts_enclaves_map lookup_insert in Hcode_ce. simplify_eq.
+      change (code_region sensor_enclave_pred) with sensor_begin_addr in *.
+      assert (code_e = sensor_begin_addr ^+ (length sensor_lcode + 1)%nat)%a
+        as -> by solve_addr.
 
-    change ((λ w : Word, word_to_lword w code_v) <$>
-              code sensor_enclave_pred) with sensor_lcode.
-    iApply (sensor_enclave_correct with
-             "[$Henclave_contract $Hcustoms_inv $HPsign Hcode $Hdatacap $Hkeys $Hdata]");
-      try solve_addr; auto.
-    replace (sensor_begin_addr ^+ (length sensor_lcode + 1)%nat)%a
-      with ((sensor_begin_addr ^+ 1) ^+ length sensor_lcode)%a by solve_addr.
-    done.
+      change ((λ w : Word, word_to_lword w code_v) <$>
+                code sensor_enclave_pred) with sensor_lcode.
+      iApply (sensor_enclave_correct with
+               "[$Henclave_contract $Hcustoms_inv $HPsign Hcode $Hdatacap $Hkeys $Hdata]");
+        try solve_addr; auto.
+      replace (sensor_begin_addr ^+ (length sensor_lcode + 1)%nat)%a
+        with ((sensor_begin_addr ^+ 1) ^+ length sensor_lcode)%a by solve_addr.
+      done.
+    - (* Client enclave *)
+      rewrite /ts_enclaves_map lookup_insert_ne // in Hcode_ce.
+      2:{
+        rewrite /hash_sensor /hash_client.
+        intro Hcontra.
+        apply hash_concat_inj' in Hcontra.
+        destruct Hcontra as [_ Hcontra].
+        by injection Hcontra.
+      }
+      rewrite // lookup_insert in Hcode_ce. simplify_eq.
+      change (code_region client_enclave_pred) with client_begin_addr in *.
+      assert (code_e = client_begin_addr ^+ (length client_lcode + 1)%nat)%a
+        as -> by solve_addr.
+
+      change ((λ w : Word, word_to_lword w code_v) <$>
+                code client_enclave_pred) with client_lcode.
+      iApply (client_enclave_correct with
+               "[$Henclave_contract $Hcustoms_inv $HPsign Hcode $Hdatacap $Hkeys $Hdata]");
+        try solve_addr; auto.
+      replace (client_begin_addr ^+ (length client_lcode + 1)%nat)%a
+        with ((client_begin_addr ^+ 1) ^+ length client_lcode)%a by solve_addr.
+      done.
   Qed.
 
 End EnclavesProof.
