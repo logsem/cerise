@@ -765,6 +765,13 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">h</span>: <span class="id" title="var">_</span> |- <a class="idref" href="cap_machine.machine_base.html#isCorrectPC"><span class="id" title="inductive">isCorrectPC</span></a> <span class="id" title="var">_</span> =&gt; <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#isCorrectPC_intro"><span class="id" title="constructor">isCorrectPC_intro</span></a>; [<span class="id" title="var">solve_addr</span>| <span class="id" title="tactic">auto</span>]<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">end</span>)<br/>
 &nbsp;&nbsp;; <span class="id" title="tactic">try</span> (<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "Hprog"<span class="id" title="notation">)</span> <span class="id" title="keyword">as</span> "_" ; <span class="id" title="var">iModIntro</span> ; <span class="id" title="var">wp_pure</span>).<br/>
+
+<br/>
+<span class="id" title="keyword">Ltac</span> <span class="id" title="var">name_current_mask</span> <span class="id" title="var">name</span> :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">match</span> <span class="id" title="keyword">goal</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">_</span> : <span class="id" title="var">_</span> |- <span class="id" title="keyword">context</span> [ <span class="id" title="definition">wp</span> <span class="id" title="var">_</span> ?<span class="id" title="var">mask</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> ] =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">set</span> (<span class="id" title="var">name</span> := <span class="id" title="var">mask</span>)<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
 </div>
 </div>
 <div id="footer">
