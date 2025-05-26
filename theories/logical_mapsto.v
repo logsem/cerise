@@ -954,6 +954,29 @@ Proof.
   Unshelve. all: eauto.
 Qed.
 
+Lemma unique_in_registersL_twice
+  (rcode rdata : RegName) (lregs : LReg)
+  p b e a v
+  p' b' e' a' v' :
+  rcode ≠ rdata ->
+  lregs !! rcode = Some (LCap p b e a v) ->
+  lregs !! rdata = Some (LCap p' b' e' a' v') ->
+  unique_in_registersL lregs (Some rcode) (LCap p b e a v) ->
+  unique_in_registersL lregs (Some rdata) (LCap p' b' e' a' v') ->
+  (finz.seq_between b e) ## (finz.seq_between b' e').
+Proof.
+  intros Hneq Hrcode Hrdata Hunique_code Hunique_data.
+  rewrite /unique_in_registersL in Hunique_code.
+  rewrite /unique_in_registersL in Hunique_data.
+  eapply map_Forall_lookup_1 in Hunique_code; last eapply Hrdata.
+  eapply map_Forall_lookup_1 in Hunique_data; last eapply Hrcode.
+  rewrite decide_False // in Hunique_code.
+  rewrite decide_False // in Hunique_data.
+  rewrite /overlap_wordL /overlap_word /= in Hunique_code, Hunique_data.
+  intros x Hx Hx'.
+  rewrite !elem_of_finz_seq_between in Hx, Hx'.
+  destruct ((b <? b')%a) eqn:Hbb'; solve_finz.
+Qed.
 (** Machinery to update the lmemory *)
 
 (** Machinery to update the memory for a given version,
@@ -1747,6 +1770,30 @@ Proof.
       eauto.
 Qed.
 
+Lemma is_valid_updated_lmemory_lmem_subset
+  (glmem llmem llmem' llmem'' : LMem) (la : list Addr) (v : Version) :
+  llmem ⊆ llmem' ->
+  is_valid_updated_lmemory glmem llmem' la v llmem'' ->
+  is_valid_updated_lmemory glmem llmem la v llmem''.
+Proof.
+  move: glmem llmem llmem' v.
+  induction la as [|a la IHla]
+  ; intros * Hsubset (Hcompatibility & Hgl_llmem & HmaxMem & Hupdated)
+  ; first (cbn in * ; eauto).
+  - rewrite /is_valid_updated_lmemory.
+    repeat split; eauto; cbn; eapply map_subseteq_trans; eauto.
+  - destruct_cons; destruct Hupdated_a as [ lwa Hlwa ].
+    rewrite /is_valid_updated_lmemory.
+    repeat split; eauto.
+    + eapply update_version_region_mono in Hsubset; eauto.
+      eapply map_subseteq_trans; eauto.
+    + eapply map_subseteq_trans; eauto.
+    + rewrite Forall_cons; split; first eapply lookup_weaken_None; eauto.
+      rewrite !Forall_forall in HmaxMem |- *.
+      intros a' Ha'. apply HmaxMem in Ha'.
+      eapply lookup_weaken_None; eauto.
+Qed.
+
 (** Logical machine *)
 
 Inductive isCorrectLPC: LWord → Prop :=
@@ -1961,6 +2008,14 @@ Definition is_zL (lw : LWord) : bool :=
   | LInt z => true
   |  _ => false
   end.
+
+Lemma word_to_lword_get_word_int (w : LWord) (v : Version) :
+  is_zL w ->
+  word_to_lword (lword_get_word w) v = w.
+Proof.
+  intros Hw.
+  destruct w ; cbn in * ; done.
+Qed.
 
 Definition is_sealed_with_oL (lw : LWord) (o : OType) : bool :=
   match lw with
@@ -2462,6 +2517,44 @@ Proof.
     eapply insert_subseteq_l; eauto.
 Qed.
 
+Lemma logical_region_map_disjoint
+  (la1 la2 : list Addr) (lw1 lw2 : list LWord) (v1 v2 : Version) :
+  la1 ## la2 ->
+  length la1 = length lw1 ->
+  logical_region_map la1 lw1 v1 ##ₘ logical_region_map la2 lw2 v2.
+Proof.
+  intros Hdis Hlen.
+  rewrite /logical_region_map.
+  eapply map_disjoint_list_to_map_zip_l ; first by rewrite map_length.
+  rewrite Forall_forall.
+  intros a Ha.
+  apply elem_of_list_fmap in Ha.
+  destruct Ha as (x & -> & Hx).
+  apply not_elem_of_list_to_map_1.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ( [y vy] & ? & Hy); simplify_eq.
+  cbn in *.
+  apply elem_of_zip_l in Hy.
+  apply elem_of_list_fmap in Hy.
+  destruct Hy as (y' & -> & Hy').
+  set_solver.
+Qed.
+
+Lemma logical_region_NoDup (la : list Addr) (v : Version) :
+  NoDup la -> NoDup (logical_region la v).
+Proof.
+  intros Hla.
+  rewrite /logical_region.
+  apply NoDup_fmap; auto.
+  by intros x1 x2 Hx; simplify_eq.
+Qed.
+
+Lemma logical_region_length (la : list Addr) (v : Version) :
+  length (logical_region la v) = length la.
+Proof. by rewrite map_length. Qed.
+
+
 Definition logical_range_map
   (b e : Addr) (lws : list LWord) (v : Version) : gmap LAddr LWord :=
   list_to_map (zip (logical_region (finz.seq_between b e) v) lws).
@@ -2519,6 +2612,145 @@ Proof.
   intros.
   apply logical_region_map_inv; eauto.
   eapply finz_seq_between_NoDup.
+Qed.
+
+Lemma logical_range_map_insert (b e : Addr) (v : Version) (w w': LWord) (lw : list LWord) :
+  (b < e)%a ->
+  <[ (b,v) := w']> (logical_range_map b e (w::lw) v) = logical_range_map b e (w'::lw) v.
+Proof.
+  intros Hb.
+  rewrite /logical_range_map.
+  rewrite finz_seq_between_cons //.
+  cbn.
+  by rewrite insert_insert.
+Qed.
+
+Lemma logical_range_map_disjoint
+  (b e : Addr) (lws : list LWord) (v : Version)
+  (b' e' : Addr) (lws' : list LWord) (v' : Version) :
+  length (finz.seq_between b e) = length lws ->
+  finz.seq_between b e ## finz.seq_between b' e' ->
+  logical_range_map b e lws v ##ₘ logical_range_map b' e' lws' v'.
+Proof.
+  intros Hlen Hdis.
+  rewrite /logical_range_map.
+  apply map_disjoint_list_to_map_zip_l.
+  { rewrite logical_region_length; cbn ; f_equal; done. }
+  apply Forall_forall.
+  intros y Hy.
+  apply not_elem_of_list_to_map.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
+  eapply elem_of_zip_l in Hcontra.
+  rewrite /logical_region in Hy, Hcontra.
+  rewrite !elem_of_list_fmap in Hy,Hcontra.
+  destruct Hy as (? & ? & Hy); simplify_eq.
+  destruct Hcontra as (? & ? & Hy'); simplify_eq.
+  cbn in H; simplify_eq.
+  set_solver.
+Qed.
+
+Lemma logical_range_map_disjoint_version
+  (b e b' e' : Addr) (lws lws' : list LWord) (v v' : Version) :
+  length (finz.seq_between b e) = length lws ->
+  v ≠ v' ->
+  logical_range_map b e lws v ##ₘ logical_range_map b' e' lws' v'.
+Proof.
+  intros Hlen Hneq.
+  rewrite /logical_range_map.
+  apply map_disjoint_list_to_map_zip_l.
+  { rewrite logical_region_length; cbn ; f_equal; done. }
+  apply Forall_forall.
+  intros y Hy.
+  apply not_elem_of_list_to_map.
+  intro Hcontra.
+  rewrite elem_of_list_fmap in Hcontra.
+  destruct Hcontra as ([ [y' vy'] wy'] & -> & Hcontra).
+  eapply elem_of_zip_l in Hcontra.
+  rewrite /logical_region in Hy, Hcontra.
+  rewrite !elem_of_list_fmap in Hy,Hcontra.
+  destruct Hy as (? & ? & _); simplify_eq.
+  destruct Hcontra as (? & ? & _); simplify_eq.
+  cbn in H; simplify_eq.
+Qed.
+
+Lemma hash_lmemory_range_delete_notin
+  (lmem : LMem) (l : list Addr) (v : Version) (a : Addr) (lws : list LWord) :
+  a ∉ l ->
+  NoDup l ->
+  length lws = length l ->
+  lmemory_get_instrs (delete (a, v) lmem) l v = lmemory_get_instrs lmem l v.
+Proof.
+  generalize dependent a.
+  generalize dependent lws.
+  generalize dependent v.
+  generalize dependent lmem.
+  induction l as [|a' l]; intros lmem v lws a Hnotin Hnodup Hlen; first by cbn.
+  destruct lws as [|lw1 lws] ; first (by cbn in Hlen); cbn in Hlen; simplify_eq.
+  apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+  apply not_elem_of_cons in Hnotin as [Ha_neq_a' Hnotin].
+  opose proof (IHl lmem v lws a Hnotin Hnodup Hlen) as IH ; eauto.
+  rewrite /= IH.
+  apply option_bind_ext_fun.
+  intros w.
+  rewrite lookup_delete_ne; first done.
+  intro ; simplify_eq.
+Qed.
+
+Lemma hash_lmemory_range_correct_aux
+  (lmem : LMem) (l : list Addr) (v : Version) (lws : list LWord) :
+  NoDup l ->
+  length lws = length l ->
+  list_to_map (zip (logical_region l v) lws) ⊆ lmem ->
+  lmemory_get_instrs lmem l v = Some (lword_get_word <$> lws).
+Proof.
+  generalize dependent lws.
+  generalize dependent v.
+  generalize dependent lmem.
+  induction l; intros lmem v lws Hnodup Hlen Hsubset.
+  + apply nil_length_inv in Hlen; simplify_eq.
+    by rewrite fmap_nil.
+  + destruct lws as [|lw1 lws] ; first (by cbn in Hlen).
+    apply NoDup_cons in Hnodup as [Ha_notin_l Hnodup].
+    cbn in Hlen ; simplify_eq.
+    cbn in Hsubset.
+    apply insert_weaken in Hsubset as Ha_lmem.
+    rewrite fmap_cons.
+    rewrite /lmemory_get_instrs.
+    apply insert_delete_subseteq in Hsubset.
+    2: { rewrite -not_elem_of_list_to_map.
+         intro Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as ([x vx] & Hx & Hcontra)
+         ; cbn in Hx ; simplify_eq.
+         apply elem_of_zip_l in Hcontra.
+         rewrite elem_of_list_fmap in Hcontra.
+         destruct Hcontra as (y & Hy & Hcontra)
+         ; cbn in Hy ; simplify_eq.
+         set_solver.
+    }
+    rewrite -/(logical_region l v) in Hsubset.
+    opose proof (IHl (delete (a, v) lmem) v lws Hnodup Hlen _) as IH ; eauto.
+    erewrite hash_lmemory_range_delete_notin in IH; eauto.
+    rewrite /= -/(lmemory_get_instrs lmem l v) IH /= Ha_lmem /=.
+    done.
+Qed.
+
+Lemma hash_lmemory_range_correct `{MP: MachineParameters} (lmem : LMem) (b e : Addr) (v : Version) (lws : list LWord) (eid : Z) :
+  length lws = length (finz.seq_between b e) ->
+  logical_range_map b e lws v ⊆ lmem ->
+  hash_lmemory_range lmem b e v = Some eid ->
+  eid = hash (lword_get_word <$> lws).
+Proof.
+  intros Hlen Hlmem Hhash.
+  rewrite /logical_range_map in Hlmem.
+  rewrite /hash_lmemory_range in Hhash.
+  rewrite bind_Some in Hhash.
+  destruct Hhash as (instrs & Hinstrs & ?); simplify_eq.
+  erewrite (hash_lmemory_range_correct_aux) in Hinstrs
+  ; eauto; simplify_eq; first done.
+  apply finz_seq_between_NoDup.
 Qed.
 
 (* TODO where to move that ? *)

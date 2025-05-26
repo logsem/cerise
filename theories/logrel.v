@@ -651,6 +651,21 @@ Section logrel.
     compute_mask E ∅ = E.
   Proof. auto. Qed.
 
+  Lemma compute_mask_difference_namespace (E : coPset) (la : gset LAddr) (N : namespace) :
+    disjoint (A:= coPset) (↑N) (↑logN) ->
+    ↑N ⊆ E ->
+    (compute_mask E la) ∖ (↑N) = (compute_mask (E  ∖ (↑N)) la).
+  Proof.
+    rewrite /compute_mask. revert N E.
+    induction la using set_ind_L; intros N E Hdis HNE.
+    { by rewrite !set_fold_empty. }
+    do 2 (rewrite set_fold_disj_union_strong; [|set_solver..]).
+    do 2 (rewrite set_fold_singleton).
+    rewrite IHla; eauto; last solve_ndisj.
+    rewrite !difference_difference_l_L.
+    by rewrite union_comm_L.
+  Qed.
+
   Definition in_region (lw : LWord) (b e : Addr) (v : Version) :=
     match lw with
     | LCap p b' e' a v' => PermFlows RO p /\ (b <= b')%a /\ (e' <= e)%a /\ v = v'
@@ -1042,6 +1057,25 @@ Section logrel.
     iDestruct (big_sepL2_alt with "Hrange") as "[ _ Hrange]".
     iFrame.
   Qed.
+
+  Lemma list_readcond_interp (lws : list LWord) (Ps : list D) :
+    length lws = length Ps ->
+    ([∗ list] y1;y2 ∈ lws;Ps, (y2 : D) y1) -∗
+    ([∗ list] x0 ∈ Ps, □ (∀ lw : LWord, (x0 : D) lw -∗ fixpoint interp1 lw)) -∗
+    [∗ list] y ∈ lws, interp y.
+  Proof.
+    generalize dependent Ps.
+    induction lws; iIntros (Ps Hlen) "HPs Hreadcond"; first done.
+    cbn in *.
+    destruct Ps as [| P Ps]; cbn in Hlen ; simplify_eq.
+    iEval (rewrite big_sepL_cons) in "Hreadcond".
+    iDestruct "Hreadcond" as "[Hread Hreadcond]".
+    iEval (rewrite big_sepL2_cons) in "HPs".
+    iDestruct "HPs" as "[HP HPs]".
+    iDestruct ("Hread" with "HP") as "HP"; iFrame "HP".
+    iApply (IHlws with "[$] [$]"); eauto.
+  Qed.
+
 
   Lemma destruct_list_inv (la : list Addr) (p : Perm) (v : Version) :
     ([∗ list] a ∈ la, ∃ P : D,

@@ -253,6 +253,20 @@ Proof.
   destruct (b <? b0)%a; solve_decision.
 Defined.
 
+Lemma overlap_word_disjoint
+  (p : Perm) (b e a : Addr) (p' : Perm) (b' e' a' : Addr) :
+  ¬ overlap_word (WCap p b e a) (WCap p' b' e' a')
+  -> finz.seq_between b e ## finz.seq_between b' e'.
+Proof.
+  intros Hoverlap.
+  rewrite elem_of_disjoint.
+  intros x Hx Hx'.
+  rewrite !elem_of_finz_seq_between in Hx, Hx'.
+  apply Hoverlap.
+  cbn.
+  destruct (b <? b')%a eqn:Hb; solve_addr.
+Qed.
+
 Definition unique_in_registers (regs : Reg) (wsrc : Word) (exclsrc : option RegName) : Prop :=
   (map_Forall
      (λ (r : RegName) (wr : Word),
@@ -656,12 +670,15 @@ Section opsem.
     (* enclave initialization *)
   | EInit r1 r2 =>
 
+    (* the code capability cannot be PC *)
+    when (negb (bool_decide (r1 = PC))) then
     (* obtain RX permissions for code section *)
     ccap          ← (reg φ) !! r1; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
     when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
 
     (* obtain RW permissions for data section *)
+    (* NOTE dcap is required to be RW, so r2 cannot be PC *)
     dcap              ← (reg φ) !! r2;
     '(p', b', e', a') ← get_wcap dcap;
     when (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then

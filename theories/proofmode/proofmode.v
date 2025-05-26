@@ -655,3 +655,9 @@ Ltac iInstr_inv Hinv :=
          | h: _ |- isCorrectPC _ => apply isCorrectPC_intro; [solve_addr| auto]
          end)
   ; try (iMod ("Hcls" with "Hprog") as "_" ; iModIntro ; wp_pure).
+
+Ltac name_current_mask name :=
+  match goal with
+  | _ : _ |- context [ wp _ ?mask _ _ ] =>
+      set (name := mask)
+  end.

@@ -1548,6 +1548,27 @@ Proof.
   - by rewrite !fmap_insert /= IHm.
 Qed.
 
+Global Instance elem_of_dec `{EqDecision A} (a : A) (l : list A) : Decision (a ∈ l).
+Proof.
+  induction l; cbn.
+  - right. apply not_elem_of_nil.
+  - destruct (decide (a = a0)); subst.
+    + left; set_solver.
+    + destruct IHl.
+      * left; set_solver.
+      * right; set_solver.
+Qed.
+
+Global Instance disjoint_dec `{EqDecision A} (l1 l2 : list A) : Decision (l1 ## l2).
+Proof.
+  induction l1; cbn.
+  - left; set_solver.
+  - destruct (decide (a ∈ l2)).
+    + right; set_solver.
+    + destruct IHl1.
+      * left; set_solver.
+      * right; set_solver.
+Qed.
 
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :

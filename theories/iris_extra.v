@@ -628,3 +628,13 @@ Proof.
     ; iFrame; iApply IHla ; eauto
     ; rewrite /equiv_zip_fnt' ; intros; cbn in *; by eapply Hequiv.
 Qed.
+
+Ltac iHide0 irisH rocqH :=
+  let rocqH := fresh rocqH in
+  match goal with
+  | h: _ |- context [ environments.Esnoc _ (INamed irisH) ?prop ] =>
+      set (rocqH := prop)
+  end.
+
+Tactic Notation "iHide" constr(irisH) "as" ident(rocqH) :=
+  iHide0 irisH rocqH.

@@ -23,6 +23,11 @@ Section cap_lang_rules.
   (* Etable is now unbounded *)
   (* | EInit_fail_etable_full *)
 
+  (* the code register is PC *)
+  | EInit_fail_rcode_is_pc :
+    r_code = PC ->
+    EInit_fail lregs lmem r_code r_data tidx ot
+
   (* the code register doesn't contain a capability *)
   | EInit_fail_ccap_not_a_cap lw :
     lregs !! r_code = Some lw ->
@@ -93,6 +98,7 @@ Section cap_lang_rules.
     (ot : OType) (r_code r_data : RegName) (retv : val) : iProp Σ :=
     ∃ glmem lmem'' (code_b code_e code_a : Addr) (code_v : Version) (data_b data_e data_a : Addr)
       (data_v : Version) eid hash_instrs,
+    ⌜r_code ≠ PC⌝ ∗
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
     ⌜tid_of_otype ot = Some tidx⌝ ∗
     ⌜Z.even ot = true⌝ ∗
