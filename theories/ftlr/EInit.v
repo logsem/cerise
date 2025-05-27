@@ -1287,7 +1287,7 @@ Section fundamental.
       iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
       iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
       iSpecialize ("Hcontract'" $!
-                     mask_sys I_ECn
+                     mask_sys Ecn I_ECn
                      b_code e_code (v_code+1)
                      b_data e_data a_data (v_data+1)
                      lws_data ot_ec new_enclave).
@@ -1321,7 +1321,7 @@ Section fundamental.
 
       (* We apply the contract to get that the sentry to the enclave is safe-to-share *)
       iMod ("Hcontract'" with
-             "[] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata]")
+             "[] [] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata $Henclave_live]")
         as "#Hinterp_enclave"
       ; eauto.
       {

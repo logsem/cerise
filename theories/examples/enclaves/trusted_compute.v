@@ -134,7 +134,7 @@ Section trusted_compute_example.
     rewrite -/custom_enclave_contract.
     iEval (rewrite /custom_enclave_contract).
     iIntros (I b e v b' e' a' v' enclave_data ot ce
-      Hcode_ce Hot  HIhash Hb He)
+      Hcode_ce Hot HIhash Hb He)
       "(#Hcustoms_inv & #Htc_inv & #HPenc & #HPsign)".
     assert (e = (b ^+ (length (code ce) + 1))%a) as -> by solve_addr+He.
     simplify_map_eq.

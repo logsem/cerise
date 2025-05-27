@@ -1252,7 +1252,7 @@ Section custom_enclaves.
   Definition custom_enclave_contract_gen
     {enclaves_map : CustomEnclavesMap} : iProp Σ :=
     ∀ (Ep : coPset)
-    (I : EIdentity)
+    (tidx : TIndex) (I : EIdentity)
     (b e : Addr) (v : Version)
     (b' e' a' : Addr) (v' : Version)
     (enclave_data : list LWord)
@@ -1261,6 +1261,7 @@ Section custom_enclaves.
 
     ⌜  custom_enclaves !! I = Some ce⌝ →
     ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
+    ⌜ tid_of_otype ot = Some tidx ⌝ →
 
     ⌜ I = hash_concat (hash b) (hash (code ce))⌝ →
     ⌜ b = (code_region ce)⌝ →
@@ -1271,6 +1272,7 @@ Section custom_enclaves.
     ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
     ∗ seal_pred (ot^+1)%ot (Psign ce)
+    ∗ enclave_cur tidx I
     ={Ep}=∗ interp (LCap E b e (b^+1)%a v).
 
   (* TODO @June explanation of the contract *)
@@ -1312,9 +1314,9 @@ Section custom_enclaves.
     : ⊢ custom_enclave_contract -∗ custom_enclave_contract_gen.
   Proof.
     iIntros "Hcontract".
-    iIntros (Ep I b e v b' e' a' v' enclave_data ot ce
-               Hdata_seal Hot HIhash Hb He)
-      "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign)".
+    iIntros (Ep tidx I b e v b' e' a' v' enclave_data ot ce
+               Hdata_seal Hot Htidx HIhash Hb He)
+      "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Henclave_cur)".
 
     iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
             ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]  ∗

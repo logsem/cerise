@@ -16,10 +16,10 @@ Section EnclavesProof.
     ⊢ custom_enclave_contract_gen.
   Proof.
     iLöb as "Henclave_contract".
-    iIntros (Ep I code_b code_e code_v data_b data_e data_a data_v
-               enclave_data ot ce Hcode_ce Hot HIhash
+    iIntros (Ep tidx I code_b code_e code_v data_b data_e data_a data_v
+               enclave_data ot ce Hcode_ce Hot Htidx HIhash
                Hcode_b Hcode_e).
-    iIntros "(#Hcustoms_inv & Hcode & Hdata & #HPenc & #HPsign)".
+    iIntros "(#Hcustoms_inv & Hcode & Hdata & #HPenc & #HPsign & Henclave_cur)".
 
     iDestruct (region_mapsto_cons with "Hcode") as "[Hdatacap Hcode]"; last iFrame.
     { transitivity (Some (code_b ^+ 1)%a); solve_addr. }
