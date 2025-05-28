@@ -2190,9 +2190,35 @@ Proof.
 
 (** Instantiation of the program logic *)
 
-Definition enclaves_histUR := authR (gmapUR TIndex (agreeR EIdentity)).
-Definition enclaves_liveUR := authUR (gmapUR TIndex (exclR EIdentity)).
+Definition enclaves_agreeUR := authR (gmapUR TIndex (agreeR EIdentity)).
+Definition EnclavesAgreePreΣ := #[ GFunctor enclaves_agreeUR].
+Class EnclavesAgreePreG Σ := {
+    EnclavesAgreePre ::  inG Σ enclaves_agreeUR;
+}.
+Global Instance subG_EnclavesAgreePreΣ {Σ}:
+  subG EnclavesAgreePreΣ Σ →
+  EnclavesAgreePreG Σ.
+Proof. solve_inG. Qed.
+
+Definition enclaves_exclUR := authUR (gmapUR TIndex (exclR EIdentity)).
+Definition EnclavesExclPreΣ := #[ GFunctor enclaves_exclUR].
+Class EnclavesExclPreG Σ := {
+    EnclavesExclPre ::  inG Σ enclaves_exclUR;
+}.
+Global Instance subG_EnclavesExclPreΣ {Σ}:
+  subG EnclavesExclPreΣ Σ →
+  EnclavesExclPreG Σ.
+Proof. solve_inG. Qed.
+
 Definition ECUR := authUR ENum.
+Definition ECPreΣ := #[ GFunctor ECUR].
+Class ECPreG Σ := {
+    ECPre ::  inG Σ ECUR;
+}.
+Global Instance subG_ECPreΣ {Σ}:
+  subG ECPreΣ Σ →
+  ECPreG Σ.
+Proof. solve_inG. Qed.
 
 (* CMRΑ for Cerise *)
 Class ceriseG Σ := CeriseG {
@@ -2201,44 +2227,44 @@ Class ceriseG Σ := CeriseG {
   mem_gen_memG :: gen_heapGS LAddr LWord Σ;
   (* Heap for registers *)
   reg_gen_regG :: gen_heapGS RegName LWord Σ;
-  (* The ghost resource of all enclaves that have ever existed *)
-  enclaves_hist :: inG Σ enclaves_histUR;
-  (* The ghost resource of current, known alive enclaves *)
-  enclaves_live :: inG Σ enclaves_liveUR;
-  (* ghost names for the resources *)
+  enclaves_agree :: EnclavesAgreePreG Σ;
+  enclaves_excl :: EnclavesExclPreG Σ;
+  (* The ghost resource of deinitialised enclaves *)
   enclaves_name_prev : gname;
-  enclaves_name_cur : gname;
+  (* The ghost resource of all enclaves that have ever existed *)
   enclaves_name_all : gname;
+  (* ghost names for the resources *)
+  enclaves_name_cur : gname;
   (* Heap for EC register *)
-  EC_G :: inG Σ ECUR;
+  EC_G :: ECPreG Σ;
   EC_name : gname;
 }.
 
  (* Assertions over enclaves *)
 
 Definition enclaves_cur (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
-  own (inG0 := enclaves_live) enclaves_name_cur (● (Excl <$> tbl)).
+  own (inG0 := (@EnclavesExclPre Σ enclaves_excl)) enclaves_name_cur (● (Excl <$> tbl)).
 
 Definition enclaves_prev (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
-  own (inG0 := enclaves_hist) enclaves_name_prev (● (to_agree <$> tbl)).
+  own (inG0 := (@EnclavesAgreePre Σ enclaves_agree)) enclaves_name_prev (● (to_agree <$> tbl)).
 
 Definition enclaves_all (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
-  own (inG0 := enclaves_hist) enclaves_name_all (● (to_agree <$> tbl)).
+  own (inG0 := (@EnclavesAgreePre Σ enclaves_agree)) enclaves_name_all (● (to_agree <$> tbl)).
 
 Definition EC_auth `{ceriseG Σ} (n : ENum) :=
-  own (inG0 := EC_G) EC_name (● n).
+  own (inG0 := @ECPre Σ EC_G) EC_name (● n).
 
 (* Fragmental resources *)
 
 Definition enclave_cur (eid : TIndex) (identity : EIdentity) `{ceriseG Σ} :=
-  own (inG0 := enclaves_live) enclaves_name_cur (auth_frag {[eid := Excl identity]}).
+  own (inG0 := (@EnclavesExclPre Σ enclaves_excl)) enclaves_name_cur (auth_frag {[eid := Excl identity]}).
 
 Definition enclave_prev (eid : TIndex) `{ceriseG Σ} : iProp Σ :=
   ∃ id ,
-  own (inG0 := enclaves_hist) enclaves_name_prev (auth_frag {[eid := to_agree id]}).
+  own (inG0 := (@EnclavesAgreePre Σ enclaves_agree)) enclaves_name_prev (auth_frag {[eid := to_agree id]}).
 
 Definition enclave_all (eid : TIndex) (id : EIdentity) `{ceriseG Σ} : iProp Σ :=
-  own (inG0 := enclaves_hist) enclaves_name_all (auth_frag {[eid := to_agree id]}).
+  own (inG0 := (@EnclavesAgreePre Σ enclaves_agree)) enclaves_name_all (auth_frag {[eid := to_agree id]}).
 
 Lemma enclave_all_agree (tidx : TIndex) (id1 id2 : EIdentity) `{ceriseG Σ} :
   enclave_all tidx id1 ∗ enclave_all tidx id2 -∗ ⌜ id1 = id2 ⌝.
@@ -2262,7 +2288,7 @@ Proof. apply _. Defined.
 Proof. apply _. Defined.
 
 Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
-  own (inG0 := EC_G) EC_name (auth_frag n).
+  own (inG0 := @ECPre Σ EC_G) EC_name (auth_frag n).
 
 #[global] Instance EC_timeless `{ceriseG Σ} (n : ENum) : Timeless (EC_frag n).
 Proof. apply _. Defined.
