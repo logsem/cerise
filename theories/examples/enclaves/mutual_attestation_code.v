@@ -519,12 +519,6 @@ Section mutual_attest_example.
   Definition hash_mutual_attest_B : Z :=
     hash_concat (hash ma_addr_B) (hash mutual_attest_enclave_B_code).
 
-  (* Definition mutual_attest_enclave_A (enclave_data_cap : LWord) : list LWord := *)
-  (*   enclave_data_cap::mutual_attest_enclave_A_code ++ mutual_attest_eid_table. *)
-  (* Definition mutual_attest_enclave_B (enclave_data_cap : LWord) : list LWord := *)
-  (*   enclave_data_cap::mutual_attest_enclave_B_code  ++ mutual_attest_eid_table. *)
-
-
 
   (* -------------------------------------- *)
   (* --------- MUTUAL ATTEST MAIN --------- *)

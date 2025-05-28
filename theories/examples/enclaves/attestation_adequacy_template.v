@@ -424,9 +424,6 @@ Qed.
 Definition tbl_pub (p : prog) (l : lib) := @tbl p (pub_libs l).
 Definition tbl_priv (p : prog) (l : lib) := @tbl p ((pub_libs l) ++ (priv_libs l)).
 
-
-
-
 Module with_adv_and_link.
 
 
@@ -484,12 +481,6 @@ Section Adequacy.
   Context (vinit : Version).
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
-
-  Definition gset_all_otypes_def : gset OType := (list_to_set (finz.seq_between 0%ot top_ot)).
-  Definition gset_all_otypes_aux : seal (@gset_all_otypes_def). by eexists. Qed.
-  Definition gset_all_otypes := gset_all_otypes_aux.(unseal).
-  Definition gset_all_otypes_eq : @gset_all_otypes = @gset_all_otypes_def
-    := gset_all_otypes_aux.(seal_eq).
 
   Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
     (etbl' : ETable) (ecur' : ENum)
@@ -640,33 +631,6 @@ Section Adequacy.
       rewrite lib_region_app. apply map_union_subseteq_r. auto.
     }
 
-    (* iMod (inv_alloc custom_enclaveN ⊤ ( *)
-    (*     ∃ (n : ENum) (ot_n : OType), *)
-    (*       EC⤇ n ∗ ⌜ finz.of_z (2*(Z.of_nat n))%Z = Some ot_n⌝ *)
-    (*       ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between 0%ot ot_n) : list OType) : gset OType), *)
-    (*            ∃ P , seal_pred o P) *)
-    (*       ∗ ([∗ set] o ∈ (list_to_set ((finz.seq_between ot_n top_ot) : list OType) : gset OType), can_alloc_pred o) *)
-    (*       ∗ *)
-    (*     ( *)
-    (*       □ ∀ (I : EIdentity) (tid : TIndex) (ot : OType) (ce : CustomEnclave), *)
-    (*         ⌜(0 <= tid < n)⌝ -∗ *)
-    (*         enclave_all tid I *)
-    (*         ∗ ⌜ custom_enclaves !! I = Some ce ⌝ *)
-    (*         ∗ ⌜ has_seal ot tid ⌝ -∗ *)
-    (*         if (Z.even (finz.to_z ot)) *)
-    (*         then (seal_pred ot (Penc ce) ∗ seal_pred (ot ^+ 1)%ot (Psign ce)) *)
-    (*         else (seal_pred (ot ^+ (-1))%ot (Penc ce) ∗ seal_pred ot (Psign ce)) *)
-    (*     ) *)
-    (*   ) with "[Hseal_store HEC]") as "#HsystemInv". *)
-    (* { iNext. *)
-    (*   iExists 0, 0%ot. *)
-    (*   rewrite -/gset_all_otypes_def -!gset_all_otypes_eq. *)
-    (*   iFrame. *)
-    (*   iSplit; [iPureIntro;solve_finz|]. *)
-    (*   iSplit; [done|]. *)
-    (*   iModIntro ; iIntros (? ? ? ? ?); solve_finz. *)
-    (* } *)
-
     unfold is_initial_registers in Hreg.
     destruct Hreg as (HPC & Hr0 & Hne & Hrothers).
     iDestruct (big_sepM_delete _ _ PC
@@ -805,6 +769,9 @@ End Adequacy.
        ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (lib_region (pub_libs Lib)) vinit), a ↦ₐ w)
        ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (filtered_map (lib_region (priv_libs Lib))) vinit), a ↦ₐ w)
 
+       ∗ EC⤇ 0
+       ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
     rtc erased_step
@@ -815,11 +782,7 @@ End Adequacy.
     set (Σ := #[invΣ; gen_heapΣ LAddr LWord; gen_heapΣ RegName LWord;
                 na_invΣ; sealStorePreΣ; EnclavesAgreePreΣ; EnclavesExclPreΣ; ECPreΣ]).
     intros.
-    eapply (@template_adequacy' Σ); try typeclasses eauto; cycle -2; [|eauto..].
-    intros.
-    iIntros "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?)".
-    iApply H6; first done.
-    iSplit; iFrame.
+    eapply (@template_adequacy' Σ); eauto ; try typeclasses eauto.
   Qed.
 
 End with_adv_and_link.

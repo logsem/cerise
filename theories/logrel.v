@@ -1328,5 +1328,19 @@ Section custom_enclaves.
                Hdata_seal Hot HIhash Hb He with "[$]").
   Qed.
 
+  Lemma custom_enclaves_inv_alloc {enclaves_map : CustomEnclavesMap} (E : coPset) :
+    EC⤇ 0 ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+    ⊢ |={E}=> custom_enclave_inv.
+  Proof.
+    iIntros "[HEC Hseal_store]".
+    iApply (inv_alloc custom_enclaveN E with "[Hseal_store HEC]").
+    iNext.
+    iExists 0, 0%ot.
+    rewrite -/gset_all_otypes_def -!gset_all_otypes_eq.
+    iFrame.
+    iSplit; [iPureIntro;solve_finz|].
+    iSplit; [done|].
+    iModIntro ; iIntros (? ? ? ? ?); solve_finz.
+  Qed.
 
 End custom_enclaves.

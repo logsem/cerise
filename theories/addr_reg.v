@@ -265,3 +265,9 @@ Notation eqb_otype := (λ (a1 a2: OType), Z.eqb a1 a2).
 Notation "a1 =? a2" := (eqb_otype a1 a2) : OType_scope.
 
 Notation otype_incr_eq := (finz_incr_eq).
+
+Definition gset_all_otypes_def : gset OType := (list_to_set (finz.seq_between 0%ot top_ot)).
+Definition gset_all_otypes_aux : seal (@gset_all_otypes_def). by eexists. Qed.
+Definition gset_all_otypes := gset_all_otypes_aux.(unseal).
+Definition gset_all_otypes_eq : @gset_all_otypes = @gset_all_otypes_def
+  := gset_all_otypes_aux.(seal_eq).

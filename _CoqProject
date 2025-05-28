@@ -138,8 +138,13 @@ theories/examples/hash_cap.v
 theories/examples/macros.v
 theories/examples/macros_new.v
 
+# Template Adequacy
+theories/examples/enclaves/attestation_adequacy_template.v
+
 # Trusted Compute example
-theories/examples/enclaves/trusted_compute.v
+theories/examples/enclaves/trusted_compute_code.v
+theories/examples/enclaves/trusted_compute_enclave_spec.v
+theories/examples/enclaves/trusted_compute_spec.v
 
 # Trusted Memory Readout example
 theories/examples/enclaves/trusted_memory_readout_code.v
