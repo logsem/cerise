@@ -1478,6 +1478,22 @@ The general version
 &nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
 
 <br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <a id="custom_enclaves_inv_alloc" class="idref" href="#custom_enclaves_inv_alloc"><span class="id" title="lemma">custom_enclaves_inv_alloc</span></a> {<a id="enclaves_map:544" class="idref" href="#enclaves_map:544"><span class="id" title="binder">enclaves_map</span></a> : <a class="idref" href="cap_machine.logrel.html#CustomEnclavesMap"><span class="id" title="class">CustomEnclavesMap</span></a>} (<a id="E:545" class="idref" href="#E:545"><span class="id" title="binder">E</span></a> : <span class="id" title="definition">coPset</span>) :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<a class="idref" href="cap_machine.logical_mapsto.html#d699e1eac025f99265fa61d377dbfa74"><span class="id" title="notation">EC</span></a><a class="idref" href="cap_machine.logical_mapsto.html#d699e1eac025f99265fa61d377dbfa74"><span class="id" title="notation">⤇</span></a> 0 <span class="id" title="notation">∗</span> <span class="id" title="notation">(</span><span class="id" title="notation">[∗</span> <span class="id" title="notation">set</span><span class="id" title="notation">]</span> <a id="o:546" class="idref" href="#o:546"><span class="id" title="binder"><span id="o:547" class="id">o</span></span></a> <span class="id" title="notation">∈</span> <a class="idref" href="cap_machine.addr_reg.html#gset_all_otypes"><span class="id" title="definition">gset_all_otypes</span></a><span class="id" title="notation">,</span> <a class="idref" href="cap_machine.seal_store.html#can_alloc_pred"><span class="id" title="definition">can_alloc_pred</span></a> <a class="idref" href="cap_machine.logrel.html#o:546"><span class="id" title="variable">o</span></a><span class="id" title="notation">)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="notation">⊢</span> <span class="id" title="notation">|={</span><a class="idref" href="cap_machine.logrel.html#E:545"><span class="id" title="variable">E</span></a><span class="id" title="notation">}=&gt;</span> <a class="idref" href="cap_machine.logrel.html#custom_enclave_inv"><span class="id" title="definition">custom_enclave_inv</span></a>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "[HEC Hseal_store]".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="notation">(</span><span class="id" title="lemma">inv_alloc</span> <a class="idref" href="cap_machine.logrel.html#custom_enclaveN"><span class="id" title="definition">custom_enclaveN</span></a> <span class="id" title="var">E</span> <span class="id" title="notation">with</span> "[Hseal_store HEC]"<span class="id" title="notation">)</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iNext</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iExists</span> 0, 0%<span class="id" title="var">ot</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> -/<a class="idref" href="cap_machine.addr_reg.html#gset_all_otypes_def"><span class="id" title="definition">gset_all_otypes_def</span></a> -!<a class="idref" href="cap_machine.addr_reg.html#gset_all_otypes_eq"><span class="id" title="definition">gset_all_otypes_eq</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iFrame</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>; [<span class="id" title="var">iPureIntro</span>;<span class="id" title="var">solve_finz</span>|].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iSplit</span>; [<span class="id" title="var">done</span>|].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iModIntro</span> ; <span class="id" title="var">iIntros</span> (? ? ? ? ?); <span class="id" title="var">solve_finz</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Unshelve</span>. <span class="id" title="var">Fail</span> <span class="id" title="tactic">idtac</span>. <span class="id" title="var">Admitted</span>.<br/>
+
+<br/>
 <span class="id" title="keyword">End</span> <a class="idref" href="cap_machine.logrel.html#custom_enclaves"><span class="id" title="section">custom_enclaves</span></a>.<br/>
 </div>
 </div>
