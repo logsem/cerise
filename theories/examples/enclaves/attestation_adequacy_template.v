@@ -10,7 +10,6 @@ From cap_machine.examples Require Import addr_reg_sample.
 (* From cap_machine.proofmode Require Export disjoint_regions_tactics. *)
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 
-
 Definition register_to_lregister (reg : Reg) ( v : Version ) : LReg :=
   fmap (fun w => word_to_lword w v) reg.
 
@@ -197,6 +196,29 @@ Proof.
   rewrite /register_to_lregister /lreg_strip !fmap_insert lword_get_word_to_lword.
   rewrite -/(register_to_lregister m v) -/(lreg_strip _).
   by rewrite IHreg.
+Qed.
+
+Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (b e: Addr) (l : list LWord)
+  (φ: LAddr → LWord → iProp Σ) (v : Version) :
+  Forall is_zL l ->
+  (b + length l)%a = Some e →
+  ⊢ ([∗ map] a↦w ∈ memory_to_lmemory (mkregion b e (lword_get_word <$> l)) v, φ a w)
+    -∗ ([∗ list] a;w ∈ (map (λ a, (a,v)) (finz.seq_between b e)); l, φ a w).
+Proof.
+  rewrite /mkregion. revert b e. induction l as [| x l].
+  { cbn. intros. rewrite zip_with_nil_r /=. assert (b = e) as -> by solve_addr.
+    rewrite /finz.seq_between finz_dist_0. 2: solve_addr. cbn. eauto. }
+  { cbn. intros b e HZ Hlen. rewrite finz_seq_between_cons. 2: solve_addr.
+    cbn. iIntros "H".
+    rewrite memory_to_lmemory_insert.
+    iDestruct (big_sepM_insert with "H") as "[? H]".
+    { rewrite memory_to_lmemory_lookup fmap_None.
+      rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    apply Forall_cons_iff in HZ as [? ?].
+    rewrite word_to_lword_get_word_int //.
+    iFrame. iApply (IHl with "H"); auto. solve_addr. }
 Qed.
 
 
@@ -482,7 +504,8 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
-  Lemma template_adequacy' (m m': Mem) (reg reg': Reg)
+  Lemma template_adequacy' `{subG Σ' Σ}
+    (m m': Mem) (reg reg': Reg)
     (etbl' : ETable) (ecur' : ENum)
     (es: list cap_lang.expr)
     :
@@ -496,7 +519,7 @@ Section Adequacy.
     minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
 
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
-    (∀ `{ceriseG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, ReservedAddresses} rmap,
+    (∀ `{ceriseG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, ReservedAddresses, subG Σ' Σ} rmap,
         dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I vinit)
      (* ∗ custom_enclave_inv *)
@@ -673,7 +696,6 @@ Section Adequacy.
     pose proof (prog_lower_bound_region_cons P P_tbl) as [HeqP HNoneP].
     pose proof (prog_lower_bound_region_cons Adv Adv_tbl) as [HeqAdv HNoneAdv].
     rewrite HeqP HeqAdv.
-    Set Nested Proofs Allowed.
 
     iEval (rewrite memory_to_lmemory_insert) in "Hp".
     iDestruct (big_sepM_insert with "Hp") as "[Hlinkp Hp]"
@@ -682,7 +704,7 @@ Section Adequacy.
     iDestruct (big_sepM_insert with "Hadv") as "[Hlinkadv Hadv]"
     ;[rewrite memory_to_lmemory_lookup;apply fmap_None; auto|].
 
-    iPoseProof (Hspec rmap with
+    iPoseProof (Hspec _ rmap with
                  "[$HPC $Hr0 $Hreg $HEC $Hseal_store
                   $Hlinkp $Hp $Hlinkadv $Hadv $Hp_tbl
                   $Hadv_tbl $Hlib_pub $Hlib_priv
@@ -727,7 +749,7 @@ Section Adequacy.
 End Adequacy.
 
   Lemma template_adequacy
-    `{MP: MachineParameters}
+    `{MP: MachineParameters} (Σ : gFunctor)
     (P Adv: prog) (Lib : lib)
     (P_tbl : @tbl_priv P Lib)
     (Adv_tbl : @tbl_pub Adv Lib) (I: memory_inv) (r_adv : RegName)
@@ -745,7 +767,7 @@ End Adequacy.
     minv_dom I ⊆ dom (lib_region (priv_libs Lib)) →
 
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom I) m in
-    (∀ `{ceriseG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, ReservedAddresses} rmap,
+    (∀ `{ceriseG Σ', sealStoreG Σ', NA: logrel_na_invs Σ', ReservedAddresses, subG Σ Σ'} rmap,
         dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I vinit)
      (* ∗ custom_enclave_inv *)
@@ -779,10 +801,215 @@ End Adequacy.
       (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
-    set (Σ := #[invΣ; gen_heapΣ LAddr LWord; gen_heapΣ RegName LWord;
-                na_invΣ; sealStorePreΣ; EnclavesAgreePreΣ; EnclavesExclPreΣ; ECPreΣ]).
+    set (Σ' := #[invΣ; gen_heapΣ LAddr LWord; gen_heapΣ RegName LWord;
+                na_invΣ; sealStorePreΣ; EnclavesAgreePreΣ; EnclavesExclPreΣ; ECPreΣ; Σ]).
     intros.
-    eapply (@template_adequacy' Σ); eauto ; try typeclasses eauto.
+    eapply (@template_adequacy' Σ'); eauto ; typeclasses eauto.
   Qed.
 
 End with_adv_and_link.
+
+From cap_machine Require Import assert.
+Module assert_lib.
+Include with_adv_and_link.
+Record assert_library `{MachineParameters} := MkAssertLibrary {
+  (* assert library *)
+  assert_start : Addr;
+  assert_cap : Addr;
+  assert_flag : Addr;
+  assert_end : Addr;
+
+  assert_code_size :
+    (assert_start + length assert_subroutine_instrs)%a = Some assert_cap;
+  assert_cap_size :
+    (assert_cap + 1)%a = Some assert_flag;
+  assert_flag_size :
+    (assert_flag + 1)%a = Some assert_end;
+}.
+
+(* assert library entry *)
+Definition assert_library_content `{MachineParameters} (layout : assert_library) : gmap Addr Word :=
+  (* code for the assert subroutine, followed by a capability to the assert flag
+     and the flag itself, initialized to 0. *)
+  mkregion (assert_start layout) (assert_cap layout) (lword_get_word <$> assert_subroutine_instrs)
+  ∪ list_to_map [(assert_cap layout, WCap RW (assert_flag layout) (assert_end layout) (assert_flag layout))]
+  ∪ list_to_map [(assert_flag layout, WInt 0)] (* assert flag *).
+
+Definition lib_entry_assert `{MachineParameters} (layout : assert_library) : lib_entry :=
+  {| lib_start := assert_start layout;
+     lib_end := assert_end layout;
+     lib_entrypoint := assert_start layout;
+     lib_full_content := assert_library_content layout |}.
+
+(* full library *)
+Definition library `{MachineParameters} (layout : assert_library) : lib :=
+  {| priv_libs := [lib_entry_assert layout] ;
+     pub_libs := [] |}.
+
+Definition OK_invariant `{MachineParameters} (layout : assert_library) (m : gmap Addr Word) : Prop :=
+  ∀ w, m !! (assert_flag layout) = Some w → w = WInt 0%Z.
+
+Definition OK_dom `{MachineParameters} (layout : assert_library) : gset Addr := {[ assert_flag layout ]}.
+
+Program Definition OK_dom_correct `{MachineParameters} (layout : assert_library) :
+  ∀ m m',
+    (∀ a, a ∈ OK_dom layout → ∃ x, m !! a = Some x ∧ m' !! a = Some x) →
+    OK_invariant layout m ↔ OK_invariant layout m'.
+Proof.
+  intros m m' Hdom.
+  destruct Hdom with (assert_flag layout) as [w [Hw1 Hw2] ]. rewrite /OK_dom. set_solver.
+  split;intros HOK;intros w' Hw';simplify_eq;apply HOK;auto.
+Defined.
+
+Definition flag_inv `{MachineParameters} (layout : assert_library) : memory_inv :=
+  {| minv := OK_invariant layout;
+     minv_dom := {[ assert_flag layout ]} ;
+     minv_dom_correct := OK_dom_correct layout |}.
+
+Lemma flag_inv_is_initial_memory `{MachineParameters} (layout : assert_library) trusted_prog adv_prog trusted_table adv_table m :
+  is_initial_memory trusted_prog adv_prog (library layout) trusted_table adv_table m →
+  minv (flag_inv layout) m.
+Proof.
+  intros Hinit. intros a Hin.
+  destruct Hinit as (?&?&Hlibs&?&?&?&Hlibdisj).
+  cbn in Hlibs. rewrite map_union_empty in Hlibs.
+  assert ((assert_library_content layout) ⊆ m) as Hassert by auto.
+  pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
+  pose proof (assert_flag_size layout).
+  assert (list_to_map [(assert_flag layout, WInt 0)] ⊆ m) as Hassert_flag.
+  { etrans;[|eauto]. eapply map_union_subseteq_r'. 2: done.
+    disjoint_map_to_list.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
+    intros [ [? ?]|?] ->; solve_addr. }
+  eapply (lookup_weaken _ _ (assert_flag layout) (WInt 0)) in Hassert_flag.
+    by simplify_eq. by simplify_map_eq.
+Qed.
+
+Lemma flag_inv_sub `{MachineParameters} (layout : assert_library) :
+  minv_dom (flag_inv layout) ⊆ dom (lib_region (priv_libs (library layout))).
+Proof.
+  cbn. rewrite map_union_empty.
+  intros ? Hinit. rewrite elem_of_singleton in Hinit.
+  rewrite /assert_library_content.
+  pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
+  pose proof (assert_flag_size layout).
+  rewrite /= dom_union_L. apply elem_of_union_r.
+  rewrite dom_insert_L. set_solver.
+Qed.
+
+Definition assertInv `{ceriseG Σ, MachineParameters} (layout : assert_library) :=
+  assert_inv (assert_start layout) (assert_flag layout) (assert_end layout).
+
+Definition assertN : namespace := nroot .@ "priv" .@ "assert".
+
+
+Theorem assert_template_adequacy
+  `{MP: MachineParameters} (Σ : gFunctor)
+  (layout: assert_library)
+  (P Adv: prog)
+  (P_tbl : @tbl_priv P (library layout))
+  (Adv_tbl : @tbl_pub Adv (library layout)) (r_adv : RegName)
+  (m m': Mem) (reg reg': Reg)
+  (etbl' : ETable) (ecur' : ENum)
+  (es: list cap_lang.expr):
+  let vinit := 0 in
+
+  is_initial_memory P Adv (library layout) P_tbl Adv_tbl m →
+  is_complete_memory m →
+  is_initial_registers P Adv (library layout) P_tbl Adv_tbl reg r_adv →
+  is_complete_registers reg m →
+
+  Forall (fun w => adv_condition Adv w vinit) (prog_instrs Adv) →
+
+  let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (flag_inv layout)) m in
+  (∀ `{ceriseG Σ',sealStoreG Σ',logrel_na_invs Σ',subG Σ Σ',ReservedAddresses} (rmap : gmap RegName Word),
+      dom rmap = all_registers_s ∖ {[ PC; r_adv ]} ->
+      ⊢
+        inv invN (minv_sep (flag_inv layout) vinit)
+        ∗ na_inv logrel_nais assertN (assertInv layout vinit)
+        ∗ na_own logrel_nais ⊤
+       (* Registers *)
+       ∗ PC ↦ᵣ LCap RWX (prog_lower_bound P_tbl) (prog_end P) (prog_start P) vinit
+       ∗ r_adv ↦ᵣ LCap RWX (prog_lower_bound Adv_tbl) (prog_end Adv) (prog_start Adv) vinit
+       ∗ ([∗ map] r↦w ∈ (register_to_lregister rmap vinit), r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+       (* Memory *)
+       (* P program and table *)
+       ∗ (prog_lower_bound P_tbl, vinit) ↦ₐ (LCap RO (tbl_start P_tbl) (tbl_end P_tbl) (tbl_start P_tbl) vinit)
+       ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (tbl_region P_tbl) vinit), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (prog_region P) vinit), a ↦ₐ w)
+       (* Adv program and table *)
+       ∗ (prog_lower_bound Adv_tbl, vinit) ↦ₐ (LCap RO (tbl_start Adv_tbl) (tbl_end Adv_tbl) (tbl_start Adv_tbl) vinit)
+       ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (tbl_region Adv_tbl) vinit), a ↦ₐ w)
+       ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (prog_region Adv) vinit), a ↦ₐ w)
+       ∗ EC⤇ 0
+       ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+
+        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
+
+    rtc erased_step
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0 |})
+      (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
+  minv (flag_inv layout) m'.
+Proof.
+  intros ? ? ? ? ? ? ? Hspec.
+  eapply (template_adequacy Σ);[eauto..|]; (* rewrite /invGpreS. solve_inG. *)
+    try typeclasses eauto.
+  { eapply flag_inv_is_initial_memory;eauto. }
+  { eapply flag_inv_sub;eauto. }
+  intros. cbn.
+  rewrite !map_union_empty.
+  iIntros "(#Hflag & Hown & HPC & Hr_adv & Hrmap & Htbl & Htbl_r
+           & Hprog & Htbl_adv & Htbl_adv_r & Hprog_adv & _ & Hassert & HEC & Hseal_store)".
+
+  (* allocate the flag invariant *)
+  iMod (na_inv_alloc logrel_nais ⊤ assertN (assertInv layout vinit)
+          with "[Hassert]") as "#Hinv_assert".
+  { iNext. rewrite /assertInv /assert_inv /assert_library_content.
+    iExists (assert_cap layout).
+    pose proof (assert_code_size layout). pose proof (assert_cap_size layout).
+    pose proof (assert_flag_size layout).
+    rewrite map_filter_union.
+    2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
+         rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+         intros [ [? ?]|?]; solve_addr. }
+    rewrite memory_to_lmemory_union.
+    iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
+    { apply memory_to_lmemory_disjoint.
+      eapply map_disjoint_filter. disjoint_map_to_list.
+      apply elem_of_disjoint. intro.
+      rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+      intros [ [? ?]|?]; solve_addr. }
+    rewrite map_filter_id.
+    2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
+         2: solve_addr. apply elem_of_union in HH.
+         rewrite elem_of_singleton. destruct HH as [HH|HH].
+         rewrite -> elem_of_list_to_set, elem_of_finz_seq_between in HH; solve_addr.
+         rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
+    rewrite memory_to_lmemory_union.
+    iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
+    { apply memory_to_lmemory_disjoint.
+      disjoint_map_to_list. apply elem_of_disjoint. intro.
+      rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
+    subst vinit.
+    rewrite memory_to_lmemory_insert.
+    iEval (cbn) in "Hcap".
+    iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]"; first done.
+    iFrame "Hcap".
+    iSplitL "Hassert"; cycle 1.
+    + iPureIntro. repeat split; solve_addr.
+    + iApply (mkregion_sepM_to_sepL2 with "[Hassert]"); auto.
+      { apply Forall_forall.
+        intros.
+        cbn in *.
+        repeat (rewrite elem_of_cons in H12; destruct H12 as [-> | H12]; first done).
+        set_solver+H12.
+      }
+      { solve_addr. }
+      rewrite (_: assert_cap layout = assert_start layout ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
+    iFrame "Hassert".
+    }
+
+  iApply Hspec; [exact|..|iFrame "∗ #"];auto.
+Qed.
+
+End assert_lib.
