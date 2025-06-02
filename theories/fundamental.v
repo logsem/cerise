@@ -314,10 +314,10 @@ Section fundamental.
     all: iApply (region_valid_alloc with "Hl"); eauto.
   Qed.
 
-  Lemma region_in_region_alloc' E (b e a: Addr) v l p :
+  Lemma region_in_regionL_alloc' E (b e a: Addr) v l p :
     finz.seq_between b e ## reserved_addresses ->
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
-    Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l →
+    Forall (λ lw, is_zL lw = true \/ in_regionL lw b e v) l →
     (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
     ⊢
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
@@ -326,11 +326,11 @@ Section fundamental.
     iIntros (Hreserved Hmasks Hl) "#Hsys H". destruct p.
     { (* O *) rewrite fixpoint_interp1_eq //=. }
     4: { (* E *) rewrite fixpoint_interp1_eq /=.
-         iDestruct (region_valid_in_region _ _ _ a _ _ RX with "H") as ">#H"; auto.
+         iDestruct (region_valid_in_regionL _ _ _ a _ _ RX with "H") as ">#H"; auto.
          iModIntro. iIntros (r).
          iNext. iModIntro.
          iDestruct (fundamental _ r with "[$] [$]") as "H'"; eauto. }
-    all: iApply (region_valid_in_region with "H"); eauto.
+    all: iApply (region_valid_in_regionL with "H"); eauto.
   Qed.
 
 End fundamental.

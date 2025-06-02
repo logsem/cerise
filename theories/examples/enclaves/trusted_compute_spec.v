@@ -88,25 +88,25 @@ Section trusted_compute_main.
   Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
 
   (* Linking table invariant *)
-  Definition link_tableN := (trusted_computeN.@"link_table").
+  (* Definition link_tableN := (trusted_computeN.@"link_table"). *)
   Definition link_table_inv
     v_link
-    assert_entry b_assert e_assert v_assert :=
+    assert_entry b_assert e_assert v_assert link_tableN :=
     na_inv logrel_nais link_tableN
          ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
 
   (* Assert invariant *)
-  Definition assertN := (trusted_computeN.@"assert").
-  Definition assert_inv b_a a_flag e_a v_assert :=
+  (* Definition assertN := (trusted_computeN.@"assert"). *)
+  Definition assert_inv b_a a_flag e_a v_assert assertN :=
     na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
 
-  Definition flag_assertN := (trusted_computeN.@"flag_assert").
-  Definition flag_inv a_flag v_flag :=
+  (* Definition flag_assertN := (trusted_computeN.@"flag_assert"). *)
+  Definition flag_inv a_flag v_flag flag_assertN :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
 
   Lemma trusted_compute_callback_code_spec
-    E
+    (E : coPset) (assertN flag_assertN link_tableN : namespace)
     (b_main pc_b pc_e : Addr)
     (pc_v : Version)
 
@@ -128,15 +128,17 @@ Section trusted_compute_main.
 
     ↑link_tableN ⊆ E ->
     ↑assertN ⊆ E ->
+    assertN ## link_tableN ->
+
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
     SubBounds pc_b pc_e b_main e_main ->
 
     (link_table_inv
        v_link
-       assert_entry b_assert e_assert v_assert
-    ∗ assert_inv b_assert a_flag e_assert v_assert
-    ∗ flag_inv a_flag v_assert)
+       assert_entry b_assert e_assert v_assert link_tableN
+    ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+    ∗ flag_inv a_flag v_assert flag_assertN)
     ∗ custom_enclave_inv (enclaves_map := contract_tc_enclaves_map)
     ∗ interp w1
     ∗ interp w0
@@ -184,7 +186,7 @@ Section trusted_compute_main.
           /trusted_compute_main_init_len /trusted_compute_main_callback_len
       ; solve_addr.
 
-    intros ?????? Hregion HE HE' Hassert Hlink Hpcbounds.
+    intros ?????? Hregion HE HE' HE_disj Hassert Hlink Hpcbounds.
     (* pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap. *)
 
     iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv [ Hinterp_w1 Hinterp_w0]] ]
@@ -341,20 +343,19 @@ Section trusted_compute_main.
     iApply "Hcont"; iFrame.
   Qed.
 
-  Definition tc_mainN := (trusted_computeN.@"main").
-  Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap
+  (* Definition tc_mainN := (trusted_computeN.@"main"). *)
+  Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap tc_mainN
     := na_inv logrel_nais tc_mainN
          (codefrag b_main pc_v main_code
           ∗ (a_data, pc_v) ↦ₐ link_cap
           ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ LCap RWX b_main e_main a_data pc_v).
 
   Lemma trusted_compute_callback_code_sentry
-    (b_main : Addr)
-    (pc_v : Version)
+    (b_main : Addr) (pc_v : Version) (tc_mainN : namespace)
 
-    (b_link a_link e_link assert_entry : Addr) (* linking *)
+    (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
     (assert_lt_offset : Z)
-    (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
     :
 
     let v_link := pc_v in
@@ -365,6 +366,11 @@ Section trusted_compute_main.
     let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
 
     let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
+
+    assertN ## link_tableN ->
+    assertN ## tc_mainN ->
+    link_tableN ## tc_mainN ->
+
     ContiguousRegion b_main trusted_compute_main_len ->
     SubBounds b_main (b_main ^+ trusted_compute_main_len)%a b_main
       (b_main ^+ trusted_compute_main_len)%a ->
@@ -373,16 +379,16 @@ Section trusted_compute_main.
     withinBounds b_link e_link assert_entry = true ->
     (link_table_inv
        v_link
-       assert_entry b_assert e_assert v_assert
-     ∗ assert_inv b_assert a_flag e_assert v_assert
-     ∗ flag_inv a_flag v_assert
-     ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap
+       assert_entry b_assert e_assert v_assert link_tableN
+     ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+     ∗ flag_inv a_flag v_assert flag_assertN
+     ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap tc_mainN
     )
     ∗ (custom_enclave_inv (enclaves_map := contract_tc_enclaves_map))
     ⊢ interp (LCap E b_main (b_main ^+ trusted_compute_main_len)%a
                 (b_main ^+ trusted_compute_main_init_len)%a pc_v).
   Proof.
-    intros ?????? HcontRegion HsubBounds Hassert Hlink.
+    intros ????????? HcontRegion HsubBounds Hassert Hlink.
     iIntros "[#(HlinkInv & HassertInv & HflagInv & HcodeInv) #Hcemap_inv]".
     iEval (rewrite fixpoint_interp1_eq /=).
     iIntros (regs); iNext ; iModIntro.
@@ -428,7 +434,6 @@ Section trusted_compute_main.
       iNext; iIntros "(Hcode & Hadata & Hadata' & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna)".
       iMod ("Hcls" with "[$Hcode $Hadata $Hadata' $Hna]") as "Hna".
       wp_end. iIntros (_).
-
       (* Cannot use iInsert, because Qed is too long *)
       iDestruct (big_sepM_insert _ _ r_t5 with "[$Hrmap $Hr5]") as "Hrmap"
       ; first (by rewrite lookup_delete).
@@ -470,15 +475,14 @@ Section trusted_compute_main.
   Qed.
 
   Lemma trusted_compute_full_run_spec
-    (b_main : Addr)
-    (pc_v : Version)
+    (b_main : Addr) (pc_v : Version) (tc_mainN : namespace)
 
-    (b_link a_link e_link assert_entry : Addr) (* linking *)
+    (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
     (assert_lt_offset : Z)
-    (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
 
     (rmap : LReg)
-    (wadv w1 : LWord)
+    (wadv : LWord)
     :
 
     let v_link := pc_v in
@@ -489,6 +493,11 @@ Section trusted_compute_main.
     let a_data := (b_main ^+ trusted_compute_main_code_len)%a in
 
     let trusted_compute_main := trusted_compute_main_code assert_lt_offset in
+
+    assertN ## link_tableN ->
+    assertN ## tc_mainN ->
+    link_tableN ## tc_mainN ->
+
     ContiguousRegion b_main trusted_compute_main_len ->
     SubBounds b_main (b_main ^+ trusted_compute_main_len)%a b_main
       (b_main ^+ trusted_compute_main_len)%a ->
@@ -497,34 +506,30 @@ Section trusted_compute_main.
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
 
-    dom rmap = all_registers_s ∖ {[ PC; r_t0; r_t1 ]} →
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
 
     (link_table_inv
        v_link
-       assert_entry b_assert e_assert v_assert
-    ∗ assert_inv b_assert a_flag e_assert v_assert
-    ∗ flag_inv a_flag v_assert
-    ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap
+       assert_entry b_assert e_assert v_assert link_tableN
+    ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+    ∗ flag_inv a_flag v_assert flag_assertN
+    ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap tc_mainN
     )
     ∗ (custom_enclave_inv (enclaves_map := contract_tc_enclaves_map))
     ∗ interp wadv
 
-    ⊢ ( ((a_data)%a, pc_v) ↦ₐ link_cap
-        ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
-
-          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+    ⊢ (PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
           ∗ r_t0 ↦ᵣ wadv
-          ∗ r_t1 ↦ᵣ w1
           ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
           ∗ na_own logrel_nais ⊤
           -∗ WP Seq (Instr Executable) {{λ v,
                   (⌜v = HaltedV⌝ → ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                   ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
-    intros ?????? Hregion HsubBounds Hassert Hlink Hrmap.
+    intros ????????? Hregion HsubBounds Hassert Hlink Hrmap.
 
     iIntros "[  #(HlinkInv & HassertInv & HflagInv & HcodeInv) #[ Hcemap_inv Hinterp_wadv ] ]
-             (Hadata & Hadata' & HPC & Hr0 & Hr1 & Hrmap & Hna)".
+             (HPC & Hr0 & Hrmap & Hna)".
 
     iDestruct (jmp_to_unknown wadv with "[] [$Hinterp_wadv]") as "Hjmp".
     { iSplit; last iFrame "Hcemap_inv".
@@ -532,14 +537,17 @@ Section trusted_compute_main.
       iApply custom_enclave_contract_inv.
       iApply tc_enclave_contract.
     }
-    iMod (na_inv_acc with "HcodeInv Hna") as "[>(Hcode & Hdata & Hdata') [Hna Hcls] ]"
+    iMod (na_inv_acc with "HcodeInv Hna") as "[>(Hcode & Hadata & Hadata') [Hna Hcls] ]"
     ;[solve_ndisj|solve_ndisj|].
+
+    iExtract "Hrmap" r_t1 as "[Hr1 _]".
     iApply (trusted_compute_main_init_spec with "[-]"); eauto; iFrame.
     iNext; iIntros "(Hcode & HPC & Hr0 & Hr1)".
     iMod ("Hcls" with "[$Hcode $Hadata $Hadata' $Hna]") as "Hna".
 
+    set (rmap' := delete r_t1 rmap).
     (* Show that the contents of unused registers is safe *)
-    iAssert ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn.
       iIntros "[Hr %Hw]". iFrame.
       destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //.
@@ -550,8 +558,10 @@ Section trusted_compute_main.
                 with "[$HlinkInv $HassertInv $HflagInv $HcodeInv $Hcemap_inv]")
       as "Hinterp_wret"; eauto.
     (* Cannot use iInsert, because Qed is too long *)
+    subst rmap'.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1 $Hinterp_wret]") as "Hrmap"
-    ; first (apply not_elem_of_dom_1; rewrite Hrmap; set_solver).
+    ; first (apply lookup_delete_None ; left ; done).
+    rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0 $Hinterp_wadv]") as "Hrmap"
     ; first (rewrite lookup_insert_ne //=; apply not_elem_of_dom_1; rewrite Hrmap; set_solver).
 

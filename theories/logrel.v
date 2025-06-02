@@ -666,25 +666,25 @@ Section logrel.
     by rewrite union_comm_L.
   Qed.
 
-  Definition in_region (lw : LWord) (b e : Addr) (v : Version) :=
+  Definition in_regionL (lw : LWord) (b e : Addr) (v : Version) :=
     match lw with
     | LCap p b' e' a v' => PermFlows RO p /\ (b <= b')%a /\ (e' <= e)%a /\ v = v'
     | _ => False
     end.
 
-  Definition in_region_list (lw : LWord) (ls: list Addr) (v : Version) :=
+  Definition in_regionL_list (lw : LWord) (ls: list Addr) (v : Version) :=
     match lw with
     | LCap p b' e' a v' => PermFlows RO p /\ (forall x, b' <= x < e' -> x ∈ ls)%a /\ v = v'
     | _ => False
     end.
 
-  Lemma region_valid_in_region_ind E (l1 l2 : list Addr) (v : Version) :
+  Lemma region_valid_in_regionL_ind E (l1 l2 : list Addr) (v : Version) :
     Forall (λ a, ↑logN.@(a,v) ⊆ E) (l1 ++ l2) ->
     NoDup l1 -> NoDup l2 ->
     l2 ## l1 ->
     l1 ++ l2 ## reserved_addresses ->
     ([∗ list] a ∈ l1, inv (logN .@ (a,v)) (interp_ref_inv a v interp)) -∗
-    ([∗ list] a ∈ l2, ∃ lw, (a,v) ↦ₐ lw ∗ ⌜is_zL lw = true \/ in_region_list lw (l1 ++ l2) v⌝) -∗
+    ([∗ list] a ∈ l2, ∃ lw, (a,v) ↦ₐ lw ∗ ⌜is_zL lw = true \/ in_regionL_list lw (l1 ++ l2) v⌝) -∗
     |={compute_mask E (list_to_set ((λ a, (a,v)) <$> l1))}=>
           ([∗ list] a ∈ l1 ++ l2, inv (logN .@ (a,v)) (interp_ref_inv a v interp)).
   Proof.
@@ -777,16 +777,16 @@ Section logrel.
       Unshelve. all: apply _.
   Qed.
 
-  Lemma region_valid_in_region E (b e a: Addr) v l p  :
+  Lemma region_valid_in_regionL E (b e a: Addr) v l p  :
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
     finz.seq_between b e ## reserved_addresses ->
     PermFlowsTo RO p →
-    Forall (λ lw, is_zL lw = true \/ in_region lw b e v) l ->
+    Forall (λ lw, is_zL lw = true \/ in_regionL lw b e v) l ->
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).
   Proof.
     iIntros (Hsub Hreserved Hperm Hl) "Hl".
-    iDestruct (region_valid_in_region_ind E [] (finz.seq_between b e) v with "[] [Hl]") as "HH".
+    iDestruct (region_valid_in_regionL_ind E [] (finz.seq_between b e) v with "[] [Hl]") as "HH".
     { rewrite app_nil_l. auto. }
     { apply NoDup_nil. auto. }
     { apply finz_seq_between_NoDup. }
@@ -944,7 +944,7 @@ Section logrel.
     NoDup la ->
     length lws = length la ->
     ([∗ map] a↦lw ∈ list_to_map (zip la lws), (a,v) ↦ₐ lw)
-    ∗-∗ ([∗ map] a↦lw ∈ logical_region_map la lws v, a ↦ₐ lw).
+    ⊣⊢ ([∗ map] a↦lw ∈ logical_region_map la lws v, a ↦ₐ lw).
   Proof.
     revert v lws.
     induction la as [|a la IHla] ; intros * HNoDup Hlen

@@ -145,6 +145,7 @@ theories/examples/enclaves/attestation_adequacy_template.v
 theories/examples/enclaves/trusted_compute_code.v
 theories/examples/enclaves/trusted_compute_enclave_spec.v
 theories/examples/enclaves/trusted_compute_spec.v
+theories/examples/enclaves/trusted_compute_adequacy.v
 
 # Trusted Memory Readout example
 theories/examples/enclaves/trusted_memory_readout_code.v
