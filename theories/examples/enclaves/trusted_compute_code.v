@@ -50,6 +50,9 @@ Section trusted_example.
   Definition trusted_compute_enclave_lcode : list LWord :=
     encodeInstrsLW trusted_compute_enclave_instrs.
 
+  Definition trusted_compute_enclave_code_len : Z :=
+    Eval cbv in length trusted_compute_enclave_code.
+
   Definition hash_trusted_compute_enclave : Z :=
     hash_concat (hash tc_addr) (hash trusted_compute_enclave_code).
 

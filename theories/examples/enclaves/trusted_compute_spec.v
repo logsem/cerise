@@ -85,7 +85,7 @@ Section trusted_compute_main.
   (** Specification callback code *)
 
   (* Define all the invariants *)
-  Definition trusted_computeN : namespace := nroot .@ "trusted_compute".
+  (* Definition trusted_computeN : namespace := nroot .@ "trusted_compute". *)
 
   (* Linking table invariant *)
   (* Definition link_tableN := (trusted_computeN.@"link_table"). *)

@@ -157,6 +157,7 @@ theories/examples/enclaves/mutual_attestation_code.v
 theories/examples/enclaves/mutual_attestation_A_spec.v
 theories/examples/enclaves/mutual_attestation_B_spec.v
 theories/examples/enclaves/mutual_attestation_spec.v
+theories/examples/enclaves/mutual_attestation_adequacy.v
 
 # Template Adequacy
 # theories/examples/template_adequacy.v

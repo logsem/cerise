@@ -509,6 +509,11 @@ Section mutual_attest_example.
   Definition mutual_attest_enclave_B_code : list Word :=
    (mutual_attest_enclave_B_code_pre_code ++ mutual_attest_eid_table).
 
+  Definition mutual_attest_enclave_A_code_len : Z :=
+    Eval cbv in (length mutual_attest_enclave_A_code).
+  Definition mutual_attest_enclave_B_code_len : Z :=
+    Eval cbv in (length mutual_attest_enclave_B_code).
+
   Definition mutual_attest_enclave_A_lcode : list LWord :=
    (mutual_attest_enclave_A_code_pre_lcode ++ mutual_attest_eid_ltable).
   Definition mutual_attest_enclave_B_lcode : list LWord :=
@@ -562,6 +567,18 @@ Section mutual_attest_example.
         Fail;
         GetA r r
       ].
+  Definition mutual_attestation_main_code_init : list LWord :=
+    (* main: *)
+    encodeInstrsLW [
+        Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
+
+        (* Create callback sentry *)
+        Lea r_t1 4%Z;                 (* rt1 := (RWX, main, main_end, callback) *)
+        Restrict r_t1 (encodePerm E); (* rt1 := (E, main, main_end, callback) *)
+
+        (* Jump to adversary *)
+        Jmp r_t0]
+  .
 
 
 
@@ -572,7 +589,7 @@ Section mutual_attest_example.
   (* r3 := unsealing cap A *)
   (* a_data = callback + length mutual_attest_code *)
   (* mem[a_data] = link_cap *)
-  Definition mutual_attestation_main_code
+  Definition mutual_attestation_main_code_callback
     (assert_lt_offset : Z)
     : list LWord :=
     mutual_attestation_main_attest_or_fail r_t0 hash_mutual_attest_A ++
@@ -604,6 +621,22 @@ Section mutual_attest_example.
       assert_reg_instrs assert_lt_offset r_t3 ++
       encodeInstrsLW [Halt].
 
+  Definition mutual_attestation_main_code (assert_lt_offset : Z) : list LWord :=
+    mutual_attestation_main_code_init ++
+    (mutual_attestation_main_code_callback assert_lt_offset).
+
+  Definition mutual_attestation_main_init_len : Z :=
+    Eval cbv in (length mutual_attestation_main_code_init).
+
+  Definition mutual_attestation_main_callback_len : Z :=
+    Eval cbv in (length (mutual_attestation_main_code_callback 0%Z)).
+
+  Definition mutual_attestation_main_code_len : Z :=
+    Eval cbv in (length (mutual_attestation_main_code 0%Z)).
+
+  Definition mutual_attestation_main_data_len : Z := 1.
+  Definition mutual_attestation_main_len :=
+    Eval cbv in (mutual_attestation_main_code_len + mutual_attestation_main_data_len)%Z.
 
   (* Sealed predicate for enclave A *)
   Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).

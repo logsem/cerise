@@ -326,140 +326,149 @@ Section mutual_attest_main.
   Qed.
 
 
-  Definition mutual_attestationN : namespace := nroot .@ "mutual_attestation".
+  (* Definition mutual_attestationN : namespace := nroot .@ "mutual_attestation". *)
   (* Define all the invariants *)
   (* Linking table invariant *)
-  Definition link_tableN := (mutual_attestationN.@"link_table").
+  (* Definition link_tableN := (mutual_attestationN.@"link_table"). *)
   Definition link_table_inv
     v_link
-    assert_entry b_assert e_assert v_assert :=
+    assert_entry b_assert e_assert v_assert link_tableN :=
     na_inv logrel_nais link_tableN
          ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
 
   (* Assert invariant *)
-  Definition assertN := (mutual_attestationN.@"assert").
-  Definition assert_inv b_a a_flag e_a v_assert :=
+  (* Definition assertN := (mutual_attestationN.@"assert"). *)
+  Definition assert_inv b_a a_flag e_a v_assert assertN :=
     na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
 
-  Definition flag_assertN := (mutual_attestationN.@"flag_assert").
-  Definition flag_inv a_flag v_flag :=
+  (* Definition flag_assertN := (mutual_attestationN.@"flag_assert"). *)
+  Definition flag_inv a_flag v_flag flag_assertN :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
+  Lemma mutual_attest_callback_spec
+    (E : coPset) (b_main pc_b pc_e : Addr) (pc_v : Version)
 
-  Lemma mutual_attest_full_run_spec
-    (pc_b pc_e : Addr)
-    (pc_v : Version)
-
-    (b_link a_link e_link assert_entry : Addr) (* linking *)
+    (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
     (assert_lt_offset : Z)
-    (b_assert e_assert a_flag : Addr) (v_assert : Version) (* assert *)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
 
-    (rmap : LReg)
+    (* (rmap : LReg) *)
+    (w0 w1 w2 w3 w4 w5 w6 : LWord)
+    (φ : val → iPropI Σ)
     :
 
     let v_link := pc_v in
     let link_cap := LCap RO b_link e_link a_link v_link in
 
-    let code := mutual_attestation_main_code assert_lt_offset in
-    let e_main := (pc_b ^+ (length code))%a in
-    let a_data := (e_main ^+ 1)%a in
+    let e_main := (b_main ^+ mutual_attestation_main_len)%a in
+    let a_callback := (b_main ^+ mutual_attestation_main_init_len)%a in
+    let a_data := (b_main ^+ mutual_attestation_main_code_len)%a in
 
-    (e_main + 1)%a = Some a_data ->
-    (a_data + 1)%a = Some pc_e ->
-    SubBounds pc_b pc_e pc_b e_main ->
+    let mutual_attestation_main := mutual_attestation_main_code assert_lt_offset in
+    ContiguousRegion b_main mutual_attestation_main_len ->
 
+    ↑link_tableN ⊆ E ->
+    ↑assertN ⊆ E ->
+    assertN ## link_tableN ->
 
     (a_link + assert_lt_offset)%a = Some assert_entry →
     withinBounds b_link e_link assert_entry = true ->
+    SubBounds pc_b pc_e b_main e_main ->
+    pc_e = e_main ->
 
-    (link_table_inv v_link assert_entry b_assert e_assert v_assert
-    ∗ assert_inv b_assert a_flag e_assert v_assert
-    ∗ flag_inv a_flag v_assert)
+    (link_table_inv v_link assert_entry b_assert e_assert v_assert link_tableN
+    ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+    ∗ flag_inv a_flag v_assert flag_assertN)
 		∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
-    ∗ full_map rmap
-    ∗ (∀ (r : RegName) (lv : LWord), ⌜r ≠ PC⌝ → ⌜rmap !! r = Some lv⌝ → fixpoint interp1 lv)
-
-    ⊢ ( codefrag pc_b pc_v code
+    ∗ interp w0
+    ∗ interp w2
+    ⊢ (
+        codefrag b_main pc_v mutual_attestation_main
         ∗ (a_data, pc_v) ↦ₐ link_cap
-        ∗ PC ↦ᵣ LCap RX pc_b pc_e pc_b pc_v
-        ∗ registers_mapsto rmap
-        ∗ na_own logrel_nais ⊤
-          -∗ WP Seq (Instr Executable)
-               {{λ v, (⌜v = HaltedV⌝ →
-                       ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
-                      ∨ ⌜v = FailedV⌝ }})%I.
+        ∗ PC ↦ᵣ LCap RX pc_b pc_e a_callback pc_v
+        ∗ r_t0 ↦ᵣ w0
+        ∗ r_t1 ↦ᵣ w1
+        ∗ r_t2 ↦ᵣ w2
+        ∗ r_t3 ↦ᵣ w3
+        ∗ r_t4 ↦ᵣ w4
+        ∗ r_t5 ↦ᵣ w5
+        ∗ r_t6 ↦ᵣ w6
+        ∗ na_own logrel_nais E
+        ∗ ▷ ( ∀ w0' w1' w2' w3' w4' w5' w6',
+                codefrag b_main pc_v mutual_attestation_main
+                ∗ (a_data, pc_v) ↦ₐ link_cap
+                ∗ PC ↦ᵣ LCap RX pc_b pc_e (e_main ^+ (-2))%a pc_v
+                ∗ r_t0 ↦ᵣ w0'
+                ∗ r_t1 ↦ᵣ w1'
+                ∗ r_t2 ↦ᵣ w2'
+                ∗ r_t3 ↦ᵣ w3'
+                ∗ r_t4 ↦ᵣ w4'
+                ∗ r_t5 ↦ᵣ w5'
+                ∗ r_t6 ↦ᵣ w6'
+                ∗ na_own logrel_nais E
+                  -∗ WP (Instr Halted) {{ φ }}))
+          -∗ WP Seq (Instr Executable) {{ λ v, φ v ∨ ⌜v = FailedV⌝ }}%I.
   Proof.
-    intros ????? He_main Ha_data HsubBounds Hassert Hlink.
-    iIntros "( #(HlinkInv & HassertInv & HflagInv)  & #Hcemap_inv & %Hfullmap & #Hrmap_interp)
-             (Hcode & Hadata & HPC & Hrmap & Hna)".
-    rewrite /registers_mapsto.
-    (* Prepare the necessary resources *)
-    (* Registers *)
-    assert (exists w0, rmap !! r_t0 = Some w0) as [w0 Hr0] by apply (Hfullmap r_t0).
-    assert (exists w1, rmap !! r_t1 = Some w1) as [w1 Hr1] by apply (Hfullmap r_t1).
-    assert (exists w2, rmap !! r_t2 = Some w2) as [w2 Hr2] by apply (Hfullmap r_t2).
-    assert (exists w3, rmap !! r_t3 = Some w3) as [w3 Hr3] by apply (Hfullmap r_t3).
-    assert (exists w4, rmap !! r_t4 = Some w4) as [w4 Hr4] by apply (Hfullmap r_t4).
-    assert (exists w5, rmap !! r_t5 = Some w5) as [w5 Hr5] by apply (Hfullmap r_t5).
-    assert (exists w6, rmap !! r_t6 = Some w6) as [w6 Hr6] by apply (Hfullmap r_t6).
+    Local Tactic Notation "solve_addr'" :=
+      repeat (lazymatch goal with x := _ |- _ => subst x end)
+      ; repeat (match goal with
+                  | H: ContiguousRegion _ _  |- _ =>
+                      rewrite /ContiguousRegion /mutual_attestation_main_len in H
+                  | H: SubBounds _ _ _ _  |- _ =>
+                      rewrite /SubBounds /mutual_attestation_main_len in H
+                end)
+      ; rewrite !/mutual_attestation_main_code_len /mutual_attestation_main_len
+          /mutual_attestation_main_init_len /mutual_attestation_main_callback_len
+      ; solve_addr.
 
-    (* EXTRACT REGISTERS FROM RMAP *)
-    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
-    iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t4 with "Hrmap") as "[Hr4 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t5 with "Hrmap") as "[Hr5 Hrmap]".
-    { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t6 with "Hrmap") as "[Hr6 Hrmap]".
-    { by simplify_map_eq. }
-    iAssert (interp w0) as "Hinterp_w0".
-    { iApply "Hrmap_interp";eauto;done. }
-    iAssert (interp w2) as "Hinterp_w2".
-    { iApply "Hrmap_interp";eauto;done. }
-
-    subst e_main a_data.
-    replace ((pc_b ^+ length (mutual_attestation_main_code assert_lt_offset)) ^+ 1)%a
-      with (pc_e ^+ (-1)%Z)%a by solve_addr.
+    intros ?????? Hregion HE HE' HE_disj Hassert Hlink Hpcbounds ->.
+    iIntros "( #(HlinkInv & HassertInv & HflagInv) & #Hcemap_inv & #Hinterp_w0 & #Hinterp_w2)
+             (Hcode & Hadata & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hna & Hφ)".
     codefrag_facts "Hcode".
 
-    (* BLOCK 0: attest A *)
-    focus_block_0 "Hcode" as "Hcode" "Hcode_cont".
+    (* BLOCK 1: attest A *)
+    subst mutual_attestation_main.
+    rewrite /mutual_attestation_main_code.
+    subst a_callback.
+    replace mutual_attestation_main_init_len
+      with (Z.of_nat (length mutual_attestation_main_code_init))
+           by (by rewrite /mutual_attestation_main_init_len; cbn).
+    rewrite /mutual_attestation_main_code_callback.
+
+    focus_block 1%nat "Hcode" as a_block1 Ha_block1 "Hcode" "Hcode_cont".
     destruct (is_sealedL w0) eqn:Hw0; cycle 1.
     {
       iApply (mutual_attestation_main_attest_or_fail_spec with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
       { solve_addr. }
+      { solve_addr'. }
       iNext ; iIntros "H".
       iDestruct "H" as (tid ECn) "(%Hhas_seal & %Htid & #Hcemap & #Henclave_tid & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
       iDestruct "Hr5" as (w5') "Hr5".
       iDestruct "Hr6" as (w6') "Hr6".
       unfocus_block "Hcode" "Hcode_cont" as "Hcode".
-      focus_block 1 "Hcode" as a_block1 Ha_block1 "Hcode" "Hcode_cont".
+      focus_block 2 "Hcode" as a_block2 Ha_block2 "Hcode" "Hcode_cont".
       iApply (mutual_attestation_main_get_confirm_or_fail_spec'
-              with "[- $HPC $Hr0 $Hr1 $Hcode]"); eauto; solve_addr.
+              with "[- $HPC $Hr0 $Hr1 $Hcode]"); eauto; solve_addr'.
     }
     destruct w0 as [| | ot_w0 sb_w0]; cbn in Hw0; try congruence.
     iDestruct (interp_valid_sealed with "Hinterp_w0") as (Φ_A) "Hseal_valid_w0".
     iApply (mutual_attestation_main_attest_or_fail_spec
              with "[- $HPC $Hcode $Hr0 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
-    { solve_addr. }
+    { solve_addr'. }
+    { solve_addr'. }
     iNext ; iIntros "H".
     iDestruct "H" as (tid_A ECn_A) "(%Hhas_seal_A & %Htid_A & Hcemap_A & #Henclave_tid_A & HPC & Hr0 & Hr5 & Hr6 & Hcode)".
     iDestruct "Hr5" as (w5') "Hr5".
     iDestruct "Hr6" as (w6') "Hr6".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 1: get confirm A *)
-    focus_block 1 "Hcode" as a_block1 Ha_block1 "Hcode" "Hcode_cont".
+    (* BLOCK 2: get confirm A *)
+    focus_block 2 "Hcode" as a_block2 Ha_block2 "Hcode" "Hcode_cont".
+    clear Ha_block1 a_block1.
     iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_A_pred )
              with "[- $HPC $Hcode $Hr0 $Hr1 $Hr5 $Hr6 $Hseal_valid_w0 $Henclave_tid_A $Hcemap_A]"); eauto.
-    { solve_addr. }
+    { solve_addr'. }
+    { solve_addr'. }
     { by rewrite /ma_enclaves_map ; simplify_map_eq. }
     iSplitR.
     { iIntros (lw) "H".
@@ -481,29 +490,31 @@ Section mutual_attest_main.
     iDestruct "Hr6" as (w6') "Hr6".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 2: attest B *)
-    focus_block 2 "Hcode" as a_block2 Ha_block2 "Hcode" "Hcode_cont".
-    clear Ha_block1 a_block1.
+    (* BLOCK 3: attest B *)
+    focus_block 3 "Hcode" as a_block3 Ha_block3 "Hcode" "Hcode_cont".
+    clear Ha_block2 a_block2.
     destruct (is_sealedL w2) eqn:Hw2; cycle 1.
     {
       iApply (mutual_attestation_main_attest_or_fail_spec
                with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
-      { solve_addr. }
+      { solve_addr'. }
+      { solve_addr'. }
       iNext ; iIntros "H".
       iDestruct "H" as (tid_B ECn_B) "(%Hhas_seal_B & %Htid_B & #Hcemap_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
       clear w5' w6'.
       iDestruct "Hr5" as (w5') "Hr5".
       iDestruct "Hr6" as (w6') "Hr6".
       unfocus_block "Hcode" "Hcode_cont" as "Hcode".
-      focus_block 3 "Hcode" as a_block3 Ha_block3 "Hcode" "Hcode_cont".
+      focus_block 4 "Hcode" as a_block4 Ha_block4 "Hcode" "Hcode_cont".
       iApply (mutual_attestation_main_get_confirm_or_fail_spec'
-              with "[- $HPC $Hr2 $Hr3 $Hcode]"); eauto; solve_addr.
+              with "[- $HPC $Hr2 $Hr3 $Hcode]"); eauto; solve_addr'.
     }
     destruct w2 as [| | ot_w2 sb_w2]; cbn in Hw2; try congruence.
     iDestruct (interp_valid_sealed with "Hinterp_w2") as (Φ_B) "Hseal_valid_w2".
     iApply (mutual_attestation_main_attest_or_fail_spec
              with "[- $HPC $Hcode $Hr2 $Hr5 $Hr6 $Hcemap_inv]"); eauto.
-    { solve_addr. }
+    { solve_addr'. }
+    { solve_addr'. }
     iNext ; iIntros "H".
     iDestruct "H" as (tid_B ECn_B) "(%Hhas_seal_B & %Htid_B & #Hcemap_B & #Henclave_tid_B & HPC & Hr2 & Hr5 & Hr6 & Hcode)".
     clear w5' w6'.
@@ -511,12 +522,13 @@ Section mutual_attest_main.
     iDestruct "Hr6" as (w6') "Hr6".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 3: get confirm attest B *)
-    focus_block 3 "Hcode" as a_block3 Ha_block3 "Hcode" "Hcode_cont".
-    clear Ha_block2 a_block2.
+    (* BLOCK 4: get confirm attest B *)
+    focus_block 4 "Hcode" as a_block4 Ha_block4 "Hcode" "Hcode_cont".
+    clear Ha_block3 a_block3.
     iApply ( (mutual_attestation_main_get_confirm_or_fail_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ mutual_attest_enclave_B_pred )
              with "[- $HPC $Hcode $Hr2 $Hr3 $Hr5 $Hr6 $Hseal_valid_w2 $Henclave_tid_B $Hcemap_B]"); eauto.
-    { solve_addr. }
+    { solve_addr'. }
+    { solve_addr'. }
     { rewrite /ma_enclaves_map.
       rewrite lookup_insert_ne //; first by simplify_map_eq.
       rewrite /hash_mutual_attest_A /hash_mutual_attest_B.
@@ -546,50 +558,169 @@ Section mutual_attest_main.
     iDestruct "Hr6" as (w6') "Hr6".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 4: prepare assert A *)
-    focus_block 4 "Hcode" as a_block4 Ha_block4 "Hcode" "Hcode_cont".
-    clear Ha_block3 a_block3.
-    assert ( ((a_block4 ^+ 1)%a + (pc_e - (a_block4 ^+ 1)))%a = Some pc_e) as Hpc_e by solve_addr.
+    (* BLOCK 5: prepare assert A *)
+    focus_block 5 "Hcode" as a_block5 Ha_block5 "Hcode" "Hcode_cont".
+    clear Ha_block4 a_block4.
+    assert (SubBounds pc_b e_main a_block5 (a_block5 ^+ 11%nat)%a) by (subst; solve_addr').
+    assert ( ((a_block5 ^+ 1)%a + (e_main - (a_block5 ^+ 1)))%a = Some e_main) as He_main by solve_addr.
     iGo "Hcode".
-    { transitivity (Some (pc_e ^+ -1)%a); solve_addr. }
+    { transitivity (Some (e_main ^+ -1)%a); solve_addr'. }
+    replace ((b_main ^+ 73) ^+ -1)%a with a_data by solve_addr'.
     iInstr "Hcode".
-    { apply withinBounds_true_iff; solve_addr. }
     iGo "Hcode".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 5: assert (confirm A) == 1 *)
-    focus_block 5 "Hcode" as a_block5 Ha_block5 "Hcode" "Hcode_cont".
-    clear Hpc_e Ha_block4 a_block4.
+    (* BLOCK 6: assert (confirm A) == 1 *)
+    focus_block 6 "Hcode" as a_block6 Ha_block6 "Hcode" "Hcode_cont".
+    clear He_main Ha_block5 a_block5.
     iMod (na_inv_acc with "HlinkInv Hna") as "(>Hassert_entry & Hna & Hclose)"; [ solve_ndisj.. |].
     iApply assert_reg_success; last iFrame "#∗"; try solve_pure ; try reflexivity.
+    { solve_addr'. }
     solve_ndisj.
     iIntros "!> (HPC & Hr0 & Hr1 & Hr2 & Hr4 & Hr5 & Hcode & Hna & Hassert_entry)".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 6: prepare assert B *)
-    focus_block 6 "Hcode" as a_block6 Ha_block6 "Hcode" "Hcode_cont".
-    clear Ha_block5 a_block5.
+    (* BLOCK 7: prepare assert B *)
+    focus_block 7 "Hcode" as a_block7 Ha_block7 "Hcode" "Hcode_cont".
+    clear Ha_block6 a_block6.
+    assert (SubBounds pc_b e_main a_block7 (a_block7 ^+ 2%nat)%a) by (subst; solve_addr').
     iInstr "Hcode".
     iInstr "Hcode".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 7: assert (confirm B) == 1 *)
-    focus_block 7 "Hcode" as a_block7 Ha_block7 "Hcode" "Hcode_cont".
-    clear Ha_block6 a_block6.
+    (* BLOCK 8: assert (confirm B) == 1 *)
+    focus_block 8 "Hcode" as a_block8 Ha_block8 "Hcode" "Hcode_cont".
+    clear Ha_block7 a_block7.
     iApply assert_reg_success; last iFrame "#∗"; try solve_pure ; try reflexivity.
+    { solve_addr'. }
     solve_ndisj.
     iIntros "!> (HPC & Hr0 & Hr3 & Hr2 & Hr4 & Hr5 & Hcode & Hna & Hassert_entry)".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
-    (* BLOCK 8: halt *)
-    focus_block 8 "Hcode" as a_block8 Ha_block8 "Hcode" "Hcode_cont".
-    clear Ha_block7 a_block7.
+    (* BLOCK 9: halt *)
+    focus_block 9 "Hcode" as a_block9 Ha_block9 "Hcode" "Hcode_cont".
+    clear Ha_block8 a_block8.
+    assert (SubBounds pc_b e_main a_block9 (a_block9 ^+ 1%nat)%a) by (subst; solve_addr').
     iInstr "Hcode".
     unfocus_block "Hcode" "Hcode_cont" as "Hcode".
 
     iMod ("Hclose" with "[$Hassert_entry $Hna]") as "Hna".
-    wp_end; iLeft.
-    iIntros "_".
+    replace a_block9 with (b_main ^+ 71%nat)%a by solve_addr'.
+    replace (b_main ^+ 71%nat)%a with (e_main ^+ -2)%a by solve_addr'.
+
+    iApply (wp_wand _ _ _ (fun v => φ v) (fun v => φ v ∨ ⌜v = FailedV⌝) with "[-]")%I; cycle 1.
+    { iIntros (?) "?"; by iLeft. }
+    iApply ("Hφ"); iFrame.
+  Qed.
+
+  Definition ma_main_inv b_main pc_v main_code a_data link_cap ma_mainN
+    := na_inv logrel_nais ma_mainN
+         (codefrag b_main pc_v main_code ∗ (a_data, pc_v) ↦ₐ link_cap).
+
+  Lemma mutual_attest_main_code_callback_sentry
+    (b_main : Addr) (pc_v : Version) (ma_mainN : namespace)
+
+    (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
+    (assert_lt_offset : Z)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
+    :
+
+    let v_link := pc_v in
+    let link_cap := LCap RO b_link e_link a_link v_link in
+
+    let e_main := (b_main ^+ mutual_attestation_main_len)%a in
+    let a_callback := (b_main ^+ mutual_attestation_main_init_len)%a in
+    let a_data := (b_main ^+ mutual_attestation_main_code_len)%a in
+
+    let mutual_attestation_main := mutual_attestation_main_code assert_lt_offset in
+
+    assertN ## link_tableN ->
+    assertN ## ma_mainN ->
+    link_tableN ## ma_mainN ->
+
+    ContiguousRegion b_main mutual_attestation_main_len ->
+    SubBounds b_main e_main b_main e_main ->
+
+    (a_link + assert_lt_offset)%a = Some assert_entry →
+    withinBounds b_link e_link assert_entry = true ->
+    (link_table_inv
+       v_link
+       assert_entry b_assert e_assert v_assert link_tableN
+     ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+     ∗ flag_inv a_flag v_assert flag_assertN
+     ∗ ma_main_inv b_main pc_v mutual_attestation_main a_data link_cap ma_mainN
+    )
+    ∗ (custom_enclave_inv (enclaves_map := contract_ma_enclaves_map))
+    ⊢ interp (LCap E b_main e_main (b_main ^+ mutual_attestation_main_init_len)%a pc_v).
+  Proof.
+    intros ?????? HN HN' HN'' HcontRegion HsubBounds Hassert Hlink.
+    iIntros "[#(HlinkInv & HassertInv & HflagInv & HcodeInv) #Hcemap_inv]".
+    iEval (rewrite fixpoint_interp1_eq /=).
+    iIntros (regs); iNext ; iModIntro.
+    iIntros "( [%Hrmap_full #Hrmap_interp] & Hrmap & Hna)".
+    rewrite /interp_conf.
+
+    (* Prepare the necessary resources *)
+    (* Registers *)
+    rewrite /registers_mapsto.
+    iExtract "Hrmap" PC as "HPC".
+    assert (exists w0, regs !! r_t0 = Some w0) as [w0 Hr0] by apply (Hrmap_full r_t0).
+    assert (exists w1, regs !! r_t1 = Some w1) as [w1 Hr1] by apply (Hrmap_full r_t1).
+    assert (exists w2, regs !! r_t2 = Some w2) as [w2 Hr2] by apply (Hrmap_full r_t2).
+    assert (exists w3, regs !! r_t3 = Some w3) as [w3 Hr3] by apply (Hrmap_full r_t3).
+    assert (exists w4, regs !! r_t4 = Some w4) as [w4 Hr4] by apply (Hrmap_full r_t4).
+    assert (exists w5, regs !! r_t5 = Some w5) as [w5 Hr5] by apply (Hrmap_full r_t5).
+    assert (exists w6, regs !! r_t6 = Some w6) as [w6 Hr6] by apply (Hrmap_full r_t6).
+
+    (* EXTRACT REGISTERS FROM RMAP *)
+    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
+    iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hrmap") as "[Hr4 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t5 with "Hrmap") as "[Hr5 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t6 with "Hrmap") as "[Hr6 Hrmap]".
+    { by simplify_map_eq. }
+    iAssert (interp w0) as "Hinterp_w0".
+    { iApply "Hrmap_interp";eauto;done. }
+    iAssert (interp w2) as "Hinterp_w2".
+    { iApply "Hrmap_interp";eauto;done. }
+
+
+    iApply (wp_wand _ _ _
+              ( fun v =>
+                  ((⌜v = HaltedV⌝ →
+                    ∃ lregs : LReg, full_map lregs
+                                    ∧ registers_mapsto lregs
+                                    ∗ na_own logrel_nais ⊤)
+                   ∨ ⌜v = FailedV⌝
+                  )%I)
+             with "[-]"); cycle 1.
+    { iEval (cbn). iIntros (v) "H ->".
+      iDestruct "H" as "[H|%]"; last congruence.
+      by iApply "H".
+    }
+    iMod (na_inv_acc with "HcodeInv Hna") as "[>(Hcode & Hdata) [Hna Hcls] ]"
+    ;[solve_ndisj|solve_ndisj|].
+
+    iApply ( (mutual_attest_callback_spec (⊤ ∖ ↑ma_mainN))
+             with "[$HlinkInv $HassertInv $HflagInv $Hcemap_inv Hinterp_w0 Hinterp_w2]
+                 [$HPC $Hcode $Hdata $Hna Hcls $Hr0 $Hr1 $Hr2 $Hr3 $Hr4 $Hr5 $Hr6 Hrmap]")
+    ; eauto
+    ; try solve_ndisj
+    ; try iFrame "∗#".
+    iNext; iIntros (???????) "(Hcode & Hadata & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hr6 & Hna)".
+    iMod ("Hcls" with "[$Hcode $Hadata $Hna]") as "Hna".
+    iDestruct (big_sepM_insert _ _ PC with "[$Hrmap $HPC]") as "Hrmap".
+    { do 7 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 7 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
     { do 6 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 6 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
@@ -612,9 +743,11 @@ Section mutual_attest_main.
     { do 0 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 0 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
     match goal with
-    | H: _ |- context [ <[r_t6:=LInt 1]> ?x ] =>
-        set (rmap' := <[r_t6:=LInt 1]> x )
+    | H: _ |- context [ <[r_t6:=?w6]> ?x ] =>
+        set (rmap' := <[r_t6:=w6]> x )
     end.
+
+    wp_end. iIntros (_).
     iExists rmap'; iFrame.
     iPureIntro.
     intros r; subst rmap'; cbn.
@@ -624,8 +757,151 @@ Section mutual_attest_main.
     destruct ((decide (r = r_t3))); simplify_map_eq; first done.
     destruct ((decide (r = r_t2))); simplify_map_eq; first done.
     destruct ((decide (r = r_t1))); simplify_map_eq; first done.
-    destruct ((decide (r = r_t0))); simplify_map_eq; done.
+    destruct ((decide (r = r_t0))); simplify_map_eq; first done.
+    destruct ((decide (r = PC))); simplify_map_eq; done.
   Qed.
 
+  Lemma mutual_attestation_main_init_spec
+    (b_main : Addr)
+    (pc_v : Version)
+    (assert_lt_offset : Z)
+    (w1 wadv : LWord)
+    φ :
+
+    let e_main := (b_main ^+ mutual_attestation_main_len)%a in
+    let a_callback := (b_main ^+ mutual_attestation_main_init_len)%a in
+    let a_data := (b_main ^+ mutual_attestation_main_code_len)%a in
+
+    let mutual_attestation_main := mutual_attestation_main_code assert_lt_offset in
+    ContiguousRegion b_main mutual_attestation_main_len ->
+    ⊢ ((
+          codefrag b_main pc_v mutual_attestation_main
+
+          ∗ PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+          ∗ r_t0 ↦ᵣ wadv
+          ∗ r_t1 ↦ᵣ w1
+          (* NOTE this post-condition stops after jumping to the adversary *)
+          ∗ ▷ ( codefrag b_main pc_v mutual_attestation_main
+                ∗ PC ↦ᵣ updatePcPermL wadv
+                ∗ r_t0 ↦ᵣ wadv
+                ∗ r_t1 ↦ᵣ (LCap E b_main e_main a_callback pc_v)
+                  -∗ WP Seq (Instr Executable) {{ φ }}))
+         -∗ WP Seq (Instr Executable) {{ φ }})%I.
+  Proof.
+
+    (* We define a local version of solve_addr, which subst and unfold every computed addresses  *)
+    Local Tactic Notation "solve_addr'" :=
+      repeat (lazymatch goal with x := _ |- _ => subst x end)
+      ; repeat (match goal with
+                  | H: ContiguousRegion _ _  |- _ =>
+                      rewrite /ContiguousRegion /mutual_attestation_main_len in H
+                end)
+      ; rewrite !/mutual_attestation_main_code_len /mutual_attestation_main_len
+          /mutual_attestation_main_init_len /mutual_attestation_main_callback_len
+      ; solve_addr.
+
+    intros ???? Hregion.
+    iIntros "(Hcode & HPC & Hr0 & Hr1 & Hφ)".
+    codefrag_facts "Hcode".
+    iGo "Hcode".
+    rewrite decode_encode_perm_inv; by cbn.
+    rewrite decode_encode_perm_inv.
+    iGo "Hcode".
+    iApply "Hφ".
+    iFrame.
+  Qed.
+
+  Lemma mutual_attest_full_run_spec
+    (b_main : Addr) (pc_v : Version) (ma_mainN : namespace)
+
+    (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
+    (assert_lt_offset : Z)
+    (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
+
+    (rmap : LReg)
+    (wadv : LWord)
+    :
+
+    let v_link := pc_v in
+    let link_cap := LCap RO b_link e_link a_link v_link in
+
+    let e_main := (b_main ^+ mutual_attestation_main_len)%a in
+    let a_callback := (b_main ^+ mutual_attestation_main_init_len)%a in
+    let a_data := (b_main ^+ mutual_attestation_main_code_len)%a in
+
+    let mutual_attestation_main := mutual_attestation_main_code assert_lt_offset in
+
+    assertN ## link_tableN ->
+    assertN ## ma_mainN ->
+    link_tableN ## ma_mainN ->
+
+    ContiguousRegion b_main mutual_attestation_main_len ->
+    SubBounds b_main e_main b_main e_main ->
+
+    (a_link + assert_lt_offset)%a = Some assert_entry →
+    withinBounds b_link e_link assert_entry = true ->
+
+    dom rmap = all_registers_s ∖ {[ PC; r_t0 ]} →
+
+    (link_table_inv v_link assert_entry b_assert e_assert v_assert link_tableN
+    ∗ assert_inv b_assert a_flag e_assert v_assert assertN
+    ∗ flag_inv a_flag v_assert flag_assertN
+    ∗ ma_main_inv b_main pc_v mutual_attestation_main a_data link_cap ma_mainN)
+		∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
+    ∗ interp wadv
+
+    ⊢ ( PC ↦ᵣ LCap RWX b_main e_main b_main pc_v
+        ∗ r_t0 ↦ᵣ wadv
+        ∗ ([∗ map] r↦w ∈ rmap, r ↦ᵣ w ∗ ⌜is_zL w = true⌝)
+        ∗ na_own logrel_nais ⊤
+          -∗ WP Seq (Instr Executable)
+               {{λ v, (⌜v = HaltedV⌝ →
+                       ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
+                      ∨ ⌜v = FailedV⌝ }})%I.
+  Proof.
+    intros ?????? ??? Hregion HsubBounds Hassert Hlink Hdom.
+    iIntros "( #(HlinkInv & HassertInv & HflagInv & HcodeInv)  & #Hcemap_inv & #Hinterp_wadv)
+             (HPC & Hr0 & Hrmap & Hna)".
+    rewrite /registers_mapsto.
+    (* Prepare the necessary resources *)
+    (* Registers *)
+    iDestruct (jmp_to_unknown wadv with "[] [$Hinterp_wadv]") as "Hjmp".
+    { iSplit; last iFrame "Hcemap_inv".
+      iModIntro.
+      iApply custom_enclave_contract_inv.
+      iApply mutual_attest_contract.
+    }
+
+    iMod (na_inv_acc with "HcodeInv Hna") as "[>(Hcode & Hdata) [Hna Hcls] ]"
+    ;[solve_ndisj|solve_ndisj|].
+    codefrag_facts "Hcode".
+    iExtract "Hrmap" r_t1 as "[Hr1 _]".
+    iApply (mutual_attestation_main_init_spec with "[-]"); eauto; iFrame.
+    iNext; iIntros "(Hcode & HPC & Hr0 & Hr1)".
+    iMod ("Hcls" with "[$Hcode $Hdata $Hna]") as "Hna".
+
+    set (rmap' := delete r_t1 rmap).
+    (* Show that the contents of unused registers is safe *)
+    iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
+    { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn.
+      iIntros "[Hr %Hw]". iFrame.
+      destruct_word w; try by inversion Hw. rewrite fixpoint_interp1_eq //.
+    }
+
+    iDestruct (mutual_attest_main_code_callback_sentry
+                with "[$HlinkInv $HassertInv $HflagInv $HcodeInv $Hcemap_inv]")
+      as "#Hinterp_wret"; eauto.
+
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1 $Hinterp_wret]") as "Hrmap"
+    ; first (apply lookup_delete_None ; left ; done).
+    rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0 $Hinterp_wadv]") as "Hrmap"
+    ; first (rewrite lookup_insert_ne //=; apply not_elem_of_dom_1; rewrite Hdom; set_solver).
+
+    iApply (wp_wand with "[-]").
+    - iApply ("Hjmp" with "[] [$HPC $Hrmap $Hna]") ;eauto.
+      iPureIntro; rewrite !dom_insert_L Hdom; set_solver.
+    - iIntros (v) "H"; by iLeft.
+ Qed.
 
 End mutual_attest_main.
