@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
 From cap_machine Require Import assert macros_new.
-From cap_machine Require Import attestation_adequacy_template.
+From cap_machine Require Import template_adequacy_attestation.
 From cap_machine Require Import
   trusted_compute_code
   trusted_compute_enclave_spec

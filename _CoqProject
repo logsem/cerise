@@ -139,7 +139,7 @@ theories/examples/macros.v
 theories/examples/macros_new.v
 
 # Template Adequacy
-theories/examples/enclaves/attestation_adequacy_template.v
+theories/examples/enclaves/template_adequacy_attestation.v
 
 # Trusted Compute example
 theories/examples/enclaves/trusted_compute_code.v
