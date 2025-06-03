@@ -257,7 +257,6 @@ Section mutual_attest_B.
     2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
 
     (* EXTRACT REGISTERS FROM RMAP *)
-    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
     iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
     { by simplify_map_eq. }
     iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
@@ -287,7 +286,7 @@ Section mutual_attest_B.
     iDestruct (big_sepM_delete _ _ r_t16 with "Hrmap") as "[Hr16 Hrmap]".
     { by simplify_map_eq. }
     replace (delete r_t16 _) with
-( delete r_t16 ( delete r_t15 ( delete r_t13 ( delete r_t12 ( delete r_t11 ( delete r_t8 ( delete r_t7
+      ( delete r_t16 ( delete r_t15 ( delete r_t13 ( delete r_t12 ( delete r_t11 ( delete r_t8 ( delete r_t7
       ( delete r_t6 ( delete r_t5 ( delete r_t4 ( delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs))))))))))))))).
     2:{
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t0) //.

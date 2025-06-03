@@ -66,7 +66,6 @@ Section trusted_compute_enclave.
     2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
 
     (* EXTRACT REGISTERS FROM RMAP *)
-    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
     iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
     { by simplify_map_eq. }
     iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
@@ -211,7 +210,6 @@ Section trusted_compute_enclave.
       (tc_addr ^+ 21%nat)%a by solve_addr.
     iMod ("Hclose" with "[$Hna $Htc_code $Htc_data]") as "Hna".
     (* Wrap up the registers *)
-    (* iInsertList "Hrmap" [r_t0;r_t1;r_t2;r_t3]. *)
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
     { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 3 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.

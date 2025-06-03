@@ -1,11 +1,3 @@
-(* From iris.algebra Require Import frac. *)
-(* From iris.proofmode Require Import proofmode. *)
-(* Require Import Eqdep_dec List. *)
-(* From cap_machine Require Import rules seal_store. *)
-(* From cap_machine Require Import logrel fundamental. *)
-(* From cap_machine Require Import proofmode. *)
-(* From cap_machine Require Import macros_new. *)
-(* Open Scope Z_scope. *)
 From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine Require Import proofmode.
@@ -28,8 +20,8 @@ Section trusted_compute_main.
 
   (* Expect:
      - PC := (RWX, main, main_end, main)
-     - R0 := (RWX, adv, adv_end, adv) *)
-
+     - R0 := (RWX, adv, adv_end, adv)
+   *)
 
   (** Specification init code *)
   Lemma trusted_compute_main_init_spec
@@ -85,22 +77,16 @@ Section trusted_compute_main.
   (** Specification callback code *)
 
   (* Define all the invariants *)
-  (* Definition trusted_computeN : namespace := nroot .@ "trusted_compute". *)
-
   (* Linking table invariant *)
-  (* Definition link_tableN := (trusted_computeN.@"link_table"). *)
   Definition link_table_inv
     v_link
     assert_entry b_assert e_assert v_assert link_tableN :=
     na_inv logrel_nais link_tableN
          ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
 
-  (* Assert invariant *)
-  (* Definition assertN := (trusted_computeN.@"assert"). *)
+  (* Assert invariants *)
   Definition assert_inv b_a a_flag e_a v_assert assertN :=
     na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
-
-  (* Definition flag_assertN := (trusted_computeN.@"flag_assert"). *)
   Definition flag_inv a_flag v_flag flag_assertN :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
@@ -143,11 +129,9 @@ Section trusted_compute_main.
     ∗ interp w1
     ∗ interp w0
 
-    ⊢ ((
-          codefrag b_main pc_v trusted_compute_main
+    ⊢ (( codefrag b_main pc_v trusted_compute_main
           ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
           ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
-
           ∗ PC ↦ᵣ LCap RX pc_b pc_e a_callback pc_v
           ∗ r_t0 ↦ᵣ w0
           ∗ r_t1 ↦ᵣ w1
@@ -157,7 +141,6 @@ Section trusted_compute_main.
           ∗ r_t5 ↦ᵣ w5
           ∗ na_own logrel_nais E
 
-          (* NOTE this post-condition stops after jumping to the adversary *)
           ∗ ▷ ( codefrag b_main pc_v trusted_compute_main
                 ∗ ((a_data)%a, pc_v) ↦ₐ link_cap
                 ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ (LCap RWX b_main e_main a_data pc_v)
@@ -187,7 +170,6 @@ Section trusted_compute_main.
       ; solve_addr.
 
     intros ?????? Hregion HE HE' HE_disj Hassert Hlink Hpcbounds.
-    (* pose proof (wf_tc_enclaves_map tc_addr) as Hwf_cemap. *)
 
     iIntros "#[ [HlinkInv [HassertInv HflagInv] ] [ Hcemap_inv [ Hinterp_w1 Hinterp_w0]] ]
              (Hcode & Hlink_cap & Hdata1 & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna & Hcont)".
@@ -343,7 +325,6 @@ Section trusted_compute_main.
     iApply "Hcont"; iFrame.
   Qed.
 
-  (* Definition tc_mainN := (trusted_computeN.@"main"). *)
   Definition tc_main_inv b_main e_main pc_v main_code a_data link_cap tc_mainN
     := na_inv logrel_nais tc_mainN
          (codefrag b_main pc_v main_code
@@ -434,7 +415,6 @@ Section trusted_compute_main.
       iNext; iIntros "(Hcode & Hadata & Hadata' & HPC & Hr0 & Hr1 & Hr2 & Hr3 & Hr4 & Hr5 & Hna)".
       iMod ("Hcls" with "[$Hcode $Hadata $Hadata' $Hna]") as "Hna".
       wp_end. iIntros (_).
-      (* Cannot use iInsert, because Qed is too long *)
       iDestruct (big_sepM_insert _ _ r_t5 with "[$Hrmap $Hr5]") as "Hrmap"
       ; first (by rewrite lookup_delete).
       rewrite insert_delete_insert; repeat (rewrite -delete_insert_ne //=).
@@ -571,7 +551,5 @@ Section trusted_compute_main.
       iPureIntro; rewrite !dom_insert_L Hrmap; set_solver.
     - iIntros (v) "H"; by iLeft.
   Qed.
-
-(* TODO @June adequacy theorem *)
 
 End trusted_compute_main.

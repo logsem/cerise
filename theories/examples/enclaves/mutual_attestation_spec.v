@@ -201,20 +201,13 @@ Section mutual_attest_main.
     iDestruct ( regname_neq with "[$Hr] [$Hr']") as %Hrr'.
 
     wp_instr.
-    (* iMod (inv_acc with "Henclaves_inv") as "(Henclaves_inv_open & Hclose_inv)"; first solve_ndisj. *)
     iInstr_lookup "Hcode" as "Hi" "Hcode".
     iDestruct (map_of_regs_3 with "HPC Hr Hr'") as "[Hmap _]".
     iApply (wp_UnSeal with "[$Hmap $Hi]") ; try (by simplify_map_eq) ; try solve_pure.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
     destruct Hspec as [ ? ? ? ? ? ? ? Hps Hbounds' Hregs'|]; cycle 1.
-    {
-      (* iMod ("Hclose_inv" with "Henclaves_inv_open") as "_". iModIntro. *)
-      by wp_pure; wp_end; by iRight.
-    }
-    (* iDestruct "Henclaves_inv_open" as (ECn) "(HEC & #Hcemap)". *)
-    (* iMod ("Hclose_inv" with "[HEC Hcemap]") as "_"; iModIntro. *)
-    (* { iExists ECn. iFrame "HEC Hcemap". } *)
+    { by wp_pure; wp_end; by iRight. }
     incrementLPC_inv as (p''&pc_b'&pc_e'&pc_a''&pc_v'& ? & HPC & Z & Hregs');
       simplify_map_eq.
     repeat (rewrite insert_commute //= insert_insert).
@@ -326,22 +319,17 @@ Section mutual_attest_main.
   Qed.
 
 
-  (* Definition mutual_attestationN : namespace := nroot .@ "mutual_attestation". *)
   (* Define all the invariants *)
   (* Linking table invariant *)
-  (* Definition link_tableN := (mutual_attestationN.@"link_table"). *)
   Definition link_table_inv
     v_link
     assert_entry b_assert e_assert v_assert link_tableN :=
     na_inv logrel_nais link_tableN
          ((assert_entry, v_link) ↦ₐ LCap E b_assert e_assert b_assert v_assert)%I.
 
-  (* Assert invariant *)
-  (* Definition assertN := (mutual_attestationN.@"assert"). *)
+  (* Assert invariants *)
   Definition assert_inv b_a a_flag e_a v_assert assertN :=
     na_inv logrel_nais assertN (assert_inv b_a a_flag e_a v_assert).
-
-  (* Definition flag_assertN := (mutual_attestationN.@"flag_assert"). *)
   Definition flag_inv a_flag v_flag flag_assertN :=
     inv flag_assertN ((a_flag,v_flag) ↦ₐ LInt 0%Z).
 
@@ -352,7 +340,6 @@ Section mutual_attest_main.
     (assert_lt_offset : Z)
     (b_assert e_assert a_flag : Addr) (v_assert : Version) (assertN flag_assertN : namespace) (* assert *)
 
-    (* (rmap : LReg) *)
     (w0 w1 w2 w3 w4 w5 w6 : LWord)
     (φ : val → iPropI Σ)
     :
@@ -673,7 +660,6 @@ Section mutual_attest_main.
     assert (exists w6, regs !! r_t6 = Some w6) as [w6 Hr6] by apply (Hrmap_full r_t6).
 
     (* EXTRACT REGISTERS FROM RMAP *)
-    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
     iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
     { by simplify_map_eq. }
     iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
@@ -880,8 +866,8 @@ Section mutual_attest_main.
     iNext; iIntros "(Hcode & HPC & Hr0 & Hr1)".
     iMod ("Hcls" with "[$Hcode $Hdata $Hna]") as "Hna".
 
-    set (rmap' := delete r_t1 rmap).
     (* Show that the contents of unused registers is safe *)
+    set (rmap' := delete r_t1 rmap).
     iAssert ([∗ map] r↦w ∈ rmap', r ↦ᵣ w ∗ interp w)%I with "[Hrmap]" as "Hrmap".
     { iApply (big_sepM_mono with "Hrmap"). intros r w Hr'. cbn.
       iIntros "[Hr %Hw]". iFrame.

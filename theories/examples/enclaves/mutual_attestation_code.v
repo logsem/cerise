@@ -567,20 +567,20 @@ Section mutual_attest_example.
         Fail;
         GetA r r
       ].
+
+  (* Initialisation code, it's necessary because
+     our adequacy theorem starts with an empty enclave table,
+     and it would make the end-to-end theorem vacuously true *)
   Definition mutual_attestation_main_code_init : list LWord :=
     (* main: *)
     encodeInstrsLW [
         Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
-
         (* Create callback sentry *)
         Lea r_t1 4%Z;                 (* rt1 := (RWX, main, main_end, callback) *)
         Restrict r_t1 (encodePerm E); (* rt1 := (E, main, main_end, callback) *)
-
         (* Jump to adversary *)
         Jmp r_t0]
   .
-
-
 
   (* Expect PC := (RWX, main, main_end, callback) *)
   (* r0 := sealed_cap A *)

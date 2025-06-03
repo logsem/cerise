@@ -275,8 +275,8 @@ Section AdequacyInit.
       { rewrite -Hreserved_addrs elem_of_elements -Hmi_dom.
         by apply elem_of_dom.
       }
-      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version)) as Hmi_a
-                                                                                                                    by rewrite lookup_kmap lookup_fmap Ha //=.
+      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version))
+        as Hmi_a by rewrite lookup_kmap lookup_fmap Ha //=.
       eapply lookup_weaken in Hmi_a; eauto.
       pose proof Hmi_a as Hmi_a'.
       eapply map_Forall_lookup_1 in Hmi_a; eauto; cbn in Hmi_a.
@@ -295,8 +295,8 @@ Section AdequacyInit.
       { rewrite -Hreserved_addrs elem_of_elements -Hmi_dom.
         by apply elem_of_dom.
       }
-      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version)) as Hmi_a
-                                                                                                                    by rewrite lookup_kmap lookup_fmap Ha //=.
+      assert ( (memory_to_lmemory mi init_version) !! (a, init_version) = Some (word_to_lword w init_version))
+        as Hmi_a by rewrite lookup_kmap lookup_fmap Ha //=.
       eapply lookup_weaken in Hmi_a; eauto.
       eapply map_Forall_lookup_1 in Hmi_a; eauto; cbn in Hmi_a.
       rewrite /is_legal_address in Hmi_a.
@@ -549,7 +549,6 @@ Section Adequacy.
     (∀ `{ceriseG Σ, sealStoreG Σ, NA: logrel_na_invs Σ, subG Σ' Σ} rmap,
         dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I vinit)
-     (* ∗ custom_enclave_inv *)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
         ∗ @na_inv _ _ _ (@logrel_na_invG _ NA) logrel_nais assertN (assertInv AssertLib vinit)
 
@@ -612,7 +611,6 @@ Section Adequacy.
                       enclave_agree_preg enclave_excl_preg γhist γprev γlive
                       EC_preg γEC.
     set ( addr_inv := (elements (minv_dom I))).
-    (* pose reservedaddresses := ReservedAddressesG addr_inv vinit. *)
     specialize (Hspec ceriseg seal_storeg logrel_na_invs).
     destruct Hm as (HProg & HAdv & HLink & HAssert & (Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4 & Hdisj5 & Hdisj6)).
 
@@ -710,7 +708,6 @@ Section Adequacy.
     { apply memory_to_lmemory_disjoint.
       disjoint_map_to_list. apply elem_of_disjoint. intro.
       rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
-    (* subst vinit. *)
     rewrite memory_to_lmemory_insert.
     iEval (cbn) in "Hcap".
     iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]"; first done.
