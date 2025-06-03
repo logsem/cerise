@@ -10,12 +10,6 @@ From cap_machine.examples Require Import addr_reg_sample.
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine Require Import assert.
 
-Definition register_to_lregister (reg : Reg) ( v : Version ) : LReg :=
-  fmap (fun w => word_to_lword w v) reg.
-
-Definition memory_to_lmemory (mem : Mem) ( v : Version ) : LMem :=
-  kmap (fun a => (a,v)) (fmap (fun w => word_to_lword w v) mem).
-
 Record prog := MkProg {
   prog_start: Addr;
   prog_end: Addr;
@@ -27,7 +21,6 @@ Record prog := MkProg {
 
 Definition prog_region (P: prog): gmap Addr Word :=
   mkregion (prog_start P) (prog_end P) (prog_instrs P).
-
 
 Definition in_region (w : Word) (b e : Addr) :=
   match w with
@@ -124,125 +117,6 @@ Definition minv_sep `{ceriseG Σ} (I: memory_inv) ( v : Version ): iProp Σ :=
     ⌜minv I m⌝.
 
 
-Definition is_complete_word (w : Word) (m : Mem) :=
-  match w with
-  | WCap p b e a
-  | WSealed _ (SCap p b e a) => (Forall (fun a => is_Some( m !! a ) ) (finz.seq_between b e))
-  | _ => True
-  end.
-
-Definition is_complete_registers (reg : Reg) (m : Mem) :=
-  map_Forall ( fun r w => is_complete_word w m) reg.
-Definition is_complete_memory (m : Mem) :=
-  map_Forall ( fun r w => is_complete_word w m) m.
-
-Lemma memory_to_lmemory_subseteq (m1 m2 : Mem) (v : Version) :
-  m1 ⊆ m2 -> memory_to_lmemory m1 v ⊆ memory_to_lmemory m2 v.
-Proof.
-  intros Hm.
-  rewrite /memory_to_lmemory.
-  apply kmap_subseteq; first by intros x y ?; simplify_eq.
-  by apply map_fmap_mono.
-Qed.
-
-Lemma register_to_lregister_lookup (reg : Reg) (r : RegName) (w : Word) (v : Version) :
-  reg !! r = Some w ->
-  register_to_lregister reg v !! r = Some (word_to_lword w v).
-Proof.
-  intros Hr.
-  rewrite /register_to_lregister.
-  by rewrite lookup_fmap Hr /=.
-Qed.
-
-Lemma memory_to_lmemory_insert (m : Mem) (a : Addr) (w : Word) (v : Version):
-  memory_to_lmemory (<[a:=w]> m) v = <[(a,v):= word_to_lword w v]> (memory_to_lmemory m v).
-Proof.
-  rewrite /memory_to_lmemory.
-  by rewrite fmap_insert kmap_insert.
-Qed.
-Lemma memory_to_lmemory_lookup (m : Mem) (a : Addr) (v : Version):
-  memory_to_lmemory m v !! (a, v) = (λ w, word_to_lword w v) <$> (m!!a).
-Proof.
-  rewrite /memory_to_lmemory.
-  by rewrite lookup_kmap lookup_fmap.
-Qed.
-
-Lemma memory_to_lmemory_union (m1 m2 : Mem) (v : Version) :
-  memory_to_lmemory (m1 ∪ m2) v =
-  (memory_to_lmemory m1 v) ∪  (memory_to_lmemory m2 v).
-Proof.
-  by rewrite /memory_to_lmemory map_fmap_union kmap_union.
-Qed.
-
-Lemma memory_to_lmemory_disjoint (m1 m2 : Mem) (v : Version) :
-  (m1 ##ₘ m2) ->
-  ((memory_to_lmemory m1 v) ##ₘ (memory_to_lmemory m2 v)).
-Proof.
-  intros Hm.
-  rewrite /memory_to_lmemory.
-  apply map_disjoint_kmap; first by intros x y ?; simplify_eq.
-  by apply map_disjoint_fmap.
-Qed.
-
-Lemma memory_to_lmemory_mk_logical_region_map la ws v:
-  memory_to_lmemory (list_to_map (zip la ws)) v
-  = logical_region_map la ((λ w : Word, word_to_lword w v) <$> ws) v.
-Proof.
-  revert la ws.
-  induction la as [|a la]; intros ws ; cbn in *.
-  - rewrite /memory_to_lmemory.
-    by rewrite fmap_empty kmap_empty.
-  - destruct ws as [|w ws]; cbn.
-    + rewrite /memory_to_lmemory.
-      by rewrite fmap_empty kmap_empty.
-    + rewrite memory_to_lmemory_insert.
-      by rewrite IHla.
-Qed.
-
-Lemma register_to_lregister_delete (reg : Reg) (r : RegName) (v : Version) :
-  delete r (register_to_lregister reg v) = (register_to_lregister (delete r reg) v).
-Proof. by rewrite /register_to_lregister fmap_delete. Qed.
-
-(* TODO move *)
-Lemma lword_get_word_to_lword (w : Word) (v : Version) :
-  lword_get_word (word_to_lword w v) = w.
-Proof.
-  by destruct w ; auto; destruct sb ; auto.
-Qed.
-
-Lemma lreg_strip_register_to_lregister (reg : Reg) (v : Version) :
-  lreg_strip (register_to_lregister reg v) = reg.
-Proof.
-  induction reg using map_ind; cbn in *; first done.
-  rewrite /register_to_lregister /lreg_strip !fmap_insert lword_get_word_to_lword.
-  rewrite -/(register_to_lregister m v) -/(lreg_strip _).
-  by rewrite IHreg.
-Qed.
-
-Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (b e: Addr) (l : list LWord)
-  (φ: LAddr → LWord → iProp Σ) (v : Version) :
-  Forall is_zL l ->
-  (b + length l)%a = Some e →
-  ⊢ ([∗ map] a↦w ∈ memory_to_lmemory (mkregion b e (lword_get_word <$> l)) v, φ a w)
-    -∗ ([∗ list] a;w ∈ (map (λ a, (a,v)) (finz.seq_between b e)); l, φ a w).
-Proof.
-  rewrite /mkregion. revert b e. induction l as [| x l].
-  { cbn. intros. rewrite zip_with_nil_r /=. assert (b = e) as -> by solve_addr.
-    rewrite /finz.seq_between finz_dist_0. 2: solve_addr. cbn. eauto. }
-  { cbn. intros b e HZ Hlen. rewrite finz_seq_between_cons. 2: solve_addr.
-    cbn. iIntros "H".
-    rewrite memory_to_lmemory_insert.
-    iDestruct (big_sepM_insert with "H") as "[? H]".
-    { rewrite memory_to_lmemory_lookup fmap_None.
-      rewrite -not_elem_of_list_to_map /=.
-      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
-      solve_addr. }
-    apply Forall_cons_iff in HZ as [? ?].
-    rewrite word_to_lword_get_word_int //.
-    iFrame. iApply (IHl with "H"); auto. solve_addr. }
-Qed.
-
-
 Section AdequacyInit.
   Context (Σ: gFunctors).
   Context {inv_preg: invGpreS Σ}.
@@ -257,7 +131,7 @@ Section AdequacyInit.
 
   Context (I : memory_inv).
 
-  Lemma state_phys_log_corresponds_memory_to_lmemory {RA: ReservedAddresses}
+  Lemma state_phys_log_corresponds_preserves_inv {RA: ReservedAddresses}
     (m mi : Mem) (lm : LMem) (vmap : VMap) (v : Version) :
     dom mi = minv_dom I ->
     v = init_version ->
@@ -308,88 +182,6 @@ Section AdequacyInit.
       eapply map_Forall_lookup_1 in Hroot; eauto.
       destruct Hroot as (lw & Hlw & Hm' & Hcur).
       by rewrite Hm' in Ha'.
-  Qed.
-
-  Lemma state_phys_log_corresponds_adequacy `{ReservedAddresses} (m : Mem) (reg : Reg) (v : Version)  :
-    v = init_version ->
-    is_complete_memory m ->
-    is_complete_registers reg m ->
-    state_phys_log_corresponds reg m (register_to_lregister reg v) (memory_to_lmemory m v) (gset_to_gmap v (dom m)).
-  Proof.
-    intros Hv Hm_complete Hreg_complete.
-    rewrite /state_phys_log_corresponds.
-    split.
-    + rewrite /reg_phys_log_corresponds.
-      split.
-      ++ apply lreg_strip_register_to_lregister.
-      ++ rewrite /is_cur_regs.
-         apply map_Forall_lookup_2.
-         intros r lw Hr.
-         rewrite /is_cur_word.
-         destruct lw as [ z | sb | ot sb ] ; try done.
-         all: destruct sb; auto.
-         all: rewrite /register_to_lregister lookup_fmap_Some in Hr.
-         all: destruct Hr as (w & Hw & Hwr).
-         all: destruct w as [z | sb' | ot' sb']; try destruct sb'; cbn in Hw; simplify_eq.
-         all: intros x Hx.
-         all: apply lookup_gset_to_gmap_Some.
-         all: split; last done.
-         all: eapply (map_Forall_lookup_1) in Hreg_complete; eauto.
-         all: rewrite elem_of_list_lookup in Hx.
-         all: destruct Hx as [kx Hkx].
-         all: eapply Forall_lookup in Hreg_complete; eauto.
-         all: by rewrite elem_of_dom.
-    + rewrite /mem_phys_log_corresponds.
-      split;[|split].
-      ++ rewrite /mem_current_version.
-         apply map_Forall_lookup_2.
-         intros la lw Hla.
-         rewrite /is_legal_address.
-         destruct la as (a', v').
-         destruct (decide (v = v')) ; simplify_eq ; cycle 1.
-         { rewrite /memory_to_lmemory in Hla.
-           apply lookup_kmap_Some in Hla; last (by intros x y ?; simplify_eq).
-           destruct Hla as (? & ? & _).
-           simplify_eq.
-         }
-         exists init_version.
-         cbn.
-         split; [|split].
-         +++ rewrite /is_cur_addr //=.
-             rewrite lookup_gset_to_gmap_Some; split; auto.
-             rewrite /memory_to_lmemory lookup_kmap lookup_fmap_Some in Hla.
-             destruct Hla as (w & Hlw & Ha).
-             by rewrite elem_of_dom.
-         +++ lia.
-         +++ by rewrite Hla.
-      ++ rewrite /mem_vmap_root.
-         apply map_Forall_lookup_2.
-         intros a' v' Ha'.
-         apply lookup_gset_to_gmap_Some in Ha'; destruct Ha' as [Ha' ->].
-         apply elem_of_dom in Ha'. destruct Ha' as [w' Ha'].
-         exists (word_to_lword w' v').
-         split; [|split].
-      * by rewrite lookup_kmap lookup_fmap Ha'; cbn.
-      * rewrite Ha' /lword_get_word /word_to_lword /=.
-        destruct w'; auto.
-        all: destruct sb; auto.
-      * rewrite /is_cur_word.
-        destruct w' ; cbn; auto.
-        all: destruct sb; cbn; auto.
-        all: intros x Hx.
-        all: apply lookup_gset_to_gmap_Some.
-        all: split; last done.
-        all: eapply (map_Forall_lookup_1) in Hm_complete; eauto.
-        all: rewrite elem_of_list_lookup in Hx.
-        all: destruct Hx as [kx Hkx].
-        all: eapply Forall_lookup in Hm_complete; eauto.
-        all: by rewrite elem_of_dom.
-        ++ rewrite /mem_gcroot.
-           apply map_Forall_lookup_2.
-           intros a' v' Ha' Ha'_reserved.
-           rewrite /init_version; cbn.
-           apply lookup_gset_to_gmap_Some in Ha';simplify_eq.
-           by destruct Ha'.
   Qed.
 
 End AdequacyInit.
@@ -782,7 +574,7 @@ Section Adequacy.
       iFrame; cbn.
       repeat (iSplit ; first done).
       iPureIntro.
-      apply state_phys_log_corresponds_adequacy; eauto.
+      apply state_phys_log_corresponds_complete; eauto.
     }
 
     iIntros "Hinterp'".
@@ -804,7 +596,7 @@ Section Adequacy.
     eapply minv_sub_extend; [| |eassumption].
     rewrite Hmi_dom //.
     destruct Hstate_inv.
-    eapply state_phys_log_corresponds_memory_to_lmemory; eauto.
+    eapply state_phys_log_corresponds_preserves_inv; eauto.
     subst I.
     subst RA.
     rewrite /reserved_addresses /=.

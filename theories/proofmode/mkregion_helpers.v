@@ -144,7 +144,28 @@ Ltac disjoint_map_to_list :=
   rewrite -?list_to_set_app_L ?dom_list_to_map_singleton;
   apply stdpp_extra.list_to_set_disj.
 
-
+Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (b e: Addr) (l : list LWord)
+  (φ: LAddr → LWord → iProp Σ) (v : Version) :
+  Forall is_zL l ->
+  (b + length l)%a = Some e →
+  ⊢ ([∗ map] a↦w ∈ memory_to_lmemory (mkregion b e (lword_get_word <$> l)) v, φ a w)
+    -∗ ([∗ list] a;w ∈ (map (λ a, (a,v)) (finz.seq_between b e)); l, φ a w).
+Proof.
+  rewrite /mkregion. revert b e. induction l as [| x l].
+  { cbn. intros. rewrite zip_with_nil_r /=. assert (b = e) as -> by solve_addr.
+    rewrite /finz.seq_between finz_dist_0. 2: solve_addr. cbn. eauto. }
+  { cbn. intros b e HZ Hlen. rewrite finz_seq_between_cons. 2: solve_addr.
+    cbn. iIntros "H".
+    rewrite memory_to_lmemory_insert.
+    iDestruct (big_sepM_insert with "H") as "[? H]".
+    { rewrite memory_to_lmemory_lookup fmap_None.
+      rewrite -not_elem_of_list_to_map /=.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      solve_addr. }
+    apply Forall_cons_iff in HZ as [? ?].
+    rewrite word_to_lword_get_word_int //.
+    iFrame. iApply (IHl with "H"); auto. solve_addr. }
+Qed.
 
 (* TODO fix *)
 (* Lemma mkregion_sepM_to_sepL2 `{Σ: gFunctors} (a e: Addr) (l : list Word) (φ: Addr → Word → iProp Σ) (v : Version) : *)

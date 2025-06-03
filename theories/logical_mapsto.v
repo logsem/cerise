@@ -285,6 +285,12 @@ Proof.
   by destruct_lword lw; cbn.
 Qed.
 
+Lemma lword_get_word_to_lword (w : Word) (v : Version) :
+  lword_get_word (word_to_lword w v) = w.
+Proof.
+  by destruct w ; auto; destruct sb ; auto.
+Qed.
+
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds
     to the the logical register file `lr`, according to the view map `vmap` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
@@ -2779,7 +2785,189 @@ Proof.
   apply finz_seq_between_NoDup.
 Qed.
 
-(* TODO where to move that ? *)
+(* Transform Reg into LReg *)
+Definition register_to_lregister (reg : Reg) ( v : Version ) : LReg :=
+  fmap (fun w => word_to_lword w v) reg.
+
+Lemma register_to_lregister_lookup (reg : Reg) (r : RegName) (w : Word) (v : Version) :
+  reg !! r = Some w ->
+  register_to_lregister reg v !! r = Some (word_to_lword w v).
+Proof.
+  intros Hr.
+  rewrite /register_to_lregister.
+  by rewrite lookup_fmap Hr /=.
+Qed.
+
+Lemma register_to_lregister_delete (reg : Reg) (r : RegName) (v : Version) :
+  delete r (register_to_lregister reg v) = (register_to_lregister (delete r reg) v).
+Proof. by rewrite /register_to_lregister fmap_delete. Qed.
+
+Lemma lreg_strip_register_to_lregister (reg : Reg) (v : Version) :
+  lreg_strip (register_to_lregister reg v) = reg.
+Proof.
+  induction reg using map_ind; cbn in *; first done.
+  rewrite /register_to_lregister /lreg_strip !fmap_insert lword_get_word_to_lword.
+  rewrite -/(register_to_lregister m v) -/(lreg_strip _).
+  by rewrite IHreg.
+Qed.
+
+(* Transform Mem into LMem *)
+Definition memory_to_lmemory (mem : Mem) ( v : Version ) : LMem :=
+  kmap (fun a => (a,v)) (fmap (fun w => word_to_lword w v) mem).
+
+Lemma memory_to_lmemory_insert (m : Mem) (a : Addr) (w : Word) (v : Version):
+  memory_to_lmemory (<[a:=w]> m) v = <[(a,v):= word_to_lword w v]> (memory_to_lmemory m v).
+Proof.
+  rewrite /memory_to_lmemory.
+  by rewrite fmap_insert kmap_insert.
+Qed.
+
+Lemma memory_to_lmemory_lookup (m : Mem) (a : Addr) (v : Version):
+  memory_to_lmemory m v !! (a, v) = (λ w, word_to_lword w v) <$> (m!!a).
+Proof.
+  rewrite /memory_to_lmemory.
+  by rewrite lookup_kmap lookup_fmap.
+Qed.
+
+Lemma memory_to_lmemory_union (m1 m2 : Mem) (v : Version) :
+  memory_to_lmemory (m1 ∪ m2) v =
+  (memory_to_lmemory m1 v) ∪  (memory_to_lmemory m2 v).
+Proof.
+  by rewrite /memory_to_lmemory map_fmap_union kmap_union.
+Qed.
+
+Lemma memory_to_lmemory_subseteq (m1 m2 : Mem) (v : Version) :
+  m1 ⊆ m2 -> memory_to_lmemory m1 v ⊆ memory_to_lmemory m2 v.
+Proof.
+  intros Hm.
+  rewrite /memory_to_lmemory.
+  apply kmap_subseteq; first by intros x y ?; simplify_eq.
+  by apply map_fmap_mono.
+Qed.
+
+Lemma memory_to_lmemory_disjoint (m1 m2 : Mem) (v : Version) :
+  (m1 ##ₘ m2) ->
+  ((memory_to_lmemory m1 v) ##ₘ (memory_to_lmemory m2 v)).
+Proof.
+  intros Hm.
+  rewrite /memory_to_lmemory.
+  apply map_disjoint_kmap; first by intros x y ?; simplify_eq.
+  by apply map_disjoint_fmap.
+Qed.
+
+Lemma memory_to_lmemory_mk_logical_region_map la ws v:
+  memory_to_lmemory (list_to_map (zip la ws)) v
+  = logical_region_map la ((λ w : Word, word_to_lword w v) <$> ws) v.
+Proof.
+  revert la ws.
+  induction la as [|a la]; intros ws ; cbn in *.
+  - rewrite /memory_to_lmemory.
+    by rewrite fmap_empty kmap_empty.
+  - destruct ws as [|w ws]; cbn.
+    + rewrite /memory_to_lmemory.
+      by rewrite fmap_empty kmap_empty.
+    + rewrite memory_to_lmemory_insert.
+      by rewrite IHla.
+Qed.
+
+(* When reasoning about initial state, memory must be complete w.r.t. the registers.
+   In other words, every reachable addresses must be contained in the memory.
+   That's required by `state_phys_log_corresponds`
+ *)
+Definition is_complete_word (w : Word) (m : Mem) :=
+  match w with
+  | WCap p b e a
+  | WSealed _ (SCap p b e a) => (Forall (fun a => is_Some( m !! a ) ) (finz.seq_between b e))
+  | _ => True
+  end.
+
+Definition is_complete_registers (reg : Reg) (m : Mem) :=
+  map_Forall ( fun r w => is_complete_word w m) reg.
+Definition is_complete_memory (m : Mem) :=
+  map_Forall ( fun r w => is_complete_word w m) m.
+
+Lemma state_phys_log_corresponds_complete `{ReservedAddresses} (m : Mem) (reg : Reg) (v : Version)  :
+  v = init_version ->
+  is_complete_memory m ->
+  is_complete_registers reg m ->
+  state_phys_log_corresponds reg m (register_to_lregister reg v) (memory_to_lmemory m v) (gset_to_gmap v (dom m)).
+Proof.
+  intros Hv Hm_complete Hreg_complete.
+  rewrite /state_phys_log_corresponds.
+  split.
+  + rewrite /reg_phys_log_corresponds.
+    split.
+    ++ apply lreg_strip_register_to_lregister.
+    ++ rewrite /is_cur_regs.
+       apply map_Forall_lookup_2.
+       intros r lw Hr.
+       rewrite /is_cur_word.
+       destruct lw as [ z | sb | ot sb ] ; try done.
+       all: destruct sb; auto.
+       all: rewrite /register_to_lregister lookup_fmap_Some in Hr.
+       all: destruct Hr as (w & Hw & Hwr).
+       all: destruct w as [z | sb' | ot' sb']; try destruct sb'; cbn in Hw; simplify_eq.
+       all: intros x Hx.
+       all: apply lookup_gset_to_gmap_Some.
+       all: split; last done.
+       all: eapply (map_Forall_lookup_1) in Hreg_complete; eauto.
+       all: rewrite elem_of_list_lookup in Hx.
+       all: destruct Hx as [kx Hkx].
+       all: eapply Forall_lookup in Hreg_complete; eauto.
+       all: by rewrite elem_of_dom.
+  + rewrite /mem_phys_log_corresponds.
+    split;[|split].
+    ++ rewrite /mem_current_version.
+       apply map_Forall_lookup_2.
+       intros la lw Hla.
+       rewrite /is_legal_address.
+       destruct la as (a', v').
+       destruct (decide (v = v')) ; simplify_eq ; cycle 1.
+       { rewrite /memory_to_lmemory in Hla.
+         apply lookup_kmap_Some in Hla; last (by intros x y ?; simplify_eq).
+         destruct Hla as (? & ? & _).
+         simplify_eq.
+       }
+       exists init_version.
+       cbn.
+       split; [|split].
+       +++ rewrite /is_cur_addr //=.
+           rewrite lookup_gset_to_gmap_Some; split; auto.
+           rewrite /memory_to_lmemory lookup_kmap lookup_fmap_Some in Hla.
+           destruct Hla as (w & Hlw & Ha).
+           by rewrite elem_of_dom.
+       +++ lia.
+       +++ by rewrite Hla.
+    ++ rewrite /mem_vmap_root.
+       apply map_Forall_lookup_2.
+       intros a' v' Ha'.
+       apply lookup_gset_to_gmap_Some in Ha'; destruct Ha' as [Ha' ->].
+       apply elem_of_dom in Ha'. destruct Ha' as [w' Ha'].
+       exists (word_to_lword w' v').
+       split; [|split].
+    * by rewrite lookup_kmap lookup_fmap Ha'; cbn.
+    * rewrite Ha' /lword_get_word /word_to_lword /=.
+      destruct w'; auto.
+      all: destruct sb; auto.
+    * rewrite /is_cur_word.
+      destruct w' ; cbn; auto.
+      all: destruct sb; cbn; auto.
+      all: intros x Hx.
+      all: apply lookup_gset_to_gmap_Some.
+      all: split; last done.
+      all: eapply (map_Forall_lookup_1) in Hm_complete; eauto.
+      all: rewrite elem_of_list_lookup in Hx.
+      all: destruct Hx as [kx Hkx].
+      all: eapply Forall_lookup in Hm_complete; eauto.
+      all: by rewrite elem_of_dom.
+      ++ rewrite /mem_gcroot.
+         apply map_Forall_lookup_2.
+         intros a' v' Ha' Ha'_reserved.
+         rewrite /init_version; cbn.
+         apply lookup_gset_to_gmap_Some in Ha';simplify_eq.
+         by destruct Ha'.
+Qed.
+
 Definition isPermLWord (w : LWord) (p : Perm): bool :=
   match w with
   | LCap p' _ _ _ _  => isPerm p p'
