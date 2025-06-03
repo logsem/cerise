@@ -10,16 +10,6 @@ Section mutual_attest_A.
           `{MP: MachineParameters}.
   Context {MA: MutualAttestation}.
 
-  Ltac iHide0 irisH coqH :=
-    let coqH := fresh coqH in
-    match goal with
-    | h: _ |- context [ environments.Esnoc _ (INamed irisH) ?prop ] =>
-        set (coqH := prop)
-    end.
-
-  Tactic Notation "iHide" constr(irisH) "as" ident(coqH) :=
-    iHide0 irisH coqH.
-
   Lemma enclave_A_mod_encoding_42_spec
     (pc_b pc_e pc_a : Addr) (pc_v : Version)
     (b' e' : Addr) (v' : Version)
