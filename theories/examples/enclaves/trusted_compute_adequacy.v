@@ -168,7 +168,7 @@ Section tc_adequacy.
       "(#Hinv & #Hassert & Hown & HPC & Hr_adv & Hrmap & Hprog & Hadv & Hlink & HEC & Hseal_store)".
 
     simpl.
-    iMod ( custom_enclaves_inv_alloc (enclaves_map := contract_tc_enclaves_map) with
+    iMod ( system_inv_alloc (enclaves_map := contract_tc_enclaves_map) with
            "[$HEC $Hseal_store]") as "#Hsystem_inv".
 
     iMod (na_inv_alloc logrel_nais ⊤ link_tableN

@@ -102,7 +102,7 @@ Definition adv_prog `{memory_layout} : prog :=
      prog_size := adv_size |}.
 
 Program Definition assert_layout `{memory_layout} : assert_library :=
-  {| (* assertion fail library *)
+  {|
      assert_start := l_assert_start;
      assert_cap := l_assert_cap;
      assert_flag := l_assert_flag;
@@ -172,7 +172,7 @@ Section ma_adequacy.
       "(#Hinv & #Hassert & Hown & HPC & Hr_adv & Hrmap & Hprog & Hadv & Hlink & HEC & Hseal_store)".
 
     simpl.
-    iMod ( custom_enclaves_inv_alloc (enclaves_map := contract_ma_enclaves_map) with
+    iMod ( system_inv_alloc (enclaves_map := contract_ma_enclaves_map) with
            "[$HEC $Hseal_store]") as "#Hsystem_inv".
 
     iMod (na_inv_alloc logrel_nais ⊤ link_tableN
