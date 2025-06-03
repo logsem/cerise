@@ -1,6 +1,5 @@
 From iris.proofmode Require Import proofmode.
 From iris.program_logic Require Export weakestpre.
-(* From cap_machine.rules Require Export rules. *)
 From cap_machine Require Export cap_lang region seal_store.
 From iris.algebra Require Import gmap agree auth.
 From iris.base_logic Require Export invariants na_invariants saved_prop.
@@ -1215,9 +1214,9 @@ Section custom_enclaves.
         custom_enclaves_wf : custom_enclaves_map_wf custom_enclaves;
     }.
 
-  Definition custom_enclaveN := (nroot.@"custom_enclave").
-  Definition custom_enclave_inv {enclaves_map : CustomEnclavesMap} :=
-    inv custom_enclaveN
+  Definition system_invN := (nroot.@"systemInv").
+  Definition system_inv {enclaves_map : CustomEnclavesMap} :=
+    inv system_invN
       (
 
         ∃ (n : ENum) (ot_n : OType),
@@ -1267,7 +1266,7 @@ Section custom_enclaves.
     ⌜ b = (code_region ce)⌝ →
     ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
 
-    custom_enclave_inv
+    system_inv
     ∗ [[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]
     ∗ [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]]
     ∗ seal_pred ot (Penc ce)
@@ -1293,9 +1292,9 @@ Section custom_enclaves.
     ⌜ b = (code_region ce)⌝ →
     ⌜ (b + (length (code ce) + 1))%a = Some e ⌝ →
 
-    custom_enclave_inv
+    system_inv
 
-    ∗ na_inv logrel_nais (custom_enclaveN.@I)
+    ∗ na_inv logrel_nais (system_invN.@I)
       ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]  ∗
        [[ b' , e' ]] ↦ₐ{ v' } [[ (LSealRange (true,true) ot (ot^+2)%ot ot)::enclave_data ]])
 
@@ -1318,7 +1317,7 @@ Section custom_enclaves.
                Hdata_seal Hot Htidx HIhash Hb He)
       "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Henclave_cur)".
 
-    iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@I)
+    iMod (na_inv_alloc logrel_nais _ (system_invN.@I)
             ([[ b , e ]] ↦ₐ{ v } [[ (LCap RW b' e' a' v')::((fun w => word_to_lword w v) <$> (code ce)) ]]  ∗
              [[ b' , e' ]] ↦ₐ{ v' } [[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])%I
            with "[$Htc_code $Htc_data]") as "#Htc_inv".
@@ -1328,12 +1327,12 @@ Section custom_enclaves.
                Hdata_seal Hot HIhash Hb He with "[$]").
   Qed.
 
-  Lemma custom_enclaves_inv_alloc {enclaves_map : CustomEnclavesMap} (E : coPset) :
+  Lemma system_inv_alloc {enclaves_map : CustomEnclavesMap} (E : coPset) :
     EC⤇ 0 ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
-    ⊢ |={E}=> custom_enclave_inv.
+    ⊢ |={E}=> system_inv.
   Proof.
     iIntros "[HEC Hseal_store]".
-    iApply (inv_alloc custom_enclaveN E with "[Hseal_store HEC]").
+    iApply (inv_alloc system_invN E with "[Hseal_store HEC]").
     iNext.
     iExists 0, 0%ot.
     rewrite -/gset_all_otypes_def -!gset_all_otypes_eq.

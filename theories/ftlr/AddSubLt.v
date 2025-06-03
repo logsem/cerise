@@ -31,7 +31,7 @@ Section fundamental.
        decodeInstrWL lw = Mod dst r1 r2 \/
        decodeInstrWL lw = HashConcat dst r1 r2 \/
        decodeInstrWL lw = Lt dst r1 r2)
-    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    → (□ custom_enclave_contract_gen ∗ system_inv)
     -∗ (□ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'
                -∗ (∀ (r1 : RegName) (lv : LWord),

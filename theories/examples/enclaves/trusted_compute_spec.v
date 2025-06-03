@@ -139,7 +139,7 @@ Section trusted_compute_main.
        assert_entry b_assert e_assert v_assert link_tableN
     ∗ assert_inv b_assert a_flag e_assert v_assert assertN
     ∗ flag_inv a_flag v_assert flag_assertN)
-    ∗ custom_enclave_inv (enclaves_map := contract_tc_enclaves_map)
+    ∗ system_inv (enclaves_map := contract_tc_enclaves_map)
     ∗ interp w1
     ∗ interp w0
 
@@ -250,7 +250,7 @@ Section trusted_compute_main.
     replace ( _ - _) with 0 by lia.
     iInstr "Hcode". (* Jnz *)
     iDestruct (interp_valid_sealed with "Hinterp_w0") as (Φ) "Hseal_valid".
-    rewrite /custom_enclave_inv.
+    rewrite /system_inv.
 
 
     (* UnSeal *)
@@ -384,7 +384,7 @@ Section trusted_compute_main.
      ∗ flag_inv a_flag v_assert flag_assertN
      ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap tc_mainN
     )
-    ∗ (custom_enclave_inv (enclaves_map := contract_tc_enclaves_map))
+    ∗ (system_inv (enclaves_map := contract_tc_enclaves_map))
     ⊢ interp (LCap E b_main (b_main ^+ trusted_compute_main_len)%a
                 (b_main ^+ trusted_compute_main_init_len)%a pc_v).
   Proof.
@@ -515,7 +515,7 @@ Section trusted_compute_main.
     ∗ flag_inv a_flag v_assert flag_assertN
     ∗ tc_main_inv b_main e_main pc_v (trusted_compute_main_code assert_lt_offset) a_data link_cap tc_mainN
     )
-    ∗ (custom_enclave_inv (enclaves_map := contract_tc_enclaves_map))
+    ∗ (system_inv (enclaves_map := contract_tc_enclaves_map))
     ∗ interp wadv
 
     ⊢ (PC ↦ᵣ LCap RWX b_main e_main b_main pc_v

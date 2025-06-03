@@ -42,7 +42,7 @@ Section fundamental.
 
   Lemma fundamental_cap
     lregs p b e a v :
-    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    (□ custom_enclave_contract_gen ∗ system_inv)
     ⊢ interp (LCap p b e a v) → (* PC safe to share *)
       interp_expression lregs (LCap p b e a v). (* PC safe to execute *)
   Proof.
@@ -181,7 +181,7 @@ Section fundamental.
   Admitted.
 
   Theorem fundamental w r :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢ interp w -∗ interp_expression r w.
   Proof.
     iIntros "#Hsys Hw". destruct w as [| [c | ] | ].
@@ -203,7 +203,7 @@ Section fundamental.
 
   Lemma interp_exec_cond p b e a v :
     p ≠ E ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢ interp (LCap p b e a v) -∗ exec_cond b e p v.
   Proof.
     iIntros (Hnp) "#Hsys #Hw".
@@ -233,7 +233,7 @@ Section fundamental.
   (* updatePcPerm adds a later because of the case of E-capabilities, which
      unfold to ▷ interp_expr *)
   Lemma interp_updatePcPermL lw :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢ interp lw -∗ ▷ (∀ lregs, interp_expression lregs (updatePcPermL lw)).
   Proof.
     iIntros "#Hsys #Hw".
@@ -248,7 +248,7 @@ Section fundamental.
   Qed.
 
   Lemma jmp_to_unknown lw :
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢ interp lw -∗
       ▷ (∀ rmap,
           ⌜dom rmap = all_registers_s ∖ {[ PC ]}⌝ →
@@ -280,7 +280,7 @@ Section fundamental.
   Lemma region_integers_alloc' E (b e a: Addr) (v : Version) l p :
     Forall (λ lw, is_zL lw = true) l →
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
     interp (LCap p b e a v).
@@ -298,7 +298,7 @@ Section fundamental.
 
   Lemma region_valid_alloc' E (b e a: Addr) v l p :
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢
     ([∗ list] w ∈ l, interp w) -∗
     ([∗ list] la;lw ∈ (fun a => (a,v)) <$> (finz.seq_between b e);l, la ↦ₐ lw) ={E}=∗
@@ -318,7 +318,7 @@ Section fundamental.
     finz.seq_between b e ## reserved_addresses ->
     Forall (λ a0 : Addr, ↑logN.@(a0, v) ⊆ E) (finz.seq_between b e) ->
     Forall (λ lw, is_zL lw = true \/ in_regionL lw b e v) l →
-    (□ custom_enclave_contract_gen) ∗ custom_enclave_inv
+    (□ custom_enclave_contract_gen) ∗ system_inv
     ⊢
     ([∗ list] a;w ∈ finz.seq_between b e;l, (a,v) ↦ₐ w) ={E}=∗
     interp (LCap p b e a v).

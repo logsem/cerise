@@ -156,8 +156,8 @@ Section mutual_attest_B.
     (ma_addr_B + e)%a =
     Some (ma_addr_B ^+ e)%a ->
     (□▷ custom_enclave_contract (enclaves_map := contract_ma_enclaves_map))
-    ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
-    ∗ na_inv logrel_nais (custom_enclaveN.@hash_mutual_attest_B)
+    ∗ system_inv (enclaves_map := contract_ma_enclaves_map)
+    ∗ na_inv logrel_nais (system_invN.@hash_mutual_attest_B)
       ([[ma_addr_B,(ma_addr_B ^+ e)%a]]↦ₐ{v}
          [[LCap RW b' e' a' v' :: mutual_attest_enclave_B_lcode]]
        ∗ [[b',e']]↦ₐ{v'}[[LSealRange (true, true) ot (ot ^+ 2)%f ot :: enclave_data]])

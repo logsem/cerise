@@ -84,7 +84,7 @@ Section mutual_attest_main.
     ( PC ↦ᵣ LCap RX pc_b pc_e pc_a pc_v
       ∗ r ↦ᵣ w ∗ r_t5 ↦ᵣ w5 ∗ r_t6 ↦ᵣ w6
       ∗ codefrag pc_a pc_v code
-      ∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
+      ∗ system_inv (enclaves_map := contract_ma_enclaves_map)
       ∗ ▷ ( (∃ tid ECn,
                 ⌜ has_seal otype_w tid ⌝
                 ∗ ⌜ 0 <= tid < ECn ⌝
@@ -379,7 +379,7 @@ Section mutual_attest_main.
     (link_table_inv v_link assert_entry b_assert e_assert v_assert link_tableN
     ∗ assert_inv b_assert a_flag e_assert v_assert assertN
     ∗ flag_inv a_flag v_assert flag_assertN)
-		∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
+		∗ system_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ interp w0
     ∗ interp w2
     ⊢ (
@@ -650,7 +650,7 @@ Section mutual_attest_main.
      ∗ flag_inv a_flag v_assert flag_assertN
      ∗ ma_main_inv b_main pc_v mutual_attestation_main a_data link_cap ma_mainN
     )
-    ∗ (custom_enclave_inv (enclaves_map := contract_ma_enclaves_map))
+    ∗ (system_inv (enclaves_map := contract_ma_enclaves_map))
     ⊢ interp (LCap E b_main e_main (b_main ^+ mutual_attestation_main_init_len)%a pc_v).
   Proof.
     intros ?????? HN HN' HN'' HcontRegion HsubBounds Hassert Hlink.
@@ -847,7 +847,7 @@ Section mutual_attest_main.
     ∗ assert_inv b_assert a_flag e_assert v_assert assertN
     ∗ flag_inv a_flag v_assert flag_assertN
     ∗ ma_main_inv b_main pc_v mutual_attestation_main a_data link_cap ma_mainN)
-		∗ custom_enclave_inv (enclaves_map := contract_ma_enclaves_map)
+		∗ system_inv (enclaves_map := contract_ma_enclaves_map)
     ∗ interp wadv
 
     ⊢ ( PC ↦ᵣ LCap RWX b_main e_main b_main pc_v

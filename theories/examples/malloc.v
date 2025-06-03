@@ -220,7 +220,7 @@ Section SimpleMalloc.
 
   Lemma simple_malloc_subroutine_valid N b e v :
     finz.seq_between b e ## reserved_addresses ->
-    (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    (□ custom_enclave_contract_gen ∗ system_inv)
     ⊢
     na_inv logrel_nais N (malloc_inv b e v) -∗
     interp (LCap E b e b v).

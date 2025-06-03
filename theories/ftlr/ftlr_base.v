@@ -26,7 +26,7 @@ Section fundamental.
     → isCorrectLPC (LCap p b e a v)
     → (b <= a)%a ∧ (a < e)%a
     → decodeInstrWL lw = i
-    → (□ custom_enclave_contract_gen ∗ custom_enclave_inv)
+    → (□ custom_enclave_contract_gen ∗ system_inv)
     (* Loeb induction hypothesis, but only for those assumptions that change in the recursive step *)
     -∗ □ ▷ (∀ lregs' p' b' e' a' v',
              full_map lregs'

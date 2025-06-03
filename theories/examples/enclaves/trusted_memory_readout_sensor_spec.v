@@ -80,7 +80,7 @@ Section SensorEnclaveProofs.
     (pc_b + (sensor_code_len + 1) = Some pc_e)%a ->
     (data_b < data_e)%a ->
 
-      custom_enclave_inv
+      system_inv
     ∗ na_inv logrel_nais n
         (codefrag cf_b pc_v sensor_lcode
          ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
@@ -126,7 +126,7 @@ Section SensorEnclaveProofs.
     (data_b < data_e)%a ->
 
     (□ ▷ custom_enclave_contract_gen)
-    ∗ custom_enclave_inv
+    ∗ system_inv
     ∗ seal_pred (ot ^+ 1)%f (Psign sensor_enclave_pred)
     ∗ codefrag cf_b pc_v sensor_lcode
     ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
@@ -139,7 +139,7 @@ Section SensorEnclaveProofs.
 
     iMod pending_alloc as (γ) "Hauth".
 
-    iMod (na_inv_alloc logrel_nais _ (custom_enclaveN.@hash_sensor)
+    iMod (na_inv_alloc logrel_nais _ (system_invN.@hash_sensor)
             (codefrag cf_b pc_v sensor_lcode
              ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
              ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
