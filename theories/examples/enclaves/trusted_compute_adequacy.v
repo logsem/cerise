@@ -9,6 +9,7 @@ From cap_machine Require Import
   trusted_compute_spec
 .
 
+(** MEMORY LAYOUT: The end-to-end theorem only relies on this layout. *)
 Class memory_layout `{MachineParameters} := {
   (* Verifier code *)
   verifier_start : Addr;
@@ -53,11 +54,6 @@ Class memory_layout `{MachineParameters} := {
   link_table_region_correct:
     link_table_region = (finz.seq_between l_assert_start l_assert_end);
 
-  (* TC enclave *)
-  tc_enclave_start : Addr;
-  tc_enclave_end : Addr;
-  tc_enclave_size : (tc_enclave_start + (trusted_compute_enclave_code_len + 1))%a =  Some tc_enclave_end;
-
   regions_disjoints :
   verifier_region ## adv_region ∧
   verifier_region ## l_assert_region ∧
@@ -65,16 +61,25 @@ Class memory_layout `{MachineParameters} := {
   adv_region ## l_assert_region ∧
   adv_region ## link_table_region ∧
   l_assert_region ## link_table_region;
+
+  (* TC enclave *)
+  tc_enclave_start : Addr;
 }.
 
+Definition link_cap `{memory_layout} :=
+ WCap RO link_table_start link_table_end link_table_start.
+
+(** Instantiation of the layout. *)
+
+(** 1) Instantiate the class specific to the TC enclave *)
 Local Instance trusted_compute_concrete `{memory_layout} : TrustedCompute.
 Proof. apply (Build_TrustedCompute tc_enclave_start). Defined.
 
-Definition link_tbl_cap `{memory_layout} :=
- WCap RO link_table_start link_table_end link_table_start.
-
+(** 2) Instantiate the verifier's program.
+    It is given by the code in `trusted_compute_main_code`
+    followed by the link capability and a data capability.
+ *)
 Program Definition tc_verifier_prog `{memory_layout} : prog :=
-  let link_cap := link_tbl_cap in
   let a_data := (verifier_start ^+ trusted_compute_main_code_len)%a in
   let data_cap := WCap RWX verifier_start verifier_end a_data  in
   {| prog_start := verifier_start ;
@@ -91,14 +96,18 @@ Next Obligation.
   by cbn.
 Qed.
 
+(** 3) Instantiate the adversary's program.
+    It is arbitrary.
+ *)
 Definition adv_prog `{memory_layout} : prog :=
   {| prog_start := adv_start ;
      prog_end := adv_end ;
      prog_instrs := adv_instrs ;
      prog_size := adv_size |}.
 
-Program Definition assert_layout `{memory_layout} : assert_library :=
-  {| (* assertion fail library *)
+(** 4) Instantiate the assert library. *)
+Program Definition AssertLib `{memory_layout} : assert_library :=
+  {|
      assert_start := l_assert_start;
      assert_cap := l_assert_cap;
      assert_flag := l_assert_flag;
@@ -109,14 +118,35 @@ Program Definition assert_layout `{memory_layout} : assert_library :=
      assert_flag_size := l_assert_flag_size;
   |}.
 
+Lemma adv_not_reserved `{memory_layout} (vinit : Version) :
+  let RA := reserved_addresses_assert AssertLib vinit in
+  adv_region  ## reserved_addresses.
+Proof.
+  intros.
+  cbn.
+  pose proof regions_disjoints as (_&_&_&Hdisj&_).
+  rewrite l_assert_region_correct in Hdisj.
+  rewrite elem_of_disjoint.
+  intros a Ha Ha'.
+  rewrite elem_of_disjoint in Hdisj.
+  eapply Hdisj; eauto.
+  rewrite elem_of_finz_seq_between.
+  rewrite elem_of_list_singleton in Ha'; simplify_eq.
+  pose proof l_assert_code_size.
+  pose proof l_assert_cap_size.
+  pose proof l_assert_flag_size.
+  solve_addr.
+Qed.
 
-Definition tbl_assert_tbl `{memory_layout} : assert_tbl :=
+(** 5) Instantiate the linking table, containing only the `assert` routine. *)
+Definition link_tbl `{memory_layout} : assert_tbl :=
   {|
     tbl_start := link_table_start;
     tbl_end :=link_table_end;
     tbl_size := link_table_size;
   |}.
 
+(** 6) Align the full_run_spec with the specification of the adequacy. *)
 Section tc_adequacy.
   Context {Σ:gFunctors}
           `{MP: MachineParameters}
@@ -132,11 +162,9 @@ Section tc_adequacy.
     let vinit := 0%nat in
     let P := tc_verifier_prog in
     let Adv := adv_prog in
-    let AssertLib := assert_layout in
     let RA := reserved_addresses_assert AssertLib vinit in
     let r_adv := r_t0 in
 
-    finz.seq_between adv_start adv_end ## reserved_addresses ->
     Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (adequacy_flag_inv AssertLib)) m in
     (∀ rmap,
@@ -156,7 +184,7 @@ Section tc_adequacy.
      (* Adv program  *)
      ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (prog_region Adv) vinit), a ↦ₐ w)
      (* Linking Table *)
-     ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (assert_tbl_region tbl_assert_tbl AssertLib) vinit), a ↦ₐ w)
+     ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (assert_tbl_region link_tbl AssertLib) vinit), a ↦ₐ w)
 
      ∗ EC⤇ 0%nat
      ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
@@ -164,35 +192,38 @@ Section tc_adequacy.
         -∗ WP Seq (Instr Executable) {{ λ _, True }}).
   Proof.
     intros *.
-    iIntros (Hreserved Hints Hfilter rmap Hdom)
+    iIntros (Hints Hfilter rmap Hdom)
       "(#Hinv & #Hassert & Hown & HPC & Hr_adv & Hrmap & Hprog & Hadv & Hlink & HEC & Hseal_store)".
-
     simpl.
+    (* 1 - Allocate the system invariant *)
     iMod ( system_inv_alloc (enclaves_map := contract_tc_enclaves_map) with
            "[$HEC $Hseal_store]") as "#Hsystem_inv".
 
+    (* 2 - Allocate the linking table invariant *)
     iMod (na_inv_alloc logrel_nais ⊤ link_tableN
-            (((tbl_start tbl_assert_tbl), vinit) ↦ₐ word_to_lword (assert_entry_point AssertLib) vinit)
+            (((tbl_start link_tbl), vinit) ↦ₐ word_to_lword (assert_entry_point AssertLib) vinit)
            with "[Hlink]") as "#Hinv_link".
     { iNext.
-    rewrite /assert_tbl_region.
-    rewrite /mkregion.
-    cbn.
-    rewrite finz_seq_between_cons.
-    2:{ pose proof link_table_size as H; solve_addr + H. }
-    rewrite finz_seq_between_empty.
-    2:{ pose proof link_table_size as H; solve_addr + H. }
-    cbn.
-    rewrite memory_to_lmemory_insert /=.
-    iDestruct (big_sepM_insert_delete with "Hlink") as "[$ _]".
+      rewrite /assert_tbl_region.
+      rewrite /mkregion.
+      cbn.
+      rewrite finz_seq_between_cons.
+      2:{ pose proof link_table_size as H; solve_addr + H. }
+      rewrite finz_seq_between_empty.
+      2:{ pose proof link_table_size as H; solve_addr + H. }
+      cbn.
+      rewrite memory_to_lmemory_insert /=.
+      iDestruct (big_sepM_insert_delete with "Hlink") as "[$ _]".
     }
 
-    (* allocate validity of adversary *)
+    (* 3 - Allocate validity of the adversary *)
     iAssert (|={⊤}=> interp (LCap RWX adv_start adv_end adv_start vinit))%I with "[Hadv]" as ">#Hadv".
     {
       pose proof adv_size as Hadv_size'.
       iApply (region_valid_in_regionL _ _ _ _ _ ((fun w=> word_to_lword w vinit) <$> adv_instrs));auto.
       - apply Forall_forall. intros. set_solver+.
+      - rewrite -adv_region_correct.
+        apply adv_not_reserved.
       - apply Forall_forall. intros.
         rewrite Forall_forall in Hints.
         apply elem_of_list_fmap_2 in H.
@@ -220,11 +251,12 @@ Section tc_adequacy.
             rewrite finz_seq_between_length /finz.dist /=. solve_addr+Hadv_size'.
     }
 
+    (* 4 - Allocate invariant of the code *)
     set (a_data := (prog_start P ^+ length (trusted_compute_main_code 0))%a).
-    set (link_cap := word_to_lword link_tbl_cap vinit).
+    set (link_capL := word_to_lword link_cap vinit).
     iMod (na_inv_alloc logrel_nais ⊤ tc_mainN
            (codefrag (prog_start P) vinit (trusted_compute_main_code 0)
-            ∗ (a_data, vinit) ↦ₐ link_cap
+            ∗ (a_data, vinit) ↦ₐ link_capL
             ∗ ((a_data ^+ 1)%a, vinit) ↦ₐ LCap RWX (prog_start P) (prog_end P) a_data vinit)
          with "[Hprog]") as "#Hprog".
     { iNext.
@@ -232,7 +264,7 @@ Section tc_adequacy.
         with
         (mkregion verifier_start verifier_end
                  ((lword_get_word <$> trusted_compute_main_code 0) ++
-                 [link_tbl_cap;
+                 [link_cap;
                   WCap RWX verifier_start verifier_end (verifier_start ^+ trusted_compute_main_code_len)%a])
               ) by done.
       pose proof verifier_size as Hsize_verifier.
@@ -264,10 +296,8 @@ Section tc_adequacy.
             rewrite finz_dist_0; last solve_addr.
             done.
       }
-
-      replace ([link_tbl_cap; WCap RWX verifier_start verifier_end (verifier_start ^+ trusted_compute_main_code_len)%a])
-        with ([link_tbl_cap]++[WCap RWX verifier_start verifier_end
-                                 (verifier_start ^+ trusted_compute_main_code_len)%a]); last by cbn.
+      replace ([link_cap; WCap RWX verifier_start verifier_end (verifier_start ^+ trusted_compute_main_code_len)%a])
+        with ([link_cap]++[WCap RWX verifier_start verifier_end (verifier_start ^+ trusted_compute_main_code_len)%a]); last by cbn.
       rewrite mkregion_app; last solve_addr.
       rewrite memory_to_lmemory_union.
       iDestruct (big_sepM_union with "Hdata") as "[Hdata1 Hdata2]".
@@ -317,9 +347,10 @@ Section tc_adequacy.
         rewrite finz_seq_between_empty; last solve_addr.
         iDestruct (big_sepM_insert_delete with "Hdata2") as "[$ _]".
     }
-
     iAssert (tc_main_inv verifier_start verifier_end vinit (trusted_compute_main_code 0) a_data
-               link_cap tc_mainN) with "Hprog" as "#Hprog_inv".
+               link_capL tc_mainN) with "Hprog" as "#Hprog_inv".
+
+    (* 5 - Allocate invariant of the assert *)
     iAssert (assert_inv (assert_start AssertLib) (assert_flag AssertLib) (assert_end AssertLib)
                vinit assertN)
       with "Hassert" as "Hassert_inv".
@@ -349,39 +380,45 @@ Section tc_adequacy.
     pose proof ( verifier_size ) as Hverifier_size.
     replace verifier_end with (verifier_start ^+ trusted_compute_main_len)%a by solve_addr.
 
-    iApply (wp_wand with "[-]").
-    - iApply (trusted_compute_full_run_spec with
-      "[$Hadv $Hsystem_inv $Hinv_link $Hassert $Hprog_inv $Hflag_inv ] [ $HPC $Hown $Hr_adv $Hrmap]"); auto.
-      + solve_ndisj.
-      + solve_ndisj.
-      + solve_ndisj.
-      + subst P; rewrite /tc_verifier_prog /=.
-        solve_addr.
-      + rewrite /SubBounds.
-        split; first solve_addr.
-        split; last solve_addr.
-        subst P; rewrite /tc_verifier_prog /=.
-        rewrite /trusted_compute_main_len.
-        solve_addr.
-      + pose proof link_table_size.
-        cbn; solve_addr.
-      + pose proof link_table_size.
-        cbn.
-        apply le_addr_withinBounds; solve_addr.
-      + rewrite /register_to_lregister.
-        by rewrite dom_fmap_L.
-    - by iIntros (v) "H".
+    (* 6 - Apply the full_run spec *)
+    iApply (wp_wand _ _ _
+              (λ v0 : val, (⌜v0 = HaltedV⌝ →
+                            ∃ r : LReg, full_map r ∧ registers_mapsto r
+                                        ∗ na_own logrel_nais ⊤) ∨ ⌜v0 = FailedV⌝)%I
+             with "[-]")
+    ; last (by iIntros (v) "H").
+    iApply (trusted_compute_full_run_spec with
+             "[$Hadv $Hsystem_inv $Hinv_link $Hassert $Hprog_inv $Hflag_inv ] [ $HPC $Hown $Hr_adv $Hrmap]"); auto.
+    + solve_ndisj.
+    + solve_ndisj.
+    + solve_ndisj.
+    + subst P; rewrite /tc_verifier_prog /=.
+      solve_addr.
+    + rewrite /SubBounds.
+      split; first solve_addr.
+      split; last solve_addr.
+      subst P; rewrite /tc_verifier_prog /=.
+      rewrite /trusted_compute_main_len.
+      solve_addr.
+    + pose proof link_table_size.
+      cbn; solve_addr.
+    + pose proof link_table_size.
+      cbn.
+      apply le_addr_withinBounds; solve_addr.
+    + rewrite /register_to_lregister.
+      by rewrite dom_fmap_L.
   Qed.
 
 End tc_adequacy.
 
 
+(** END-TO-END THEOREM *)
 Theorem tc_enclaves_adequacy `{memory_layout}
     (m m': Mem) (reg reg': Reg) (etbl' : ETable) (ecur' : ENum)
     (es: list cap_lang.expr):
-  is_initial_memory tc_verifier_prog adv_prog assert_layout tbl_assert_tbl m →
+  is_initial_memory tc_verifier_prog adv_prog AssertLib link_tbl m →
   is_complete_memory m →
-  is_initial_registers tc_verifier_prog adv_prog assert_layout tbl_assert_tbl reg r_t0 →
+  is_initial_registers tc_verifier_prog adv_prog AssertLib link_tbl reg r_t0 →
   is_complete_registers reg m →
   Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
 
@@ -391,29 +428,10 @@ Theorem tc_enclaves_adequacy `{memory_layout}
 Proof.
   intros ? ? ? ? Hints.
   set (Σ' := #[]).
-  pose proof (template_adequacy Σ' tc_verifier_prog adv_prog assert_layout tbl_assert_tbl) as Hadequacy.
+  pose proof (template_adequacy Σ' tc_verifier_prog adv_prog AssertLib link_tbl) as Hadequacy.
   eapply Hadequacy;eauto.
   - eapply adequacy_flag_inv_is_initial_memory; eauto.
   - intros Σ ? ? ? ? ? ?.
     iIntros "(?&?&?&?&?&?&?&?&?&?&?)".
     iApply tc_correct; eauto; last iFrame.
-
-    cbn.
-    clear.
-    pose proof regions_disjoints as (_&_&_&Hdisj&_).
-    rewrite adv_region_correct in Hdisj.
-    rewrite l_assert_region_correct in Hdisj.
-    rewrite elem_of_disjoint.
-    intros a Ha Ha'.
-
-    rewrite elem_of_disjoint in Hdisj.
-    eapply Hdisj; eauto.
-    rewrite elem_of_finz_seq_between.
-    rewrite elem_of_list_singleton in Ha'; simplify_eq.
-
-    pose proof l_assert_code_size.
-    pose proof l_assert_cap_size.
-    pose proof l_assert_flag_size.
-
-    solve_addr.
 Qed.
