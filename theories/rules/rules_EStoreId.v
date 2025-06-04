@@ -19,11 +19,12 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Definition get_otype_from_lwint : LWord -> option OType :=
-    fun w => match  w with
-             | LWInt ot  => finz.of_z ot
-             | _ => None
-             end.
+(* Lemma agree_includedN (A : Type) n (x y : agree A) : *)
+(*   x ≼{n} y ↔ y ≡{n}≡ x ⋅ y. *)
+(* Proof. *)
+(*   split; [|by intros ?; ∃ y]. *)
+(*   by intros [z Hz]; rewrite Hz assoc agree_idemp. *)
+(* Qed. *)
 
   Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
   | EStoreId_spec_success otype :
@@ -51,23 +52,8 @@ Section cap_lang_rules.
     etbl !! tidx = None →
     lregs = lregs' →
     EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
-  (* |EStoreId_spec_failure_other: *)
-  (*   EStoreId_spec lregs lregs' rs rd any otype tidx FailedV. *)
 
   Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-
-  (* Lemma wp2_get_otype_lwint_wint {Φf : iProp Σ} {w} {Φs : finz ONum → finz ONum → iProp Σ}: *)
-  (*        Φf ∧ (∀ ot, Φs ot ot) *)
-  (*     ⊢ wp_opt2 (get_otype_from_lwint w) (get_otype_from_wint (lword_get_word w)) Φf Φs. *)
-  (* Proof. *)
-  (*   iIntros "HΦ". *)
-  (*   destruct w as [ | [ | ] | [] [ | ] ]; cbn. *)
-  (*   destruct (finz.of_z z). *)
-  (*   all: try now rewrite bi.and_elim_l. *)
-  (*   all: try now rewrite bi.and_elim_r. *)
-  (* Qed. *)
-
-
 
   (* TODO @Denis *)
   (* The EStoreId instruction fetches the machine's stored hash for a given OType.
@@ -201,28 +187,42 @@ Section cap_lang_rules.
         1-2: admit. iFrame. }
 
     (* need a fractional for the index in the table *)
-    unfold enclaves_all.
+    (* assert (forall σ tidx I, etable σ !! tidx = Some I → *)
+    (*         enclaves_all (etable σ ∪ prev_tb) -∗ *)
+    (*           enclaves_all (etable σ ∪ prev_tb) ∗ enclave_all tidx I). *)
+
     iDestruct (own_update with "Hall_tb") as "Hall_tb".
     Print enclave_all.
+    Locate "●".
+    (* Print HintDb typeclass_instances. *)
+    (* hnf in H0 *)
+    Search auth_auth auth_frag.
+    Search to_agree lookup.
+
     apply (auth_update_alloc
-             (to_agree <$> etable σ1 ∪ prev_tb)
+             (to_agree <$> etable σ1 ∪ prev_tb)).
+
+    Search gmap local_update.
+
+    Check gmap.singleton_local_update.
+    Print ZR.
+    Print EIdentity.
+    apply (gmap_local_update
+             _ _
              (to_agree <$> etable σ1 ∪ prev_tb)
              (to_agree <$> {[ltidx := lhash]})).
-    unfold local_update.
-    { admit.
-      (* intros. *)
-      (* cbn. *)
-      (* split. assumption. *)
-      (* Search "cmra_comm" . *)
-      (* destruct mz; cbn. *)
-      (* cbn in H0; rewrite cmra_comm in H0. *)
-      (* rewrite cmra_comm. *)
-      (* rewrite -agree_includedN in H0. *) }
+    intro tidx.
+    rewrite !lookup_fmap.
+    rewrite lookup_empty.
+    destruct (decide (ltidx =tidx)); subst.
+    rewrite lookup_singleton.
 
     iIntros (lregs' regs') "HRregs' %Hlregs' %Hregs'".
     iApply wp2_val.
+    iMod "Hall_tb".
+    iDestruct (transiently_commit with "Hσ") as "Hpost".
+    iMod "Hpost".
     iModIntro.
-    iDestruct (transiently_commit with "Hσ") as "X".
 
     iSplitL "". admit.
     (* iSplitR "Hφ Hpc_a HEC". cbn. iFrame. *)
@@ -233,7 +233,14 @@ Section cap_lang_rules.
     iSplit. iPureIntro. econstructor 1; eauto.
      + admit.
      + admit.
-     + iFrame.
+     + destruct (decide (NextIV = NextIV)).
+       iDestruct "Hall_tb" as "(Hall_tb & Hall_ltidx)".
+       (* Search fmap ({[?x := ?y]}). *)
+       rewrite map_fmap_singleton.
+       iFrame.
+       admit.
+       by destruct n.
+
 
  Admitted.
 
