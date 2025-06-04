@@ -70,14 +70,25 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "!&gt;" (<span class="id" title="var">regs'</span> <span class="id" title="var">tidx</span> <span class="id" title="var">I</span> <span class="id" title="var">retv</span>). <span class="id" title="var">iDestruct</span> 1 <span class="id" title="keyword">as</span> (<span class="id" title="var">HSpec</span>) "(Hrmap &amp; Ha &amp; _ &amp; Henclave)".<br/>
 
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">HSpec</span> <span class="id" title="keyword">as</span> [<span class="id" title="var">Hincr</span> <span class="id" title="var">Hseal</span>|<span class="id" title="var">Hincr</span> <span class="id" title="var">Hlregs'</span>]; <span class="id" title="var">cycle</span> 1.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">HSpec</span> <span class="id" title="keyword">as</span> [<span class="id" title="var">Hincr</span> <span class="id" title="var">Hseal</span> | | | | <span class="id" title="var">Hincr</span> <span class="id" title="var">Hlregs'</span> ]; <span class="id" title="var">cycle</span> 1.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;failure&nbsp;cases&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;- <span class="comment">(*&nbsp;failure&nbsp;case:&nbsp;increment&nbsp;pc&nbsp;fails&nbsp;*)</span><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[Ha HP]"<span class="id" title="notation">)</span>; [<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>; <span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>]. <span class="id" title="var">iNext</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "_".<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>; <span class="id" title="tactic">auto</span>. <span class="id" title="var">iIntros</span>; <span class="id" title="tactic">discriminate</span>.<br/>
-
-<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[Ha HP]"<span class="id" title="notation">)</span>; [<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>; <span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>]. <span class="id" title="var">iNext</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "_".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>; <span class="id" title="tactic">auto</span>. <span class="id" title="var">iIntros</span>; <span class="id" title="tactic">discriminate</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[Ha HP]"<span class="id" title="notation">)</span>; [<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>; <span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>]. <span class="id" title="var">iNext</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "_".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>; <span class="id" title="tactic">auto</span>. <span class="id" title="var">iIntros</span>; <span class="id" title="tactic">discriminate</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_pure_step_later</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iMod</span> <span class="id" title="notation">(</span>"Hcls" <span class="id" title="notation">with</span> "[Ha HP]"<span class="id" title="notation">)</span>; [<span class="id" title="var">iExists</span> <span class="id" title="var">lw</span>; <span class="id" title="var">iFrame</span>|<span class="id" title="var">iModIntro</span>]. <span class="id" title="var">iNext</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iIntros</span> "_".<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">iApply</span> <span class="id" title="lemma">wp_value</span>; <span class="id" title="tactic">auto</span>. <span class="id" title="var">iIntros</span>; <span class="id" title="tactic">discriminate</span>.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;- <span class="comment">(*&nbsp;success&nbsp;case&nbsp;*)</span><br/>
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;get&nbsp;Henclave&nbsp;*)</span><br/>
