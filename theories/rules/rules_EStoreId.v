@@ -186,16 +186,9 @@ Section cap_lang_rules.
       - iApply "Hφ". iSplit. iPureIntro. econstructor 2.
         1-2: admit. iFrame. }
 
-    (* need a fractional for the index in the table *)
-    (* assert (forall σ tidx I, etable σ !! tidx = Some I → *)
-    (*         enclaves_all (etable σ ∪ prev_tb) -∗ *)
-    (*           enclaves_all (etable σ ∪ prev_tb) ∗ enclave_all tidx I). *)
-
+    (* need a fragmental resource for the index in the table *)
     iDestruct (own_update with "Hall_tb") as "Hall_tb".
-
-    { (* Print HintDb typeclass_instances. *)
-      (* hnf in H0 *)
-      apply (auth_update_alloc
+    { apply (auth_update_alloc
                 _
                (to_agree <$> etable σ1 ∪ prev_tb)).
       apply (gmap_local_update
@@ -203,41 +196,17 @@ Section cap_lang_rules.
                (to_agree <$> etable σ1 ∪ prev_tb)
                (to_agree <$> {[ltidx := lhash]})).
       intro tidx.
-      rewrite !lookup_fmap.
-      rewrite lookup_empty.
+      rewrite !lookup_fmap lookup_empty.
       destruct (decide (ltidx = tidx)); subst.
       2: by rewrite lookup_singleton_ne.
-      rewrite lookup_singleton.
-      rewrite lookup_union_l.
-      2: {  (* by Htbdisj *)
-
-        admit. }
-      rewrite Hhash.
-      cbn.
+      rewrite lookup_singleton lookup_union_l.
+      2: by apply (map_disjoint_Some_l (etable σ1) _ _ lhash).
+      rewrite Hhash. cbn.
       rewrite -{3}(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree lhash))).
       apply core_id_local_update.
       apply _.
       easy.
-
-      (* unfold local_update. *)
-      (* intros. cbn in *. *)
-      (* split. assumption. *)
-      (* rewrite -discrete_iff in H0. *)
-      (* rewrite -discrete_iff. *)
-      (* (* Set Printing Implicit. *) *)
-      (* Search opM. *)
-      (* destruct mz. 2: by inversion H0. *)
-      (* cbn in H0. *)
-      (* rewrite (ucmra_unit_left_id (A := optionUR (agreeR EIdentity))) in H0. *)
-      (* (* destruct c; subst. 2: by inversion H0. cbn. *) *)
-      (* rewrite H0. *)
-      (* cbn. *)
-      (* Search (?x ≡ ?x ⋅ ?x). *)
-      (* apply core_id_dup. *)
-      (* Search CoreId. *)
-      (* typeclasses eauto. *)
     }
-
 
     iIntros (lregs' regs') "HRregs' %Hlregs' %Hregs'".
     iApply wp2_val.
@@ -246,23 +215,21 @@ Section cap_lang_rules.
     iMod "Hpost".
     iModIntro.
 
-    iSplitL "". admit.
+    iSplitL "". cbn. admit.
     (* iSplitR "Hφ Hpc_a HEC". cbn. iFrame. *)
 
     cbn.
     iApply "Hφ".
     iFrame.
     iSplit. iPureIntro. econstructor 1; eauto.
-     + admit.
-     + admit.
+     + unfold has_seal. rewrite Hotype. apply Htidx.
+     + (* by Hdomtbcompl ... *) admit.
      + destruct (decide (NextIV = NextIV)).
-       iDestruct "Hall_tb" as "(Hall_tb & Hall_ltidx)".
-       (* Search fmap ({[?x := ?y]}). *)
-       rewrite map_fmap_singleton.
-       iFrame.
-       admit.
-       by destruct n.
-
+       -- iDestruct "Hall_tb" as "(Hall_tb & Hall_ltidx)".
+          rewrite map_fmap_singleton.
+          iFrame.
+          admit.
+       -- by destruct n.
 
  Admitted.
 
