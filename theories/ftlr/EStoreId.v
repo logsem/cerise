@@ -36,13 +36,25 @@ Section fundamental.
     { by simplify_map_eq. }
     iIntros "!>" (regs' tidx I retv). iDestruct 1 as (HSpec) "(Hrmap & Ha & _ & Henclave)".
 
-    destruct HSpec as [Hincr Hseal|Hincr Hlregs']; cycle 1.
+    destruct HSpec as [Hincr Hseal | | | | Hincr Hlregs' ]; cycle 1.
+    (* failure cases *)
     - (* failure case: increment pc fails *)
       iApply wp_pure_step_later; auto.
       iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro]. iNext.
       iIntros "_".
       iApply wp_value; auto. iIntros; discriminate.
-
+    - iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro]. iNext.
+      iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate.
+    - iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro]. iNext.
+      iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate.
+    - iApply wp_pure_step_later; auto.
+      iMod ("Hcls" with "[Ha HP]"); [iExists lw; iFrame|iModIntro]. iNext.
+      iIntros "_".
+      iApply wp_value; auto. iIntros; discriminate.
     - (* success case *)
 
       (* get Henclave *)
