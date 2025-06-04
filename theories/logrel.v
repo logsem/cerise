@@ -164,9 +164,9 @@ Section logrel.
     ([∗ list] a ∈ (finz.seq_between b e),
      (* so a seal/unseal pair is safe to attest when...
      there exists an index in the table that relates to this OType *)
-      ∃ tidx, ⌜tid_of_otype a = Some tidx⌝ ∧
-      (* and this index corresponds to an invariant that contain the enclave resources of said otype *)
-        inv (attestN .@ tidx) ((∃ I, enclave_cur tidx I) ∨ enclave_prev tidx)
+       let tidx := tid_of_otype a in
+       (* and this index corresponds to an invariant that contain the enclave resources of said otype *)
+       inv (attestN .@ tidx) ((∃ I, enclave_cur tidx I) ∨ enclave_prev tidx)
     )%I.
 
   (* TODO: @Denis include the condition for edeinit found on p24 of the TR (Apx E.2) *)
@@ -1251,16 +1251,16 @@ Section custom_enclaves.
   Definition custom_enclave_contract_gen
     {enclaves_map : CustomEnclavesMap} : iProp Σ :=
     ∀ (Ep : coPset)
-    (tidx : TIndex) (I : EIdentity)
+    (I : EIdentity)
     (b e : Addr) (v : Version)
     (b' e' a' : Addr) (v' : Version)
     (enclave_data : list LWord)
     (ot : OType)
     (ce : CustomEnclave),
+    let tidx := tid_of_otype ot in
 
     ⌜  custom_enclaves !! I = Some ce⌝ →
     ⌜ (ot + 2)%ot = Some (ot ^+ 2)%ot⌝ →(* Well-formness: otype does not overflow *)
-    ⌜ tid_of_otype ot = Some tidx ⌝ →
 
     ⌜ I = hash_concat (hash b) (hash (code ce))⌝ →
     ⌜ b = (code_region ce)⌝ →
@@ -1313,8 +1313,8 @@ Section custom_enclaves.
     : ⊢ custom_enclave_contract -∗ custom_enclave_contract_gen.
   Proof.
     iIntros "Hcontract".
-    iIntros (Ep tidx I b e v b' e' a' v' enclave_data ot ce
-               Hdata_seal Hot Htidx HIhash Hb He)
+    iIntros (Ep I b e v b' e' a' v' enclave_data ot ce
+               Hdata_seal Hot HIhash Hb He)
       "(#Hec_inv & Htc_code & Htc_data & #HPenc & #HPsign & Henclave_cur)".
 
     iMod (na_inv_alloc logrel_nais _ (system_invN.@I)
@@ -1327,7 +1327,413 @@ Section custom_enclaves.
                Hdata_seal Hot HIhash Hb He with "[$]").
   Qed.
 
-  Lemma system_inv_alloc {enclaves_map : CustomEnclavesMap} (E : coPset) :
+  Definition is_initial_etable (etbl : ETable) (ecur : ENum) :=
+    list_max (elements (dom etbl)) < ecur ∧ (* ensures well-formed enclave table *)
+    is_Some ( (finz.of_z (2*(Z.of_nat ecur))%Z : option OType)). (* ensures ecur didn't overflow the max otype *)
+
+  Lemma otype_unification (ot1 ot2 : OType) :
+    let n := tid_of_otype ot1 in
+    Z.even ot1 = true ->
+    finz.of_z (2 * n) = Some ot2 ->
+    ot1 = ot2.
+  Proof.
+    intros Htidx Htidx_even Hot_ec.
+    subst Htidx.
+    rewrite /tid_of_otype in Hot_ec.
+    rewrite Htidx_even in Hot_ec.
+    assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat ot1) 2)) = (Z.to_nat ot1) ).
+    {
+      rewrite -(Nat2Z.inj_mul 2).
+      rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+      2:{
+        destruct ot1.
+        rewrite /Z.even in Htidx_even.
+        cbn in *.
+        destruct z; cbn in *.
+        + rewrite Z2Nat.inj_0.
+          apply PeanoNat.Nat.divide_0_r.
+        + rewrite Z2Nat.inj_pos.
+          destruct p; cbn in * ; try done.
+          rewrite Pos2Nat.inj_xO.
+          apply Nat.divide_factor_l.
+        + rewrite Z2Nat.inj_neg.
+          apply PeanoNat.Nat.divide_0_r.
+      }
+      rewrite PeanoNat.Nat.mul_comm.
+      rewrite (PeanoNat.Nat.div_mul (Z.to_nat ot1) 2); done.
+    }
+    solve_finz.
+  Qed.
+
+
+
+  Set Nested Proofs Allowed.
+  Lemma otype_unification'
+    (Kot : OType) (Ktidx : TIndex) (ot_ecur : OType) (ecur : TIndex) :
+    0 <= Ktidx < ecur ->
+    has_seal Kot Ktidx ->
+    finz.of_z (2 * ecur) = Some ot_ecur ->
+    (Kot < ot_ecur)%ot.
+  Admitted.
+
+  Lemma otype_unification''
+    (Kot : OType) (Ktidx : TIndex) (ot_ecur : OType) (ecur : TIndex) :
+    0 <= Ktidx < ecur ->
+    has_seal Kot Ktidx ->
+    finz.of_z (2 * ecur) = Some ot_ecur ->
+    (Kot ^+ 1 < ot_ecur)%ot.
+  Admitted.
+
+  Lemma system_inv_alloc {enclaves_map : CustomEnclavesMap}
+    (E : coPset) (ecur : ENum) (etbl : ETable)
+    :
+    let dom_etbl_all := seq 0 ecur : list TIndex in
+    let dom_etbl_dead := filter (fun tidx => tidx ∉ dom etbl ) dom_etbl_all : list TIndex in
+    let dummy_I := 0 : EIdentity in
+    let etbl_dead := create_gmap_default dom_etbl_dead dummy_I : ETable in
+    let etbl_all := etbl ∪ etbl_dead in
+    is_initial_etable etbl ecur ->
+
+    EC⤇ ecur
+    ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+    ∗ ( [∗ map] tidx ↦ eid ∈ etbl_all, enclave_all tidx eid)
+    ⊢ |={E}=> system_inv.
+  Proof.
+    intros * [Hinit_tbl [ot_ecur Hot_ecur] ].
+
+    iIntros "(HEC & Hseal_store & #Hall_enclaves)".
+
+    set ( seal_free := list_to_set (finz.seq_between ot_ecur top_ot) : gset OType ).
+    set ( seal_to_alloc := list_to_set (finz.seq_between 0%ot ot_ecur) : gset OType ).
+    assert (seal_to_alloc ∪ seal_free = gset_all_otypes) as Hseal_alloc_free_complete.
+    {
+      rewrite -list_to_set_app_L.
+      rewrite -finz_seq_between_split; last solve_finz.
+      by rewrite gset_all_otypes_eq.
+    }
+    assert (seal_to_alloc ## seal_free) as Hseal_alloc_free_disjoint.
+    { apply list_to_set_disj.
+      intros a Ha Ha'.
+      rewrite !elem_of_finz_seq_between in Ha, Ha'.
+      solve_finz.
+    }
+    replace gset_all_otypes with ( seal_to_alloc ∪ seal_free : gset OType).
+    rewrite big_sepS_union; auto.
+    iDestruct "Hseal_store" as "[Hseal_to_alloc Hseal_free]".
+
+    set (filter_in_custom :=
+           (fun ot : OType =>
+              let tidx := tid_of_otype ot in
+              match (etbl_all !! tidx) with
+              | Some K => K ∈ (dom custom_enclaves)
+              | None => False
+              end)
+        ).
+
+    assert (forall ot, Decision (filter_in_custom ot)).
+    { subst filter_in_custom.
+      intros.
+      cbn.
+      match goal with
+      | _ : _ |- context [ etbl_all !! ?x ] =>
+          set (tidx := x)
+      end.
+      destruct (etbl_all !! tidx); apply _.
+    }
+
+    set (seal_custom := filter filter_in_custom seal_to_alloc).
+    set (seal_interp := filter (fun ot => ¬ (filter_in_custom ot)) seal_to_alloc).
+    replace seal_to_alloc with (seal_custom ∪ seal_interp).
+    2:{ rewrite filter_union_complement_L; eauto. }
+    rewrite big_sepS_union; last apply disjoint_filter_complement.
+    iDestruct "Hseal_to_alloc" as "[Hseal_custom Hseal_interp]".
+
+    set ( Φ := (fun ot : OType =>
+                  let tidx := tid_of_otype ot in
+                  match (etbl_all !! tidx) with
+                  | Some K =>
+                      (match custom_enclaves !! K with
+                       | Some ec =>
+                           if (Z.even (finz.to_z ot))
+                           then (Penc ec)
+                           else (Psign ec)
+                       | None => (fun _ : LWord => False%I)
+                       end)
+                  | None => (fun _ : LWord => False%I)
+                  end)
+        ).
+
+    iDestruct (seal_store_update_alloc_batch_const _ interp with "Hseal_interp") as ">#Hseal_interp".
+    iDestruct (seal_store_update_alloc_batch _ Φ with "Hseal_custom") as ">#Hseal_custom".
+
+
+    iApply (inv_alloc system_invN E with "[-]").
+    iNext.
+    iExists ecur, ot_ecur%ot.
+    iFrame.
+    iSplit; [iPureIntro;solve_finz|].
+    iSplitR.
+    - set ( seal_to_alloc' := list_to_set (finz.seq_between 0%ot ot_ecur) : gset OType ).
+      replace seal_to_alloc' with (seal_custom ∪ seal_interp).
+      2:{ rewrite filter_union_complement_L; eauto. }
+      rewrite big_sepS_union; last apply disjoint_filter_complement.
+      iSplitL.
+      * iApply (big_sepS_mono with "[$Hseal_custom]").
+        iIntros (? ?) "?"; iExists _; iFrame.
+      * iApply (big_sepS_mono with "[$Hseal_interp]").
+        iIntros (? ?) "?"; iExists _; iFrame.
+    - iModIntro.
+      iIntros (KI Ktidx Kot Kce HKtidx) "(-#Henclave_KI & %HKI_enclave & %Hseal_KI)".
+      assert (∃ KI', etbl_all !! Ktidx = Some KI') as [KI' Hetbl_all_Ktidx].
+      { destruct (etbl_dead !! Ktidx) as [KI'|] eqn:HKtidx_etbl_dead.
+        + assert ( (etbl !! Ktidx) = None ) as HKtidx_etbl.
+          { admit. (* etbl and etbl_dead are disjoints *) }
+          exists KI'.
+          subst etbl_all.
+          by rewrite lookup_merge HKtidx_etbl_dead HKtidx_etbl.
+        + destruct (etbl !! Ktidx) as [KI'|] eqn:HKtidx_etbl; cycle 1.
+          { admit. (* etbl and etbl_dead are complete *) }
+          exists KI'.
+          subst etbl_all.
+          by rewrite lookup_merge HKtidx_etbl_dead HKtidx_etbl.
+      }
+      iDestruct (big_sepM_lookup with "Hall_enclaves") as "-#Henclave_KI'" ; eauto.
+      iDestruct (enclave_all_agree with "[$Henclave_KI' $Henclave_KI]") as "->".
+
+      destruct (Z.even Kot) eqn:HKot_even.
+      + assert (Kot ∈ seal_custom) as HKot_custom.
+        { subst seal_custom.
+          rewrite elem_of_filter.
+          split.
+          + subst filter_in_custom; cbn.
+            rewrite /has_seal in Hseal_KI.
+            destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+            apply finz_of_z_is_Some_spec in Hf.
+            replace (tid_of_otype Kot) with (tid_of_otype f).
+            2: {
+              clear - HKot_even Hf Hseal_KI.
+              rewrite /tid_of_otype.
+              rewrite Hf.
+              by rewrite HKot_even.
+            }
+            rewrite Hseal_KI.
+            rewrite Hetbl_all_Ktidx.
+            by rewrite elem_of_dom.
+          + subst seal_to_alloc.
+            rewrite elem_of_list_to_set elem_of_finz_seq_between.
+            split; first solve_finz.
+            eapply otype_unification'; eauto.
+        }
+        assert ( (Kot ^+ 1)%ot ∈ seal_custom ) as HKot1_custom.
+        { subst seal_custom.
+          rewrite elem_of_filter.
+          split.
+          + subst filter_in_custom; cbn.
+            rewrite /has_seal in Hseal_KI.
+            destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+            apply finz_of_z_is_Some_spec in Hf.
+
+            assert (HKot1_even : Z.even (Kot ^+ 1)%f = false).
+            { admit. }
+            replace (tid_of_otype (Kot ^+ 1)%f) with (tid_of_otype f).
+            2: {
+              rewrite /tid_of_otype.
+              rewrite Hf.
+              rewrite HKot_even.
+              rewrite HKot1_even.
+              replace ( (Kot ^+ 1 ^- 1)%f ) with Kot; first done.
+              assert ( (Kot + 1)%ot = Some (Kot ^+ 1)%ot ); last solve_finz.
+              simplify_eq.
+              rewrite /tid_of_otype Hf  HKot_even in HKtidx.
+              assert ((2 * Z.to_nat Kot `div` 2) < (2 * ecur)) by lia.
+              assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat Kot) 2)) = (Z.to_nat Kot) ).
+              {
+                rewrite -(Nat2Z.inj_mul 2).
+                rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+                2:{
+                  destruct Kot.
+                  rewrite /Z.even in HKot_even.
+                  cbn in *.
+                  destruct z; cbn in *.
+                  + rewrite Z2Nat.inj_0.
+                    apply PeanoNat.Nat.divide_0_r.
+                  + rewrite Z2Nat.inj_pos.
+                    destruct p; cbn in * ; try done.
+                    rewrite Pos2Nat.inj_xO.
+                    apply Nat.divide_factor_l.
+                  + rewrite Z2Nat.inj_neg.
+                    apply PeanoNat.Nat.divide_0_r.
+                }
+                rewrite PeanoNat.Nat.mul_comm.
+                rewrite (PeanoNat.Nat.div_mul (Z.to_nat Kot) 2); done.
+              }
+              solve_finz.
+            }
+            rewrite Hseal_KI.
+            rewrite Hetbl_all_Ktidx.
+            by rewrite elem_of_dom.
+          + subst seal_to_alloc.
+            rewrite elem_of_list_to_set elem_of_finz_seq_between.
+            split; first solve_finz.
+            eapply otype_unification''; eauto.
+        }
+        iSplit.
+        { iDestruct (big_sepS_elem_of _ _ Kot with "Hseal_custom") as "Hseal_custom_Kot"; eauto.
+          subst Φ; cbn.
+          rewrite /has_seal in Hseal_KI.
+          destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+          rewrite HKot_even.
+          apply finz_of_z_is_Some_spec in Hf.
+          replace (tid_of_otype Kot) with (tid_of_otype f).
+          2: {
+            clear - HKot_even Hf Hseal_KI.
+            rewrite /tid_of_otype.
+            rewrite Hf.
+            by rewrite HKot_even.
+          }
+          rewrite Hseal_KI.
+          by rewrite Hetbl_all_Ktidx HKI_enclave.
+        }
+        { iDestruct (big_sepS_elem_of _ _ (Kot ^+ 1)%f with "Hseal_custom") as "Hseal_custom_Kot"; eauto.
+          subst Φ; cbn.
+          rewrite /has_seal in Hseal_KI.
+          destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+          assert (HKot1_even : Z.even (Kot ^+ 1)%f = false).
+          { admit. }
+          rewrite HKot1_even.
+          apply finz_of_z_is_Some_spec in Hf.
+          replace (tid_of_otype (Kot ^+ 1)%f) with (tid_of_otype f).
+          2: {
+            rewrite /tid_of_otype.
+            rewrite Hf.
+            rewrite HKot_even.
+            rewrite HKot1_even.
+            replace ( (Kot ^+ 1 ^- 1)%f ) with Kot; first done.
+            assert ( (Kot + 1)%ot = Some (Kot ^+ 1)%ot ); last solve_finz.
+            simplify_eq.
+            rewrite /tid_of_otype Hf  HKot_even in HKtidx.
+            assert ((2 * Z.to_nat Kot `div` 2) < (2 * ecur)) by lia.
+            assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat Kot) 2)) = (Z.to_nat Kot) ).
+            {
+              rewrite -(Nat2Z.inj_mul 2).
+              rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+              2:{
+                destruct Kot.
+                rewrite /Z.even in HKot_even.
+                cbn in *.
+                destruct z; cbn in *.
+                + rewrite Z2Nat.inj_0.
+                  apply PeanoNat.Nat.divide_0_r.
+                + rewrite Z2Nat.inj_pos.
+                  destruct p; cbn in * ; try done.
+                  rewrite Pos2Nat.inj_xO.
+                  apply Nat.divide_factor_l.
+                + rewrite Z2Nat.inj_neg.
+                  apply PeanoNat.Nat.divide_0_r.
+              }
+              rewrite PeanoNat.Nat.mul_comm.
+              rewrite (PeanoNat.Nat.div_mul (Z.to_nat Kot) 2); done.
+            }
+            solve_finz.
+          }
+          rewrite Hseal_KI.
+          by rewrite Hetbl_all_Ktidx HKI_enclave.
+        }
+
+      + assert ( (Kot ^+ -1)%ot ∈ seal_custom ) as HKot1_custom.
+        { subst seal_custom.
+          rewrite elem_of_filter.
+          split.
+          + subst filter_in_custom; cbn.
+            rewrite /has_seal in Hseal_KI.
+            destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+            assert (HKot1_even : Z.even (Kot ^+ -1)%f = true).
+            { admit. }
+            apply finz_of_z_is_Some_spec in Hf.
+            replace (tid_of_otype (Kot ^+ -1)%f) with (tid_of_otype f).
+            2: {
+              clear - HKot_even HKot1_even Hf Hseal_KI.
+              rewrite /tid_of_otype.
+              rewrite Hf.
+              rewrite HKot_even.
+              rewrite HKot1_even.
+              by replace ( (Kot ^+ -1)%f ) with (f ^- 1)%f by solve_finz.
+            }
+            rewrite Hseal_KI.
+            rewrite Hetbl_all_Ktidx.
+            by rewrite elem_of_dom.
+          + subst seal_to_alloc.
+            rewrite elem_of_list_to_set elem_of_finz_seq_between.
+            split; first solve_finz.
+            opose proof ( otype_unification' Kot Ktidx ot_ecur ecur _ _ _ ); auto.
+            assert ((Kot ^+ -1)%f < Kot)%Z; last solve_finz.
+            assert (Kot ≠ 0%ot); last solve_finz.
+            intro ; simplify_eq.
+        }
+        assert (Kot ∈ seal_custom) as HKot_custom.
+        { subst seal_custom.
+          rewrite elem_of_filter.
+          split.
+          + subst filter_in_custom; cbn.
+            rewrite /has_seal in Hseal_KI.
+            destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+            apply finz_of_z_is_Some_spec in Hf.
+            replace (tid_of_otype Kot) with (tid_of_otype f).
+            2: {
+              clear - HKot_even Hf Hseal_KI.
+              rewrite /tid_of_otype.
+              rewrite Hf.
+              by replace (f ^- 1)%f with (Kot ^- 1)%f by solve_finz.
+            }
+            rewrite Hseal_KI.
+            rewrite Hetbl_all_Ktidx.
+            by rewrite elem_of_dom.
+          + subst seal_to_alloc.
+            rewrite elem_of_list_to_set elem_of_finz_seq_between.
+            split; first solve_finz.
+            eapply otype_unification'; eauto.
+        }
+        iSplit.
+        { iDestruct (big_sepS_elem_of _ _ (Kot ^+ -1)%f with "Hseal_custom") as "Hseal_custom_Kot"; eauto.
+          subst Φ; cbn.
+          rewrite /has_seal in Hseal_KI.
+          destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+          (* rewrite /tid_of_otype in Hseal_KI. *)
+          assert (HKot1_even : Z.even (Kot ^+ -1)%f = true).
+          { admit. }
+          rewrite HKot1_even.
+          apply finz_of_z_is_Some_spec in Hf.
+          replace (tid_of_otype (Kot ^+ -1)%f) with (tid_of_otype f).
+          2: {
+            clear - HKot_even HKot1_even Hf Hseal_KI.
+            rewrite /tid_of_otype.
+            rewrite Hf.
+            rewrite HKot_even.
+            rewrite HKot1_even.
+            by replace ( (Kot ^+ -1)%f ) with (f ^- 1)%f by solve_finz.
+          }
+          rewrite Hseal_KI.
+          by rewrite Hetbl_all_Ktidx HKI_enclave.
+        }
+        { iDestruct (big_sepS_elem_of _ _ Kot with "Hseal_custom") as "Hseal_custom_Kot"; eauto.
+          subst Φ; cbn.
+          rewrite /has_seal in Hseal_KI.
+          destruct ( finz.of_z Kot ) eqn:Hf ; try done.
+          rewrite HKot_even.
+          apply finz_of_z_is_Some_spec in Hf.
+          replace (tid_of_otype Kot) with (tid_of_otype f).
+          2: {
+            clear - HKot_even Hf Hseal_KI.
+            rewrite /tid_of_otype.
+            rewrite Hf.
+            by replace ( (Kot ^- 1)%f ) with (f ^- 1)%f by solve_finz.
+          }
+          rewrite Hseal_KI.
+          by rewrite Hetbl_all_Ktidx HKI_enclave.
+        }
+  Admitted.
+
+  Lemma system_inv_alloc_init {enclaves_map : CustomEnclavesMap} (E : coPset) :
     EC⤇ 0 ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
     ⊢ |={E}=> system_inv.
   Proof.

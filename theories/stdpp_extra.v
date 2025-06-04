@@ -1570,6 +1570,32 @@ Proof.
       * right; set_solver.
 Qed.
 
+Lemma list_to_set_filter
+  {A} `{Countable A} (F : A -> Prop) `{∀ x : A, Decision (F x)} (l : list A) :
+  (list_to_set (filter F l) : gset A) = filter F (list_to_set l).
+Proof.
+  induction l; cbn; first set_solver.
+  rewrite filter_union_L.
+  destruct (decide (F a)).
+  + rewrite filter_singleton_L; auto.
+    set_solver.
+  + rewrite filter_singleton_not_L; auto.
+    set_solver.
+Qed.
+
+Lemma elem_of_list_max (n : nat) (l : list nat) :
+  n ∈ l -> n <= list_max l.
+Proof.
+  revert n; induction l; intros n Hn ; first set_solver.
+  rewrite elem_of_cons in Hn.
+  replace (a::l) with ([a]++l) by (by cbn).
+  rewrite list_max_app.
+  cbn; rewrite Nat.max_0_r.
+  destruct Hn as [-> | Hn]; first lia.
+  apply IHl in Hn.
+  lia.
+Qed.
+
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

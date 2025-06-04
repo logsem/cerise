@@ -57,7 +57,8 @@ Section fundamental.
       rewrite finz_seq_between_cons. 2: solve_addr.
       rewrite big_sepL_cons.
       (* let's get that enclave ghost resource now *)
-      iDestruct "Hattest" as "((%tidx & %Htidx & Hinvtidx) & Hattest)".
+      set (tidx := tid_of_otype f).
+      iDestruct "Hattest" as "(Hinvtidx & Hattest)".
       iInv (attestN.@ tidx) as ">Henclave" "Hclstidx".
 
       (* and consider the two options: either this enclave is still "current" or "live", in which case the invariant stores

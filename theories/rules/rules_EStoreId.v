@@ -41,14 +41,14 @@ Section cap_lang_rules.
     get_otype_from_wint (lword_get_word lw) = None →
     lregs = lregs' →
     EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV
-  |EStoreId_spec_failure_tidx_invalid_for_otype lw ot:
-    get_otype_from_wint (lword_get_word lw) = Some ot → (* necessary? *)
-    tid_of_otype ot = None →
-    lregs = lregs' →
-    EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV
+  (* |EStoreId_spec_failure_tidx_invalid_for_otype lw ot: *)
+  (*   get_otype_from_wint (lword_get_word lw) = Some ot → (* necessary? *) *)
+  (*   tid_of_otype ot = None → *)
+  (*   lregs = lregs' → *)
+    (* EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV *)
   |EStoreId_spec_failure_tidx_missing_in_etable lw ot (etbl : ETable):
     get_otype_from_wint (lword_get_word lw) = Some ot → (* necessary? *)
-    tid_of_otype ot = Some tidx → (* necessary? *)
+    tid_of_otype ot = tidx → (* necessary? *)
     etbl !! tidx = None →
     lregs = lregs' →
     EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
@@ -96,7 +96,7 @@ Section cap_lang_rules.
               (φ1 :=
                  lwσ  ← lregs !! rs;
                  lσa  ← get_otype_from_wint (lword_get_word lwσ); (* easier than def. a logically equiv fn *)
-                 tid ← tid_of_otype lσa;
+                 let tid := tid_of_otype lσa in
                  eid  ← (etable σ1) !! tid;
                  lregs' ← incrementLPC (<[rd := LWInt eid]> lregs);
                  Some lregs'
@@ -140,21 +140,22 @@ Section cap_lang_rules.
     wp2_remember.
     iApply wp_opt2_mono2.
 
-    iSplitR "".
-    2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I).
-    iSplit.
-    { (* abort case: the passed otype is not a valid table index *)
-      iIntros "_ %Hlw %Hlw2".
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
-      iSplitR "Hφ Hregs Hpc_a HEC".
-      - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. now constructor 4 with (LWInt z) otype.
-    }
+    (* iSplitR "". *)
+    (* 2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I). *)
+    (* iSplit. *)
+    (* { (* abort case: the passed otype is not a valid table index *) *)
+    (*   iIntros "_ %Hlw %Hlw2". *)
+    (*   iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)". *)
+    (*   iSplitR "Hφ Hregs Hpc_a HEC". *)
+    (*   - iExists lr, lm, vmap, _, _, _; now iFrame. *)
+    (*   - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. now constructor 4 with (LWInt z) otype. *)
+    (* } *)
 
-    iIntros (ltidx tidx) "_ %Hltidx %Htidx".
-    rewrite Htidx in Hltidx; inversion Hltidx; subst.
-    wp2_remember.
-    iApply wp_opt2_mono2.
+    (* iIntros (ltidx tidx) "_ %Hltidx %Htidx". *)
+    (* rewrite Htidx in Hltidx; inversion Hltidx; subst. *)
+    (* wp2_remember. *)
+    (* iApply wp_opt2_mono2. *)
+    set ( tidx := tid_of_otype otype).
 
     iSplitR "".
     2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I).
@@ -165,7 +166,7 @@ Section cap_lang_rules.
       Print enclaves_all.
       iSplitR "Hφ Hregs Hpc_a HEC".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. constructor 5 with (LWInt z) otype (etable σ1); eauto. }
+      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. constructor 4 with (LWInt z) otype (etable σ1); eauto. }
 
     iIntros (lhash hash) "_ %Hlhash %Hhash".
     rewrite Hhash in Hlhash; inversion Hlhash; subst.
@@ -194,10 +195,10 @@ Section cap_lang_rules.
       apply (gmap_local_update
                _ _
                (to_agree <$> etable σ1 ∪ prev_tb)
-               (to_agree <$> {[ltidx := lhash]})).
-      intro tidx.
+               (to_agree <$> {[tidx := lhash]})).
+      intro tidx'.
       rewrite !lookup_fmap lookup_empty.
-      destruct (decide (ltidx = tidx)); subst.
+      destruct (decide (tidx = tidx')); subst.
       2: by rewrite lookup_singleton_ne.
       rewrite lookup_singleton lookup_union_l.
       2: by apply (map_disjoint_Some_l (etable σ1) _ _ lhash).
@@ -222,7 +223,7 @@ Section cap_lang_rules.
     iApply "Hφ".
     iFrame.
     iSplit. iPureIntro. econstructor 1; eauto.
-     + unfold has_seal. rewrite Hotype. apply Htidx.
+     + unfold has_seal. rewrite Hotype; auto.
      + (* by Hdomtbcompl ... *) admit.
      + destruct (decide (NextIV = NextIV)).
        -- iDestruct "Hall_tb" as "(Hall_tb & Hall_ltidx)".

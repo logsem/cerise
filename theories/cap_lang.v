@@ -454,19 +454,19 @@ Section opsem.
     | None => None
     end.
 
-  Definition tid_of_otype (oa : OType) : option TIndex :=
+  Definition tid_of_otype (oa : OType) : TIndex :=
       if (Z.even (finz.to_z oa))
-      then Some (Nat.div (Z.to_nat oa) 2)
-      else Some (Nat.div (Z.to_nat (oa^-1)%f) 2).
+      then Nat.div (Z.to_nat oa) 2
+      else Nat.div (Z.to_nat (oa^-1)%f) 2.
 
   Definition has_seal (ot : Z) (tid : TIndex) : Prop :=
     match finz.of_z ot with
-    | Some ot => tid_of_otype ot = Some tid
+    | Some ot => tid_of_otype ot = tid
     | None => False
     end.
 
   Definition otype_has_seal (ot : OType) (tid : TIndex) : Prop :=
-    tid_of_otype ot = Some tid.
+    tid_of_otype ot = tid.
 
   Definition addr_leb (a1 a2 : Addr) := (a1 <=? a2)%a.
   Definition pair_fst_leb {A B} (A_leb : A -> A -> bool) (ab1 ab2 : A * B) := A_leb ab1.1 ab2.1.
@@ -717,18 +717,18 @@ Section opsem.
       wr   ← (reg φ) !! r; (* σ should be a seal/unseal pair *)
       '(p,σb,σe,_) ← get_sealing_cap wr;
       when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
-      tid ← tid_of_otype σb;
+      let tidx := tid_of_otype σb in
 
       (* UPDATE THE MACHINE STATE *)
-      φ |>> remove_from_etable tid
+      φ |>> remove_from_etable tidx
         |>> updatePC
 
     (* enclave local attestation *)
   | EStoreId rd rs =>
       wσ  ← (reg φ) !! rs;
       σa  ← get_otype_from_wint wσ;
-      tid ← tid_of_otype σa;
-      eid  ← (etable φ) !! tid;
+      let tidx := tid_of_otype σa in
+      eid  ← (etable φ) !! tidx;
 
       (* UPDATE THE MACHINE STATE *)
       φ |>> update_reg rd (WInt eid)

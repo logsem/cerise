@@ -79,7 +79,7 @@ Section cap_lang_rules.
     EInit_fail lregs lmem  r_code r_data tidx ot
 
   | EInit_fail_otype_overflow :
-    tid_of_otype ot = Some tidx ->
+    tid_of_otype ot = tidx ->
     Z.even ot = true ->
     (ot + 2)%ot = None →
 
@@ -100,7 +100,7 @@ Section cap_lang_rules.
       (data_v : Version) eid hash_instrs,
     ⌜r_code ≠ PC⌝ ∗
     ⌜(tidx+1)%nat = tidx_incr⌝ ∗
-    ⌜tid_of_otype ot = Some tidx⌝ ∗
+    ⌜tid_of_otype ot = tidx⌝ ∗
     ⌜Z.even ot = true⌝ ∗
     ⌜ (hash_lmemory_range lmem (code_b ^+ 1)%a code_e code_v) = Some hash_instrs
     ∧ hash_concat (hash code_b) hash_instrs = eid⌝ ∗ (* eid = hash(code_b || mem[b+1::e]) *)

@@ -321,18 +321,27 @@ Section Adequacy.
 
   Definition invN : namespace := nroot .@ "templateadequacy" .@ "inv".
 
+  Set Nested Proofs Allowed.
+
   Lemma template_adequacy' `{subG Σ' Σ}
     (m m': Mem) (reg reg': Reg)
-    (etbl' : ETable) (ecur' : ENum)
+    (etbl etbl' : ETable) (ecur ecur' : ENum)
     (es: list cap_lang.expr)
     :
     let I := (adequacy_flag_inv AssertLib) in
     let RA := reserved_addresses_assert AssertLib vinit in
 
+    let dom_etbl_all := seq 0 ecur : list TIndex in
+    let dom_etbl_dead := filter (fun tidx => tidx ∉ dom etbl ) dom_etbl_all : list TIndex in
+    let dummy_I := 0 : EIdentity in
+    let etbl_dead := create_gmap_default dom_etbl_dead dummy_I : ETable in
+    let etbl_all := etbl ∪ etbl_dead in
+
     is_initial_memory P Adv AssertLib tbl_assert_tbl m →
     is_complete_memory m →
     is_initial_registers P Adv AssertLib tbl_assert_tbl reg r_adv →
     is_complete_registers reg m →
+    is_initial_etable etbl ecur ->
 
     Forall (fun w => adv_condition Adv w) (prog_instrs Adv) →
     minv I m →
@@ -342,7 +351,7 @@ Section Adequacy.
         dom rmap = all_registers_s ∖ {[ PC; r_adv ]} →
      ⊢ inv invN (minv_sep I vinit)
        ∗ @na_own _ (@logrel_na_invG _ NA) logrel_nais ⊤ (*XXX*)
-        ∗ @na_inv _ _ _ (@logrel_na_invG _ NA) logrel_nais assertN (assertInv AssertLib vinit)
+       ∗ @na_inv _ _ _ (@logrel_na_invG _ NA) logrel_nais assertN (assertInv AssertLib vinit)
 
        (* Registers *)
        ∗ PC ↦ᵣ LCap RWX (prog_start P) (prog_end P) (prog_start P) vinit
@@ -357,22 +366,23 @@ Section Adequacy.
        (* Linking Table *)
        ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (assert_tbl_region tbl_assert_tbl AssertLib) vinit), a ↦ₐ w)
 
-       ∗ EC⤇ 0%nat
+       ∗ EC⤇ ecur
        ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+       ∗ ( [∗ map] tidx ↦ eid ∈ etbl_all, enclave_all tidx eid)
 
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
     rtc erased_step
-      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0%nat |})
+      ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
       (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
     minv I m'.
   Proof.
-    intros I RA Hm Hm_complete Hreg Hreg_complete Hadv HI prog_map Hspec Hstep.
+    intros * Hm Hm_complete Hreg Hreg_complete Hetbl Hadv HI prog_map Hspec Hstep.
     pose proof (@wp_invariance Σ cap_lang _ NotStuck) as WPI. cbn in WPI.
     pose (fun (c:ExecConf) => minv I c.(mem)) as state_is_good.
     specialize (WPI
                   (Seq (Instr Executable))
-                  {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0 |}
+                  {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |}
                   es
                   {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}
                   (state_is_good {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |})).
@@ -384,27 +394,62 @@ Section Adequacy.
       as (lmem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init ((register_to_lregister reg vinit):LReg))
       as (lreg_heapg) "(Hreg_ctx & Hreg & _)" .
-    iMod (own_alloc (A := enclaves_agreeUR) (● ∅)) as (γhist) "Henclave_hist"
-    ; first by apply auth_auth_valid.
-    iMod (own_alloc (A := enclaves_agreeUR) (● ∅)) as (γprev) "Henclave_prev"
-    ; first by apply auth_auth_valid.
-    iMod (own_alloc (A := enclaves_exclUR) (● ∅)) as (γlive) "Henclave_live"
-    ; first by apply auth_auth_valid.
-    iMod (own_alloc (A := ECUR) (● 0 ⋅ ◯ 0)) as (γEC) "[HEC_full HEC]"
+    iMod (own_alloc (A := ECUR) (● ecur ⋅ ◯ ecur)) as (γEC) "[HEC_full HEC]"
     ; first by eapply auth_both_valid_2.
+
+    iMod (own_alloc (A := enclaves_exclUR) (● ( Excl <$> etbl))) as (γlive) "Henclave_live".
+    { apply auth_auth_valid.
+      clear.
+      induction etbl using map_ind.
+      + done.
+      + rewrite fmap_insert.
+        apply insert_valid; done.
+    }
+
+    iMod (own_alloc (A := enclaves_agreeUR) (● (to_agree <$> etbl_dead))) as (γprev) "Henclave_prev".
+    { apply auth_auth_valid.
+      clear.
+      induction etbl_dead using map_ind.
+      + done.
+      + rewrite fmap_insert.
+        apply insert_valid; done.
+    }
+
+    iMod (own_alloc (A := enclaves_agreeUR) (● (to_agree <$> etbl_all) ⋅ ◯ (to_agree <$> etbl_all)))
+      as (γhist) "[Henclave_hist_full Henclave_hist_frag]".
+    { apply auth_both_valid_2; last done.
+      clear.
+      induction etbl_all using map_ind.
+      + done.
+      + rewrite fmap_insert.
+        apply insert_valid; done.
+    }
     (* TRICK: for some reason, if the set is not opaque,
        Rocq takes forever to apply iMod *)
     iMod (seal_store_init gset_all_otypes) as (seal_storeg) "Hseal_store".
     iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
 
-
     pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
     pose ceriseg := CeriseG Σ Hinv lmem_heapg lreg_heapg
-                      enclave_agree_preg enclave_excl_preg γhist γprev γlive
+                      enclave_agree_preg enclave_excl_preg γprev γhist γlive
                       EC_preg γEC.
     set ( addr_inv := (elements (minv_dom I))).
     specialize (Hspec ceriseg seal_storeg logrel_na_invs).
     destruct Hm as (HProg & HAdv & HLink & HAssert & (Hdisj1 & Hdisj2 & Hdisj3 & Hdisj4 & Hdisj5 & Hdisj6)).
+
+    iAssert ( [∗ map] tidx ↦ eid ∈ etbl_all, enclave_all tidx eid)%I with "[Henclave_hist_frag]" as
+      "Hall_enclaves".
+    { clear.
+      iInduction (etbl_all) as [|] "IH" using map_ind ; first done.
+      rewrite fmap_insert.
+      rewrite insert_singleton_op; last by rewrite lookup_fmap H.
+      rewrite auth_frag_op own_op.
+      rewrite big_opM_insert; last done.
+      rewrite /enclave_all.
+      cbn.
+      iDestruct "Henclave_hist_frag" as  "[Hi?]"; iFrame.
+      by iApply "IH".
+    }
 
     iDestruct (big_sepM_subseteq with "Hmem") as "Hprogadv".
     { transitivity (
@@ -561,7 +606,7 @@ Section Adequacy.
     iPoseProof (Hspec _ rmap with
                  "[$HPC $Hr0 $Hreg $HEC $Hseal_store
                   $Hp $Hadv $HLink $Hinv_assert
-                  $Hinv $Hna]") as "Spec".
+                  $Hinv $Hna $Hall_enclaves]") as "Spec".
     { subst rmap. rewrite !dom_delete_L regmap_full_dom. set_solver+. apply Hreg_full. }
     iModIntro.
     iExists (fun σ κs _ => state_interp_logical σ).
@@ -570,9 +615,61 @@ Section Adequacy.
     {
       iExists (register_to_lregister reg vinit),
                 (memory_to_lmemory m vinit),
-                  (gset_to_gmap vinit (dom m)), ∅, ∅, ∅.
+                  (gset_to_gmap vinit (dom m)), etbl, etbl_dead, etbl_all.
       iFrame; cbn.
-      repeat (iSplit ; first done).
+      iSplit; first done.
+      iSplit.
+      { iPureIntro.
+        subst etbl_dead dom_etbl_dead dom_etbl_all.
+        rewrite create_gmap_default_dom.
+        intros tidx Htidx Htidx'.
+        apply elem_of_list_to_set in Htidx'.
+        apply elem_of_list_filter in Htidx' as [Htidx' _].
+        set_solver + Htidx Htidx'.
+      }
+      iSplit.
+      { iPureIntro.
+        subst etbl_dead dom_etbl_dead dom_etbl_all.
+        rewrite dom_union_L create_gmap_default_dom.
+        replace (dom etbl) with
+          ((list_to_set (filter (λ tidx : TIndex, tidx ∈ dom etbl) (seq 0 ecur))) : gset nat).
+        2:{
+          rewrite list_to_set_filter.
+          clear -Hetbl.
+          match goal with
+          | _ : _ |- ?s1 = ?s2 =>
+              assert (s1 ⊆ s2) as H12 ; [| assert (s2 ⊆ s1) as H21]
+          end; last set_solver.
+          + intros x Hx.
+            rewrite elem_of_filter in Hx.
+            by destruct Hx as [? ?].
+          + intros x Hx.
+            rewrite elem_of_filter.
+            split; first done.
+            rewrite elem_of_list_to_set.
+            rewrite elem_of_seq.
+            split; first lia.
+            cbn.
+            rewrite /is_initial_etable in Hetbl.
+            assert ( x <= list_max (elements (dom etbl)) ); last lia.
+            clear -Hx.
+            eapply elem_of_list_max; set_solver.
+        }
+        rewrite !list_to_set_filter.
+        rewrite filter_union_complement_L; eauto.
+        exact ∅.
+      }
+      iSplit.
+      { iPureIntro.
+        subst etbl_dead dom_etbl_dead dom_etbl_all.
+        apply map_disjoint_dom.
+        rewrite create_gmap_default_dom.
+        intros tidx Htidx Htidx'.
+        apply elem_of_list_to_set in Htidx'.
+        apply elem_of_list_filter in Htidx' as [Htidx' _].
+        set_solver + Htidx Htidx'.
+      }
+      iSplit; first done.
       iPureIntro.
       apply state_phys_log_corresponds_complete; eauto.
     }
@@ -611,16 +708,24 @@ Lemma template_adequacy
   (P Adv: prog) (AssertLib : assert_library) (tbl_assert_tbl : assert_tbl)
   (r_adv : RegName)
   (m m': Mem) (reg reg': Reg)
-  (etbl' : ETable) (ecur' : ENum)
+  (etbl etbl' : ETable) (ecur ecur' : ENum)
   (es: list cap_lang.expr)
   :
   let I := (adequacy_flag_inv AssertLib) in
   let vinit := 0%nat in
   let RA := reserved_addresses_assert AssertLib vinit in
+
+  let dom_etbl_all := seq 0 ecur : list TIndex in
+  let dom_etbl_dead := filter (fun tidx => tidx ∉ dom etbl ) dom_etbl_all : list TIndex in
+  let dummy_I := 0 : EIdentity in
+  let etbl_dead := create_gmap_default dom_etbl_dead dummy_I : ETable in
+  let etbl_all := etbl ∪ etbl_dead in
+
   is_initial_memory P Adv AssertLib tbl_assert_tbl m →
   is_complete_memory m →
   is_initial_registers P Adv AssertLib tbl_assert_tbl reg r_adv →
   is_complete_registers reg m →
+  is_initial_etable etbl ecur ->
 
   Forall (fun w => adv_condition Adv w) (prog_instrs Adv) →
   minv I m →
@@ -645,18 +750,19 @@ Lemma template_adequacy
      (* Linking Table *)
      ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (assert_tbl_region tbl_assert_tbl AssertLib) vinit), a ↦ₐ w)
 
-     ∗ EC⤇ 0%nat
+     ∗ EC⤇ ecur
      ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+     ∗ ( [∗ map] tidx ↦ eid ∈ etbl_all, enclave_all tidx eid)
 
        -∗ WP Seq (Instr Executable) {{ λ _, True }}) →
 
   rtc erased_step
-    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0%nat |})
+    ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
     (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   minv I m'.
 Proof.
   set (Σ' := #[invΣ; gen_heapΣ LAddr LWord; gen_heapΣ RegName LWord;
                na_invΣ; sealStorePreΣ; EnclavesAgreePreΣ; EnclavesExclPreΣ; ECPreΣ; Σ]).
   intros.
-  eapply (@template_adequacy' Σ'); eauto; typeclasses eauto.
+  eapply (@template_adequacy' Σ'); eauto; try typeclasses eauto.
 Qed.

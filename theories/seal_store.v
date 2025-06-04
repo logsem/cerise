@@ -95,6 +95,26 @@ Section Store.
     iExists _; iFrame; done.
   Qed.
 
+  Lemma seal_store_update_alloc_batch
+    (seals : gset OType) (φ : OType -> LWord → iProp Σ) :
+    ⊢ ([∗ set] o ∈ seals, can_alloc_pred o) ==∗ ([∗ set] o ∈ seals, seal_pred o (φ o))%I.
+  Proof.
+    induction seals using set_ind_L; iIntros "Hfree"; first by iModIntro.
+    assert ({[x]} ## X) by set_solver.
+    rewrite !big_sepS_union //.
+    iDestruct "Hfree" as "[Hfree_x Hfree]".
+    iSplitL "Hfree_x"; last iApply (IHseals with "[$]").
+    rewrite !big_sepS_singleton //.
+    by iApply seal_store_update_alloc.
+  Qed.
+
+  Lemma seal_store_update_alloc_batch_const
+    (seals : gset OType) (φ : LWord → iProp Σ) :
+    ⊢ ([∗ set] o ∈ seals, can_alloc_pred o) ==∗ ([∗ set] o ∈ seals, seal_pred o φ)%I.
+  Proof.
+    set (Φ := fun ot : OType => φ).
+    iApply ( seal_store_update_alloc_batch seals Φ ).
+  Qed.
 
 End Store.
 

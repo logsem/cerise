@@ -6,40 +6,6 @@ From cap_machine.ftlr Require Import ftlr_base interp_weakening.
 From cap_machine.rules Require Import rules_EInit.
 From cap_machine Require Import proofmode.
 
-Lemma otype_unification (ot1 ot2 : OType) (n : ENum) :
-  tid_of_otype ot1 = Some n ->
-  Z.even ot1 = true ->
-  finz.of_z (2 * n) = Some ot2 ->
-  ot1 = ot2.
-Proof.
-  intros Htidx Htidx_even Hot_ec.
-  rewrite /tid_of_otype in Htidx.
-  rewrite Htidx_even in Htidx.
-  assert (n = (Z.to_nat ot1 `div` 2)) as -> by (by injection Htidx); clear Htidx.
-  assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat ot1) 2)) = (Z.to_nat ot1) ).
-  {
-    rewrite -(Nat2Z.inj_mul 2).
-    rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
-    2:{
-      destruct ot1.
-      rewrite /Z.even in Htidx_even.
-      cbn in *.
-      destruct z; cbn in *.
-      + rewrite Z2Nat.inj_0.
-        apply PeanoNat.Nat.divide_0_r.
-      + rewrite Z2Nat.inj_pos.
-        destruct p; cbn in * ; try done.
-        rewrite Pos2Nat.inj_xO.
-        apply Nat.divide_factor_l.
-      + rewrite Z2Nat.inj_neg.
-        apply PeanoNat.Nat.divide_0_r.
-    }
-    rewrite PeanoNat.Nat.mul_comm.
-    rewrite (PeanoNat.Nat.div_mul (Z.to_nat ot1) 2); done.
-  }
-  solve_addr.
-Qed.
-
 (* TODO generalise *)
 Lemma map_Forall_all_P (w : LWord) (la : list Addr) (lws : list LWord) (v : Version)
   (P : LWord -> Prop) :
@@ -600,7 +566,8 @@ Section fundamental.
                & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
                & %Hincr & -> & Henclave_live & #Henclave_all)".
         exfalso.
-        opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
+        opose proof (otype_unification ot ot_ec _ _) as -> ; eauto.
+        { by rewrite Htidx. }
         rewrite Hot in Hot_ec2; done.
       + iDestruct "Hspec" as "(_ & -> & -> & ->)".
         iApply wp_pure_step_later; auto.
@@ -850,7 +817,8 @@ Section fundamental.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
       - incrementLPC_inv; simplify_map_eq; eauto.
         rewrite Hincr /is_Some in Hpca_next; naive_solver.
-      - opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
+      - simplify_eq.
+        opose proof (otype_unification ot ot_ec _ _) as -> ; eauto.
         by rewrite Hot in Hot_ec2.
     }
     clear Hpca_next Hhash_instrs'.
@@ -870,7 +838,8 @@ Section fundamental.
     | _ : _ |- context [ enclave_cur ?ECN ?I ] =>
         set (I_ECn := I)
     end.
-    opose proof (otype_unification ot ot_ec Ecn _ _ _) as -> ; eauto.
+    set (Ecn := (tid_of_otype ot)).
+    opose proof (otype_unification ot ot_ec _ _) as -> ; eauto.
     clear Hot_ec2 ot_ec2.
 
     rewrite (finz_seq_between_cons ot_ec); last solve_addr.
@@ -1287,7 +1256,7 @@ Section fundamental.
       iMod (seal_store_update_alloc _ Hcus_enclave_sign with "Hfree_ot_ec_1") as "#Hseal_pred_sign".
       iAssert ( custom_enclave_contract_gen ) as "Hcontract'" ; eauto.
       iSpecialize ("Hcontract'" $!
-                     mask_sys Ecn I_ECn
+                     mask_sys I_ECn
                      b_code e_code (v_code+1)
                      b_data e_data a_data (v_data+1)
                      lws_data ot_ec new_enclave).
@@ -1321,7 +1290,7 @@ Section fundamental.
 
       (* We apply the contract to get that the sentry to the enclave is safe-to-share *)
       iMod ("Hcontract'" with
-             "[] [] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata $Henclave_live]")
+             "[] [] [] [] [] [$Hseal_pred_enc $Hseal_pred_sign Hcode Hdata $Henclave_live]")
         as "#Hinterp_enclave"
       ; eauto.
       {
@@ -1437,8 +1406,9 @@ Section fundamental.
             destruct ( Z.even ot_I ) eqn:Hot_I_even.
             + assert (Z.even f = true) as Hf_even by (by rewrite Hot_I).
               rewrite Hf_even in Hhas_seal_I.
-              assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by (by injection Hhas_seal_I).
+              assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by lia.
               clear Hhas_seal_I.
+              subst Ecn.
               rewrite HEcn_eq in Hot_ec.
               clear -Hot_ec Hot_I Hf_even.
               assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat f) 2)) = (Z.to_nat f) ).
@@ -1465,8 +1435,9 @@ Section fundamental.
               solve_addr.
             + assert (Z.even f = false) as Hf_even by (by rewrite Hot_I).
               rewrite Hf_even in Hhas_seal_I.
-              assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by (by injection Hhas_seal_I).
+              assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by lia.
               clear Hhas_seal_I.
+              subst Ecn.
               rewrite HEcn_eq in Hot_ec.
               clear -Hot_ec Hot_I Hf_even.
               assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat (f ^- 1)%f) 2)) = (Z.to_nat (f ^- 1)%f) ).
@@ -1587,8 +1558,9 @@ Section fundamental.
             destruct ( Z.even ot_I ) eqn:Hot_I_even.
             + assert (Z.even f = true) as Hf_even by (by rewrite Hot_I).
               rewrite Hf_even in Hhas_seal_I.
-              assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by (by injection Hhas_seal_I).
+              assert (Ecn = (Z.to_nat f `div` 2)) as HEcn_eq by lia.
               clear Hhas_seal_I.
+              subst Ecn.
               rewrite HEcn_eq in Hot_ec.
               clear -Hot_ec Hot_I Hf_even.
               assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat f) 2)) = (Z.to_nat f) ).
@@ -1615,8 +1587,9 @@ Section fundamental.
               solve_addr.
             + assert (Z.even f = false) as Hf_even by (by rewrite Hot_I).
               rewrite Hf_even in Hhas_seal_I.
-              assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by (by injection Hhas_seal_I).
+              assert (Ecn = (Z.to_nat (f ^- 1)%f `div` 2) ) as HEcn_eq by lia.
               clear Hhas_seal_I.
+              subst Ecn.
               rewrite HEcn_eq in Hot_ec.
               clear -Hot_ec Hot_I Hf_even.
               assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat (f ^- 1)%f) 2)) = (Z.to_nat (f ^- 1)%f) ).
@@ -1710,17 +1683,19 @@ Section fundamental.
           replace ((ot_ec ^+ 1) ^+ 1)%f with (ot_ec ^+ 2)%ot by solve_finz.
           iEval (rewrite finz_seq_between_empty //).
           rewrite 2!big_sepL_cons big_sepL_nil.
-          iSplit; [|iSplit]; last done; iExists Ecn; iFrame "#"; iPureIntro; auto.
-          rewrite /tid_of_otype in Htidx |- *.
-          rewrite Htidx_even in Htidx.
-          assert (Z.even (ot_ec ^+ 1)%f = false) as Heven'.
-          { clear -Hot Htidx_even.
-            rewrite Zeven.Zeven_odd_bool negb_false_iff.
-            replace (finz.to_z (ot_ec ^+ 1)%f) with (Z.succ ot_ec) by solve_addr.
-            by rewrite -Z.odd_succ in Htidx_even.
-          }
-          rewrite Heven'.
-          by replace ( (ot_ec ^+ 1 ^- 1)%f ) with ot_ec by solve_finz.
+          iSplit; [|iSplit]; last done.
+          - iFrame "#".
+          - rewrite /tid_of_otype.
+            subst Ecn.
+            assert (Z.even (ot_ec ^+ 1)%f = false) as Heven'.
+            { clear -Hot Htidx_even.
+              rewrite Zeven.Zeven_odd_bool negb_false_iff.
+              replace (finz.to_z (ot_ec ^+ 1)%f) with (Z.succ ot_ec) by solve_addr.
+              by rewrite -Z.odd_succ in Htidx_even.
+            }
+            rewrite Heven'.
+            rewrite /tid_of_otype Htidx_even.
+            by replace ( (ot_ec ^+ 1 ^- 1)%f ) with ot_ec by solve_finz.
       }
 
       (* We then need to show that the data capability is safe-to-share,
