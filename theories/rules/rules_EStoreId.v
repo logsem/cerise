@@ -192,30 +192,52 @@ Section cap_lang_rules.
     (*           enclaves_all (etable σ ∪ prev_tb) ∗ enclave_all tidx I). *)
 
     iDestruct (own_update with "Hall_tb") as "Hall_tb".
-    Print enclave_all.
-    Locate "●".
-    (* Print HintDb typeclass_instances. *)
-    (* hnf in H0 *)
-    Search auth_auth auth_frag.
-    Search to_agree lookup.
 
-    apply (auth_update_alloc
-             (to_agree <$> etable σ1 ∪ prev_tb)).
+    { (* Print HintDb typeclass_instances. *)
+      (* hnf in H0 *)
+      apply (auth_update_alloc
+                _
+               (to_agree <$> etable σ1 ∪ prev_tb)).
+      apply (gmap_local_update
+               _ _
+               (to_agree <$> etable σ1 ∪ prev_tb)
+               (to_agree <$> {[ltidx := lhash]})).
+      intro tidx.
+      rewrite !lookup_fmap.
+      rewrite lookup_empty.
+      destruct (decide (ltidx = tidx)); subst.
+      2: by rewrite lookup_singleton_ne.
+      rewrite lookup_singleton.
+      rewrite lookup_union_l.
+      2: {  (* by Htbdisj *)
 
-    Search gmap local_update.
+        admit. }
+      rewrite Hhash.
+      cbn.
+      rewrite -{3}(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree lhash))).
+      apply core_id_local_update.
+      apply _.
+      easy.
 
-    Check gmap.singleton_local_update.
-    Print ZR.
-    Print EIdentity.
-    apply (gmap_local_update
-             _ _
-             (to_agree <$> etable σ1 ∪ prev_tb)
-             (to_agree <$> {[ltidx := lhash]})).
-    intro tidx.
-    rewrite !lookup_fmap.
-    rewrite lookup_empty.
-    destruct (decide (ltidx =tidx)); subst.
-    rewrite lookup_singleton.
+      (* unfold local_update. *)
+      (* intros. cbn in *. *)
+      (* split. assumption. *)
+      (* rewrite -discrete_iff in H0. *)
+      (* rewrite -discrete_iff. *)
+      (* (* Set Printing Implicit. *) *)
+      (* Search opM. *)
+      (* destruct mz. 2: by inversion H0. *)
+      (* cbn in H0. *)
+      (* rewrite (ucmra_unit_left_id (A := optionUR (agreeR EIdentity))) in H0. *)
+      (* (* destruct c; subst. 2: by inversion H0. cbn. *) *)
+      (* rewrite H0. *)
+      (* cbn. *)
+      (* Search (?x ≡ ?x ⋅ ?x). *)
+      (* apply core_id_dup. *)
+      (* Search CoreId. *)
+      (* typeclasses eauto. *)
+    }
+
 
     iIntros (lregs' regs') "HRregs' %Hlregs' %Hregs'".
     iApply wp2_val.
