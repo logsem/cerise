@@ -18,13 +18,8 @@ Section cap_lang_rules.
   Implicit Types lregs : LReg.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
+  Implicit Types etable : ETable.
 
-(* Lemma agree_includedN (A : Type) n (x y : agree A) : *)
-(*   x ≼{n} y ↔ y ≡{n}≡ x ⋅ y. *)
-(* Proof. *)
-(*   split; [|by intros ?; ∃ y]. *)
-(*   by intros [z Hz]; rewrite Hz assoc agree_idemp. *)
-(* Qed. *)
 
   Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
   | EStoreId_spec_success otype :
@@ -52,6 +47,34 @@ Section cap_lang_rules.
     etbl !! tidx = None →
     lregs = lregs' →
     EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
+
+  (* Creates a fragmental "all" resource for the enclave e at index i in the etable *)
+  Lemma enclave_all_alloc etable i e :
+    etable !! i = Some e →
+    enclaves_all etable
+    ⊢ |==> enclaves_all etable ∗ enclave_all i e.
+  Proof.
+    iIntros (Hexists) "Hall".
+    iDestruct (own_update with "Hall") as "Hall".
+    { apply auth_update_alloc,
+           (gmap_local_update
+               _ _
+               (to_agree <$> etable)
+               (to_agree <$> {[i := e]})).
+      intro i'.
+      rewrite !lookup_fmap lookup_empty.
+      destruct (decide (i = i')); subst.
+      2: by rewrite lookup_singleton_ne.
+      rewrite Hexists; cbn.
+      rewrite lookup_singleton. cbn.
+      rewrite -{3}(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree e))).
+      apply core_id_local_update.
+      apply _.
+      easy. }
+
+    rewrite map_fmap_singleton.
+    by iDestruct "Hall" as ">[Hall Hfrag]"; iFrame.
+    Qed.
 
   Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
 
@@ -175,8 +198,11 @@ Section cap_lang_rules.
     iApply wp_opt2_mono2.
 
     iSplitR "".
-
-    2: { admit. }
+    2: {
+      iApply wp2_opt_incrementPC.
+      ++ eapply dom_insert_subseteq, elem_of_dom_2, HPC.
+      ++ admit.
+    }
 
     iSplit.
     { (* abort case: pc increment failed *)
@@ -187,31 +213,13 @@ Section cap_lang_rules.
       - iApply "Hφ". iSplit. iPureIntro. econstructor 2.
         1-2: admit. iFrame. }
 
-    (* need a fragmental resource for the index in the table *)
-    iDestruct (own_update with "Hall_tb") as "Hall_tb".
-    { apply (auth_update_alloc
-                _
-               (to_agree <$> etable σ1 ∪ prev_tb)).
-      apply (gmap_local_update
-               _ _
-               (to_agree <$> etable σ1 ∪ prev_tb)
-               (to_agree <$> {[tidx := lhash]})).
-      intro tidx'.
-      rewrite !lookup_fmap lookup_empty.
-      destruct (decide (tidx = tidx')); subst.
-      2: by rewrite lookup_singleton_ne.
-      rewrite lookup_singleton lookup_union_l.
-      2: by apply (map_disjoint_Some_l (etable σ1) _ _ lhash).
-      rewrite Hhash. cbn.
-      rewrite -{3}(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree lhash))).
-      apply core_id_local_update.
-      apply _.
-      easy.
-    }
-
     iIntros (lregs' regs') "HRregs' %Hlregs' %Hregs'".
     iApply wp2_val.
-    iMod "Hall_tb".
+
+    (* need a fragment for `etable !! ltidx = Some lhash` *)
+    iDestruct (enclave_all_alloc with "Hall_tb") as ">[Hall_tb Hall_frag]".
+    by apply lookup_union_Some_l.
+
     iDestruct (transiently_commit with "Hσ") as "Hpost".
     iMod "Hpost".
     iModIntro.
@@ -225,12 +233,7 @@ Section cap_lang_rules.
     iSplit. iPureIntro. econstructor 1; eauto.
      + unfold has_seal. rewrite Hotype; auto.
      + (* by Hdomtbcompl ... *) admit.
-     + destruct (decide (NextIV = NextIV)).
-       -- iDestruct "Hall_tb" as "(Hall_tb & Hall_ltidx)".
-          rewrite map_fmap_singleton.
-          iFrame.
-          admit.
-       -- by destruct n.
+     + admit.
 
  Admitted.
 
