@@ -178,7 +178,7 @@ Section fundamental.
      iNext ; iIntros "_".
      iApply wp_value.
      iIntros (Hcontr); inversion Hcontr.
-  Admitted.
+  Qed.
 
   Theorem fundamental w r :
     (□ custom_enclave_contract_gen) ∗ system_inv

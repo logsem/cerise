@@ -20,22 +20,15 @@ Section cap_lang_rules.
   Implicit Types lmem : LMem.
   Implicit Types etable : ETable.
 
-
-  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
-  | EStoreId_spec_success otype :
-    lregs !! rs = Some (LInt otype) ->
-    incrementLPC ((<[rd := LInt I]> lregs)) = Some lregs' →
-    has_seal otype tidx → (* we associate a given table index with the provided otype *)
-    0 <= tidx < ecn ->
-    EStoreId_spec lregs lregs' rs rd tidx I ecn NextIV
+  Inductive EStoreId_spec_fail (lregs lregs' : LReg) rd tidx I : cap_lang.val -> Prop :=
   |EStoreId_spec_failure_incr_pc:
-    incrementLPC lregs = None →
+    incrementLPC (<[rd:=LInt I]> lregs) = None →
     lregs = lregs' →
-    EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV
+    EStoreId_spec_fail lregs lregs' rd tidx I FailedV
   |EStoreId_spec_failure_invalid_otype lw:
     get_otype_from_wint (lword_get_word lw) = None →
     lregs = lregs' →
-    EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV
+    EStoreId_spec_fail lregs lregs' rd tidx I FailedV
   (* |EStoreId_spec_failure_tidx_invalid_for_otype lw ot: *)
   (*   get_otype_from_wint (lword_get_word lw) = Some ot → (* necessary? *) *)
   (*   tid_of_otype ot = None → *)
@@ -46,6 +39,17 @@ Section cap_lang_rules.
     tid_of_otype ot = tidx → (* necessary? *)
     etbl !! tidx = None →
     lregs = lregs' →
+    EStoreId_spec_fail lregs lregs' rd tidx I FailedV.
+
+  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
+  | EStoreId_spec_success otype :
+    lregs !! rs = Some (LInt otype) ->
+    incrementLPC ((<[rd := LInt I]> lregs)) = Some lregs' →
+    has_seal otype tidx → (* we associate a given table index with the provided otype *)
+    0 <= tidx < ecn ->
+    EStoreId_spec lregs lregs' rs rd tidx I ecn NextIV
+  | EStoreId_fail :
+    EStoreId_spec_fail lregs lregs' rd tidx I FailedV →
     EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
 
   (* Creates a fragmental "all" resource for the enclave e at index i in the etable *)
@@ -150,8 +154,8 @@ Section cap_lang_rules.
       iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
       iSplitR "Hφ Hregs Hpc_a HEC".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. now constructor 3 with lwr.
-    }
+      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro.
+        apply EStoreId_fail. now constructor 2 with (lw := lwr). }
 
     iIntros (otype otype2) "_ %Hlotype %Hotype".
     rewrite Hotype in Hlotype; inversion Hlotype; subst.
@@ -189,7 +193,9 @@ Section cap_lang_rules.
       Print enclaves_all.
       iSplitR "Hφ Hregs Hpc_a HEC".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro. constructor 4 with (LWInt z) otype (etable σ1); eauto. }
+      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro.
+        apply EStoreId_fail.
+        constructor 3 with (LWInt z) otype (etable σ1); eauto. }
 
     iIntros (lhash hash) "_ %Hlhash %Hhash".
     rewrite Hhash in Hlhash; inversion Hlhash; subst.
@@ -197,43 +203,55 @@ Section cap_lang_rules.
     wp2_remember.
     iApply wp_opt2_mono2.
 
-    iSplitR "".
+    iSplitR "Hσ".
     2: {
-      iApply wp2_opt_incrementPC.
-      ++ eapply dom_insert_subseteq, elem_of_dom_2, HPC.
-      ++ admit.
-    }
+      iApply transiently_wp_opt2.
+      iMod "Hσ" as "(Hσr & Hσm & Hregs)".
+      iModIntro.
+      iApply wp_opt2_mod.
+      iMod (gen_heap_update_inSepM _ _ rd (LInt lhash) with "Hσr Hregs") as "(Hσr & Hregs)".
+      { rewrite -elem_of_dom. set_solver. }
+      iDestruct (gen_heap_valid_inclSepM with "Hσr Hregs") as "%Hlr2sub".
+      iApply (wp_opt2_frame with "Hσm").
+      iModIntro.
+      iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
+      eapply dom_insert_subseteq, elem_of_dom_2, HPC.
+      eapply (state_phys_log_corresponds_update_reg (lw := LInt lhash) eq_refl); cbn; eauto. }
 
     iSplit.
     { (* abort case: pc increment failed *)
-      iIntros "_ %Hlw %Hlw2".
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
+      iIntros "Htr %HincLPC %HincPC".
+      iDestruct (transiently_abort with "Htr") as "(Hσr & Hσm &  Hregs)".
       iSplitR "Hφ Hregs Hpc_a HEC".
-      - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply "Hφ". iSplit. iPureIntro. econstructor 2.
-        1-2: admit. iFrame. }
+      iExists lr, lm, vmap, _, _, _; now iFrame.
+      iApply ("Hφ" with "[$Hregs $HEC $Hpc_a]").
+      iSplit.
+      -- iPureIntro.
+         apply EStoreId_fail. constructor 1.
+         apply HincLPC. exact eq_refl.
+      -- easy.
+    }
 
-    iIntros (lregs' regs') "HRregs' %Hlregs' %Hregs'".
+    iIntros (lregs' regs') "Htr %Hlregs' %Hregs'".
     iApply wp2_val.
 
     (* need a fragment for `etable !! ltidx = Some lhash` *)
     iDestruct (enclave_all_alloc with "Hall_tb") as ">[Hall_tb Hall_frag]".
     by apply lookup_union_Some_l.
 
-    iDestruct (transiently_commit with "Hσ") as "Hpost".
-    iMod "Hpost".
+    iDestruct (transiently_commit with "Htr") as ">(Hlm & [%lr' (Hlr & Hcorr & Hlregs')])".
     iModIntro.
 
-    iSplitL "". cbn. admit.
-    (* iSplitR "Hφ Hpc_a HEC". cbn. iFrame. *)
+    iSplitR "Hφ Hall_frag Hpc_a HEC Hlregs'".
+
+    admit.
 
     cbn.
     iApply "Hφ".
     iFrame.
-    iSplit. iPureIntro. econstructor 1; eauto.
-     + unfold has_seal. rewrite Hotype; auto.
+    iPureIntro. apply EStoreId_spec_success with (otype := z); auto.
+     + unfold has_seal; rewrite Hotype; auto.
      + (* by Hdomtbcompl ... *) admit.
-     + admit.
 
  Admitted.
 
