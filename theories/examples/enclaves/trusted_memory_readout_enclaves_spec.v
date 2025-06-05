@@ -16,8 +16,8 @@ Section EnclavesProof.
     ⊢ custom_enclave_contract_gen.
   Proof.
     iLöb as "Henclave_contract".
-    iIntros (Ep tidx I code_b code_e code_v data_b data_e data_a data_v
-               enclave_data ot ce Hcode_ce Hot Htidx HIhash
+    iIntros (Ep I code_b code_e code_v data_b data_e data_a data_v
+               enclave_data ot ce Hcode_ce Hot HIhash
                Hcode_b Hcode_e).
     iIntros "(#Hcustoms_inv & Hcode & Hdata & #HPenc & #HPsign & Henclave_cur)".
 

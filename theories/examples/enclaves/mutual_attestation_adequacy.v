@@ -160,12 +160,20 @@ Section ma_adequacy.
   Definition mutual_attestN := (nroot.@"mutual_attest").
   Definition link_tableN := (mutual_attestN.@"link_table").
   Definition ma_mainN := (mutual_attestN.@"main").
-  Lemma ma_correct :
+  Lemma ma_correct ecur etbl :
     let vinit := 0%nat in
     let P := ma_verifier_prog in
     let Adv := adv_prog in
     let RA := reserved_addresses_assert AssertLib vinit in
     let r_adv := r_t0 in
+
+    let dom_etbl_all := seq 0 ecur : list TIndex in
+    let dom_etbl_dead := filter (fun tidx => tidx ∉ dom etbl ) dom_etbl_all : list TIndex in
+    let dummy_I := 0 : EIdentity in
+    let etbl_dead := create_gmap_default dom_etbl_dead dummy_I : ETable in
+    let etbl_all := etbl ∪ etbl_dead in
+
+    is_initial_etable etbl ecur ->
 
     Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) adv_instrs →
     let filtered_map := λ (m : gmap Addr Word), filter (fun '(a, _) => a ∉ minv_dom (adequacy_flag_inv AssertLib)) m in
@@ -188,19 +196,19 @@ Section ma_adequacy.
      (* Linking Table *)
      ∗ ([∗ map] a↦w ∈ (memory_to_lmemory (assert_tbl_region link_tbl AssertLib) vinit), a ↦ₐ w)
 
-     ∗ EC⤇ 0%nat
+     ∗ EC⤇ ecur
      ∗ ([∗ set] o ∈ gset_all_otypes, can_alloc_pred o)
+     ∗ ( [∗ map] tidx ↦ eid ∈ etbl_all, enclave_all tidx eid)
 
         -∗ WP Seq (Instr Executable) {{ λ _, True }}).
   Proof.
     intros *.
-    iIntros (Hints Hfilter rmap Hdom)
+    iIntros (Hetbl Hints Hfilter rmap Hdom)
       "(#Hinv & #Hassert & Hown & HPC & Hr_adv & Hrmap & Hprog & Hadv & Hlink & HEC & Hseal_store)".
 
     simpl.
     (* 1 - Allocate the system invariant *)
-    iMod ( system_inv_alloc (enclaves_map := contract_ma_enclaves_map) with
-           "[$HEC $Hseal_store]") as "#Hsystem_inv".
+    iMod ( system_inv_alloc with "[$HEC $Hseal_store]") as "#Hsystem_inv"; eauto.
 
     (* 2 - Allocate the linking table invariant *)
     iMod (na_inv_alloc logrel_nais ⊤ link_tableN
@@ -380,19 +388,20 @@ End ma_adequacy.
 
 (** END-TO-END THEOREM *)
 Theorem ma_enclaves_adequacy `{memory_layout}
-    (m m': Mem) (reg reg': Reg) (etbl' : ETable) (ecur' : ENum)
+    (m m': Mem) (reg reg': Reg) (etbl etbl' : ETable) (ecur ecur' : ENum)
     (es: list cap_lang.expr):
   is_initial_memory ma_verifier_prog adv_prog AssertLib link_tbl m →
   is_complete_memory m →
   is_initial_registers ma_verifier_prog adv_prog AssertLib link_tbl reg r_t0 →
   is_complete_registers reg m →
+  is_initial_etable etbl ecur →
   Forall (λ w, is_z w = true \/ in_region w adv_start adv_end) (prog_instrs adv_prog) →
 
-  rtc erased_step ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := ∅ ; enumcur := 0%nat |})
+  rtc erased_step ([Seq (Instr Executable)] , {| reg := reg ; mem := m ; etable := etbl ; enumcur := ecur |})
     (es, {| reg := reg' ; mem := m' ; etable := etbl' ; enumcur := ecur' |}) →
   (∀ w, m' !! l_assert_flag = Some w → w = WInt 0%Z).
 Proof.
-  intros ? ? ? ? Hints.
+  intros ? ? ? ? ? Hints.
   set (Σ' := #[]).
   pose proof (template_adequacy Σ' ma_verifier_prog adv_prog AssertLib link_tbl) as Hadequacy.
   eapply Hadequacy;eauto.
