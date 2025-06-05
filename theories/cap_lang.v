@@ -468,6 +468,168 @@ Section opsem.
   Definition otype_has_seal (ot : OType) (tid : TIndex) : Prop :=
     tid_of_otype ot = tid.
 
+  Lemma otype_unification (ot1 ot2 : OType) :
+    let n := tid_of_otype ot1 in
+    Z.even ot1 = true ->
+    finz.of_z (2 * n) = Some ot2 ->
+    ot1 = ot2.
+  Proof.
+    intros Htidx Htidx_even Hot_ec.
+    subst Htidx.
+    rewrite /tid_of_otype in Hot_ec.
+    rewrite Htidx_even in Hot_ec.
+    assert ( (Z.mul 2 (PeanoNat.Nat.div (Z.to_nat ot1) 2)) = (Z.to_nat ot1) ).
+    {
+      rewrite -(Nat2Z.inj_mul 2).
+      rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+      2:{
+        destruct ot1.
+        rewrite /Z.even in Htidx_even.
+        cbn in *.
+        destruct z; cbn in *.
+        + rewrite Z2Nat.inj_0.
+          apply PeanoNat.Nat.divide_0_r.
+        + rewrite Z2Nat.inj_pos.
+          destruct p; cbn in * ; try done.
+          rewrite Pos2Nat.inj_xO.
+          apply Nat.divide_factor_l.
+        + rewrite Z2Nat.inj_neg.
+          apply PeanoNat.Nat.divide_0_r.
+      }
+      rewrite PeanoNat.Nat.mul_comm.
+      rewrite (PeanoNat.Nat.div_mul (Z.to_nat ot1) 2); done.
+    }
+    solve_finz.
+  Qed.
+
+  Lemma even_otype_bounds
+    (Kot : OType) (Ktidx : TIndex) (ot_ecur : OType) (ecur : TIndex) :
+    0 <= Ktidx < ecur ->
+    has_seal Kot Ktidx ->
+    finz.of_z (2 * ecur) = Some ot_ecur ->
+    Z.even Kot = true ->
+    (Kot ^+ 1 < ot_ecur)%ot.
+  Proof.
+    intros Hbounds Hseal Hot_ecur Heven.
+    rewrite /has_seal in Hseal.
+    destruct (finz.of_z Kot) as [Kot_f|] eqn:HKot; last done.
+    rewrite /tid_of_otype in Hseal.
+    assert (Z.even Kot_f = true) as Heven_f by solve_finz.
+    rewrite Heven_f in Hseal.
+    assert ((Z.mul 2 (Nat.div (Z.to_nat Kot_f) 2)) = (Z.to_nat Kot_f)); last solve_finz.
+    rewrite -(Nat2Z.inj_mul 2).
+    rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+    2:{
+      destruct Kot_f.
+      cbn in *.
+      destruct z; cbn in *.
+      + rewrite Z2Nat.inj_0.
+        apply PeanoNat.Nat.divide_0_r.
+      + rewrite Z2Nat.inj_pos.
+        destruct p; cbn in * ; try done.
+        rewrite Pos2Nat.inj_xO.
+        apply Nat.divide_factor_l.
+      + rewrite Z2Nat.inj_neg.
+        apply PeanoNat.Nat.divide_0_r.
+    }
+    rewrite PeanoNat.Nat.mul_comm.
+    rewrite (PeanoNat.Nat.div_mul (Z.to_nat Kot_f) 2); done.
+  Qed.
+
+  Lemma otype_even_succ
+    (Kot : OType) (Ktidx : TIndex) (ot_ecur : OType) (ecur : TIndex):
+    0 <= Ktidx < ecur ->
+    finz.of_z (2 * ecur) = Some ot_ecur ->
+    has_seal Kot Ktidx ->
+    Z.even Kot = true ->
+    (Z.even (Kot ^+ 1)%f) = false.
+  Proof.
+    intros Hbounds Hot_ecur Hseal Heven.
+    rewrite /has_seal in Hseal.
+    destruct (finz.of_z Kot) as [Kot_f|] eqn:HKot; last done.
+    rewrite /tid_of_otype in Hseal.
+    assert (Z.even Kot_f = true) as Heven_f by solve_finz.
+    rewrite Heven_f in Hseal.
+    assert ((Z.mul 2 (Nat.div (Z.to_nat Kot_f) 2)) = (Z.to_nat Kot_f)).
+    { rewrite -(Nat2Z.inj_mul 2).
+      rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+      2:{
+        destruct Kot_f.
+        cbn in *.
+        destruct z; cbn in *.
+        + rewrite Z2Nat.inj_0.
+          apply PeanoNat.Nat.divide_0_r.
+        + rewrite Z2Nat.inj_pos.
+          destruct p; cbn in * ; try done.
+          rewrite Pos2Nat.inj_xO.
+          apply Nat.divide_factor_l.
+        + rewrite Z2Nat.inj_neg.
+          apply PeanoNat.Nat.divide_0_r.
+      }
+      rewrite PeanoNat.Nat.mul_comm.
+      rewrite (PeanoNat.Nat.div_mul (Z.to_nat Kot_f) 2); done.
+    }
+    replace (Z.even Kot_f) with true in Hseal by solve_finz.
+    assert ((Z.succ Kot) = (Kot ^+ 1)%f)
+    ; last (rewrite -Z.odd_succ -Z.negb_even negb_true_iff in Heven ; solve_finz).
+    assert ( (Kot + 1)%ot = Some (Kot^+ 1)%ot); last solve_finz.
+    assert ( Kot < Kot ^+1 )%ot ; try solve_finz.
+  Qed.
+
+  Lemma otype_even_pred
+    (Kot : OType) (Ktidx : TIndex) :
+    Z.even Kot = false ->
+    (Z.even (Kot ^- 1)%f) = true.
+  Proof.
+    intros Heven.
+    rewrite -Z.negb_odd negb_false_iff in Heven.
+    rewrite -Z.even_pred in Heven.
+    assert ((Z.pred Kot) = (Kot ^- 1)%f) ; last solve_finz.
+    destruct Kot.
+    cbn in *.
+    destruct z; cbn in *; try solve_finz.
+    cbn in *.
+    replace (Z.pred 0) with (-1)%Z in Heven by lia.
+    rewrite (Z.even_opp 1) in Heven.
+    by rewrite Z.even_1 in Heven.
+  Qed.
+
+  Lemma odd_otype_bounds
+    (Kot : OType) (Ktidx : TIndex) (ot_ecur : OType) (ecur : TIndex) :
+    0 <= Ktidx < ecur ->
+    has_seal Kot Ktidx ->
+    finz.of_z (2 * ecur) = Some ot_ecur ->
+    Z.even Kot = false ->
+    (Kot < ot_ecur)%ot.
+  Proof.
+    intros Hbounds Hseal Hot_ecur Heven.
+    rewrite /has_seal in Hseal.
+    destruct (finz.of_z Kot) as [Kot_f|] eqn:HKot; last done.
+    rewrite /tid_of_otype in Hseal.
+    assert (Z.even Kot_f = false) as Heven_f by solve_finz.
+    assert (Z.even (Kot_f ^- 1)%f = true) as Heven_f'.
+    { opose proof (otype_even_pred _ _ _); eauto. }
+    rewrite Heven_f in Hseal.
+    assert ((Z.mul 2 (Nat.div (Z.to_nat (Kot_f ^- 1)%f) 2)) = (Z.to_nat (Kot_f ^- 1)%f)); last solve_finz.
+    rewrite -(Nat2Z.inj_mul 2).
+    rewrite -PeanoNat.Nat.Lcm0.divide_div_mul_exact.
+    2:{
+      destruct (Kot_f ^- 1)%f.
+      cbn in *.
+      destruct z; cbn in *.
+      + rewrite Z2Nat.inj_0.
+        apply PeanoNat.Nat.divide_0_r.
+      + rewrite Z2Nat.inj_pos.
+        destruct p; cbn in * ; try done.
+        rewrite Pos2Nat.inj_xO.
+        apply Nat.divide_factor_l.
+      + rewrite Z2Nat.inj_neg.
+        apply PeanoNat.Nat.divide_0_r.
+    }
+    rewrite PeanoNat.Nat.mul_comm.
+    rewrite (PeanoNat.Nat.div_mul (Z.to_nat (Kot_f ^- 1)%f) 2); done.
+  Qed.
+
   Definition addr_leb (a1 a2 : Addr) := (a1 <=? a2)%a.
   Definition pair_fst_leb {A B} (A_leb : A -> A -> bool) (ab1 ab2 : A * B) := A_leb ab1.1 ab2.1.
   Definition mem_leb := pair_fst_leb (A:= Addr) (B:= Word) addr_leb .
