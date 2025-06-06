@@ -650,10 +650,8 @@ Section Adequacy.
             rewrite elem_of_seq.
             split; first lia.
             cbn.
-            rewrite /is_initial_etable in Hetbl.
-            assert ( x <= list_max (elements (dom etbl)) ); last lia.
-            clear -Hx.
-            eapply elem_of_list_max; set_solver.
+            destruct Hetbl as [Hinit_tbl _].
+            by apply Hinit_tbl in Hx.
         }
         rewrite !list_to_set_filter.
         rewrite filter_union_complement_L; eauto.

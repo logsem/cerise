@@ -1583,19 +1583,6 @@ Proof.
     set_solver.
 Qed.
 
-Lemma elem_of_list_max (n : nat) (l : list nat) :
-  n ∈ l -> n <= list_max l.
-Proof.
-  revert n; induction l; intros n Hn ; first set_solver.
-  rewrite elem_of_cons in Hn.
-  replace (a::l) with ([a]++l) by (by cbn).
-  rewrite list_max_app.
-  cbn; rewrite Nat.max_0_r.
-  destruct Hn as [-> | Hn]; first lia.
-  apply IHl in Hn.
-  lia.
-Qed.
-
 (* TODO: integrate into stdpp? *)
 Lemma pair_eq_inv {A B} {y u : A} {z t : B} {x} :
     x = (y, z) -> x = (u, t) ->

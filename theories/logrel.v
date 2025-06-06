@@ -1328,7 +1328,7 @@ Section custom_enclaves.
   Qed.
 
   Definition is_initial_etable (etbl : ETable) (ecur : ENum) :=
-    list_max (elements (dom etbl)) < ecur ∧ (* ensures well-formed enclave table *)
+    set_Forall (fun tidx => tidx < ecur) (dom etbl) ∧ (* ensures well-formed enclave table *)
     is_Some ( (finz.of_z (2*(Z.of_nat ecur))%Z : option OType)). (* ensures ecur didn't overflow the max otype *)
 
   Lemma system_inv_alloc {enclaves_map : CustomEnclavesMap}
@@ -1471,10 +1471,7 @@ Section custom_enclaves.
                   rewrite elem_of_seq.
                   split; first lia.
                   cbn.
-                  rewrite /is_initial_etable in Hinit_tbl.
-                  assert ( x <= list_max (elements (dom etbl)) ); last lia.
-                  clear -Hx.
-                  eapply elem_of_list_max; set_solver.
+                  by eapply Hinit_tbl in Hx.
               }
               rewrite !list_to_set_filter.
               rewrite filter_union_complement_L; eauto.
