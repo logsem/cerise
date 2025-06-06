@@ -134,7 +134,6 @@ Section cap_lang_rules.
     iDestruct (transiently_intro with "Hσ") as "Hσ".
 
     wp2_remember.
-
     iApply wp_opt2_mono2.
     iSplitR "". 2: iApply wp2_reg_lookup5; eauto; set_solver.
 
@@ -250,7 +249,18 @@ Section cap_lang_rules.
     unfold has_seal; rewrite Hotype; auto.
     easy.
 
- Admitted.
+    Unshelve.
+    (* @Denis says: TODO...
+       We have shelved goals which arise from failure cases where the postcondition Hφ (which quantifies over
+       a TIndex and an EIdentity) was applied, without a witness for either the table index or the identity
+       (e.g. there was no valid table index).
+       I am simply picking an arbitrary value in these cases, but this feels unsatisfactory.
+       I think the right solution moves the existentially quantified tidx and I in the postcondition of the WP
+       into the right places, and removes the tidx and I parameters of the spec, instead requiring them only
+       for the relevant constructors. TBD... *)
+    all: constructor 1.
+
+  Qed.
 
   Lemma wp_estoreid_success_unknown_ec E pc_p pc_b pc_e pc_a pc_a' pc_v lw rd rs otype any ecn :
     decodeInstrWL lw = EStoreId rd rs →
