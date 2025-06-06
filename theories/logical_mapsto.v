@@ -2310,11 +2310,18 @@ Definition state_interp_logical (σ : cap_lang.state) `{ReservedAddresses} `{!ce
     enclaves_prev prev_tb ∗
     enclaves_all all_tb ∗
     EC_auth σ.(enumcur) ∗
+    ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝ ∗ (* @Denis says: TODO: temp: can be derived from the assumption marked with (**) below... *)
     ⌜dom cur_tb ## dom prev_tb⌝ ∗
-    ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (* TODO: needs to go to nats... *)
+    ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (**)
     ⌜cur_tb ##ₘ prev_tb⌝ ∗
     ⌜cur_tb ∪ prev_tb = all_tb⌝ ∗
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
+
+(* @Denis says: TODO: create a lemma for the below? This was removed from the EStoreId spec *)
+(* state_interp_logical σ -∗ *)
+(* EC=> ecn -∗ *)
+(* enclave_all tidx I -∗ *)
+(* ⌜tidx < ecn⌝. *)
 
 (* invariants for memory, and a state interpretation for (mem,reg) *)
 Global Instance memG_irisG `{MachineParameters} `{ReservedAddresses} `{ceriseg: !ceriseG Σ} : irisGS cap_lang Σ := {

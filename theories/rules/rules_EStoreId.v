@@ -41,16 +41,16 @@ Section cap_lang_rules.
     lregs = lregs' →
     EStoreId_spec_fail lregs lregs' rd tidx I FailedV.
 
-  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) (ecn : ENum) : cap_lang.val -> Prop :=
+  Inductive EStoreId_spec (lregs lregs' : LReg) (rs rd : RegName) tidx (I : EIdentity) : cap_lang.val -> Prop :=
   | EStoreId_spec_success otype :
     lregs !! rs = Some (LInt otype) ->
     incrementLPC ((<[rd := LInt I]> lregs)) = Some lregs' →
     has_seal otype tidx → (* we associate a given table index with the provided otype *)
-    0 <= tidx < ecn ->
-    EStoreId_spec lregs lregs' rs rd tidx I ecn NextIV
+    (* 0 <= tidx < ecn -> *) (* can be derived from the state interp *)
+    EStoreId_spec lregs lregs' rs rd tidx I NextIV
   | EStoreId_fail :
     EStoreId_spec_fail lregs lregs' rd tidx I FailedV →
-    EStoreId_spec lregs lregs' rs rd tidx I ecn FailedV.
+    EStoreId_spec lregs lregs' rs rd tidx I FailedV.
 
   (* Creates a fragmental "all" resource for the enclave e at index i in the etable *)
   Lemma enclave_all_alloc etable i e :
@@ -82,10 +82,9 @@ Section cap_lang_rules.
 
   Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
 
-  (* TODO @Denis *)
   (* The EStoreId instruction fetches the machine's stored hash for a given OType.
      It is used by the client of an enclave to verify that a value signed by a given OType originates from code with a known hash `I`. *)
-  (* Logically, the crux of this contract is that the post-condition contains a duplicable resource `enclave_all`,
+  (* Logically, the crux of this contract is that the post-condition contains a duplicable fragmental resource `enclave_all`,
      which states that an enclave has existed at some point in the past at some index `tidx` in the enclave table, and that this index corresponds to some hash/EIdentity `I` *)
   (* Essentially it gives us a partial view on the enclave table, since we now know that at a particular index, at some point, there was an enclave with a particular identity. *)
   (* In a later step of the verification, an invariant will allow us to trade this resource for the specific predicate that always holds for results signed by enclaves with that hash... *)
@@ -94,26 +93,26 @@ Section cap_lang_rules.
   (* @Denis: that is the case when an enclave initializes and immediately attests itself. *)
   (* Then we need a separate rule, because the rule below is not general enough to derive the former *)
   (* For the time being, this rule is at least enough to prove the FTLR. *)
-  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs (with_ec : bool) (ecn : ENum) :
+  Lemma wp_estoreid E pc_p pc_b pc_e pc_a pc_v lw rd rs lregs :
     decodeInstrWL lw = EStoreId rd rs →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (EStoreId rd rs) ⊆ dom lregs →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
-        (pc_a, pc_v) ↦ₐ lw ∗
-        (if with_ec then EC⤇ ecn else True)
+        (pc_a, pc_v) ↦ₐ lw
+        (* (if with_ec then EC⤇ ecn else True) *) (* Domi says: ownership of the EC resource is unrelated to EStoreId *)
     }}}
       Instr Executable @ E
     {{{ lregs' tidx I retv, RET retv;
-        ⌜ EStoreId_spec lregs lregs' rs rd tidx I ecn retv⌝ ∗
+        ⌜ EStoreId_spec lregs lregs' rs rd tidx I retv⌝ ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
-        (if with_ec then EC⤇ ecn else True) ∗
-        if decide (retv = NextIV) then (enclave_all tidx I) (*!*) else emp }}}.
+        (* (if with_ec then EC⤇ ecn else True) ∗ *)
+        (⌜(retv = NextIV)⌝ -∗ (enclave_all tidx I)) (*!*)}}}.
   Proof.
-    iIntros (Hinstr Hvpc Dregs HPC φ) "(>Hrmap & Hpca & HEC) Hφ".
-    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hrmap $Hpca HEC Hφ]").
+    iIntros (Hinstr Hvpc Dregs HPC φ) "(>Hrmap & Hpca) Hφ".
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hrmap $Hpca Hφ]").
     iModIntro.
     iIntros (σ1) "(Hσ1 & Hrmap &Hpc_a)".
     iModIntro.
@@ -129,7 +128,7 @@ Section cap_lang_rules.
                  Some lregs'
               )).
     iModIntro.
-    iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+    iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %HdomltEC & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
     iDestruct (gen_heap_valid_inclSepM with "Hlr Hrmap") as "%Hlrsub".
     iCombine "Hlr Hlm Hrmap" as "Hσ".
     iDestruct (transiently_intro with "Hσ") as "Hσ".
@@ -145,19 +144,17 @@ Section cap_lang_rules.
     assert (lr !! rs = Some lwr) as Hlrs by eapply (lookup_weaken _ _ _ _ Hlwr Hlrsub).
 
     wp2_remember.
-
-    iApply wp_opt2_mono2.
-    iSplitR "". 2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I).
+    iApply wp2_diag_univ.
     iSplit.
-    { (* abort case: the Wont passed in rs is not a valid otype *)
-      iIntros "_ %Hlw %Hlw2".
+    { (* abort case: the WInt passed in rs is not a valid otype *)
+      iIntros "%Hlw %Hlw2".
       iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
-      iSplitR "Hφ Hregs Hpc_a HEC".
+      iSplitR "Hφ Hregs Hpc_a".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro.
-        apply EStoreId_fail. now constructor 2 with (lw := lwr). }
+      - iApply ("Hφ" with "[$Hregs $Hpc_a]"). iSplit. iPureIntro.
+        apply EStoreId_fail. now constructor 2 with (lw := lwr). iIntros "%H //". }
 
-    iIntros (otype otype2) "_ %Hlotype %Hotype".
+    iIntros (otype) "%Hlotype %Hotype".
     rewrite Hotype in Hlotype; inversion Hlotype; subst.
 
     (* rs contains an LWInt... *)
@@ -165,7 +162,7 @@ Section cap_lang_rules.
     cbn in Hotype; subst.
 
     wp2_remember.
-    iApply wp_opt2_mono2.
+    iApply wp2_diag_univ.
 
     (* iSplitR "". *)
     (* 2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I). *)
@@ -182,23 +179,18 @@ Section cap_lang_rules.
     (* rewrite Htidx in Hltidx; inversion Hltidx; subst. *)
     (* wp2_remember. *)
     (* iApply wp_opt2_mono2. *)
-    set ( tidx := tid_of_otype otype).
 
-    iSplitR "".
-    2: now iApply (wp2_diag_univ (Φf := True%I) (Φs := fun _ _ => True)%I).
     iSplit.
     { (* abort case: the enclave table does not have an entry for the passed index *)
-      iIntros "_ %Hlw %Hlw2".
+      iIntros "%Hlw _".
       iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
-      Print enclaves_all.
-      iSplitR "Hφ Hregs Hpc_a HEC".
+      iSplitR "Hφ Hregs Hpc_a".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs Hpc_a HEC]"). iFrame. iPureIntro.
-        apply EStoreId_fail.
-        constructor 3 with (LWInt z) otype (etable σ1); eauto. }
+      - iApply ("Hφ" with "[$Hregs $Hpc_a]"). iSplit. iPureIntro.
+        apply EStoreId_fail. constructor 3 with (LWInt z) otype (etable σ1); eauto.
+        iIntros "%H //". }
 
-    iIntros (lhash hash) "_ %Hlhash %Hhash".
-    rewrite Hhash in Hlhash; inversion Hlhash; subst.
+    iIntros (lhash) "%Hhash _".
     rewrite updatePC_incrementPC.
     wp2_remember.
     iApply wp_opt2_mono2.
@@ -220,16 +212,16 @@ Section cap_lang_rules.
 
     iSplit.
     { (* abort case: pc increment failed *)
-      iIntros "Htr %HincLPC %HincPC".
+      iIntros "Htr %HincLPC %Hancock".
       iDestruct (transiently_abort with "Htr") as "(Hσr & Hσm &  Hregs)".
-      iSplitR "Hφ Hregs Hpc_a HEC".
+      iSplitR "Hφ Hregs Hpc_a".
       iExists lr, lm, vmap, _, _, _; now iFrame.
-      iApply ("Hφ" with "[$Hregs $HEC $Hpc_a]").
+      iApply ("Hφ" with "[$Hregs $Hpc_a]").
       iSplit.
       -- iPureIntro.
          apply EStoreId_fail. constructor 1.
          apply HincLPC. exact eq_refl.
-      -- easy.
+      -- iIntros "%H //".
     }
 
     iIntros (lregs' regs') "Htr %Hlregs' %Hregs'".
@@ -239,19 +231,24 @@ Section cap_lang_rules.
     iDestruct (enclave_all_alloc with "Hall_tb") as ">[Hall_tb Hall_frag]".
     by apply lookup_union_Some_l.
 
-    iDestruct (transiently_commit with "Htr") as ">(Hlm & [%lr' (Hlr & Hcorr & Hlregs')])".
+    iDestruct (transiently_commit with "Htr") as ">(Hlm & [%lr' (Hlr & %Hcorr & Hlregs')])".
     iModIntro.
 
-    iSplitR "Hφ Hall_frag Hpc_a HEC Hlregs'".
+    iSplitR "Hφ Hall_frag Hpc_a Hlregs'".
+    cbn.
 
-    admit.
+    (* Todo: should be able to frame I think? *)
 
+    unfold state_interp_logical.
+    destruct Hcorr as ((? & ?) & ? & ? & ?).
+    iExists lr', lm, vmap, _, _, _.
+    iFrame. cbn. repeat iSplit; auto.
     cbn.
     iApply "Hφ".
-    iFrame.
+    iFrame. iSplit.
     iPureIntro. apply EStoreId_spec_success with (otype := z); auto.
-     + unfold has_seal; rewrite Hotype; auto.
-     + (* by Hdomtbcompl ... *) admit.
+    unfold has_seal; rewrite Hotype; auto.
+    easy.
 
  Admitted.
 
@@ -289,11 +286,11 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hrs Hrd") as "[Hrmap (%&%&%)]".
 
     (* iDestruct (big_opM_delete with "H"). *)
-    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ true with "[$Hrmap $HEC $Hpc_a]"); eauto; simplify_map_eq; eauto.
+    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ with "[$Hrmap $Hpc_a]"); eauto; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
 
 
-    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & HEC & Henclave)".
+    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & Henclave)".
     iDestruct "Hspec" as %Hspec.
 
     admit.
@@ -361,14 +358,15 @@ Section cap_lang_rules.
     iDestruct (map_of_regs_3 with "HPC Hrs Hrd") as "[Hrmap (%&%&%)]".
 
     (* iDestruct (big_opM_delete with "H"). *)
-    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ false 0 with "[$Hrmap$Hpc_a]"); eauto; simplify_map_eq; eauto.
+    iApply ( wp_estoreid _ _ _ _ _ _ _ _ _ _ with "[$Hrmap$Hpc_a]"); eauto; simplify_map_eq; eauto.
     { by unfold regs_of; rewrite !dom_insert; set_solver+. }
 
 
-    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & HEC & Henclave)".
+    iNext. iIntros (lregs' tidx I retv) "(#Hspec & Hrmap & HPCa & Henclave)".
     iDestruct "Hspec" as %Hspec.
+    iApply "Hφ".
 
-  (*   destruct Hspec eqn:? *)
+    (*   destruct Hspec eqn:? *)
   (*   ; [ erewrite decide_True | erewrite decide_False ]; rewrite // ; *)
   (*     simplify_eq; cycle 1; cbn; iApply "Hφ"; iFrame. *)
   (*   - rewrite big_sepM_insert; last by simplify_map_eq. *)

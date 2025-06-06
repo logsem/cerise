@@ -420,7 +420,7 @@ Section cap_lang_rules.
   Lemma transiently_proper_strong {P Q R : iProp Σ} :
     (Q -∗ R) ∗ transiently P Q ⊢ transiently P R.
   Proof.
-    iIntros "(HQR & HPQ)". 
+    iIntros "(HQR & HPQ)".
     iSplit; first by iDestruct "HPQ" as "(HP & _)".
     iDestruct "HPQ" as "(_ & HQ)".
     iMod "HQ" as "HQ".
@@ -845,7 +845,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -909,7 +909,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -947,7 +947,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1478,7 +1478,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1629,7 +1629,7 @@ Section cap_lang_rules_opt.
     erewrite Hregs_incl.
     iApply wp2_val. now iFrame.
   Qed.
-  
+
   Lemma wp2_reg_lookup {lrt lmt r φ φt lr lm Φs Φf} :
     r ∈ dom lrt ->
     state_interp_transient φ φt lr lrt lm lmt ∗
@@ -1773,7 +1773,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1855,7 +1855,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1907,7 +1907,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC
+         & HEC & %HdomltEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -2053,7 +2053,7 @@ Qed.
   Proof.
     iIntros (Hsweep Hsrc) "Hσrm".
     iDestruct (transiently_abort with "Hσrm") as "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm vmap cur_tb prev_tb all_tb) "(Hr & Hm & %Hcurtbeq & Hcurtb & Hprevtb & Halltb & Hecauth & %Hcurprevdisj & %Hcompl & %Hcurprevdisj2 & %Hcompl2 & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap cur_tb prev_tb all_tb) "(Hr & Hm & %Hcurtbeq & Hcurtb & Hprevtb & Halltb & Hecauth & %HdomltEC & %Hcurprevdisj & %Hcompl & %Hcurprevdisj2 & %Hcompl2 & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
     iPureIntro.
     eapply unique_in_registersL_mono; first done.

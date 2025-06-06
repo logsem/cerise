@@ -346,13 +346,18 @@ Section cap_lang_rules.
     rewrite -(big_sepM_delete (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y) _ _ _ Hmem_pc).
 
     set (bsweep := (sweep_reg (mem σ) (reg σ) src)).
+
+    (* wp2 for the logical equiv of the isUnique instr *)
     iApply (wp_wp2 (φ1 := exec_optL_IsUnique lregs lmem dst src bsweep) (φ2 := _)).
     iModIntro.
+    unfold exec_optL_IsUnique.
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-    iDestruct "Hσ" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+    iDestruct "Hσ" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %HdomltEC & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
     iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
     iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
     iCombine "Hlr Hlm Hregs Hmem" as "Hσ".
+
+    (* opening the transient state *)
     iDestruct (transiently_intro with "Hσ") as "Hσ".
     iApply wp_opt2_mono2.
     iSplitL "Hφ Hσ Hcur_tb Hprev_tb Hall_tb Hecauth".
@@ -362,6 +367,7 @@ Section cap_lang_rules.
     }
     iSplit; first now iIntros "%Htr".
     iIntros (lsrcv srcv) "-> %Hlsrcv %Hsrcv".
+
     assert (lr !! src = Some lsrcv) as Hlrsrc by eapply (lookup_weaken _ _ _ _ Hlsrcv Hlrsub).
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
     iApply wp_opt2_mono2.
