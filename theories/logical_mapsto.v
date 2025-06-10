@@ -2,6 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.algebra Require Import gmap excl agree.
+From iris.algebra.lib Require Import excl_auth.
 From stdpp Require Import sorting.
 From cap_machine Require Export cap_lang iris_extra stdpp_extra machine_parameters.
 
@@ -2216,7 +2217,7 @@ Global Instance subG_EnclavesExclPreΣ {Σ}:
   EnclavesExclPreG Σ.
 Proof. solve_inG. Qed.
 
-Definition ECUR := authUR ENum.
+Definition ECUR := excl_authUR ENum.
 Definition ECPreΣ := #[ GFunctor ECUR].
 Class ECPreG Σ := {
     ECPre ::  inG Σ ECUR;
@@ -2258,7 +2259,7 @@ Definition enclaves_all (tbl : gmap TIndex EIdentity) `{ceriseG Σ} :=
   own (inG0 := (@EnclavesAgreePre Σ enclaves_agree)) enclaves_name_all (● (to_agree <$> tbl)).
 
 Definition EC_auth `{ceriseG Σ} (n : ENum) :=
-  own (inG0 := @ECPre Σ EC_G) EC_name (● n).
+  own (inG0 := @ECPre Σ EC_G) EC_name (●E n).
 
 (* Fragmental resources *)
 
@@ -2294,7 +2295,7 @@ Proof. apply _. Defined.
 Proof. apply _. Defined.
 
 Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
-  own (inG0 := @ECPre Σ EC_G) EC_name (auth_frag n).
+  own (inG0 := @ECPre Σ EC_G) EC_name (excl_auth_frag n).
 
 #[global] Instance EC_timeless `{ceriseG Σ} (n : ENum) : Timeless (EC_frag n).
 Proof. apply _. Defined.

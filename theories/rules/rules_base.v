@@ -4,6 +4,7 @@ From iris.proofmode Require Import proofmode classes.
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.algebra Require Import frac auth.
+From iris.algebra.lib Require Import excl_auth.
 From cap_machine Require Export logical_mapsto.
 From cap_machine Require Export cap_lang iris_extra stdpp_extra.
 
@@ -2084,9 +2085,9 @@ Qed.
     done.
   Qed.
 
-  Lemma all_tidx_below_enumcur σ `{ReservedAddresses} `{!ceriseG Σ} :
+  Lemma ec_bounds_etable σ `{ReservedAddresses} `{!ceriseG Σ} :
     state_interp_logical σ -∗
-                              ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝.
+    ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝.
   Proof.
     iIntros "σ".
     iDestruct "σ" as (lr lm vm cur_tb prev_tb all_tb)
@@ -2116,10 +2117,25 @@ Qed.
     ⌜ tidx < ecn ⌝.
   Proof.
     iIntros "Hinterp HEC Henclave".
-    rewrite /state_interp_logical.
+    iDestruct (ec_bounds_etable with "Hinterp") as "%Hbound".
     iDestruct "Hinterp" as (lr lm vm cur_tb prev_tb all_tb)
                              "(Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
-  Admitted.
+    iCombine "Hecauth HEC" as "Henumcur".
+    iDestruct (own_valid with "Henumcur") as "%Hvalid_ec".
+    apply excl_auth_agree_L in Hvalid_ec.
+    rewrite -Hvalid_ec.
+    iAssert (⌜tidx ∈ dom all_tb⌝%I) as "%Hin".
+    iCombine "Hall_tb" "Henclave" as "Hall".
+    iDestruct (own_valid with "Hall") as "%Hvalid_all".
+    apply auth_both_valid_discrete in Hvalid_all as [Hlt_all Hvalid_all].
+    apply gmap.dom_included in Hlt_all.
+    by rewrite dom_singleton dom_fmap singleton_subseteq_l in Hlt_all.
+    rewrite -Htbcompl in Hin.
+    iPureIntro.
+    rewrite Hdomtbcompl in Hin.
+    rewrite list_to_set_seq in Hin.
+    set_solver +Hin.
+  Qed.
 
   Lemma valid_enclave_ec ecn tidx I s E Φ :
     ( ( EC⤇ ecn ∗ enclave_all tidx I) ∗ ⌜ tidx < ecn ⌝ -∗ (wp s E (Instr Executable) Φ)) ⊢

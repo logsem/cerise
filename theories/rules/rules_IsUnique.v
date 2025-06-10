@@ -352,7 +352,7 @@ Section cap_lang_rules.
     iModIntro.
     unfold exec_optL_IsUnique.
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
-    iDestruct "Hσ" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %HdomltEC & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+    iDestruct "Hσ" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
     iDestruct (gen_heap_valid_inclSepM with "Hlm Hmem") as "%Hlmsub".
     iDestruct (gen_heap_valid_inclSepM with "Hlr Hregs") as "%Hlrsub".
     iCombine "Hlr Hlm Hregs Hmem" as "Hσ".

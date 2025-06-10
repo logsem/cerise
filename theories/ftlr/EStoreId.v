@@ -36,7 +36,7 @@ Section fundamental.
     { by simplify_map_eq. }
     iIntros "!>" (regs' tidx I retv). iDestruct 1 as (HSpec) "(Hrmap & Ha &  Henclave)".
 
-    destruct HSpec as [Hincr Hseal | Hincr Hlregs' ]; cycle 1.
+    destruct HSpec as [Hincr Hseal | Hincr ]; cycle 1.
     (* failure cases *)
     - (* failure case: increment pc fails *)
       iApply wp_pure_step_later; auto.

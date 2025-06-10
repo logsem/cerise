@@ -40,7 +40,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr0 & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -94,7 +94,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr0 & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
