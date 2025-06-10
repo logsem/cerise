@@ -135,7 +135,7 @@ theories/examples/malloc.v
 # theories/examples/salloc.v
 theories/examples/assert.v
 theories/examples/hash_cap.v
-theories/examples/macros.v
+# theories/examples/macros.v
 theories/examples/macros_new.v
 
 # Template Adequacy
