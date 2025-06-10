@@ -2316,29 +2316,6 @@ Definition state_interp_logical (σ : cap_lang.state) `{ReservedAddresses} `{!ce
     ⌜cur_tb ∪ prev_tb = all_tb⌝ ∗
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
 
-Lemma all_tidx_below_enumcur σ `{ReservedAddresses} `{!ceriseG Σ} :
-  state_interp_logical σ -∗
-  ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝.
-Proof.
-  iIntros "σ".
-  iDestruct "σ" as (lr lm vm cur_tb prev_tb all_tb)
-                             "(Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
-  iPureIntro.
-  intros i Hdom.
-  rewrite -Hetable in Hdom.
-  apply (elem_of_weaken i (dom cur_tb) (dom (cur_tb ∪ prev_tb))) in Hdom.
-  rewrite list_to_set_seq in Hdomtbcompl.
-  set_solver.
-  set_solver.
-Qed.
-
-
-(* @Denis says: TODO: create a lemma for the below? This was removed from the EStoreId spec *)
-(* state_interp_logical σ -∗ *)
-(* EC=> ecn -∗ *)
-(* enclave_all tidx I -∗ *)
-(* ⌜tidx < ecn⌝. *)
-
 (* invariants for memory, and a state interpretation for (mem,reg) *)
 Global Instance memG_irisG `{MachineParameters} `{ReservedAddresses} `{ceriseg: !ceriseG Σ} : irisGS cap_lang Σ := {
   iris_invGS := cerise_invG;

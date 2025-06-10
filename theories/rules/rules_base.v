@@ -845,7 +845,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -909,7 +909,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -947,7 +947,7 @@ Section cap_lang_rules.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1478,7 +1478,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1773,7 +1773,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1855,7 +1855,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -1907,7 +1907,7 @@ Section cap_lang_rules_opt.
     iDestruct "Hσ" as (lr lm vmap tbl_cur tbl_prev tbl_all)
         "(Hr & Hm
          & -> & Htbl_cur & Htbl_prev & Htbl_all
-         & HEC & %HdomltEC
+         & HEC
          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
          & %HLinv)"
     ; cbn in HLinv, Hdom_tbl1, Hdom_tbl2, Hdom_tbl3, Hdom_tbl4.
@@ -2053,7 +2053,7 @@ Qed.
   Proof.
     iIntros (Hsweep Hsrc) "Hσrm".
     iDestruct (transiently_abort with "Hσrm") as "(Hσ & Hregs & Hmem)".
-    iDestruct "Hσ" as (lr lm vmap cur_tb prev_tb all_tb) "(Hr & Hm & %Hcurtbeq & Hcurtb & Hprevtb & Halltb & Hecauth & %HdomltEC & %Hcurprevdisj & %Hcompl & %Hcurprevdisj2 & %Hcompl2 & %HLinv)"; simpl in HLinv.
+    iDestruct "Hσ" as (lr lm vmap cur_tb prev_tb all_tb) "(Hr & Hm & %Hcurtbeq & Hcurtb & Hprevtb & Halltb & Hecauth & %Hcurprevdisj & %Hcompl & %Hcurprevdisj2 & %Hcompl2 & %HLinv)"; simpl in HLinv.
     iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as "%Hregs_incl".
     iPureIntro.
     eapply unique_in_registersL_mono; first done.
@@ -2082,6 +2082,22 @@ Qed.
     iIntros (? ? ?) "%Hstep Hcred".
     iMod ("H" $! e2 σ2 efs Hstep with "Hcred") as "H".
     done.
+  Qed.
+
+  Lemma all_tidx_below_enumcur σ `{ReservedAddresses} `{!ceriseG Σ} :
+    state_interp_logical σ -∗
+                              ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝.
+  Proof.
+    iIntros "σ".
+    iDestruct "σ" as (lr lm vm cur_tb prev_tb all_tb)
+                       "(Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+    iPureIntro.
+    intros i Hdom.
+    rewrite -Hetable in Hdom.
+    apply (elem_of_weaken i (dom cur_tb) (dom (cur_tb ∪ prev_tb))) in Hdom.
+    rewrite list_to_set_seq in Hdomtbcompl.
+    set_solver.
+    set_solver.
   Qed.
 
   Lemma state_interp_derive_instr_exec (E : coPset) (s : stuckness) (R P : iProp Σ) (HPers : Persistent P) Φ :
