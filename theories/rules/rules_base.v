@@ -2064,4 +2064,56 @@ Qed.
     eapply state_corresponds_reg_get_word; eauto.
   Qed.
 
+  Lemma state_interp_derive (E : coPset) (s : stuckness) (R P : iProp Σ) (HPers : Persistent P) Φ e :
+    to_val e = None ->
+    (∀ σ, R ∗ state_interp_logical σ -∗ P) -∗
+    (R ∗ P -∗ (wp s E e Φ)) -∗
+    (R -∗ (wp s E e Φ)).
+  Proof.
+    iIntros (He) "HRP Hwp HR".
+    rewrite !wp_unfold /wp_pre /=.
+    rewrite He.
+    iIntros (σ ns κ κs nt) "Hσ /=".
+    iDestruct ("HRP" with "[$HR $Hσ]") as "#HP".
+    iDestruct ("Hwp" with "[$HR $HP]") as "Hwp".
+    iSpecialize ("Hwp" $! σ ns κ κs nt with "Hσ").
+    iMod ("Hwp") as "[%Hred H]".
+    iModIntro. iSplitR; first by iPureIntro.
+    iIntros (? ? ?) "%Hstep Hcred".
+    iMod ("H" $! e2 σ2 efs Hstep with "Hcred") as "H".
+    done.
+  Qed.
+
+  Lemma state_interp_derive_instr_exec (E : coPset) (s : stuckness) (R P : iProp Σ) (HPers : Persistent P) Φ :
+    (∀ σ, R ∗ state_interp_logical σ -∗ P) -∗
+    (R ∗ P -∗ (wp s E (Instr Executable) Φ)) -∗
+    (R -∗ wp s E (Instr Executable) Φ).
+  Proof.
+    iIntros "HRP Hwp HR".
+    by iApply (state_interp_derive with "[$HRP] [$Hwp] [$HR]").
+  Qed.
+
+  Lemma state_interp_max_tidx σ ecn tidx I :
+    state_interp_logical σ -∗
+    EC⤇ ecn -∗
+    enclave_all tidx I -∗
+    ⌜ tidx < ecn ⌝.
+  Proof.
+    iIntros "Hinterp HEC Henclave".
+    rewrite /state_interp_logical.
+    iDestruct "Hinterp" as (lr lm vm cur_tb prev_tb all_tb)
+                             "(Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+  Admitted.
+
+  Lemma valid_enclave_ec ecn tidx I s E Φ :
+    ( ( EC⤇ ecn ∗ enclave_all tidx I) ∗ ⌜ tidx < ecn ⌝ -∗ (wp s E (Instr Executable) Φ)) ⊢
+    ( ( EC⤇ ecn ∗ enclave_all tidx I) -∗ wp s E (Instr Executable) Φ).
+  Proof.
+    iIntros "Hwp HR".
+    iApply (state_interp_derive_instr_exec with "[] [$Hwp] [$HR]").
+    iIntros (σ) "( (HEC & Henclave) & Hσ)".
+    iApply (state_interp_max_tidx with "[$] [$] [$]").
+  Qed.
+
+
 End cap_lang_rules_opt.
