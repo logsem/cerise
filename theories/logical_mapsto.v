@@ -2310,12 +2310,28 @@ Definition state_interp_logical (σ : cap_lang.state) `{ReservedAddresses} `{!ce
     enclaves_prev prev_tb ∗
     enclaves_all all_tb ∗
     EC_auth σ.(enumcur) ∗
-    ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝ ∗ (* @Denis says: TODO: temp: can be derived from the assumption marked with (**) below... *)
     ⌜dom cur_tb ## dom prev_tb⌝ ∗
     ⌜dom (cur_tb ∪ prev_tb) = list_to_set (seq 0 σ.(enumcur))⌝ ∗ (**)
     ⌜cur_tb ##ₘ prev_tb⌝ ∗
     ⌜cur_tb ∪ prev_tb = all_tb⌝ ∗
     ⌜state_phys_log_corresponds σ.(reg) σ.(mem) lr lm vmap⌝.
+
+Lemma all_tidx_below_enumcur σ `{ReservedAddresses} `{!ceriseG Σ} :
+  state_interp_logical σ -∗
+  ⌜forall i, i ∈ dom σ.(etable) → i < σ.(enumcur)⌝.
+Proof.
+  iIntros "σ".
+  iDestruct "σ" as (lr lm vm cur_tb prev_tb all_tb)
+                             "(Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+  iPureIntro.
+  intros i Hdom.
+  rewrite -Hetable in Hdom.
+  apply (elem_of_weaken i (dom cur_tb) (dom (cur_tb ∪ prev_tb))) in Hdom.
+  rewrite list_to_set_seq in Hdomtbcompl.
+  set_solver.
+  set_solver.
+Qed.
+
 
 (* @Denis says: TODO: create a lemma for the below? This was removed from the EStoreId spec *)
 (* state_interp_logical σ -∗ *)
