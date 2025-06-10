@@ -29,12 +29,12 @@ Section fundamental.
     specialize Hsome with rs as Hrs.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
       [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
-    iApply (wp_estoreid _ _ _ _ _ _ _ _ _ _ false 0 with "[$Ha $Hmap]"); eauto.
+    iApply (wp_estoreid _ _ _ _ _ _ _ _ _ _ with "[$Ha $Hmap]"); eauto.
     { destruct Hrd as [wrd Hsomerd]. destruct Hrs as [wrs Hsomers].
       rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
     { by simplify_map_eq. }
-    iIntros "!>" (regs' tidx I retv). iDestruct 1 as (HSpec) "(Hrmap & Ha & _ & Henclave)".
+    iIntros "!>" (regs' tidx I retv). iDestruct 1 as (HSpec) "(Hrmap & Ha &  Henclave)".
 
     destruct HSpec as [Hincr Hseal | Hincr Hlregs' ]; cycle 1.
     (* failure cases *)
@@ -71,8 +71,8 @@ Section fundamental.
         + rewrite lookup_insert_ne // in HPC.
           simplify_map_eq.
           iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
-          (* { destruct Hp as [HRX | HRW]; by subst p''. } *)
-          (* { by rewrite PermFlowsToReflexive. }  *)
+          { destruct Hp as [HRX | HRW]; by subst p''. }
+          { by rewrite PermFlowsToReflexive. }
       }
   Qed.
 
