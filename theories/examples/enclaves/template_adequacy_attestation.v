@@ -1,4 +1,5 @@
 From iris.algebra Require Import auth agree excl gmap gset frac.
+From iris.algebra.lib Require Import excl_auth.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
@@ -394,8 +395,8 @@ Section Adequacy.
       as (lmem_heapg) "(Hmem_ctx & Hmem & _)".
     iMod (gen_heap_init ((register_to_lregister reg vinit):LReg))
       as (lreg_heapg) "(Hreg_ctx & Hreg & _)" .
-    iMod (own_alloc (A := ECUR) (● ecur ⋅ ◯ ecur)) as (γEC) "[HEC_full HEC]"
-    ; first by eapply auth_both_valid_2.
+    iMod (own_alloc (A := ECUR) (●E ecur ⋅ ◯E ecur)) as (γEC) "[HEC_full HEC]"
+    ; first by apply excl_auth_valid.
 
     iMod (own_alloc (A := enclaves_exclUR) (● ( Excl <$> etbl))) as (γlive) "Henclave_live".
     { apply auth_auth_valid.
