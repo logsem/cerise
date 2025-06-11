@@ -49,6 +49,7 @@ Section cap_lang_rules.
         end
     |  _ => false
     end.
+  Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
 
   (* TODO @Denis *)
   Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw r lregs tidx eid (is_cur : bool) :
@@ -56,15 +57,14 @@ Section cap_lang_rules.
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     regs_of (EDeInit r) ⊆ dom lregs →
-    (* TODO: EC register changes? *)
+    (* EC register does not decrement (i.e. it acts as a bump allocator) *)
 
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
-        if is_seal_range (lregs !! r) then
           (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
-          if is_cur then enclave_cur tidx eid else enclave_prev tidx
-        else
-          emp
+          if is_cur
+          then enclave_cur tidx eid
+          else enclave_prev tidx
     }}}
       Instr Executable @ E
     {{{ lregs' retv, RET retv;
@@ -73,6 +73,133 @@ Section cap_lang_rules.
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
+    iIntros (Hinstr Hvpc HPC Dregs φ) "(>Hrmap & Hpca & Hofrag) Hφ".
+
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hrmap $Hpca Hφ Hofrag]").
+    iModIntro.
+    iIntros (σ1) "(Hσ1 & Hrmap &Hpc_a)".
+    iModIntro.
+    iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) _".
+    apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
+
+    iApply (wp_wp2
+              (φ1 :=
+                 lwr ← (reg σ1) !! r; (* σ should be a seal/unseal pair *)
+                 '(p,σb,σe,_) ← get_sealing_cap lwr;
+                 if decide ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
+                   let tidx := tid_of_otype σb in
+                   eid  ← (etable σ1) !! tidx;
+                   (* etable' ← remove_from_etable σ1 tidx; *)
+                   _
+                 (*   incrementLPC lregs *)
+                 (* else None *)
+                 else None
+              )).
+    iModIntro.
+    iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+    iDestruct (gen_heap_valid_inclSepM with "Hlr Hrmap") as "%Hlrsub".
+    iCombine "Hlr Hlm Hrmap" as "Hσ".
+    iDestruct (transiently_intro with "Hσ") as "Hσ".
+
+    iApply wp_opt2_bind.
+    iApply wp2_diag_univ.
+    iSplit.
+    { iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
+      iSplitR "Hφ Hregs Hpc_a Hofrag".
+      - iExists lr, lm, vmap, _, _, _; now iFrame.
+      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
+        apply EDeInit_failure; auto. constructor 2.
+        destruct is_cur; iFrame.
+        admit. }
+
+    iIntros (lwr).
+    iApply wp_opt2_bind.
+    iApply wp2_diag_univ.
+    iSplit.
+    { admit. }
+    iIntros (seal). destruct seal as ((([permitSeal permitUnseal] & σb) & σe) & σa).
+
+    (* annoying. *)
+    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb ^+ 2)%f)%Z).
+    1: {
+      destruct (decide true). 2: by exfalso. (* hmmm *)
+
+      wp2_remember.
+      iApply wp_opt2_mono2.
+      iSplitR "".
+
+      2: admit.
+      (* ... *)
+
+      iSplit.
+      1: admit.
+
+      (* have to remove the index in the table... *)
+      iIntros (leid lhash) "_ Hlookup %Hrem".
+      rewrite updatePC_incrementPC.
+      wp2_remember.
+
+      admit.
+    }
+    { destruct (decide false); try by exfalso.
+      Search (wp_opt2 ?X ?X).
+      iApply wp2_diag_univ.
+    }
+
+      (* have to remove the index in the table... *)
+      rewrite updatePC_incrementPC.
+      wp2_remember.
+
+      iApply wp_opt2_mono2.
+
+      iSplitR "Hσ".
+      2: {
+        (* iMod "Hσ" as "(Hσr & Hσm & Hregs)". *)
+
+        iApply wp_opt2_bind.
+        unfold remove_from_etable.
+        destruct σ1.
+        cbn.
+        Search (wp_opt2 _ (incrementPC _)).
+
+        iApply wp2_diag_univ.
+        iApply wp2_opt_incrementPC. with "[Hσr Hregs]"); eauto.
+        eapply dom_insert_subseteq, elem_of_dom_2, HPC.
+        eapply (state_phys_log_corresponds_update_reg (lw := LInt lhash) eq_refl); cbn; eauto. }
+      Search incrementPC.
+      admit. }
+
+    { (* σe ≠ σb + 2 *)
+      cbn.
+      Search (if _ then _ else _).
+      erewrite decide_False.
+      2: easy.
+      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
+      iApply wp2_diag_univ.
+      iSplit.
+      iSplitR "Hφ Hregs Hpc_a Hofrag".
+      - iExists lr, lm, vmap, _, _, _; now iFrame.
+      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
+        apply EDeInit_failure; auto. constructor 2.
+        destruct is_cur; iFrame. admit.
+      - admit. }
+
+    { (* permitSeal and/or permitUnseal were not set *)
+      cbn.
+      erewrite decide_False.
+      2: easy.
+      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
+      iSplitR "Hφ Hregs Hpc_a Hofrag".
+      - iExists lr, lm, vmap, _, _, _; now iFrame.
+      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
+        apply EDeInit_failure; auto. constructor 2.
+        destruct is_cur; iFrame. admit. }
+
+
+
+
+
+
    (*  iIntros (Hinstr Hvpc φ) "[Hpc Hpca] Hφ". *)
    (*  apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc. *)
    (*  iApply wp_lift_atomic_head_step_no_fork; auto. *)
