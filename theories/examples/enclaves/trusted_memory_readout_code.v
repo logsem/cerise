@@ -331,7 +331,7 @@ Section trusted_memory_readout_example.
       Load r_t2 r_t1;          (* r_t2 = (SU, σ__c, σ__c+2, σ__c) *)
       Lea r_t2 1%Z;            (* r_t2 = (SU, σ__c, σ__c+2, σ__c+1) *)
 
-      (* Construct read_sensor entry point. *)
+      (* Construct use entry point. *)
       Lea r_t3 (use - begin);  (* r_t3 = (RX, client, client_end, client_use) *)
       Restrict r_t3 E;         (* r_t3 = (E, client, client_end, client_use) *)
 
@@ -339,8 +339,8 @@ Section trusted_memory_readout_example.
       Seal r_t1 r_t2 r_t3;     (* r_t1 = Sealed σ__c+1 (E, client, client_end, client_use) *)
 
       (* Create signing public key *)
-      GetA r_t3 r_t1;          (* r_t3 = σ__c+1 *)
-      GetE r_t4 r_t1;          (* r_t4 = σ__c+2 *)
+      GetA r_t3 r_t2;          (* r_t3 = σ__c+1 *)
+      GetE r_t4 r_t2;          (* r_t4 = σ__c+2 *)
       Subseg r_t2 r_t3 r_t4;   (* r_t2 = (SU, σ__c+1, σ__c+2, σ__c+1) *)
       Restrict r_t2 U;         (* r_t2 = (U, σ__c+1, σ__c+2, σ__c+1) *)
 
@@ -443,10 +443,10 @@ Section trusted_memory_readout_example.
     (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
      shot_token γ ∗
        (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
-        ∃ mmio_b mmio_e mmio_a mmio_v,
-           ((data_b ^+ 1)%a, data_v) ↦ₐ LCap RW mmio_b mmio_e mmio_a mmio_v
-         ∗ ⌜ withinBounds mmio_b mmio_e mmio_a = true ⌝
-         ∗ (mmio_a, mmio_v) ↦ₐ LInt 42)).
+        ∃ sensor_pc_v,
+          ((data_b ^+ 1)%a, data_v) ↦ₐ LCap E sensor_begin_addr
+            (sensor_begin_addr ^+ (sensor_code_len + 1))%a
+            ((sensor_begin_addr ^+ 1) ^+ sensor_read_off)%a sensor_pc_v)).
 
   Definition client_na_inv pc_v data_b data_e data_a data_v ot γ : iProp Σ :=
     let pc_b := client_begin_addr in
