@@ -1,7 +1,7 @@
 From iris.base_logic Require Export invariants gen_heap.
 From iris.program_logic Require Export weakestpre ectx_lifting.
 From iris.proofmode Require Import proofmode.
-From iris.algebra Require Import frac.
+From iris.algebra Require Import frac excl gmap.
 From cap_machine Require Export rules_base.
 
 Section cap_lang_rules.
@@ -18,6 +18,50 @@ Section cap_lang_rules.
   Implicit Types lregs : LReg.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
+
+  Lemma enclave_update_deinit tidx I σ :
+    state_interp_logical σ
+    ⊢ enclave_cur tidx I ==∗ enclave_prev tidx.
+  Proof.
+    unfold enclave_cur, enclave_prev.
+    iIntros "Hσ Hcur".
+    iExists I.
+    unfold state_interp_logical.
+    iDestruct "Hσ" as "(%_ & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & _ & _ & %Hetable & Hcur_tb & Hprev_tb & _ & _ & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & _)".
+    Search "update" "dealloc".
+    unfold enclaves_cur.
+    (* remove tidx from enclaves_cur *)
+    iCombine "Hcur_tb Hcur" as "Hcurm".
+    iDestruct (own_update with "Hcurm") as "Hcurm".
+    rewrite (@auth_update_dealloc (gmapUR TIndex (excl EIdentity)) _ {[tidx := excl.Excl I]} (excl.Excl <$> (delete tidx cur_tb))).
+    Search gmap (_ ~~> _).
+    admit.
+    Search gmap (_ ~l~> _).
+    Search fmap delete.
+    rewrite fmap_delete.
+    Check Excl <$> cur_tb.
+    apply (@delete_singleton_local_update TIndex _ _ (excl EIdentity) (Excl <$> cur_tb)).
+    apply _.
+    Search (● _ ⋅ ◯ _).
+
+    (* create a fragment for tidx in enclaves_prev *)
+    iDestruct (own_update with "Hprev_tb") as "Hprev".
+    apply auth_update_alloc.
+    apply (gmap_local_update
+               _ _
+               (to_agree <$> prev_tb)
+               (to_agree <$> {[tidx := I]})).
+    cbn.
+    (* ... *)
+    1: admit.
+    iMod "Hcurm".
+    iMod "Hprev".
+    iModIntro.
+    iDestruct "Hprev" as "(Hprev_tb & Hprev_frag)".
+    by rewrite map_fmap_singleton.
+  Admitted.
+
+
 
   Inductive EDeInit_fail lregs : Prop :=
   | EDeInit_fail_no_valid_PC :
@@ -80,6 +124,7 @@ Section cap_lang_rules.
     iIntros (σ1) "(Hσ1 & Hrmap &Hpc_a)".
     iModIntro.
     iIntros (wa) "(%Hrpc & %Hmema & %Hcorrpc & %Hdecode) _".
+
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
 
     iApply (wp_wp2
@@ -96,10 +141,17 @@ Section cap_lang_rules.
                  else None
               )).
     iModIntro.
+
+    destruct is_cur.
+
+    iDestruct (enclave_update_deinit tidx eid with "Hσ1 Hofrag") as "Hprev".
+    (* missing the state interp here, need to return it since we are mod. the auth parts too... *)
+    admit.
     iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
     iDestruct (gen_heap_valid_inclSepM with "Hlr Hrmap") as "%Hlrsub".
     iCombine "Hlr Hlm Hrmap" as "Hσ".
     iDestruct (transiently_intro with "Hσ") as "Hσ".
+
 
     iApply wp_opt2_bind.
     iApply wp2_diag_univ.
@@ -109,8 +161,7 @@ Section cap_lang_rules.
       - iExists lr, lm, vmap, _, _, _; now iFrame.
       - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
         apply EDeInit_failure; auto. constructor 2.
-        destruct is_cur; iFrame.
-        admit. }
+        iFrame. }
 
     iIntros (lwr).
     iApply wp_opt2_bind.
@@ -136,64 +187,66 @@ Section cap_lang_rules.
 
       (* have to remove the index in the table... *)
       iIntros (leid lhash) "_ Hlookup %Hrem".
-      rewrite updatePC_incrementPC.
-      wp2_remember.
+      (* rewrite updatePC_incrementPC. *)
+      (* wp2_remember. *)
 
       admit.
     }
     { destruct (decide false); try by exfalso.
       Search (wp_opt2 ?X ?X).
       iApply wp2_diag_univ.
+      admit.
     }
 
-      (* have to remove the index in the table... *)
-      rewrite updatePC_incrementPC.
-      wp2_remember.
+  Admitted.
+    (*   (* have to remove the index in the table... *) *)
+    (*   rewrite updatePC_incrementPC. *)
+    (*   wp2_remember. *)
 
-      iApply wp_opt2_mono2.
+    (*   iApply wp_opt2_mono2. *)
 
-      iSplitR "Hσ".
-      2: {
-        (* iMod "Hσ" as "(Hσr & Hσm & Hregs)". *)
+    (*   iSplitR "Hσ". *)
+    (*   2: { *)
+    (*     (* iMod "Hσ" as "(Hσr & Hσm & Hregs)". *) *)
 
-        iApply wp_opt2_bind.
-        unfold remove_from_etable.
-        destruct σ1.
-        cbn.
-        Search (wp_opt2 _ (incrementPC _)).
+    (*     iApply wp_opt2_bind. *)
+    (*     unfold remove_from_etable. *)
+    (*     destruct σ1. *)
+    (*     cbn. *)
+    (*     Search (wp_opt2 _ (incrementPC _)). *)
 
-        iApply wp2_diag_univ.
-        iApply wp2_opt_incrementPC. with "[Hσr Hregs]"); eauto.
-        eapply dom_insert_subseteq, elem_of_dom_2, HPC.
-        eapply (state_phys_log_corresponds_update_reg (lw := LInt lhash) eq_refl); cbn; eauto. }
-      Search incrementPC.
-      admit. }
+    (*     iApply wp2_diag_univ. *)
+    (*     iApply wp2_opt_incrementPC. with "[Hσr Hregs]"); eauto. *)
+    (*     eapply dom_insert_subseteq, elem_of_dom_2, HPC. *)
+    (*     eapply (state_phys_log_corresponds_update_reg (lw := LInt lhash) eq_refl); cbn; eauto. } *)
+    (*   Search incrementPC. *)
+    (*   admit. } *)
 
-    { (* σe ≠ σb + 2 *)
-      cbn.
-      Search (if _ then _ else _).
-      erewrite decide_False.
-      2: easy.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
-      iApply wp2_diag_univ.
-      iSplit.
-      iSplitR "Hφ Hregs Hpc_a Hofrag".
-      - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
-        apply EDeInit_failure; auto. constructor 2.
-        destruct is_cur; iFrame. admit.
-      - admit. }
+    (* { (* σe ≠ σb + 2 *) *)
+    (*   cbn. *)
+    (*   Search (if _ then _ else _). *)
+    (*   erewrite decide_False. *)
+    (*   2: easy. *)
+    (*   iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)". *)
+    (*   iApply wp2_diag_univ. *)
+    (*   iSplit. *)
+    (*   iSplitR "Hφ Hregs Hpc_a Hofrag". *)
+    (*   - iExists lr, lm, vmap, _, _, _; now iFrame. *)
+    (*   - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro. *)
+    (*     apply EDeInit_failure; auto. constructor 2. *)
+    (*     destruct is_cur; iFrame. admit. *)
+    (*   - admit. } *)
 
-    { (* permitSeal and/or permitUnseal were not set *)
-      cbn.
-      erewrite decide_False.
-      2: easy.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
-      iSplitR "Hφ Hregs Hpc_a Hofrag".
-      - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
-        apply EDeInit_failure; auto. constructor 2.
-        destruct is_cur; iFrame. admit. }
+    (* { (* permitSeal and/or permitUnseal were not set *) *)
+    (*   cbn. *)
+    (*   erewrite decide_False. *)
+    (*   2: easy. *)
+    (*   iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)". *)
+    (*   iSplitR "Hφ Hregs Hpc_a Hofrag". *)
+    (*   - iExists lr, lm, vmap, _, _, _; now iFrame. *)
+    (*   - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro. *)
+    (*     apply EDeInit_failure; auto. constructor 2. *)
+    (*     destruct is_cur; iFrame. admit. } *)
 
 
 
@@ -222,6 +275,5 @@ Section cap_lang_rules.
    (*  iExists lr, lm, vmap. *)
    (*  iFrame; auto. *)
    (* Qed. *)
-  Admitted.
 
 End cap_lang_rules.
