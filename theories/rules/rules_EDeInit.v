@@ -53,7 +53,19 @@ Section cap_lang_rules.
                (to_agree <$> {[tidx := I]})).
     cbn.
     (* ... *)
-    1: admit.
+    {
+      intro tidx'.
+      rewrite !lookup_fmap lookup_empty.
+      destruct (decide (tidx = tidx')); subst.
+      2: by rewrite lookup_singleton_ne.
+      (* rewrite Hexists; cbn. *)
+      rewrite lookup_singleton. cbn.
+      rewrite -(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree I))).
+      apply core_id_local_update.
+      apply _.
+      (* need knowledge of enclaves_prev !! tidx *)
+      admit. }
+
     iMod "Hcurm".
     iMod "Hprev".
     iModIntro.
