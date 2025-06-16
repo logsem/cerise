@@ -12,7 +12,24 @@ Section ClientEnclaveProofs.
   Context {CS: ClientSensor}.
 
   #[local] Notation pc_b := client_begin_addr.
-  #[local] Notation pc_e := (pc_b ^+ (length client_lcode + 1))%a.
+  #[local] Notation pc_e := (pc_b ^+ (Z.of_nat (length client_lcode) + 1))%a.
+  #[local] Notation cf_b := (pc_b ^+ 1)%a.
+  #[local] Notation cf_e := (cf_b ^+ Z.of_nat (length client_lcode))%a.
+
+  Definition client_one_shot_inv (γ : gname) data_b data_e data_v : iProp Σ :=
+    (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
+                        shot_token γ ∗
+     (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
+      ∃ sensor_b sensor_e sensor_a sensor_v,
+        ((data_b ^+ 1)%a, data_v) ↦ₐ LCap E sensor_b sensor_e sensor_a sensor_v
+        ∗ □ sensor_enclave_read_sensor_contract sensor_b sensor_e sensor_a sensor_v
+    )).
+
+  Definition client_na_inv γ pc_v data_b data_e data_a data_v ot : iProp Σ :=
+    (codefrag cf_b pc_v client_lcode
+     ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
+     ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
+     ∗ (client_one_shot_inv γ data_b data_e data_v)).
 
   Lemma client_one_shot_update γ data_b data_e data_v (Hdatarange : (data_b < data_e)%a) :
     client_one_shot_inv γ data_b data_e data_v ==∗ shot_token γ ∗
@@ -34,8 +51,227 @@ Section ClientEnclaveProofs.
         iSplit. iPureIntro. apply le_addr_withinBounds; solve_addr.
         iExists _. iFrame.
     - iModIntro. iSplitL "Htoken". done. iRight. iSplitR. done.
-      iDestruct "Hdata" as (sensor_pv_v) "Hdata".
+      iDestruct "Hdata" as (sensor_b sensor_e sensor_a sensor_v) "[Hdata _]".
       iExists _. done.
+  Qed.
+
+  Lemma client_enclave_use_correct pc_v data_b data_e data_a data_v γ ot :
+      shot_token γ
+    ∗ na_inv logrel_nais clientN (client_na_inv γ pc_v data_b data_e data_a data_v ot)
+
+    ⊢ client_enclave_use_contract pc_b pc_e (cf_b ^+ client_use_off)%a pc_v.
+  Proof.
+    iIntros "#(Htoken & Hclient_inv)".
+    iIntros (E ret φ HclientN HsensorN) "(Hna & HPC & Hr0 & Hinterp_ret & [%lw1 Hr1] & [%lw2 Hr2] & [%lw3 Hr3]& [%lw4 Hr4] & Hret)".
+    pose proof clientN_sensorN_disjoint as HclientN_sensorN.
+
+    iMod (na_inv_acc with "Hclient_inv Hna") as
+      "(Hinv & Hna & Hclose)"; [solve_ndisj ..|].
+    iDestruct "Hinv" as "(>Hts_code & >Hts_keys & >Hts_addr & Hts_data)".
+
+    (* Code memory *)
+    codefrag_facts "Hts_code".
+
+    assert (SubBounds pc_b pc_e cf_b cf_e).
+    { solve_addr. }
+    assert (withinBounds pc_b pc_e pc_b = true) as Hpcbounds.
+    { apply le_addr_withinBounds; solve_addr. }
+
+    (* Data memory *)
+    iDestruct ("Hts_data") as "[(>Hauth & _)|(_ & Hts_data)]".
+    { iCombine "Hauth Htoken" gives % [Hl _]%auth_both_valid_discrete.
+      exfalso. clear -Hl. apply option_included in Hl.
+      destruct Hl as [|(? & ? & ? & ? & ?)]; discriminate. }
+
+    (* Prove the spec *)
+    iInstr "Hts_code". (* Mov r_t1 PC *)
+
+    iInstr "Hts_code". (* Lea r_t1 (begin - use) *)
+    { transitivity (Some pc_b); [|easy].
+      rewrite /client_use_off. solve_addr. }
+
+    iInstr "Hts_code". (* Load r_t1 r_t1 *)
+    iInstr "Hts_code". (* GetB r_t2 r_t1 *)
+    iInstr "Hts_code". (* GetA r_t3 r_t1 *)
+    iInstr "Hts_code". (* Sub r_t2 r_t2 r_t3 *)
+    iInstr "Hts_code". (* Lea r_t1 r_t2 *)
+    { transitivity (Some data_b); solve_addr. }
+
+    (* Load sensor enclave read entry point *)
+    iDestruct ("Hts_data") as "(%Hwb & %sensor_b & %sensor_e & %sensor_a & %sensor_v & Hdata_sensor & #Hsensor_contract)".
+    iInstr "Hts_code". (* Lea r_t1 1 *)
+    { transitivity (Some (data_b ^+ 1)%a); solve_addr. }
+    iInstr "Hts_code". (* Load r_t1 r_t1 *)
+
+    (* Save return pointer to a register unclobbered by sensor read *)
+    iInstr "Hts_code". (* Mov r_t4 r_t0 *)
+
+    (* Setup callback and jump to read sensor entry point. *)
+    iInstr "Hts_code". (* Mov r_t0 PC *)
+    iInstr "Hts_code". (* Lea r_t0 3 *)
+    iInstr "Hts_code". (* Jmp r_t1 *)
+    iApply "Hsensor_contract"; [|iFrame "Hna HPC Hr0"].
+    solve_ndisj.
+    iSplitL "Hr1". iExists _. iExact "Hr1".
+    iSplitL "Hr2". iExists _. iExact "Hr2".
+    iSplitL "Hr3". iExists _. iExact "Hr3".
+
+    (* Use Callback *)
+    clear lw3. cbn [updatePcPermL].
+    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & Hr3)".
+
+    (* Perform computation on the sensor value *)
+    iInstr "Hts_code". (* Add r_t2 r_t2 r_t2 *)
+
+    (* Restore return pointer and kill callback capability. *)
+    iInstr "Hts_code". (* Mov r_t0 r_t4 *)
+
+    (* Return to caller *)
+    iInstr "Hts_code". (* Jmp r_t0 *)
+
+    (* Close the opened invariant *)
+    iMod ("Hclose" with "[$Hna $Hts_code $Hts_addr $Hts_keys Htoken Hdata_sensor]") as "Hna".
+    iNext. iRight. iFrame "Htoken".
+    iSplit; [easy|]. do 4 iExists _. by iFrame.
+
+    iApply ("Hret" with "[$Hna $HPC $Hr0 Hr1 Hr2 $Hr3 Hr4 Hinterp_ret]").
+    { iSplitL "Hr1". by auto.
+      iSplitL "Hr2". by auto.
+      iExists _.
+      iSplitL "Hr4"; by auto.
+    }
+  Qed.
+
+  Lemma sealed_client_interp (lw : LWord) :
+    □ custom_enclave_contract_gen ∗ system_inv
+    ⊢ sealed_client lw -∗ fixpoint interp1 lw.
+  Proof.
+    rewrite /sealed_sensor.
+    iIntros "[#Henclave_contract #Henclave_inv] Hsealed".
+    iDestruct "Hsealed" as (code_b code_e code_a code_v) "(-> & #Hclient_contract)".
+    rewrite fixpoint_interp1_eq /=.
+
+    iIntros (lregs); iNext; iModIntro.
+    iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
+    rewrite /interp_conf.
+    rewrite /registers_mapsto.
+    iExtract "Hrmap" PC as "HPC".
+
+    (* Prepare the necessary resources *)
+    (* Registers *)
+    assert (exists w0, lregs !! r_t0 = Some w0) as Hrt0 by apply (Hfullmap r_t0).
+    destruct Hrt0 as [w0 Hr0].
+    replace (delete PC lregs)
+      with (<[r_t0:=w0]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w1, lregs !! r_t1 = Some w1) as Hrt1 by apply (Hfullmap r_t1).
+    destruct Hrt1 as [w1 Hr1].
+    replace (delete PC lregs)
+      with (<[r_t1:=w1]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w2, lregs !! r_t2 = Some w2) as Hrt2 by apply (Hfullmap r_t2).
+    destruct Hrt2 as [w2 Hr2].
+    replace (delete PC lregs)
+      with (<[r_t2:=w2]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w3, lregs !! r_t3 = Some w3) as Hrt3 by apply (Hfullmap r_t3).
+    destruct Hrt3 as [w3 Hr3].
+    replace (delete PC lregs)
+      with (<[r_t3:=w3]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    assert (exists w4, lregs !! r_t4 = Some w4) as Hrt4 by apply (Hfullmap r_t4).
+    destruct Hrt4 as [w4 Hr4].
+    replace (delete PC lregs)
+      with (<[r_t4:=w4]> (delete PC lregs)).
+    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
+
+    (* EXTRACT REGISTERS FROM RMAP *)
+    (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
+    iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t1 with "Hrmap") as "[Hr1 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
+    { by simplify_map_eq. }
+    iDestruct (big_sepM_delete _ _ r_t4 with "Hrmap") as "[Hr4 Hrmap]".
+    { by simplify_map_eq. }
+    (* iDestruct (big_sepM_delete _ _ r_t5 with "Hrmap") as "[Hr5 Hrmap]". *)
+    (* { by simplify_map_eq. } *)
+    replace (delete r_t4 _) with
+      ( delete r_t4 (delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs)))))).
+    2:{
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t0) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t1) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t2) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t3) //.
+      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t4) //.
+      (* rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t5) //. *)
+      done.
+    }
+    iAssert (interp w0) as "Hinterp_w0".
+    { iApply "Hinterp_map";eauto;done. }
+
+    iApply ("Hclient_contract" with "[%] [%] [$Hna $HPC $Hr0 Hr1 Hr2 Hr3 Hr4 Hrmap]");
+      [solve_ndisj|solve_ndisj|].
+    iSplitR. iExact "Hinterp_w0".
+    iSplitL "Hr1". iExists _. iExact "Hr1".
+    iSplitL "Hr2". iExists _. iExact "Hr2".
+    iSplitL "Hr3". iExists _. iExact "Hr3".
+    iSplitL "Hr4". iExists _. iExact "Hr4".
+
+    iDestruct (jmp_to_unknown with "[$Henclave_contract $Henclave_inv] [$Hinterp_w0]") as "Hjmp".
+
+    clear w3 Hr3 w4 Hr4.
+    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3 & Hr3 & #Hinterp_w3) & (%w4 & Hr4 & #Hinterp_w4))".
+
+    (* Wrap up the registers *)
+    iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
+    { do 4 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 4 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
+    { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 3 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
+    { do 2 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 2 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap $Hr3]") as "Hrmap".
+    { do 1 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 1 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t4 with "[$Hrmap $Hr4]") as "Hrmap".
+    { do 0 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
+    do 0 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
+    set (rmap' := (<[r_t4:=_]> _)).
+    iAssert ([∗ map] k↦y ∈ rmap', k ↦ᵣ y ∗ interp y)%I with "[Hrmap]" as "Hrmap".
+    {
+      subst rmap'.
+      iApply (big_sepM_sep_2 with "[Hrmap]") ; first done.
+      iApply big_sepM_insert_2; first done.
+      iApply big_sepM_insert_2; first done.
+      iApply big_sepM_insert_2; first (iApply interp_int).
+      iApply big_sepM_insert_2; first (iApply interp_int).
+      iApply big_sepM_insert_2; first done.
+      iApply big_sepM_intro.
+      iIntros "!>" (r w Hrr).
+      assert (is_Some (delete PC lregs !! r)) as His_some by auto.
+      rewrite lookup_delete_is_Some in His_some.
+      destruct His_some as [Hr _].
+      rewrite lookup_delete_ne in Hrr; auto.
+      iApply ("Hinterp_map" $! r w); auto.
+    }
+    assert (dom rmap' = all_registers_s ∖ {[PC]}).
+    {
+      repeat (rewrite dom_insert_L).
+      rewrite dom_delete_L.
+      rewrite regmap_full_dom; auto.
+    }
+
+    iApply ("Hjmp" with "[]") ; eauto ; iFrame.
   Qed.
 
   Lemma client_enclave_correct
@@ -45,9 +281,6 @@ Section ClientEnclaveProofs.
     (data_v : Version)
     (enclave_data : list LWord)
     (client_ot : finz.finz ONum) :
-
-    let cf_b := (pc_b ^+ 1)%a in
-    let cf_e := (cf_b ^+ length client_lcode)%a in
 
     (pc_b + (length client_lcode + 1))%a = Some pc_e ->
     (client_ot + 2)%f = Some (client_ot ^+ 2)%f ->
@@ -62,19 +295,19 @@ Section ClientEnclaveProofs.
     ∗ [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]
     ⊢ |={Ep}=> interp (LCap E pc_b pc_e cf_b pc_v).
   Proof.
-    iIntros (cf_b cf_e Hpcrange Hot Hdatarange)
+    iIntros (Hpcrange Hot Hdatarange)
       "(#Henclave_contract & #Henclave_inv & #HPsign & Hts_code & Hts_addr & Hts_keys & Hts_data)".
 
     iMod pending_alloc as (γ) "Hauth".
 
     iMod (na_inv_alloc logrel_nais _ (system_invN.@hash_client)
-            (client_na_inv pc_v data_b data_e data_a data_v client_ot γ)
+            (client_na_inv γ pc_v data_b data_e data_a data_v client_ot)
            with "[$Hts_code $Hts_addr $Hts_keys Hauth Hts_data]") as "#Hts_inv".
     { iNext. iLeft. iFrame "Hauth". by iExists enclave_data. }
     clear enclave_data.
 
     assert (SubBounds pc_b pc_e cf_b cf_e) by
-      (subst cf_e cf_b; rewrite /client_code_len; solve_addr).
+      (rewrite /client_code_len; solve_addr).
     assert (withinBounds pc_b pc_e pc_b = true) as Hpcbounds
       by (apply le_addr_withinBounds; solve_addr).
     assert (withinBounds data_b data_e data_b = true) as Hdatabounds
@@ -86,11 +319,10 @@ Section ClientEnclaveProofs.
     iIntros "([%Hfullmap #Hinterp_map] & Hrmap & Hna)".
     rewrite /interp_conf.
     iMod (na_inv_acc with "Hts_inv Hna") as
-      "(>(Hts_code & Hts_addr & Hts_keys & Hts_data) & Hna & Hclose)";
+      "((>Hts_code & >Hts_addr & >Hts_keys & Hts_data) & Hna & Hclose)";
       [solve_ndisj ..|].
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
-    change (pc_b ^+ 1)%a with cf_b.
 
     (* Prepare the necessary resources *)
     (* Registers *)
@@ -253,14 +485,13 @@ Section ClientEnclaveProofs.
     iClear "Heqv Hts_Penc Hts_Psign Hcemap Hseal_valid".
     unfold sealed_sensor.
     iDestruct "Hseal_sensor"
-      as (sensor_pc_v sensor_data_b sensor_data_e sensor_data_a sensor_data_v
-         sensor_ot sensor_γ Hsensor_sb) "Hseal_sensor".
+      as (sensor_b sensor_e sensor_a sensor_v) "[%Hsensor_sb #Hsensor_contract]".
     injection Hsensor_sb as ->.
 
     (* Get the data capability *)
     iInstr "Hts_code". (* Lea r_t3 (begin - fail) *)
     { transitivity (Some pc_b); [|easy].
-      rewrite /client_fail_off. subst cf_b. solve_addr. }
+      rewrite /client_fail_off. solve_addr. }
     iInstr "Hts_code". (* Load r_t1 r_t3 *)
     split; [easy|by solve_addr].
     iInstr "Hts_code". (* GetB r_t4 r_t1 *)
@@ -296,7 +527,7 @@ Section ClientEnclaveProofs.
     (* Construct use entry point. *)
     iInstr "Hts_code". (* Lea r_t3 (use - begin) *)
     { transitivity (Some (cf_b ^+ client_use_off))%a; [|easy].
-      rewrite /client_use_off. subst cf_b. solve_addr. }
+      rewrite /client_use_off. solve_addr. }
     iInstr "Hts_code". (* Restrict r_t3 Eperm *)
     { by rewrite decode_encode_perm_inv. }
     rewrite decode_encode_perm_inv.
@@ -327,9 +558,16 @@ Section ClientEnclaveProofs.
 
     (* ----- Prepare the use of FTLR ----- *)
 
-    set (lsealed_entry_use_cap := LSealedCap _ _ _ _ _ _).
+    set (lsealed_entry_use_cap := LSealedCap (client_ot ^+ 1)%f _ _ _ _ _).
     iAssert (interp lsealed_entry_use_cap) as "Hinterp_sealed_entry_use_cap".
-    { admit. }
+    { iEval (rewrite /= fixpoint_interp1_eq /= /interp_sb).
+      iExists sealed_client; iFrame "%#". iSplit.
+      - iPureIntro; intro; apply sealed_client_persistent.
+      - iNext. do 4 iExists _.
+        iSplit; first done.
+        iModIntro.
+        iApply (client_enclave_use_correct with "[$]").
+    }
     iAssert (
         interp (LSealRange (false, true) (client_ot ^+ 1)%f (client_ot ^+ 2)%f (client_ot ^+ 1)%f)
       ) as "Hinterp_sealr_ot".
@@ -340,15 +578,14 @@ Section ClientEnclaveProofs.
       iSplit; last done.
       iExists sealed_client_ne; iFrame "#".
       iNext ; iModIntro; iIntros (lw) "Hlw".
-      (* by iApply (sealed_client_interp with "[$Henclave_contract $Henclave_inv]"). *)
-      admit.
+      by iApply (sealed_client_interp with "[$Henclave_contract $Henclave_inv]").
     }
 
     (* Close the opened invariant *)
     iMod ("Hclose" with "[$Hna $Hts_code $Hts_addr $Hts_keys $Htoken Hdata_sensor_field]") as "Hna".
     iNext. iRight.
     iSplit; [easy|].
-    iExists _. iApply "Hdata_sensor_field".
+    do 4 iExists _. iFrame "Hdata_sensor_field Hsensor_contract".
 
     (* Wrap up the registers *)
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
@@ -380,12 +617,11 @@ Section ClientEnclaveProofs.
       repeat (iApply big_sepM_insert_2; first done).
       iApply big_sepM_intro.
       iIntros "!>" (r w Hrr).
-      (* assert (is_Some (delete PC lregs !! r)) as His_some by auto. *)
-      (* rewrite lookup_delete_is_Some in His_some. *)
-      (* destruct His_some as [Hr _]. *)
-      (* rewrite lookup_delete_ne in Hrr; auto. *)
-      (* iApply ("Hinterp_map" $! r w); auto. *)
-      admit.
+      assert (is_Some (delete PC lregs !! r)) as His_some by auto.
+      rewrite lookup_delete_is_Some in His_some.
+      destruct His_some as [Hr _].
+      rewrite lookup_delete_ne in Hrr; auto.
+      iApply ("Hinterp_map" $! r w); auto.
     }
     assert (dom rmap' = all_registers_s ∖ {[PC]}).
     {
@@ -395,7 +631,6 @@ Section ClientEnclaveProofs.
     }
 
     iApply ("Hjmp" with "[]") ; eauto ; iFrame.
-
-  Admitted.
+  Qed.
 
 End ClientEnclaveProofs.

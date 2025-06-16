@@ -106,7 +106,7 @@ Section trusted_memory_readout_example.
       Jnz r_t2 r_t3;           (* Jump to fail if not unique *)
 
       (* "Initialize" the sensor. *)
-      Store r_t1 42;
+      Store r_t1 21;
 
       (* Get the data capability *)
       Lea r_t2 (begin - fail); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
@@ -154,7 +154,7 @@ Section trusted_memory_readout_example.
      Returns:
      - r_t0 return pointer
      - r_t1 sensor addr (mmio_a)
-     - r_t2 return value (= 42)
+     - r_t2 return value (= 21)
      Clobbers: r_t3 *)
   Definition sensor_instrs_read (begin read : Z) : list instr :=
     [ Mov r_t1 PC;                    (* r_t1 = (RX, sensor, sensor_end, sensor_read) *)
@@ -169,7 +169,7 @@ Section trusted_memory_readout_example.
       (* cf https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/morello/project/enclaveMorello/src/EL1Code/enclavecode/sensor_enclave.S#L106 *)
       Lea r_t1 1;                     (* r_t1 = (RW, data_b, data_e, data_b+1) *)
       Load r_t1 r_t1;                 (* r_t1 = (RW, mmio_b, mmio_e, mmio_a) *)
-      Load r_t2 r_t1;                 (* r_t2 = sensor value (42) *)
+      Load r_t2 r_t1;                 (* r_t2 = sensor value (21) *)
       GetA r_t1 r_t1;                 (* r_t3 = mmio_a *)
 
       (* Return to caller *)
@@ -216,37 +216,35 @@ Section trusted_memory_readout_example.
   Definition hash_sensor : Z :=
     hash_concat (hash sensor_begin_addr) (hash sensor_code).
 
+  Definition sensorN : namespace := system_invN.@hash_sensor.
+
   (* Sealed predicate for sensor enclave *)
 
-  Program Definition f42 : Addr := (finz.FinZ 42 eq_refl eq_refl).
-
-  Definition sensor_one_shot_inv (γ : gname) data_b data_e data_v : iProp Σ :=
-    (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
-     shot_token γ ∗
-       (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
-        ∃ mmio_b mmio_e mmio_a mmio_v,
-           ((data_b ^+ 1)%a, data_v) ↦ₐ LCap RW mmio_b mmio_e mmio_a mmio_v
-         ∗ ⌜ withinBounds mmio_b mmio_e mmio_a = true ⌝
-         ∗ (mmio_a, mmio_v) ↦ₐ LInt 42)).
-
-  Definition sensor_na_inv pc_v data_b data_e data_a data_v ot γ : iProp Σ :=
-    let pc_b := sensor_begin_addr in
-    let cf_b := (pc_b ^+ 1)%a in
-    (codefrag cf_b pc_v sensor_lcode
-     ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
-     ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
-     ∗ (sensor_one_shot_inv γ data_b data_e data_v)).
+  (* The contract that the read sensor entry point should satisfy.  *)
+  Definition sensor_enclave_read_sensor_contract
+    (code_b code_e code_a : Addr) (code_v : Version) : iProp Σ :=
+    ∀ E (ret : LWord) (φ : val → iPropI Σ),
+      ⌜↑sensorN ⊆ E⌝ →
+      na_own logrel_nais E
+      ∗ PC ↦ᵣ LCap RX code_b code_e code_a code_v
+      ∗ r_t0 ↦ᵣ ret
+      ∗ (∃ w1, r_t1 ↦ᵣ w1)
+      ∗ (∃ w2, r_t2 ↦ᵣ w2)
+      ∗ (∃ w3, r_t3 ↦ᵣ w3)
+      ∗ ▷ (  na_own logrel_nais E
+             ∗ PC ↦ᵣ updatePcPermL ret
+             ∗ (r_t0 ↦ᵣ ret)
+             ∗ (∃ mmio_a : Z, r_t1 ↦ᵣ LInt mmio_a)
+             ∗ (r_t2 ↦ᵣ LInt 21)
+             ∗ (∃ w3, r_t3 ↦ᵣ w3 ∗ interp w3)
+               -∗ WP Seq (Instr Executable) {{ φ }})
+        -∗ WP Seq (Instr Executable) {{ φ }}.
 
   (* The sensor enclave only signs the sentry to the read_sensor entry point. *)
   Definition sealed_sensor (w : LWord) : iProp Σ :=
-    let pc_b := sensor_begin_addr in
-    let pc_e := (pc_b ^+ (sensor_code_len + 1))%a in
-    let cf_b := (pc_b ^+ 1)%a in
-    (∃ pc_v data_b data_e data_a data_v ot γ,
-          ⌜ w = LCap E pc_b pc_e (cf_b ^+ sensor_read_off)%a pc_v ⌝
-        ∗ shot_token γ
-        ∗ na_inv logrel_nais (system_invN.@hash_sensor)
-            (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)).
+    (∃ code_b code_e code_a code_v,
+        ⌜ w = LCap E code_b code_e code_a code_v ⌝
+        ∗ □ sensor_enclave_read_sensor_contract code_b code_e code_a code_v).
 
   Definition sealed_sensor_ne : (leibnizO LWord) -n> (iPropO Σ) :=
     λne (w : leibnizO LWord), sealed_sensor w%I.
@@ -270,7 +268,7 @@ Section trusted_memory_readout_example.
   (* ------------------------ *)
 
   (* CODE LAYOUT:
-                                       client_callback
+                                       client_use_callback
      client      client_init   client_use │ client_fail client_end
        │            │             │       │    │           │
        ▽────────────▽─────────────▽───────▽────▽───────────▽
@@ -279,15 +277,21 @@ Section trusted_memory_readout_example.
 
      DATA LAYOUT:
 
-      data        data+1                       data+4
-       │           │                            │
-       ▽───────────▽─────────┬─────────┬────────▽
-       │ seal pair │ enc key │  nonce  │ result │
-       └───────────┴─────────┴─────────┴────────┘
-                   <      argument buffer       >
+      data                          data+2
+       │                             │
+       ▽───────────┬─────────────────▽
+       │ seal pair │ cap sensor_read │
+       └───────────┴─────────────────┘
    *)
 
-  (* Expect:
+  (* The initialization code of the client enclave expects to be given a
+     signed enter capability to the sensor_read entry point of the sensor
+     enclave. It attests the signed capability and stores it in the data
+     section. In case the data section is too small, the Store instruction
+     will fail. This code assumes that the sensor enclave only signs the
+     sensor_read entry point capabilitiy.
+
+     Expect:
      - PC := (RX, client, client_end, client_init)
      - r_t0 return pointer
      - r_t1 sensor public signing key (U, σ__s+1, σ__s+2, σ__s+1)
@@ -353,14 +357,14 @@ Section trusted_memory_readout_example.
   Definition client_prelcode_init (begin init use fail : Z): list LWord :=
     encodeInstrsLW (client_instrs_init begin init use fail).
 
-  (* Expect:
-     - PC := (RX, client, client_end, client_use)
-     - r_t0 return pointer
-     Returns:
-     - r_t0 return pointer
-     - r_t1 sensor addr (mmio_a)
-     - r_t2 return value (= 84)
-     Clobbers: r_t3, r_t4 *)
+  (* The use sensor entry point retrieves the enter capability to the
+     sensor_read entry point of the sensor enclaves from the data section. It
+     calls sensor_read with a callback. When the callback is invoked, the client
+     enclave performs its computation and then returns to its caller.
+
+     Expect: - PC := (RX, client, client_end, client_use) - r_t0 return pointer
+     Returns: - r_t0 return pointer - r_t1 sensor addr (mmio_a) - r_t2 return
+     value (= 42) Clobbers: r_t3, r_t4 *)
   Definition client_instrs_use (begin use : Z) : list instr :=
     [ Mov r_t1 PC;                    (* r_t1 = (RX, client, client_end, client_use) *)
 
@@ -386,10 +390,13 @@ Section trusted_memory_readout_example.
       (* Use Callback
            Expect:
            - r_t1 sensor addr (mmio_a)
-           - r_t2 sensor read return value (= 42) *)
+           - r_t2 sensor read return value (= 21) *)
 
       (* Perform computation on the sensor value *)
-      Add r_t2 r_t2 r_t2;             (* r_t2 = 84 *)
+      Add r_t2 r_t2 r_t2;             (* r_t2 = 42 *)
+
+      (* Restore return pointer and kill callback capability. *)
+      Mov r_t0 r_t4;                  (* r_t0 = return pointer *)
 
       (* Return to caller *)
       Jmp r_t0
@@ -435,37 +442,39 @@ Section trusted_memory_readout_example.
   Definition hash_client : Z :=
     hash_concat (hash client_begin_addr) (hash client_code).
 
+  Definition clientN : namespace := system_invN.@hash_client.
+
   (* Sealed predicate for client enclave *)
 
-  Program Definition f84 : Addr := (finz.FinZ 84 eq_refl eq_refl).
-
-  Definition client_one_shot_inv (γ : gname) data_b data_e data_v : iProp Σ :=
-    (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
-     shot_token γ ∗
-       (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
-        ∃ sensor_pc_v,
-          ((data_b ^+ 1)%a, data_v) ↦ₐ LCap E sensor_begin_addr
-            (sensor_begin_addr ^+ (sensor_code_len + 1))%a
-            ((sensor_begin_addr ^+ 1) ^+ sensor_read_off)%a sensor_pc_v)).
-
-  Definition client_na_inv pc_v data_b data_e data_a data_v ot γ : iProp Σ :=
-    let pc_b := client_begin_addr in
-    let cf_b := (pc_b ^+ 1)%a in
-    (codefrag cf_b pc_v client_lcode
-     ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
-     ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
-     ∗ (client_one_shot_inv γ data_b data_e data_v)).
+  (* The contract that the client enclave's use entry point should satisfy.  *)
+  Definition client_enclave_use_contract
+    (code_b code_e code_a : Addr) (code_v : Version) : iProp Σ :=
+    ∀ E (ret : LWord) (φ : val → iPropI Σ),
+      ⌜↑clientN ⊆ E⌝ →
+      ⌜↑sensorN ⊆ E⌝ →
+      na_own logrel_nais E
+      ∗ PC ↦ᵣ LCap RX code_b code_e code_a code_v
+      ∗ r_t0 ↦ᵣ ret
+      ∗ interp ret
+      ∗ (∃ w1, r_t1 ↦ᵣ w1)
+      ∗ (∃ w2, r_t2 ↦ᵣ w2)
+      ∗ (∃ w3, r_t3 ↦ᵣ w3)
+      ∗ (∃ w4, r_t4 ↦ᵣ w4)
+      ∗ ▷ (  na_own logrel_nais E
+             ∗ PC ↦ᵣ updatePcPermL ret
+             ∗ (r_t0 ↦ᵣ ret)
+             ∗ (∃ mmio_a : Z, r_t1 ↦ᵣ LInt mmio_a)
+             ∗ (r_t2 ↦ᵣ LInt 42)
+             ∗ (∃ w3, r_t3 ↦ᵣ w3 ∗ interp w3)
+             ∗ (∃ w4, r_t4 ↦ᵣ w4 ∗ interp w4)
+               -∗ WP Seq (Instr Executable) {{ φ }})
+        -∗ WP Seq (Instr Executable) {{ φ }}.
 
   (* The client enclave only signs the sentry to the use entry point. *)
   Definition sealed_client (w : LWord) : iProp Σ :=
-    let pc_b := client_begin_addr in
-    let pc_e := (pc_b ^+ (client_code_len + 1))%a in
-    let cf_b := (pc_b ^+ 1)%a in
-    (∃ pc_v data_b data_e data_a data_v ot γ,
-          ⌜ w = LCap E pc_b pc_e (cf_b ^+ client_use_off)%a pc_v ⌝
-        ∗ shot_token γ
-        ∗ na_inv logrel_nais (system_invN.@hash_client)
-            (client_na_inv pc_v data_b data_e data_a data_v ot γ)).
+    (∃ code_b code_e code_a code_v,
+        ⌜ w = LCap E code_b code_e code_a code_v ⌝
+        ∗ □ client_enclave_use_contract code_b code_e code_a code_v).
 
   Definition sealed_client_ne : (leibnizO LWord) -n> (iPropO Σ) :=
     λne (w : leibnizO LWord), sealed_client w%I.
@@ -487,6 +496,19 @@ Section trusted_memory_readout_example.
   (* ------------------------ *)
   (* ---   ENCLAVES MAP   --- *)
   (* ------------------------ *)
+
+  Lemma hash_client_sensor :
+    hash_client ≠ hash_sensor.
+  Proof.
+    intros [_ e%hash_inj]%hash_concat_inj.
+    apply (f_equal (map decodeInstrW ∘ firstn 3)) in e. cbn in e.
+    rewrite !decode_encode_instr_inv in e. congruence.
+  Qed.
+
+  Lemma clientN_sensorN_disjoint : clientN ## sensorN.
+  Proof.
+    apply ndot_ne_disjoint, hash_client_sensor.
+  Qed.
 
   Definition ts_enclaves_map : custom_enclaves_map (Σ := Σ) :=
     {[ hash_sensor := sensor_enclave_pred;

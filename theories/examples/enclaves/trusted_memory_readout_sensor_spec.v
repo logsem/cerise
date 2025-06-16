@@ -11,6 +11,26 @@ Section SensorEnclaveProofs.
     `{MP: MachineParameters}.
   Context {CS: ClientSensor}.
 
+  #[local] Notation pc_b := sensor_begin_addr.
+  #[local] Notation pc_e := (pc_b ^+ (Z.of_nat (length sensor_lcode) + 1))%a.
+  #[local] Notation cf_b := (pc_b ^+ 1)%a.
+  #[local] Notation cf_e := (cf_b ^+ Z.of_nat (length sensor_lcode))%a.
+
+  Definition sensor_one_shot_inv (γ : gname) data_b data_e data_v : iProp Σ :=
+    (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
+                        shot_token γ ∗
+     (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
+      ∃ mmio_b mmio_e mmio_a mmio_v,
+        ((data_b ^+ 1)%a, data_v) ↦ₐ LCap RW mmio_b mmio_e mmio_a mmio_v
+        ∗ ⌜ withinBounds mmio_b mmio_e mmio_a = true ⌝
+        ∗ (mmio_a, mmio_v) ↦ₐ LInt 21)).
+
+  Definition sensor_na_inv pc_v data_b data_e data_a data_v ot γ : iProp Σ :=
+    (codefrag cf_b pc_v sensor_lcode
+     ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
+     ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
+     ∗ (sensor_one_shot_inv γ data_b data_e data_v)).
+
   Lemma sensor_one_shot_update γ data_b data_e data_v (Hdatarange : (data_b < data_e)%a) :
     sensor_one_shot_inv γ data_b data_e data_v ==∗ shot_token γ ∗
     (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = false ⌝ ∨
@@ -35,50 +55,24 @@ Section SensorEnclaveProofs.
       iExists _. done.
   Qed.
 
-  (* The contract that the read sensor entry point should satisfy.  *)
-  Definition sensor_enclave_read_sensor_contract
-    (code_b code_e code_a : Addr) (code_v : Version) (ret : LWord) (φ : val → iPropI Σ) : iProp Σ :=
-    na_own logrel_nais ⊤
-    ∗ PC ↦ᵣ LCap RX code_b code_e code_a code_v
-    ∗ r_t0 ↦ᵣ ret
-    ∗ (∃ w1, r_t1 ↦ᵣ w1)
-    ∗ (∃ w2, r_t2 ↦ᵣ w2)
-    ∗ (∃ w3, r_t3 ↦ᵣ w3)
-    ∗ ▷ (  na_own logrel_nais ⊤
-         ∗ PC ↦ᵣ updatePcPermL ret
-         ∗ (r_t0 ↦ᵣ ret)
-         ∗ (∃ mmio_a : Z, r_t1 ↦ᵣ LInt mmio_a)
-         ∗ (r_t2 ↦ᵣ LInt 42)
-         ∗ (∃ w3, r_t3 ↦ᵣ w3 ∗ interp w3)
-           -∗ WP Seq (Instr Executable) {{ φ }})
-      -∗ WP Seq (Instr Executable) {{ φ }}.
-
-  Lemma sensor_enclave_read_sensor_correct n pc_v data_b data_e data_a data_v γ
-    ot ret φ :
-    let pc_b := sensor_begin_addr in
-    let pc_e := (pc_b ^+ (length sensor_lcode + 1))%a in
-    let cf_b := (pc_b ^+ 1)%a in
-    let cf_e := (cf_b ^+ length sensor_lcode)%a in
-
+  Lemma sensor_enclave_read_sensor_correct pc_v data_b data_e data_a data_v γ ot:
       shot_token γ
-    ∗ na_inv logrel_nais n (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)
-
-    ⊢ sensor_enclave_read_sensor_contract pc_b pc_e (cf_b ^+ sensor_read_off)%a pc_v ret φ.
+    ∗ na_inv logrel_nais sensorN (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)
+    ⊢ sensor_enclave_read_sensor_contract pc_b pc_e (cf_b ^+ sensor_read_off)%a pc_v.
   Proof.
-    iIntros (pc_b pc_e cf_b cf_e (* Hpc_b_e *) ) "#(Htoken & Hts_inv)".
-    iIntros "(Hna & HPC & Hr0 & [%lw1 Hr1] & [%lw2 Hr2] & [%lw3 Hr3] & Hret)".
+    iIntros "#(Htoken & Hts_inv)".
+    iIntros (E ret φ HsensorN) "(Hna & HPC & Hr0 & [%lw1 Hr1] & [%lw2 Hr2] & [%lw3 Hr3] & Hret)".
 
-    iMod (na_inv_acc with "Hts_inv Hna") as
-      "(>(Hts_code & Hts_keys & Hts_addr & Hts_data) & Hna & Hclose)"; [solve_ndisj ..|].
+    iMod (na_inv_acc with "Hts_inv Hna") as "(>Hinv & Hna & Hclose)"; [solve_ndisj ..|].
+    iDestruct "Hinv" as "(Hts_code & Hts_keys & Hts_addr & Hts_data)".
 
     (* Code memory *)
     codefrag_facts "Hts_code".
 
     assert (SubBounds pc_b pc_e cf_b cf_e).
-    { subst pc_e pc_b cf_e cf_b.
-      solve_addr. }
+    { solve_addr. }
     assert (withinBounds pc_b pc_e pc_b = true) as Hpcbounds.
-    { subst pc_b pc_e. apply le_addr_withinBounds; solve_addr. }
+    { apply le_addr_withinBounds; solve_addr. }
 
     (* Data memory *)
     iDestruct ("Hts_data") as "[(Hauth & _)|(_ & %Hwb & %mmio_b & %mmio_e & %mmio_a & %mmio_v & Hts_data & %Hmmiobounds & Hts_mmio)]".
@@ -92,7 +86,7 @@ Section SensorEnclaveProofs.
 
     iInstr "Hts_code". (* Lea r_t1 (begin - read) *)
     { transitivity (Some pc_b); [|easy].
-      rewrite /sensor_read_off. subst cf_b pc_b. solve_addr. }
+      rewrite /sensor_read_off. solve_addr. }
 
     iInstr "Hts_code". (* Load r_t1 r_t1 *)
     iInstr "Hts_code". (* GetB r_t2 r_t1 *)
@@ -133,7 +127,7 @@ Section SensorEnclaveProofs.
   Proof.
     rewrite /sealed_sensor.
     iIntros "[#Henclave_contract #Henclave_inv] Hsealed".
-    iDestruct "Hsealed" as (pc_v data_b data_e data_a data_v ot γ) "(-> & #Htoken & #Hts_inv)".
+    iDestruct "Hsealed" as (code_b code_e code_a code_v) "(-> & #Hsensor_contract)".
     rewrite fixpoint_interp1_eq /=.
 
     iIntros (lregs); iNext; iModIntro.
@@ -141,10 +135,6 @@ Section SensorEnclaveProofs.
     rewrite /interp_conf.
     rewrite /registers_mapsto.
     iExtract "Hrmap" PC as "HPC".
-
-    set (pc_b := sensor_begin_addr).
-    set (pc_e := (pc_b ^+ (sensor_code_len + 1))%a).
-    set (cf_b := (pc_b ^+ 1)%a).
 
     (* Prepare the necessary resources *)
     (* Registers *)
@@ -212,15 +202,16 @@ Section SensorEnclaveProofs.
     iAssert (interp w0) as "Hinterp_w0".
     { iApply "Hinterp_map";eauto;done. }
 
-    iApply (sensor_enclave_read_sensor_correct with "[$Htoken $Hts_inv]").
-    iFrame "Hna HPC Hr0".
+    iApply ("Hsensor_contract" with "[%] [$Hna $HPC $Hr0 Hr1 Hr2 Hr3 Hrmap]");
+      first solve_ndisj.
     iSplitL "Hr1". iExists _. iExact "Hr1".
     iSplitL "Hr2". iExists _. iExact "Hr2".
     iSplitL "Hr3". iExists _. iExact "Hr3".
 
     iDestruct (jmp_to_unknown with "[$Henclave_contract $Henclave_inv] [$Hinterp_w0]") as "Hjmp".
 
-    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3' & Hr3 & #Hinterp_w3'))".
+    clear w3 Hr3.
+    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3 & Hr3 & #Hinterp_w3))".
 
     (* Wrap up the registers *)
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
@@ -575,9 +566,11 @@ Section SensorEnclaveProofs.
     { iEval (rewrite /= fixpoint_interp1_eq /= /interp_sb).
       iExists sealed_sensor; iFrame "%#". iSplit.
       - iPureIntro; intro; apply sealed_sensor_persistent.
-      - iNext. do 7 iExists _.
+      - iNext. do 4 iExists _.
         iSplit; first done.
-        iSplit; done. }
+        iModIntro.
+        iApply (sensor_enclave_read_sensor_correct with "[$]").
+    }
     iAssert (
         interp (LSealRange (false, true) (ot ^+ 1)%f (ot ^+ 2)%f (ot ^+ 1)%f)
       ) as "Hinterp_sealr_ot".

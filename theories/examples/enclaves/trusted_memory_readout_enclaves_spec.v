@@ -59,14 +59,8 @@ Section EnclavesProof.
         with ((sensor_begin_addr ^+ 1) ^+ length sensor_lcode)%a by solve_addr.
       done.
     - (* Client enclave *)
-      rewrite /ts_enclaves_map lookup_insert_ne // in Hcode_ce.
-      2:{
-        rewrite /hash_sensor /hash_client.
-        intro Hcontra.
-        apply hash_concat_inj' in Hcontra.
-        destruct Hcontra as [_ Hcontra].
-        by injection Hcontra.
-      }
+      rewrite /ts_enclaves_map lookup_insert_ne // in Hcode_ce;
+        auto using hash_client_sensor.
       rewrite // lookup_insert in Hcode_ce. simplify_eq.
       change (code_region client_enclave_pred) with client_begin_addr in *.
       assert (code_e = client_begin_addr ^+ (length client_lcode + 1)%nat)%a
