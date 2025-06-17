@@ -56,7 +56,7 @@ Section cap_lang_rules.
     is_log_cap lw = false →
     EInit_fail lregs lmem  r_code r_data tidx ot
   (* the data capability is not RW *)
-  | EInit_fail_dcap_no_rx p b e a v :
+  | EInit_fail_dcap_no_rw p b e a v :
     lregs !! r_data = Some (LCap p b e a v)->
     p ≠ RW ->
     EInit_fail lregs lmem  r_code r_data tidx ot
