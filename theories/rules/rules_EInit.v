@@ -141,13 +141,23 @@ Section cap_lang_rules.
 
   Definition exec_optL_EInit
     (lregs : LReg) (lmem : LMem)
-    (r1 r2 :  RegName)
-    (k : option LReg) : option LReg :=
+    (r1 r2 :  RegName) (code_sweep data_sweep no_caps : bool)
+    (kont : option LReg) : option LReg.
+    refine (
     if decide (negb (bool_decide (r1 = PC))) then
       ccap          ← lregs !! r1;
-      '(p, b, e, _) ← lword_get_cap ccap;
-      k
-    else None.
+      '(p, b, e, _, _) ← lword_get_cap ccap;
+      if decide (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
+        dcap          ← lregs !! r2;
+        '(p', b', e', _) ← get_wcap (lword_get_word dcap);
+        if decide (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
+          if code_sweep && data_sweep && no_caps then
+            kont
+          else None
+        else None
+      else None
+    else None).
+    Defined.
 
   Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v lw lregs lmem tidx r_code r_data :
     decodeInstrWL lw = EInit r_code r_data →
@@ -182,7 +192,7 @@ Section cap_lang_rules.
     (*  extract the pc  *)
     rewrite (big_sepM_delete _ lmem). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
     (* iApply wp_lift_atomic_head_step_no_fork; auto. *)
-    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ]").
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ HECv]").
     iModIntro.
 
     iIntros (σ) "(Hσ & Hregs & Hpc_a)".
@@ -194,14 +204,145 @@ Section cap_lang_rules.
     set (code_sweep := (sweep_reg (mem σ) (reg σ) r_code)).
     set (data_sweep := (sweep_reg (mem σ) (reg σ) r_data)).
 
-    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data _) (φ2 := _)).
+    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep _ _) (φ2 := _)).
     iModIntro.
 
-    unfold exec_opt.
+    unfold exec_optL_EInit.
 
     (* split on whether code cap register is PC... *)
-    destruct (decide (negb (bool_decide (r_code = PC)))).
-    2: { (* case where they are equal: crash the machine *)
+    destruct (decide (negb (bool_decide (r_code = PC)))) eqn:Hpc_eq; cbn in *; simplify_eq; rewrite Hpc_eq; clear Hpc_eq.
+    all: revgoals.
+    { (* case where they are equal: crash the machine *)
+      unfold wp_opt2.
+      unfold exec_optL_EInit.
+      iModIntro.
+      iFrame.
+      iApply "Hφ". iFrame.
+      iRight.
+      iSplit. iPureIntro. constructor 1.
+      - by apply negb_prop_classical, bool_decide_unpack in n.
+      - easy. }
+
+    (* regular path: PC does not equal r_code *)
+    (* intro transient modality *)
+
+    iDestruct (state_interp_transient_intro_nodfracs (lr := lregs) (lm := lmem) with "[$Hregs $Hσ $Hmem]") as "Hσ".
+
+    iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ HECv]"); first by set_solver.
+    iIntros (lccap) "Hσ %Hlccap %Hccap".
+
+    iApply wp_opt2_bind.
+
+    unfold lword_get_cap.
+    destruct lccap eqn:Hccap_shape; cbn.
+
+    (* why can't I use multi-goal selectors with curly braces? *)
+    1: {
+      iModIntro.
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_ccap_not_a_cap.
+    }
+    2: {
+      iModIntro.
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_ccap_not_a_cap.
+    }
+
+    destruct sb eqn:Hsb_shape; cbn.
+    2: {
+      iModIntro.
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_ccap_not_a_cap.
+    }
+
+    iModIntro.
+    destruct (decide (readAllowed p && executeAllowed p && negb (writeAllowed p))).
+
+    2: { (* we do not have RX permissions for ccap. *)
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
+      eapply EInit_fail_ccap_no_rx.
+      apply Hlccap.
+
+      (* TODO: annoying.. *)
+      admit. }
+
+    iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    iApply (wp2_reg_lookup with "[$Hσ Hφ HECv]"); first by set_solver.
+    iIntros (ldcap) "Hσ %Hldcap %Hdcap".
+
+    unfold get_wcap.
+    destruct ldcap eqn:Hdcap_shape; cbn.
+    1: {
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_dcap_not_a_cap.
+    }
+
+    (* is DCAP a cap? *)
+    destruct sb0 eqn:Hsb0_shape; cbn.
+
+    2: {
+
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
+      Search "EInit_fail_dcap".
+      by eapply EInit_fail_dcap_not_a_cap.
+    }
+
+    2: {
+
+      iIntros.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)".
+      rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
+      Search "EInit_fail_dcap".
+      by eapply EInit_fail_dcap_not_a_cap.
+    }
+
+    (* DCAP is now definitely a cap *)
+
+
+    (* Does DCAP have the right perms? *)
+    destruct (decide (readAllowed p0 && writeAllowed p0 && negb (executeAllowed p0))).
+
+    2: {
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
+      eapply EInit_fail_dcap_no_rw.
+      apply Hldcap.
+
+      admit. (* TODO: annoying... *) }
+
+
+    destruct code_sweep; cbn.
+
+
+    iApply (wp2_diag_univ).
+    iApply (wp2_reg_lookup with "[$Hσ Hφ]"); first by set_solver.
+    iIntros (lccap) "Ht %Hlccap %Hccap".
 
 
 
