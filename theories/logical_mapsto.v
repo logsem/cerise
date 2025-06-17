@@ -2130,6 +2130,32 @@ Definition hash_lmemory_range `{MachineParameters} (lm : LMem) (b e: Addr) (v : 
   instructions ← lmemory_get_instrs lm (finz.seq_between b e) v ;
   Some (hash instructions).
 
+Lemma lmeasure_measure_aux `{MP: MachineParameters}
+  (phm : Mem) (lm : LMem) (vmap : VMap) (la : list Addr) (v : Version) :
+ mem_current_version lm vmap ->
+ mem_vmap_root phm lm vmap ->
+ (∀ a : Addr, a ∈ la -> vmap !! a = Some v) ->
+ lmemory_get_instrs lm la v = memory_get_instrs phm la.
+Proof.
+  intros Hcur Hroot.
+  induction la; intros Hvmap; first done.
+  assert ( lmemory_get_instrs lm la v = memory_get_instrs phm la ) as IH.
+  { apply IHla.
+    intros; apply Hvmap; set_solver.
+  }
+  rewrite /lmemory_get_instrs /memory_get_instrs !foldr_cons.
+  rewrite -/(lmemory_get_instrs lm la v) -/(memory_get_instrs phm la).
+  rewrite IH.
+  f_equal.
+  rewrite /mem_vmap_root in Hroot.
+  assert ( vmap !! a = Some v ).
+  { apply Hvmap; set_solver. }
+  eapply map_Forall_lookup_1 in Hroot ; eauto.
+  destruct Hroot as (lw & Hlm_a & Hphm_a & Hcur_lw).
+  rewrite Hlm_a Hphm_a.
+  by cbn.
+Qed.
+
 Lemma lmeasure_measure `{MP: MachineParameters} (phr : Reg) (phm : Mem) (lr : LReg) (lm : LMem) (vmap : VMap)  :
   forall p b e a v,
   is_cur_word (LCap p b e a v) vmap ->
@@ -2140,60 +2166,8 @@ Proof.
   unfold hash_lmemory_range, hash_memory_range.
   f_equal.
   rewrite /is_cur_word in Hcur_word.
-  (* match goal with | _ : _ |- context [ (filter ?f lm) ] => set (Flog := f) end. *)
-  (* match goal with | _ : _ |- context [ (filter ?f phm) ] => set (Fphy := f) end. *)
-  (* generalize dependent lm. *)
-  (* generalize dependent vmap. *)
-  (* generalize dependent phm. *)
-  (* induction phm using map_ind; intros vmap Hcur_word lm Hcur Hroot. *)
-  (* - pose proof (map_filter_empty_iff Flog lm) as [_ HFlog]. *)
-  (*   rewrite HFlog. *)
-  (*   2: { apply map_Forall_lookup_2. *)
-  (*        intros la lw Hla. *)
-  (*        subst Fphy; cbn. *)
-  (*        destruct la as [a' v']. *)
-  (*        intros [Hcontra _]; simplify_eq. *)
-  (*        cbn in *. *)
-  (*        apply Hcur_word in Hcontra. *)
-  (*        eapply map_Forall_lookup_1 in Hcontra; last eapply Hroot; cbn in Hcontra. *)
-  (*        destruct Hcontra as (lw' & _ & Hphm & _). *)
-  (*        set_solver. *)
-  (*   } *)
-  (*   rewrite map_filter_empty. *)
-  (*   rewrite map_to_list_empty. *)
-  (*   by rewrite !fmap_nil. *)
-  (* - rewrite map_filter_insert. *)
-  (*   destruct (decide (Fphy (i,x))) as [HFphy_true|HFphy_false] *)
-  (*   ; cbn in *. *)
-  (*   + *)
-      (* setoid_rewrite map_to_list_insert. *)
-      (* 2: { apply map_lookup_filter_None_2; by left. } *)
-      (* Definition lmem_get_word (lalw : LAddr * LWord) : (LAddr * Word) := (lalw.1 , lword_get_word lalw.2). *)
-      (* Lemma lmem_get_word_iff (l : list (LAddr * LWord)) : *)
-      (*   lword_get_word <$> l.*2 = (lmem_get_word <$> l).*2. *)
-      (* Proof. *)
-      (*   induction l; cbn; first done. *)
-      (*   destruct a as [ [a v] lw]; cbn in *. *)
-      (*   by f_equal. *)
-      (* Qed. *)
-      (* pose proof HFphy_true as Hi_inbounds. *)
-      (* apply Hcur_word in HFphy_true. *)
-      (* eapply map_Forall_lookup_1 in HFphy_true; eauto; cbn in HFphy_true. *)
-      (* destruct HFphy_true as (lw & Hlw & Hlw_phy & _). *)
-      (* rewrite lookup_insert in Hlw_phy; simplify_eq. *)
-      (* (* pose proof (map_lookup_filter Flog lm (i,v)). *) *)
-      (* rewrite -(insert_id lm (i,v) lw); auto. *)
-      (* rewrite -(insert_delete_insert lm _ lw). *)
-      (* rewrite map_filter_insert. *)
-      (* rewrite decide_True. *)
-      (* 2: { *)
-      (*   subst Flog; cbn in *. *)
-      (*   split; done. *)
-      (* } *)
-      (* setoid_rewrite map_to_list_insert. *)
-      (* 2: { by rewrite map_filter_delete lookup_delete. } *)
-      (* erewrite lmem_get_word_iff. *)
-(* oh boy... @TODO *) Admitted.
+  eapply lmeasure_measure_aux; eauto.
+Qed.
 
 (** Instantiation of the program logic *)
 
