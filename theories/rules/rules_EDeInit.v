@@ -19,61 +19,51 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Lemma enclave_update_deinit tidx I σ :
-    state_interp_logical σ
-    ⊢ enclave_cur tidx I ==∗ enclave_prev tidx.
+  Lemma enclave_update_deinit {cur_tb prev_tb tidx I} :
+    cur_tb ##ₘ prev_tb ->
+      enclaves_cur cur_tb -∗ enclaves_prev prev_tb -∗ enclave_cur tidx I ==∗ enclave_prev tidx ∗ enclaves_cur (delete tidx cur_tb) ∗ enclaves_prev (insert tidx I prev_tb).
   Proof.
-    unfold enclave_cur, enclave_prev.
-    iIntros "Hσ Hcur".
-    iExists I.
-    unfold state_interp_logical.
-    iDestruct "Hσ" as "(%_ & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & _ & _ & %Hetable & Hcur_tb & Hprev_tb & _ & _ & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & _)".
-    Search "update" "dealloc".
-    unfold enclaves_cur.
-    (* remove tidx from enclaves_cur *)
+    iIntros (Hdisj) "Hcur_tb Hprev_tb Hcur".
+    iAssert ( ⌜ cur_tb !! tidx = Some I ⌝ )%I as "%Hcurtbtidx".
+    { (* domi: easier proof wanted... *)
+      iDestruct (own_valid_2 with "Hcur_tb Hcur") as "%Hvalid".
+      iPureIntro.
+      apply auth_both_valid_discrete in Hvalid.
+      destruct Hvalid as (Hincl & _).
+      apply singleton_included_l in Hincl.
+      destruct Hincl as (I' & HeqI' & HII').
+      rewrite lookup_fmap in HeqI'.
+      destruct I';
+        last by (destruct (cur_tb !! tidx); apply leibniz_equiv in HeqI'; inversion HeqI').
+      rewrite Excl_included in HII'.
+      apply leibniz_equiv in HII'; subst.
+      apply leibniz_equiv in HeqI'.
+      destruct (cur_tb !! tidx);
+        now inversion HeqI'.
+    }
     iCombine "Hcur_tb Hcur" as "Hcurm".
-    iDestruct (own_update with "Hcurm") as "Hcurm".
-    rewrite (@auth_update_dealloc (gmapUR TIndex (excl EIdentity)) _ {[tidx := excl.Excl I]} (excl.Excl <$> (delete tidx cur_tb))).
-    Search gmap (_ ~~> _).
-    admit.
-    Search gmap (_ ~l~> _).
-    Search fmap delete.
-    rewrite fmap_delete.
-    Check Excl <$> cur_tb.
-    apply (@delete_singleton_local_update TIndex _ _ (excl EIdentity) (Excl <$> cur_tb)).
-    apply _.
-    Search (● _ ⋅ ◯ _).
-
-    (* create a fragment for tidx in enclaves_prev *)
-    iDestruct (own_update with "Hprev_tb") as "Hprev".
-    apply auth_update_alloc.
-    apply (gmap_local_update
-               _ _
-               (to_agree <$> prev_tb)
-               (to_agree <$> {[tidx := I]})).
-    cbn.
-    (* ... *)
-    {
-      intro tidx'.
-      rewrite !lookup_fmap lookup_empty.
-      destruct (decide (tidx = tidx')); subst.
-      2: by rewrite lookup_singleton_ne.
-      (* rewrite Hexists; cbn. *)
-      rewrite lookup_singleton. cbn.
-      rewrite -(ucmra_unit_left_id (A := optionUR (agreeR EIdentity)) (Some (to_agree I))).
-      apply core_id_local_update.
-      apply _.
-      (* need knowledge of enclaves_prev !! tidx *)
-      admit. }
-
-    iMod "Hcurm".
-    iMod "Hprev".
+    iMod (own_update with "Hcurm") as "Hcurm".
+    { eapply (auth_update_dealloc _ _ (excl.Excl <$> (delete tidx cur_tb))).
+      rewrite fmap_delete.
+      now apply (@delete_singleton_local_update TIndex _ _ (excl EIdentity) (Excl <$> cur_tb)).
+    }
+    iMod (own_update with "Hprev_tb") as "(Hprev_tb & Hprev)".
+    { eapply (auth_update_alloc _ (to_agree <$> (insert tidx I prev_tb)) {[ tidx := to_agree I]} ).
+      rewrite fmap_insert -insert_empty.
+      eapply alloc_singleton_local_update; last done.
+      rewrite lookup_fmap.
+      enough (prev_tb !! tidx = None) as H by now rewrite H.
+      now apply (map_disjoint_Some_l _ _ _ _ Hdisj Hcurtbtidx).
+    }
     iModIntro.
-    iDestruct "Hprev" as "(Hprev_tb & Hprev_frag)".
-    by rewrite map_fmap_singleton.
-  Admitted.
-
-
+    iSplitL "Hprev".
+    - now iExists I.
+    - now iFrame.
+      (* + now rewrite union_delete_insert. *)
+      (* + eapply map_disjoint_dom_2. *)
+      (*   set_solver. *)
+      (* + now eapply union_delete_insert. *)
+  Qed.
 
   Inductive EDeInit_fail lregs : Prop :=
   | EDeInit_fail_no_valid_PC :
@@ -118,14 +108,18 @@ Section cap_lang_rules.
     {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw ∗
           (* non-dup token asserting ownership over the enclave at etable index `tidx` *)
-          if is_cur
-          then enclave_cur tidx eid
-          else enclave_prev tidx
+          (* if is_cur *)
+          (* then enclave_cur tidx eid *)
+          (* else enclave_prev tidx *)
+          enclave_cur tidx eid
     }}}
       Instr Executable @ E
     {{{ lregs' retv, RET retv;
         ⌜ EDeInit_spec lregs lregs' r tidx eid is_cur retv⌝ ∗
-        enclave_prev tidx ∗
+        match retv with
+        | NextIV => enclave_prev tidx
+        | _ => enclave_cur tidx eid
+        end ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw }}}.
   Proof.
@@ -139,128 +133,92 @@ Section cap_lang_rules.
 
     apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
 
+    iModIntro.
+
+
+    iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
+
     iApply (wp_wp2
               (φ1 :=
                  lwr ← (reg σ1) !! r; (* σ should be a seal/unseal pair *)
                  '(p,σb,σe,_) ← get_sealing_cap lwr;
                  if decide ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
                    let tidx := tid_of_otype σb in
-                   eid  ← (etable σ1) !! tidx;
-                   (* etable' ← remove_from_etable σ1 tidx; *)
-                   _
-                 (*   incrementLPC lregs *)
-                 (* else None *)
+                   let cur_tb' := delete tidx cur_tb in
+                   lregs' ← incrementLPC lregs;
+                   Some lregs'
                  else None
               )).
-    iModIntro.
 
-    destruct is_cur.
-
-    iDestruct (enclave_update_deinit tidx eid with "Hσ1 Hofrag") as "Hprev".
-    (* missing the state interp here, need to return it since we are mod. the auth parts too... *)
-    admit.
-    iDestruct "Hσ1" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
     iDestruct (gen_heap_valid_inclSepM with "Hlr Hrmap") as "%Hlrsub".
-    iCombine "Hlr Hlm Hrmap" as "Hσ".
+    iCombine "Hlr Hlm Hrmap Hall_tb Hcur_tb Hprev_tb Hecauth Hofrag Hpc_a" as "Hσ".
     iDestruct (transiently_intro with "Hσ") as "Hσ".
 
 
     iApply wp_opt2_bind.
     iApply wp2_diag_univ.
     iSplit.
-    { iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)".
+    { iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
       iSplitR "Hφ Hregs Hpc_a Hofrag".
       - iExists lr, lm, vmap, _, _, _; now iFrame.
-      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro.
+      - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iFrame. iPureIntro.
         apply EDeInit_failure; auto. constructor 2.
-        iFrame. }
+    }
 
     iIntros (lwr).
-    iApply wp_opt2_bind.
+    wp2_remember.
     iApply wp2_diag_univ.
     iSplit.
-    { admit. }
-    iIntros (seal). destruct seal as ((([permitSeal permitUnseal] & σb) & σe) & σa).
+    { iIntros "%Hlwr _".
+      iDestruct (transiently_abort with "Hσ") as "(Hlr & Hlm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+      iSplitR "Hφ Hofrag Hregs Hpc_a".
+      { iExists _, _, vmap, _, _, _ ; now iFrame. }
+      iApply "Hφ"; iFrame.
+      iPureIntro; constructor; last done.
+      now apply EDeInit_fail_no_seal_unseal_pair.
+     }
+    iIntros (seal Hlwr _). destruct seal as ((([permitSeal permitUnseal] & σb) & σe) & σa).
 
     (* annoying. *)
-    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb ^+ 2)%f)%Z).
-    1: {
-      destruct (decide true). 2: by exfalso. (* hmmm *)
-
+    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb ^+ 2)%f)%Z) eqn:Hdec.
+    - destruct (andb_prop _ _ Hdec) as (Hseals%bool_decide_eq_true_1 & Hbounds%Z.eqb_eq%finz_to_z_eq).
+      inversion Hseals; subst; clear Hseals.
+      rewrite (decide_True_pi (P := Is_true true) I).
+      rewrite updatePC_incrementPC.
+      destruct σ1; cbn.
       wp2_remember.
       iApply wp_opt2_mono2.
-      iSplitR "".
-
-      2: admit.
-      (* ... *)
-
+      iSplitL "Hφ".
+      2: {
+        iApply transiently_wp_opt2.
+        iMod "Hσ" as "(Hσr & Hσm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+        iMod (enclave_update_deinit Htbdisj with "Hcur_tb Hprev_tb Hofrag") as "(Hofrag & Hcur_tb & Hprev_tb)".
+        iModIntro.
+        iApply (wp_opt2_frame with "Hσm").
+        iApply (wp_opt2_frame with "Hpc_a").
+        iApply (wp_opt2_frame with "Hall_tb").
+        iApply (wp_opt2_frame with "Hcur_tb").
+        iApply (wp_opt2_frame with "Hprev_tb").
+        iApply (wp_opt2_frame with "Hofrag").
+        iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
+        now eapply elem_of_dom.
+      }
       iSplit.
-      1: admit.
-
-      (* have to remove the index in the table... *)
-      iIntros (leid lhash) "_ Hlookup %Hrem".
-      (* rewrite updatePC_incrementPC. *)
-      (* wp2_remember. *)
-
-      admit.
-    }
-    { destruct (decide false); try by exfalso.
-      Search (wp_opt2 ?X ?X).
-      iApply wp2_diag_univ.
-      admit.
-    }
-
-  Admitted.
-    (*   (* have to remove the index in the table... *) *)
-    (*   rewrite updatePC_incrementPC. *)
-    (*   wp2_remember. *)
-
-    (*   iApply wp_opt2_mono2. *)
-
-    (*   iSplitR "Hσ". *)
-    (*   2: { *)
-    (*     (* iMod "Hσ" as "(Hσr & Hσm & Hregs)". *) *)
-
-    (*     iApply wp_opt2_bind. *)
-    (*     unfold remove_from_etable. *)
-    (*     destruct σ1. *)
-    (*     cbn. *)
-    (*     Search (wp_opt2 _ (incrementPC _)). *)
-
-    (*     iApply wp2_diag_univ. *)
-    (*     iApply wp2_opt_incrementPC. with "[Hσr Hregs]"); eauto. *)
-    (*     eapply dom_insert_subseteq, elem_of_dom_2, HPC. *)
-    (*     eapply (state_phys_log_corresponds_update_reg (lw := LInt lhash) eq_refl); cbn; eauto. } *)
-    (*   Search incrementPC. *)
-    (*   admit. } *)
-
-    (* { (* σe ≠ σb + 2 *) *)
-    (*   cbn. *)
-    (*   Search (if _ then _ else _). *)
-    (*   erewrite decide_False. *)
-    (*   2: easy. *)
-    (*   iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)". *)
-    (*   iApply wp2_diag_univ. *)
-    (*   iSplit. *)
-    (*   iSplitR "Hφ Hregs Hpc_a Hofrag". *)
-    (*   - iExists lr, lm, vmap, _, _, _; now iFrame. *)
-    (*   - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro. *)
-    (*     apply EDeInit_failure; auto. constructor 2. *)
-    (*     destruct is_cur; iFrame. admit. *)
-    (*   - admit. } *)
-
-    (* { (* permitSeal and/or permitUnseal were not set *) *)
-    (*   cbn. *)
-    (*   erewrite decide_False. *)
-    (*   2: easy. *)
-    (*   iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs)". *)
-    (*   iSplitR "Hφ Hregs Hpc_a Hofrag". *)
-    (*   - iExists lr, lm, vmap, _, _, _; now iFrame. *)
-    (*   - iApply ("Hφ" with "[$Hregs $Hpc_a Hofrag]"). iSplit. iPureIntro. *)
-    (*     apply EDeInit_failure; auto. constructor 2. *)
-    (*     destruct is_cur; iFrame. admit. } *)
-
-
+      { iIntros "Hσ %HincLPCf %HincPCf".
+        iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+        iSplitL "Hr Hm Hecauth Hall_tb Hcur_tb Hprev_tb".
+        { iExists _, _, _, _, _, _; iFrame.
+          iPureIntro.
+          intuition.
+          admit.}
+        iApply "Hφ"; iFrame.
+        iPureIntro.
+        constructor 2; eauto.
+        now eapply EDeInit_fail_no_valid_PC.
+      }
+      iIntros (lregs' regs) "Hσ %HincLPC %HincPC".
+      iApply wp2_val.
+      iMod (transiently_commit with "Hσ") as "(Hm & Hpc_a & Hall_tb & Hur_tb & Hprev_tb & Hprev & %lregs2 & Hlregs2 & %Hcorr & Hregs)".
 
 
 
@@ -287,5 +245,6 @@ Section cap_lang_rules.
    (*  iExists lr, lm, vmap. *)
    (*  iFrame; auto. *)
    (* Qed. *)
+  Admitted.
 
 End cap_lang_rules.
