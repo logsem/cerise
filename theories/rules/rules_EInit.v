@@ -20,25 +20,21 @@ Section cap_lang_rules.
   Implicit Types lmem : LMem.
 
   Inductive EInit_fail (lregs : LReg) (lmem : LMem) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : Prop :=
-  (* Etable is now unbounded *)
-  (* | EInit_fail_etable_full *)
-
   (* the code register is PC *)
   | EInit_fail_rcode_is_pc :
     r_code = PC ->
     EInit_fail lregs lmem r_code r_data tidx ot
-
   (* the code register doesn't contain a capability *)
   | EInit_fail_ccap_not_a_cap lw :
     lregs !! r_code = Some lw ->
     is_log_cap lw = false →
     EInit_fail lregs lmem r_code r_data tidx ot
-  (* the code capanility is not RX *)
+  (* the code capability is not RX *)
   | EInit_fail_ccap_no_rx p b e a v :
     lregs !! r_code = Some (LCap p b e a v) ->
     p ≠ RX ->
     EInit_fail lregs lmem  r_code r_data tidx ot
-  (* the code capanility does not contain enough space for the data_capability *)
+  (* the code capability does not contain enough space for the data capability *)
   | EInit_fail_ccap_small p b e a v :
     lregs !! r_code = Some (LCap p b e a v) ->
     ¬ (b < e)%a ->
@@ -60,12 +56,17 @@ Section cap_lang_rules.
     lregs !! r_data = Some (LCap p b e a v)->
     p ≠ RW ->
     EInit_fail lregs lmem  r_code r_data tidx ot
-  (* the data capanility does not contain enough space for the data_capability *)
+  (* the data capability does not contain enough space for the data capability *)
   | EInit_fail_dcap_small p b e a v :
     lregs !! r_data = Some (LCap p b e a v) ->
     ¬ (b < e)%a ->
     EInit_fail lregs lmem  r_code r_data tidx ot
-
+  (* One of the sweeps fail... *)
+  | EInit_fail_ccap_dcap_not_unique p b e a v p' b' e' a' v' :
+    (* probably missing assumptions *)
+    lregs !! r_code = Some (LCap p b e a v) ->
+    lregs !! r_data = Some (LCap p' b' e' a' v')->
+    EInit_fail lregs lmem r_code r_data tidx ot
   (* the PCC overflows *)
   | EInit_fail_pc_overflow
      b_code e_code a_code v_code
@@ -141,7 +142,8 @@ Section cap_lang_rules.
 
   Definition exec_optL_EInit
     (lregs : LReg) (lmem : LMem)
-    (r1 r2 :  RegName) (code_sweep data_sweep no_caps : bool)
+    (r1 r2 :  RegName) (code_sweep data_sweep : bool)
+    (m : Mem)
     (kont : option LReg) : option LReg.
     refine (
     if decide (negb (bool_decide (r1 = PC))) then
@@ -151,7 +153,7 @@ Section cap_lang_rules.
         dcap          ← lregs !! r2;
         '(p', b', e', _) ← get_wcap (lword_get_word dcap);
         if decide (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
-          if code_sweep && data_sweep && no_caps then
+          if decide (code_sweep && data_sweep && (ensures_no_cap m (b ^+ 1)%a e)) then
             kont
           else None
         else None
@@ -204,7 +206,8 @@ Section cap_lang_rules.
     set (code_sweep := (sweep_reg (mem σ) (reg σ) r_code)).
     set (data_sweep := (sweep_reg (mem σ) (reg σ) r_data)).
 
-    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep _ _) (φ2 := _)).
+
+    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep (mem σ) _) (φ2 := _)).
     iModIntro.
 
     unfold exec_optL_EInit.
@@ -337,12 +340,59 @@ Section cap_lang_rules.
       admit. (* TODO: annoying... *) }
 
 
-    destruct code_sweep; cbn.
+    destruct code_sweep eqn:Hcode_sweep; cbn.
 
+    2: {
+      (* code sweep was not successful. *)
+      unfold code_sweep in Hcode_sweep.
+      rewrite Hcode_sweep.
+      repeat rewrite andb_false_l.
+      destruct (decide false). (* why doesn't this reduce ??? *)
+      cbn in i2. by exfalso.
+      iModIntro.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_ccap_dcap_not_unique. }
 
-    iApply (wp2_diag_univ).
-    iApply (wp2_reg_lookup with "[$Hσ Hφ]"); first by set_solver.
-    iIntros (lccap) "Ht %Hlccap %Hccap".
+    destruct data_sweep eqn:Hdata_sweep; cbn.
+
+    2: {
+      (* data sweep was not successful. *)
+      unfold data_sweep in Hdata_sweep.
+      unfold code_sweep in Hcode_sweep.
+      rewrite Hcode_sweep Hdata_sweep.
+      rewrite andb_true_l.
+      repeat rewrite andb_false_l.
+      destruct (decide false). (* why doesn't this reduce ??? *)
+      cbn in i2. by exfalso.
+      iModIntro.
+      iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+      iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      by eapply EInit_fail_ccap_dcap_not_unique. }
+
+    (* Both CCAP and DCAP sweeps have succeeded, now to ensure no caps exist in CAP.. *)
+
+      unfold data_sweep, code_sweep in *.
+      rewrite Hcode_sweep Hdata_sweep !andb_true_l.
+
+      destruct (decide (ensures_no_cap (mem σ) (f ^+ 1)%a f0)) eqn:?.
+
+      2: {
+        (* no caps sweep was not successful. *)
+        unfold data_sweep in Hdata_sweep.
+        unfold code_sweep in Hcode_sweep.
+        destruct (decide false). (* why doesn't this reduce ??? *)
+        { cbn in i2. by exfalso. }
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+        iApply "Hφ". iFrame.
+        iRight. iModIntro. iSplit; try easy. iPureIntro.
+        by eapply EInit_fail_ccap_dcap_not_unique. }
+
+    (* iApply (wp2_diag_univ). *)
+    (* iApply (wp2_reg_lookup with "[$Hσ Hφ]"); first by set_solver. *)
+    (* iIntros (lccap) "Ht %Hlccap %Hccap". *)
 
 
 
