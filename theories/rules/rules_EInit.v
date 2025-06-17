@@ -139,8 +139,15 @@ Section cap_lang_rules.
     -> readAllowed p = true
     -> (finz.seq_between b e) ## reserved_addresses.
 
-  (*     lmem = lmem' → *)
-  (*     (* ... *) *)
+  Definition exec_optL_EInit
+    (lregs : LReg) (lmem : LMem)
+    (r1 r2 :  RegName)
+    (k : option LReg) : option LReg :=
+    if decide (negb (bool_decide (r1 = PC))) then
+      ccap          ← lregs !! r1;
+      '(p, b, e, _) ← lword_get_cap ccap;
+      k
+    else None.
 
   Lemma wp_einit E pc_p pc_b pc_e pc_a pc_v lw lregs lmem tidx r_code r_data :
     decodeInstrWL lw = EInit r_code r_data →
@@ -172,45 +179,32 @@ Section cap_lang_rules.
     }}}.
   Proof.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HrcodeAllowEInit HrdataAllowEInit φ) "(>Hregs & >Hmem & HECv) Hφ".
-    apply isCorrectLPC_isCorrectPC_iff in Hvpc; cbn in Hvpc.
-    iApply wp_lift_atomic_head_step_no_fork; auto.
-    iIntros (σ1 ns l1 l2 nt) "Hσ1 /=". destruct σ1; simpl.
-    iDestruct "Hσ1" as (lr lm vmap tbl_cur tbl_prev tbl_all)
-                         "(Hr & Hm
-                          & -> & Htbl_cur & Htbl_prev & Htbl_all
-                          & HEC
-                          & %Hdom_tbl1 & %Hdom_tbl2 & %Hdom_tbl3 & %Hdom_tbl4
-                          & %HLinv)"
-    ; cbn in *.
-
-    iDestruct (gen_heap_valid_inclSepM with "Hr Hregs") as %Hregs.
-    (* have Hregs_pc := lookup_weaken _ _ _ _ HPC Hregs. *)
-    (* specialize (indom_lregs_incl _ _ _ Dregs Hregs) as Hri. unfold regs_of in Hri. *)
-    (* odestruct (Hri rs) as [lsrcv [Hlsrc' Hlsrc] ]; first by set_solver+. *)
-
-    (* Derive necessary memory *)
-    iDestruct (gen_heap_valid_inclSepM with "Hm Hmem") as %Hmem.
-    (* iDestruct (gen_mem_valid_inSepM lmem lm with "Hm Hmem") as %Hma; eauto. *)
-
+    (*  extract the pc  *)
+    rewrite (big_sepM_delete _ lmem). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
+    (* iApply wp_lift_atomic_head_step_no_fork; auto. *)
+    iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ]").
     iModIntro.
-    iSplitR. by iPureIntro; apply normal_always_head_reducible.
-    iIntros (e2 σ2 efs Hstep).
-    apply prim_step_exec_inv in Hstep as (-> & -> & (c & -> & Hstep)).
-    iNext; iIntros "_".
-    iSplitR; auto. eapply step_exec_inv in Hstep; eauto.
-    2: rewrite -/((lword_get_word (LCap pc_p pc_b pc_e pc_a pc_v)))
-    ; eapply state_corresponds_reg_get_word ; eauto.
-    (* 2: eapply state_corresponds_mem_correct_PC ; eauto; cbn ; eauto. *)
-    cbn in Hstep; simplify_eq.
+
+    iIntros (σ) "(Hσ & Hregs & Hpc_a)".
     iModIntro.
-    iSplitR "Hφ HECv". (* not yet sure what is needed *)
-    iExists lr, lm, vmap.
-    iExists etable, tbl_prev, (etable ∪ tbl_prev).
-    iFrame; auto.
+    iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) _".
+    iCombine "Hpc_a Hmem" as "Hmem".
+    rewrite -(big_sepM_delete (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y) _ _ _ Hmem_pc).
+
+    set (code_sweep := (sweep_reg (mem σ) (reg σ) r_code)).
+    set (data_sweep := (sweep_reg (mem σ) (reg σ) r_data)).
+
+    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data _) (φ2 := _)).
+    iModIntro.
+
+    unfold exec_opt.
+
+    (* split on whether code cap register is PC... *)
+    destruct (decide (negb (bool_decide (r_code = PC)))).
+    2: { (* case where they are equal: crash the machine *)
 
 
-    all: admit.
-   (* Qed. *)
+
   Admitted.
 
 End cap_lang_rules.

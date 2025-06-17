@@ -445,7 +445,7 @@ Section opsem.
     : Decision (contains_cap mem b e).
   Proof. apply map_Forall_dec. intros a w. destruct w; case_decide; solve_decision. Defined.
 
-  Definition no_cap (mem : Mem) (b: Addr) (e : Addr) : bool :=
+  Definition ensures_no_cap (mem : Mem) (b: Addr) (e : Addr) : bool :=
     bool_decide (not (contains_cap mem b e)).
 
   Definition retrieve_eid (i : TIndex) (tb : ETable) : option EIdentity :=
@@ -653,7 +653,7 @@ Section opsem.
     Some (hash_concat (hash b) hash_instr).
 
   (* cannot stand the nested indentation *)
-  Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60).
+  Notation "'when' A 'then' B" := (if decide A then B else None) (at level 60, only parsing).
   Notation "a |>> f" := (f a) (at level 10, only parsing, left associativity).
 
   Definition exec_opt (i: instr) (φ: ExecConf): option Conf :=
@@ -848,10 +848,10 @@ Section opsem.
     (* MEMORY SWEEP *)
     when ( (sweep_reg (mem φ) (reg φ) r1) && (* sweep the machine excluding the data cap at register r1 *)
            (sweep_reg (mem φ) (reg φ) r2) && (* sweep the machine excluding the code cap in register r2 *)
-           (no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
+           (ensures_no_cap (mem φ) (b^+1)%a e) ) then (* ccap does not contain capabilities except dcap at addr b *)
 
     (* ALLOCATION OF THE ENCLAVE'S SEALS *)
-    (* IIUC: the EC register acts as a bump allocator for enclave otypes *)
+    (* the EC register acts as a bump allocator for enclave otypes *)
     (* therefore, to generate the seals for the enclave, it is sufficient to use the value of the EC register
        and (by convention) assume 2 * EC is seal and 2 * EC + 1 is unseal. *)
     let ec : nat := enumcur φ in
@@ -869,9 +869,9 @@ Section opsem.
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data section *)
        |>> update_mem b dcap      (* store dcap at base address of enclave's code section *)
        |>> update_etable fresh_tid eid (* create a new index in the ETable *)
-       |>> update_enumcur ((enumcur φ)+1)  (* EC := EC + 1 *)
+       |>> update_enumcur ((enumcur φ)+1)  (* increment EC := EC + 1 *)
        |>> update_reg r1 (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
-       |>> update_reg r2 (WInt 0) (* Erase the dcap from its register *)
+       |>> update_reg r2 (WInt 0) (* Erase the supplied dcap from r2 *)
        |>> updatePC
 
     (* enclave deinitialization *)
@@ -907,6 +907,7 @@ Section opsem.
       (* cf. Sail: https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/sail/sail-cheri-riscv/src/cheri_insts.sail#L2414-L2428
        *)
   end.
+  Print exec_opt.
 
   Definition exec (i : instr) (φ : ExecConf) : Conf :=
     match exec_opt i φ with
