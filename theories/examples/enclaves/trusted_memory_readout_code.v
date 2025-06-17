@@ -362,9 +362,14 @@ Section trusted_memory_readout_example.
      calls sensor_read with a callback. When the callback is invoked, the client
      enclave performs its computation and then returns to its caller.
 
-     Expect: - PC := (RX, client, client_end, client_use) - r_t0 return pointer
-     Returns: - r_t0 return pointer - r_t1 sensor addr (mmio_a) - r_t2 return
-     value (= 42) Clobbers: r_t3, r_t4 *)
+     Expect:
+     - PC := (RX, client, client_end, client_use)
+     - r_t0 return pointer
+     Returns:
+     - r_t0 return pointer
+     - r_t1 sensor addr (mmio_a)
+     - r_t2 return value (= 42)
+     Clobbers: r_t3, r_t4 *)
   Definition client_instrs_use (begin use : Z) : list instr :=
     [ Mov r_t1 PC;                    (* r_t1 = (RX, client, client_end, client_use) *)
 
@@ -493,6 +498,91 @@ Section trusted_memory_readout_example.
       (λ w, False%I)
       sealed_client.
 
+  (* ---------------------------------- *)
+  (* ----- TRUSTED COMPUTE *MAIN* ----- *)
+  (* ---------------------------------- *)
+
+  Definition trusted_memory_readout_main_code_init0 (main callback data : Z) : list LWord :=
+    (* main: *)
+    encodeInstrsLW [
+        Mov r_t1 PC;      (* rt1 := (RWX, main, main_end, main) *)
+
+        (* Create callback sentry *)
+        Lea r_t1 (callback - main)%Z;       (* rt1 := (RWX, main, main_end, callback) *)
+        Restrict r_t1 (encodePerm E);       (* rt1 := (E, main, main_end, callback) *)
+
+        (* Jump to adversary *)
+        Jmp r_t0
+      ].
+
+  (* Expect:
+     - PC := (RX, main, main_end, callback)
+     - r_t0 client_use_sensor entry point Sealed σ__c+1 (E, client, client_end, client_use_sensor)
+     - r_t1 client public signing key:    (U, σ__c+1, σ__c+2, σ__c+1) *)
+
+  Definition trusted_memory_readout_main_code_callback0
+    (callback fails : Z)
+    (assert_lt_offset : Z)
+    : list LWord :=
+      (* callback: *)
+      encodeInstrsLW [
+        (* until the assert, r5 contains the capability that bails out if something is wrong *)
+        Mov r_t5 PC ;                 (* r_t5 :=  (RX, main, main_end, callback) *)
+        Lea r_t5 (fails-callback)%Z;  (* r_t5 :=  (RX, main, main_end, fails) *)
+
+        (* sanity check: r_t0 contains a sealed capability *)
+        GetOType r_t2 r_t0;
+        Sub r_t3 r_t2 (-1)%Z;
+        Mov r_t4 PC ;
+        Lea r_t4 4 ;
+        Jnz r_t4 r_t3;
+        Jmp r_t5;
+
+        (*  attestation *)
+        EStoreId r_t3 r_t2; (* r_t2 still contains the otype *)
+        (* check otype(w_res) against identity of the enclave *)
+        Sub r_t3 r_t3 hash_client;
+        Jnz r_t5 r_t3;
+
+        (* Unseal the capability to the client enclave's use entry point *)
+        UnSeal r_t1 r_t1 r_t0;
+        (* Setup callback and jump to client enclave *)
+        Mov r_t0 PC;
+        Lea r_t0 3;                     (* r_t0 = use callback *)
+        Jmp r_t1;
+
+        (* Callback after client enclave. Assert r_t2 is 42. *)
+        Mov r_t1 r_t5;
+        Mov r_t4 r_t2;
+        Mov r_t5 42%Z;
+        Lea r_t1 1;
+        Load r_t1 r_t1
+      ]
+      ++ assert_reg_instrs assert_lt_offset r_t1
+      ++ encodeInstrsLW [Mov r_t0 0 ; Mov r_t3 0 ; Halt]
+      ++ (* fails: *) encodeInstrsLW [Fail].
+
+  Definition trusted_memory_readout_main_init_len : Z :=
+    Eval cbv in (length (trusted_memory_readout_main_code_init0 0%Z 0%Z 0%Z)).
+
+  Definition trusted_memory_readout_main_callback_len : Z :=
+    Eval cbv in (length (trusted_memory_readout_main_code_callback0 0%Z 0%Z 0%Z)).
+
+  Definition trusted_memory_readout_main_code (assert_lt_offset : Z) : list LWord :=
+    let init     := 0%Z in
+    let callback := trusted_memory_readout_main_init_len in
+    let data     := (trusted_memory_readout_main_init_len + trusted_memory_readout_main_callback_len)%Z in
+    let fails    := (data - 1)%Z in
+    (trusted_memory_readout_main_code_init0 init callback data) ++
+    (trusted_memory_readout_main_code_callback0 callback fails assert_lt_offset).
+
+  Definition trusted_memory_readout_main_code_len : Z :=
+    Eval cbv in trusted_memory_readout_main_init_len + trusted_memory_readout_main_callback_len.
+
+  Definition trusted_memory_readout_main_data_len : Z := 2.
+  Definition trusted_memory_readout_main_len :=
+    Eval cbv in (trusted_memory_readout_main_code_len + trusted_memory_readout_main_data_len)%Z.
+
   (* ------------------------ *)
   (* ---   ENCLAVES MAP   --- *)
   (* ------------------------ *)
@@ -538,7 +628,7 @@ Section trusted_memory_readout_example.
         by rewrite elem_of_nil in Hw.
   Qed.
 
-  #[export] Instance contract_tsenclaves_map : CustomEnclavesMap :=
+  #[export] Instance contract_ts_enclaves_map : CustomEnclavesMap :=
     MkCustomEnclavesMap ts_enclaves_map wf_ts_enclaves_map.
 
 End trusted_memory_readout_example.
