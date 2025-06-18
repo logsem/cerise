@@ -140,21 +140,38 @@ Section cap_lang_rules.
     -> readAllowed p = true
     -> (finz.seq_between b e) ## reserved_addresses.
 
-  Definition exec_optL_EInit
+  Definition lmeasure (m : LMem) (b e: Addr) v : option Z :=
+    hash_instr ← hash_lmemory_range m (b^+1)%a e v;
+    Some (hash_concat (hash b) hash_instr).
+
+  Definition exec_optL_EInit {A}
     (lregs : LReg) (lmem : LMem)
     (r1 r2 :  RegName) (code_sweep data_sweep : bool)
-    (m : Mem)
-    (kont : option LReg) : option LReg.
+    (m : Mem) (ec : ENum) {zB : Z}
+    (kont : LReg → option A) : option A.
     refine (
     if decide (negb (bool_decide (r1 = PC))) then
       ccap          ← lregs !! r1;
-      '(p, b, e, _, _) ← lword_get_cap ccap;
+      '(p, b, e, _, v) ← lword_get_cap ccap;
       if decide (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
         dcap          ← lregs !! r2;
         '(p', b', e', _) ← get_wcap (lword_get_word dcap);
         if decide (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
           if decide (code_sweep && data_sweep && (ensures_no_cap m (b ^+ 1)%a e)) then
-            kont
+            s_b ← @finz.of_z zB (2 * Z.of_nat ec)%Z ;
+            s_e ← @finz.of_z zB (2 * Z.of_nat ec + 2)%Z ;
+            eid ← lmeasure lmem b e v;
+            newPC ← incrementLPC (<[r2 := LInt 0]> (<[r1 := (LCap machine_base.E b e (b ^+ 1)%a v)]> lregs));
+            kont newPC (* missing stuff from below.. *)
+              (* (update_reg *)
+              (*    (update_reg *)
+              (*       (update_enumcur *)
+              (*          (update_etable *)
+              (*             (update_mem (update_mem σ f2 (WSealRange (true, true) s_b s_e s_b)) f (WCap p0 f2 f3 f4)) *)
+              (*             (enumcur σ) eid) (enumcur σ + 1)) r_code (WCap machine_base.E f f0 (f ^+ 1)%a)) r_data *)
+              (*    (WInt 0)) *)
+
+
           else None
         else None
       else None
@@ -207,7 +224,7 @@ Section cap_lang_rules.
     set (data_sweep := (sweep_reg (mem σ) (reg σ) r_data)).
 
 
-    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep (mem σ) _) (φ2 := _)).
+    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep (mem σ) (enumcur σ) _) (φ2 := _)).
     iModIntro.
 
     unfold exec_optL_EInit.
@@ -282,6 +299,7 @@ Section cap_lang_rules.
       apply Hlccap.
 
       (* TODO: annoying.. *)
+      clear -n.
       admit. }
 
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
@@ -337,6 +355,7 @@ Section cap_lang_rules.
       eapply EInit_fail_dcap_no_rw.
       apply Hldcap.
 
+      clear -n.
       admit. (* TODO: annoying... *) }
 
 
@@ -347,8 +366,7 @@ Section cap_lang_rules.
       unfold code_sweep in Hcode_sweep.
       rewrite Hcode_sweep.
       repeat rewrite andb_false_l.
-      destruct (decide false). (* why doesn't this reduce ??? *)
-      cbn in i2. by exfalso.
+      erewrite !(decide_False (H := Is_true_dec false)); eauto.
       iModIntro.
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
       iApply "Hφ". iFrame.
@@ -364,12 +382,10 @@ Section cap_lang_rules.
       rewrite Hcode_sweep Hdata_sweep.
       rewrite andb_true_l.
       repeat rewrite andb_false_l.
-      destruct (decide false). (* why doesn't this reduce ??? *)
-      cbn in i2. by exfalso.
-      iModIntro.
+      erewrite !(decide_False (H := Is_true_dec false)); eauto.
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
       iApply "Hφ". iFrame.
-      iRight. iSplit; try easy. iPureIntro.
+      iRight. iModIntro. iSplit; try easy. iPureIntro.
       by eapply EInit_fail_ccap_dcap_not_unique. }
 
     (* Both CCAP and DCAP sweeps have succeeded, now to ensure no caps exist in CAP.. *)
@@ -377,7 +393,7 @@ Section cap_lang_rules.
       unfold data_sweep, code_sweep in *.
       rewrite Hcode_sweep Hdata_sweep !andb_true_l.
 
-      destruct (decide (ensures_no_cap (mem σ) (f ^+ 1)%a f0)) eqn:?.
+      destruct (decide (ensures_no_cap (mem σ) (f ^+ 1)%a f0)).
 
       2: {
         (* no caps sweep was not successful. *)
@@ -390,11 +406,48 @@ Section cap_lang_rules.
         iRight. iModIntro. iSplit; try easy. iPureIntro.
         by eapply EInit_fail_ccap_dcap_not_unique. }
 
-    (* iApply (wp2_diag_univ). *)
-    (* iApply (wp2_reg_lookup with "[$Hσ Hφ]"); first by set_solver. *)
-    (* iIntros (lccap) "Ht %Hlccap %Hccap". *)
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      iApply wp2_diag_univ.
+      iSplit.
+      1: admit. (* coercing Z to finZ of enum bound can fail? *)
+      iIntros (s_b) "%Hs_b _".
 
+      iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
+      iApply wp2_diag_univ.
+      iSplit.
+      1: admit.
+      iIntros (s_e) "%Hs_e _".
 
+      subst.
+
+      (* measure the enclave footprint *)
+
+      iApply wp_opt2_bind.
+      unfold measure, lmeasure.
+      erewrite (lmeasure_measure _ (mem σ)).
+      iApply wp_opt2_bind.
+      iApply wp_opt2_eqn_both.
+      iApply wp2_diag_univ.
+      iSplit.
+
+      1: {
+        iIntros "%Hhash _".
+        iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
+        iApply "Hφ". iFrame.
+      iRight. iSplit; try easy. iPureIntro.
+      eapply EInit_fail_hash_fail.
+      - apply Hlccap.
+      - admit. (* TODO: need to update opsem to check b < e! (also for data cap) *)
+      - admit. (* need to revert to lmeasure here, or find a way to delay applying the lemma until after *)
+      }
+
+      iIntros (eid) "%Hhash _ ".
+      iApply wp_opt2_eqn_both.
+      iApply wp2_diag_univ.
+      iSplit.
+      1: by iIntros.
+
+      iIntros (eid2) "%Hhashconcat _".
 
   Admitted.
 

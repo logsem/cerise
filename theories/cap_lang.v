@@ -863,12 +863,10 @@ Section opsem.
     (* MEASURE THE CODE FOOTPRINT OF THE ENCLAVE *)
     eid ← measure (mem φ) b e;
 
-    fresh_tid ← gen_fresh_tid φ; (* generate a fresh index in the ETable *)
-
     (* UPDATE THE MACHINE STATE *)
     φ  |>> update_mem b' seals    (* store seals at base address of enclave's data section *)
        |>> update_mem b dcap      (* store dcap at base address of enclave's code section *)
-       |>> update_etable fresh_tid eid (* create a new index in the ETable *)
+       |>> update_etable (enumcur φ) eid (* create a new index in the ETable *)
        |>> update_enumcur ((enumcur φ)+1)  (* increment EC := EC + 1 *)
        |>> update_reg r1 (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *)
        |>> update_reg r2 (WInt 0) (* Erase the supplied dcap from r2 *)
