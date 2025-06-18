@@ -372,7 +372,7 @@ Section cap_lang_rules.
       by eapply EInit_fail_dcap_no_rw. }
 
     destruct (decide (f2 < f3)%a).
-    2: { (* dcap is too small to store dcap at address b *)
+    2: { (* dcap is too small to store seals at address b' *)
       iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
       iApply "Hφ". iFrame.
       iRight. iModIntro. iSplit; try easy. iPureIntro.
