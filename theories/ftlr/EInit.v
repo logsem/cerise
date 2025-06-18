@@ -804,6 +804,7 @@ Section fundamental.
            | p b e a v Hrdata Hrx
            | p b e a v Hrdata Hbe
            |
+           |
            | code_b code_e code_a code_v data_b data_e data_a data_v Hrcode Hrdata Hincr
            | Htidx Htidx_even Hot
         ].
@@ -817,6 +818,7 @@ Section fundamental.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
       - admit. (* added new constructor for sweep failure *)
+      - admit. (* added new constructor for out of bounds casts *)
       - incrementLPC_inv; simplify_map_eq; eauto.
         rewrite Hincr /is_Some in Hpca_next; naive_solver.
       - simplify_eq.

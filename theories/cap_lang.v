@@ -837,13 +837,15 @@ Section opsem.
     (* obtain RX permissions for code section *)
     ccap          ← (reg φ) !! r1; (* get code capability *)
     '(p, b, e, a) ← get_wcap ccap;
-    when (readAllowed p && executeAllowed p && negb (writeAllowed p)) then
+    when p = RX then
+    when (b < e)%a then
 
     (* obtain RW permissions for data section *)
     (* NOTE dcap is required to be RW, so r2 cannot be PC *)
     dcap              ← (reg φ) !! r2;
     '(p', b', e', a') ← get_wcap dcap;
-    when (readAllowed p' && writeAllowed p' && negb (executeAllowed p')) then
+    when p' = RW then
+    when (b' < e')%a then
 
     (* MEMORY SWEEP *)
     when ( (sweep_reg (mem φ) (reg φ) r1) && (* sweep the machine excluding the data cap at register r1 *)
