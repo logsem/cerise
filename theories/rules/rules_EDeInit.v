@@ -27,25 +27,47 @@ Section cap_lang_rules.
   Qed.
 
 
-  Inductive EDeInit_fail lregs : Prop :=
+  Inductive EDeInit_fail lregs r : Prop :=
   | EDeInit_fail_no_valid_PC :
     incrementLPC lregs = None →
-    EDeInit_fail lregs
+    EDeInit_fail lregs r
   | EDeInit_fail_no_seal_unseal_pair :
-    (*... → *)
-    EDeInit_fail lregs.
+    forall lwr,
+      lregs !! r = Some lwr ->
+      get_sealing_cap (lword_get_word lwr) = None ->
+      EDeInit_fail lregs r
+  | EDeInit_fail_seal_unseal_pair_overflow :
+    forall lwr sealPerms σb σe σa,
+      lregs !! r = Some lwr ->
+      get_sealing_cap (lword_get_word lwr) = Some (sealPerms , σb , σe , σa) ->
+      (σb + 2)%f = None ->
+      EDeInit_fail lregs r
+  | EDeInit_fail_seal_unseal_pair_missing_perms :
+    forall lwr sealPerms σb σb2 σe σa,
+      lregs !! r = Some lwr ->
+      get_sealing_cap (lword_get_word lwr) = Some (sealPerms , σb , σe , σa) ->
+      (σb + 2)%f = Some σb2 ->
+      sealPerms ≠ (true, true) ->
+       EDeInit_fail lregs r
+  | EDeInit_fail_seal_unseal_pair_wrong_bounds :
+    forall lwr sealPerms σb σb2 σe σa,
+      lregs !! r = Some lwr ->
+      get_sealing_cap (lword_get_word lwr) = Some (sealPerms , σb , σe , σa) ->
+      (σb + 2)%f = Some σb2 ->
+      (finz.to_z σe ≠ σb2)%ot ->
+      EDeInit_fail lregs r.
 
-  Inductive EDeInit_spec (lregs lregs' : LReg) r (tidx : TIndex) (eid : EIdentity) is_cur : cap_lang.val → Prop :=
+  Inductive EDeInit_spec (lregs lregs' : LReg) r (otidx : option TIndex) (eid : EIdentity) : cap_lang.val → Prop :=
   | EDeInit_success b e a:
     (b+2)%ot = Some e →
     lregs !! r = Some (LSealRange (true,true) b e a) →
     incrementLPC lregs = Some lregs' →
-    is_cur = true →
-    EDeInit_spec lregs lregs' r tidx eid is_cur NextIV
+    otidx = Some (tid_of_otype b) ->
+    EDeInit_spec lregs lregs' r otidx eid NextIV
   | EDeInit_failure :
-    EDeInit_fail lregs →
+    EDeInit_fail lregs r →
     lregs = lregs' →
-    EDeInit_spec lregs lregs' r tidx eid is_cur FailedV.
+    EDeInit_spec lregs lregs' r otidx eid FailedV.
 
   (* SealRange <-> Word *)
   Definition is_seal_range (w : option LWord) : bool :=
@@ -60,19 +82,17 @@ Section cap_lang_rules.
   Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
 
   Definition word_allows_deinit_or_true (lw : LWord) tidx :=
-    forall permitSeal permitUnseal σb σb2 σe σa,
-      lw = LWSealable (LSSealRange (permitSeal, permitUnseal) σb σe σa) ->
+    forall {σb σb2 σa},
       (σb + 2)%f = Some σb2 ->
-      (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? σb2%f)%Z) ->
-      tidx = tid_of_otype σb.
+      lw = LWSealable (LSSealRange (true, true) σb σb2 σa) ->
+      tidx = Some (tid_of_otype σb).
 
-  (* TODO @Denis *)
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw lwσ r lregs tidx eid (is_cur : bool) :
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw lwσ r lregs otidx eid :
     decodeInstrWL lw = EDeInit r →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! r = Some lwσ ->
-    word_allows_deinit_or_true lwσ tidx ->
+    word_allows_deinit_or_true lwσ otidx ->
       (* EC register does not decrement (i.e. it acts as a bump allocator) *)
 
       {{{ (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
@@ -81,14 +101,23 @@ Section cap_lang_rules.
             (* if is_cur *)
             (* then enclave_cur tidx eid *)
             (* else enclave_prev tidx *)
-          enclave_cur tidx eid
+            match otidx with
+            | Some tidx => enclave_cur tidx eid
+            | None => True
+            end
     }}}
       Instr Executable @ E
     {{{ lregs' retv, RET retv;
-        ⌜ EDeInit_spec lregs lregs' r tidx eid is_cur retv⌝ ∗
+        ⌜ EDeInit_spec lregs lregs' r otidx eid retv⌝ ∗
         match retv with
-        | NextIV => enclave_prev tidx
-        | _ => enclave_cur tidx eid
+        | NextIV => match otidx with
+                    | Some tidx => enclave_prev tidx
+                    | None => False
+                    end
+        | _ => match otidx with
+               | Some tidx => enclave_cur tidx eid
+               | None => True
+               end
         end ∗
         ([∗ map] k↦y ∈ lregs', k ↦ᵣ y) ∗
         (pc_a, pc_v) ↦ₐ lw }}}.
@@ -135,7 +164,10 @@ Section cap_lang_rules.
     {rewrite Hr in Hlwr. now inversion Hlwr.}
     clear Hr.
 
-    iDestruct (enclave_cur_compat with "Hofrag Hcur_tb") as "%Hcurtbtidx".
+    iAssert (⌜ match otidx with | Some tidx => cur_tb !! tidx = Some eid | None => True end ⌝)%I as "%Hcurtbtidx".
+    { destruct otidx; last done.
+      now iDestruct (enclave_cur_compat with "Hofrag Hcur_tb") as "%Hcurtbtidx".
+    }
 
     iCombine "Hlr Hlm Hrmap Hall_tb Hcur_tb Hprev_tb Hecauth Hofrag Hpc_a" as "Hσ".
     iDestruct (transiently_intro with "Hσ") as "Hσ".
@@ -149,7 +181,7 @@ Section cap_lang_rules.
       { iExists _, _, vmap, _, _, _ ; now iFrame. }
       iApply "Hφ"; iFrame.
       iPureIntro; constructor; last done.
-      now apply EDeInit_fail_no_seal_unseal_pair.
+      now apply EDeInit_fail_no_seal_unseal_pair with lwr.
     }
     iIntros (seal Hlwrgc _). destruct seal as ((([permitSeal permitUnseal] & σb) & σe) & σa).
     eapply get_sealing_cap_lword in Hlwrgc; subst.
@@ -163,13 +195,16 @@ Section cap_lang_rules.
       { iExists _, _, vmap, _, _, _ ; now iFrame. }
       iApply "Hφ"; iFrame.
       iPureIntro; constructor; last done.
-      now apply EDeInit_fail_no_seal_unseal_pair.
+      now apply (EDeInit_fail_seal_unseal_pair_overflow _ _ _ _ _ _ _ Hlwr eq_refl Hσb2f).
     }
     iIntros (σb2 Hσb2 _).
 
     (* annoying. *)
-    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb2)%f)%Z) eqn:Hdec.
+    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? σb2)%ot) eqn:Hdec.
     - destruct (andb_prop _ _ Hdec) as (Hseals%bool_decide_eq_true_1 & Hbounds%Z.eqb_eq%finz_to_z_eq).
+      eapply Is_true_true_2 in Hdec.
+      inversion Hseals. subst.
+      specialize (Hallow _ _ _ Hσb2 eq_refl); subst otidx.
       inversion Hseals; clear Hseals.
       rewrite (decide_True_pi (P := Is_true true) I).
       rewrite updatePC_incrementPC.
@@ -215,10 +250,6 @@ Section cap_lang_rules.
         iExists _, _, _, _, _, _; iFrame; cbn.
         cbn in *.
         iPureIntro; intuition eauto.
-        * f_equiv.
-          subst σe.
-          eapply (Hallow _ _ _ _ _ _ eq_refl Hσb2).
-          now eapply Is_true_true_2.
         * set_solver.
         * now rewrite union_delete_insert.
         * apply map_disjoint_dom_2.
@@ -228,7 +259,6 @@ Section cap_lang_rules.
         iPureIntro.
         subst.
         econstructor 1; try done.
-        admit.
     - erewrite !(decide_False (H := Is_true_dec false)); eauto.
       iModIntro.
       iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecn & Hcur & Hpc_a)".
@@ -238,7 +268,11 @@ Section cap_lang_rules.
       + iApply ("Hφ" with "[ Hcur $Hregs $Hpc_a]"); iFrame.
         iPureIntro.
         constructor 2; last done.
-        apply EDeInit_fail_no_seal_unseal_pair.
-  Admitted.
+        destruct (andb_false_elim _ _ Hdec) as [Hmissingperms | Hwrongbounds].
+        * apply bool_decide_eq_false_1 in Hmissingperms.
+          eapply EDeInit_fail_seal_unseal_pair_missing_perms; eauto.
+        * destruct (Z.eqb_spec σe σb2); try inversion Hwrongbounds.
+          eapply EDeInit_fail_seal_unseal_pair_wrong_bounds; eauto.
+  Qed.
 
 End cap_lang_rules.
