@@ -69,11 +69,10 @@ Section fundamental.
       - (* the enclave is current, i.e. not yet deinitialized (this is the interesting path) *)
 
         iDestruct "Henclave" as "(%I & Henclave)".
-        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ _ true (* is_cur = true *) with "[$Ha Henclave $Hmap]"); eauto.
+        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ (Some tidx) true (* is_cur = true *) with "[$Ha Henclave $Hmap]"); eauto.
         { by simplify_map_eq. }
-        { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-          apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
-        { rewrite Hsealrange'. iFrame. }
+        { by simplify_map_eq. }
+        { intros σb σb2 σa Hσb2 Hlsr. inversion Hlsr. now subst. }
 
         iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
         destruct HSpec as [Hincr |HFail].
@@ -95,23 +94,47 @@ Section fundamental.
         * (* failure case when enclave_cur *)
           iApply wp_pure_step_later; auto.
           iMod ("Hclstidx" with "[Henclave]").
-          { iNext. by iRight. }
+          { iNext. iLeft. by iExists _. }
           iModIntro.
           iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro].
           iNext. iIntros "_".
           iApply wp_value. iIntros. discriminate.
 
       - (* enclave_prev holds, i.e. the enclave was already deinit'ed *)
-        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ _ false (* is_cur = false *) with "[$Ha Henclave $Hmap]"); eauto.
+        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ (Some tidx) false (* is_cur = false *) 0 with "[$Ha Henclave $Hmap]"); eauto.
         { by simplify_map_eq. }
-        { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-          apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
-        { rewrite Hsealrange'. iFrame. }
+        { by simplify_map_eq. }
+        { intros σb σb2 σa Hσb2 Heq. inversion Heq. now subst.  }
 
         (* now to use IH *)
         iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
         destruct HSpec as [Hincr |HFail].
-        * congruence.
+        * iApply wp_pure_step_later; auto.
+          iMod ("Hclstidx" with "[Henclave]").
+          { iNext. by iRight. }
+          iModIntro.
+          iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro].
+          iNext. iIntros "_".
+          unfold incrementLPC in H1. rewrite lookup_insert in H1. destruct (a + 1)%a; inversion H1.
+          rewrite insert_insert in H4.
+          iApply ("IH" $! lregs' p b e f2 v with "[%] [] [Hrmap] [$Hown]"); eauto.
+          { intros. subst lregs'.
+            eapply lookup_insert_is_Some.
+            now destruct (decide (PC = x)); [left|right].
+          }
+          { iIntros (r1 lv Hr1pc Hr1).
+            iApply ("Hreg" $! _ _ Hr1pc with "[%]").
+            subst lregs'.
+            now rewrite lookup_insert_ne in Hr1.
+          }
+          { subst lregs'.
+            now rewrite !insert_insert.
+          }
+          { iModIntro.
+            iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
+            { destruct Hp as [HRX | HRW]; by subst p. }
+            { by rewrite PermFlowsToReflexive. }
+          }
         * iApply wp_pure_step_later; auto.
           iMod ("Hclstidx" with "[Henclave]").
           { iNext. by iRight. }
@@ -121,26 +144,46 @@ Section fundamental.
           iApply wp_value. iIntros. discriminate.
 
     + (* no seal range... *)
-      iApply (wp_edeinit with "[$Ha $Hmap]"); eauto.
-      { by simplify_map_eq. }
-      { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-        apply elem_of_dom. apply lookup_insert_is_Some'; eauto. }
-      rewrite Hsealrange. done.
+      destruct (decide (r = PC)).
+      * subst r.
+        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ None false (* is_cur = false *) 0 with "[$Ha $Hmap]"); eauto.
+        { by simplify_map_eq. }
+        { eapply lookup_insert. }
+        { intros σb σb2 σe Hσb2 Heq. discriminate. }
 
-      iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
-      destruct HSpec as [Hincr |HFail].
-      -  (* Success cannot be true! *)
-        exfalso. rewrite H0 in Hsealrange.
-        simplify_map_eq. solve_addr.
-      - (* Fail case *)
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
-        iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-        Unshelve. all: eauto.
-        exact 0.
-        exact 0.
-        exact true.
+        iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
+        destruct HSpec as [Hincr |HFail].
+        --  (* Success cannot be true! *)
+           discriminate.
+        -- (* Fail case *)
+          iApply wp_pure_step_later; auto.
+          iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
+          iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate.
+      * specialize (Hsome r).
+        destruct (lregs !! r) eqn:Hlregsr; last by inversion Hsome.
+        iApply (wp_edeinit _ _ _ _ _ _ _ _ _ _ None false (* is_cur = false *) 0 with "[$Ha $Hmap]"); eauto.
+        { by simplify_map_eq. }
+        { by simplify_map_eq. }
+        { intros σb σb2 σe Hσb2 Heq.
+          rewrite lookup_insert_ne in Hsealrange; last eauto.
+          rewrite Hlregsr in Hsealrange.
+          rewrite Heq in Hsealrange.
+          cbn in Hsealrange.
+          rewrite Hσb2 in Hsealrange.
+          rewrite Z.eqb_refl in Hsealrange.
+          discriminate.
+        }
+
+        iNext. iIntros (lregs' retv) "(%HSpec & Henclave & Hrmap & Hpca)".
+        destruct HSpec as [Hincr |HFail].
+        --  (* Success cannot be true! *)
+           discriminate.
+        -- (* Fail case *)
+          iApply wp_pure_step_later; auto.
+          iMod ("Hcls" with "[Hpca HP]");[iExists lw;iFrame|iModIntro]. iNext.
+          iIntros "_".
+          iApply wp_value; auto. iIntros; discriminate.
   Qed.
 
 End fundamental.

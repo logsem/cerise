@@ -87,7 +87,7 @@ Section cap_lang_rules.
       lw = LWSealable (LSSealRange (true, true) σb σb2 σa) ->
       tidx = Some (tid_of_otype σb).
 
-  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw lwσ r lregs otidx eid :
+  Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw lwσ r lregs otidx (is_cur : bool) eid :
     decodeInstrWL lw = EDeInit r →
     isCorrectLPC (LCap pc_p pc_b pc_e pc_a pc_v) →
     lregs !! PC = Some (LCap pc_p pc_b pc_e pc_a pc_v) →
@@ -102,7 +102,7 @@ Section cap_lang_rules.
             (* then enclave_cur tidx eid *)
             (* else enclave_prev tidx *)
             match otidx with
-            | Some tidx => enclave_cur tidx eid
+            | Some tidx => if is_cur then enclave_cur tidx eid else enclave_prev tidx
             | None => True
             end
     }}}
@@ -115,7 +115,7 @@ Section cap_lang_rules.
                     | None => False
                     end
         | _ => match otidx with
-               | Some tidx => enclave_cur tidx eid
+               | Some tidx => if is_cur then enclave_cur tidx eid else enclave_prev tidx
                | None => True
                end
         end ∗
@@ -158,16 +158,11 @@ Section cap_lang_rules.
     iSplitR "".
     2: iApply (wp2_reg_lookup5 Dregsr Hlrsub Hcorr0).
     iSplit.
-    { now iIntros (f).}
+    { now iIntros (f). }
     iIntros (lwr wr -> Hlwr Hwr).
     assert (lwσ = lwr) as ->.
-    {rewrite Hr in Hlwr. now inversion Hlwr.}
+    {rewrite Hr in Hlwr. now inversion Hlwr. }
     clear Hr.
-
-    iAssert (⌜ match otidx with | Some tidx => cur_tb !! tidx = Some eid | None => True end ⌝)%I as "%Hcurtbtidx".
-    { destruct otidx; last done.
-      now iDestruct (enclave_cur_compat with "Hofrag Hcur_tb") as "%Hcurtbtidx".
-    }
 
     iCombine "Hlr Hlm Hrmap Hall_tb Hcur_tb Hprev_tb Hecauth Hofrag Hpc_a" as "Hσ".
     iDestruct (transiently_intro with "Hσ") as "Hσ".
@@ -205,60 +200,116 @@ Section cap_lang_rules.
       eapply Is_true_true_2 in Hdec.
       inversion Hseals. subst.
       specialize (Hallow _ _ _ Hσb2 eq_refl); subst otidx.
-      inversion Hseals; clear Hseals.
       rewrite (decide_True_pi (P := Is_true true) I).
       rewrite updatePC_incrementPC.
       destruct σ1; cbn.
-      wp2_remember.
-      iApply wp_opt2_mono2.
-      iSplitL "Hφ".
-      2: {
-        iApply transiently_wp_opt2.
-        iMod "Hσ" as "(Hσr & Hσm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
-        iMod (enclave_update_deinit Htbdisj with "Hcur_tb Hprev_tb Hofrag") as "(Hofrag & Hcur_tb & Hprev_tb)".
-        iModIntro.
-        iApply (wp_opt2_frame with "Hσm").
-        iApply (wp_opt2_frame with "Hpc_a").
-        iApply (wp_opt2_frame with "Hall_tb").
-        iApply (wp_opt2_frame with "Hcur_tb").
-        iApply (wp_opt2_frame with "Hprev_tb").
-        iApply (wp_opt2_frame with "Hecauth").
-        iApply (wp_opt2_frame with "Hofrag").
-        iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
-        now eapply elem_of_dom.
-      }
-      iSplit.
-      { iIntros "Hσ %HincLPCf %HincPCf".
-        iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
-        iSplitL "Hr Hm Hecauth Hall_tb Hcur_tb Hprev_tb".
-        { iExists _, _, _, _, _, _; iFrame.
-          iPureIntro.
-          cbn in *.
-          intuition eauto.
+      destruct is_cur.
+      + wp2_remember.
+        iApply wp_opt2_mono2.
+        iSplitL "Hφ".
+        2: {
+          iApply transiently_wp_opt2.
+          iMod "Hσ" as "(Hσr & Hσm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+          iDestruct (enclave_cur_compat with "Hofrag Hcur_tb") as "%Hcurtbtidx".
+          iAssert (⌜ etable !! (tid_of_otype σb) = Some eid ⌝)%I as "Hcurtbtidx". {now iPureIntro. }
+          iMod (enclave_update_deinit Htbdisj with "Hcur_tb Hprev_tb Hofrag") as "(Hofrag & Hcur_tb & Hprev_tb)".
+          iModIntro.
+          iApply (wp_opt2_frame with "Hσm").
+          iApply (wp_opt2_frame with "Hpc_a").
+          iApply (wp_opt2_frame with "Hall_tb").
+          iApply (wp_opt2_frame with "Hcur_tb").
+          iApply (wp_opt2_frame with "Hprev_tb").
+          iApply (wp_opt2_frame with "Hecauth").
+          iApply (wp_opt2_frame with "Hofrag").
+          iApply (wp_opt2_frame with "Hcurtbtidx").
+          iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
+          now eapply elem_of_dom.
         }
-        iApply "Hφ"; iFrame.
-        iPureIntro.
-        constructor 2; eauto.
-        now eapply EDeInit_fail_no_valid_PC.
-      }
-      iIntros (lregs' regs) "Hσ %HincLPC %HincPC".
-      iApply wp2_val.
-      iMod (transiently_commit with "Hσ") as "(Hm & Hpc_a & Hall_tb & Hur_tb & Hprev_tb & Hecauth & Hprev & %lregs2 & Hlregs2 & %Hcorr & Hregs)".
-      iModIntro.
-      iSplitR "Hφ Hregs Hpc_a Hprev".
-      + unfold update_regs; cbn.
-        iExists _, _, _, _, _, _; iFrame; cbn.
-        cbn in *.
-        iPureIntro; intuition eauto.
-        * set_solver.
-        * now rewrite union_delete_insert.
-        * apply map_disjoint_dom_2.
-          set_solver.
-        * now rewrite union_delete_insert.
-      + iApply "Hφ"; iFrame.
-        iPureIntro.
-        subst.
-        econstructor 1; try done.
+        iSplit.
+        { iIntros "Hσ %HincLPCf %HincPCf".
+          iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+          iSplitL "Hr Hm Hecauth Hall_tb Hcur_tb Hprev_tb".
+          { iExists _, _, _, _, _, _; iFrame.
+            iPureIntro.
+            cbn in *.
+            intuition eauto.
+          }
+          iApply "Hφ"; iFrame.
+          iPureIntro.
+          constructor 2; eauto.
+          now eapply EDeInit_fail_no_valid_PC.
+        }
+        iIntros (lregs' regs) "Hσ %HincLPC %HincPC".
+        iApply wp2_val.
+        iMod (transiently_commit with "Hσ") as "(Hm & Hpc_a & Hall_tb & Hur_tb & Hprev_tb & Hecauth & Hprev & %Hcurtbidx & %lregs2 & Hlregs2 & %Hcorr & Hregs)".
+        iModIntro.
+        iSplitR "Hφ Hregs Hpc_a Hprev".
+        * unfold update_regs; cbn.
+          iExists _, _, _, _, _, _; iFrame; cbn.
+          cbn in *.
+          iPureIntro; intuition eauto.
+          -- set_solver.
+          -- now rewrite union_delete_insert.
+          -- apply map_disjoint_dom_2.
+             set_solver.
+          -- now rewrite union_delete_insert.
+        * iApply "Hφ"; iFrame.
+          iPureIntro.
+          subst.
+          econstructor 1; try done.
+      + wp2_remember.
+        iApply wp_opt2_mono2.
+        iSplitL "Hφ".
+        2: {
+          iApply transiently_wp_opt2.
+          iMod "Hσ" as "(Hσr & Hσm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+          iApply (wp_opt2_frame with "Hσm").
+          iApply (wp_opt2_frame with "Hpc_a").
+          iApply (wp_opt2_frame with "Hall_tb").
+          iApply (wp_opt2_frame with "Hcur_tb").
+          iApply (wp_opt2_frame with "Hprev_tb").
+          iApply (wp_opt2_frame with "Hecauth").
+          iApply (wp_opt2_frame with "Hofrag").
+          iApply (wp2_opt_incrementPC2 with "[$Hσr $Hregs]"); eauto.
+          now eapply elem_of_dom.
+        }
+        iSplit.
+        { iIntros "Hσ %HincLPCf %HincPCf".
+          iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+          iSplitL "Hr Hm Hecauth Hall_tb Hcur_tb Hprev_tb".
+          { iExists _, _, _, _, _, _; iFrame.
+            iPureIntro.
+            cbn in *.
+            intuition eauto.
+          }
+          iApply "Hφ"; iFrame.
+          iPureIntro.
+          constructor 2; eauto.
+          now eapply EDeInit_fail_no_valid_PC.
+        }
+        iIntros (lregs' regs) "Hσ %HincLPC %HincPC".
+        iApply wp2_val.
+        iMod (transiently_commit with "Hσ") as "(Hm & Hpc_a & Hall_tb & Hur_tb & Hprev_tb & Hecauth & Hprev & %lregs2 & Hlregs2 & %Hcorr & Hregs)".
+        iDestruct (enclave_prev_compat with "Hprev Hprev_tb ") as "%Hprevtidx".
+        assert (etable !! tid_of_otype σb = None) as Hetabletidx.
+        { clear -Htbdisj Hprevtidx.
+          apply not_elem_of_dom_1.
+          apply map_disjoint_dom_1 in Htbdisj.
+          rewrite elem_of_disjoint in Htbdisj.
+          intros Hetableidx.
+          now eapply (Htbdisj _ Hetableidx).
+        }
+        iModIntro.
+        iSplitR "Hφ Hregs Hpc_a Hprev".
+        * unfold update_regs; cbn.
+          iExists _, _, _, _, _, _; iFrame; cbn.
+          cbn in *.
+          iPureIntro; intuition eauto.
+          now rewrite delete_notin.
+        * iApply "Hφ"; iFrame.
+          iPureIntro.
+          subst.
+          econstructor 1; try done.
     - erewrite !(decide_False (H := Is_true_dec false)); eauto.
       iModIntro.
       iDestruct (transiently_abort with "Hσ") as "(Hr & Hm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecn & Hcur & Hpc_a)".

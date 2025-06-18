@@ -2296,6 +2296,21 @@ Proof.
     now inversion HeqI'.
 Qed.
 
+Lemma enclave_prev_compat `{ceriseG Σ} {tidx prev_tb} :
+  enclave_prev tidx -∗ enclaves_prev prev_tb -∗ ⌜ tidx ∈ dom prev_tb ⌝.
+Proof.
+  iIntros "(%eid & Hprev) Hprev_tb".
+  iDestruct (own_valid_2 with "Hprev_tb Hprev") as "%Hvalid".
+  iPureIntro.
+  apply auth_both_valid_discrete in Hvalid.
+  destruct Hvalid as (Hincl & _).
+  apply singleton_included_l in Hincl.
+  destruct Hincl as (I' & HeqI' & HII').
+  rewrite lookup_fmap in HeqI'.
+  destruct (prev_tb !! tidx) eqn:Hptbtidx; last inversion HeqI'.
+  now apply (elem_of_dom_2 _ _ _ Hptbtidx).
+Qed.
+
 
 Lemma enclave_update_deinit `{ceriseG Σ} {cur_tb prev_tb tidx I} :
   cur_tb ##ₘ prev_tb ->
