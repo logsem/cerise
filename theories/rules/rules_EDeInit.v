@@ -19,57 +19,6 @@ Section cap_lang_rules.
   Implicit Types mem : Mem.
   Implicit Types lmem : LMem.
 
-  Lemma enclave_cur_compat {tidx eid cur_tb} :
-    enclave_cur tidx eid -∗ enclaves_cur cur_tb -∗ ⌜ cur_tb !! tidx = Some eid ⌝.
-  Proof.
-    iIntros "Hcur Hcur_tb".
-    iDestruct (own_valid_2 with "Hcur_tb Hcur") as "%Hvalid".
-    iPureIntro.
-    apply auth_both_valid_discrete in Hvalid.
-    destruct Hvalid as (Hincl & _).
-    apply singleton_included_l in Hincl.
-    destruct Hincl as (I' & HeqI' & HII').
-    rewrite lookup_fmap in HeqI'.
-    destruct I';
-      last by (destruct (cur_tb !! tidx); apply leibniz_equiv in HeqI'; inversion HeqI').
-    rewrite Excl_included in HII'.
-    apply leibniz_equiv in HII'; subst.
-    apply leibniz_equiv in HeqI'.
-    destruct (cur_tb !! tidx);
-      now inversion HeqI'.
-  Qed.
-
-
-  Lemma enclave_update_deinit {cur_tb prev_tb tidx I} :
-    cur_tb ##ₘ prev_tb ->
-    enclaves_cur cur_tb -∗ enclaves_prev prev_tb -∗ enclave_cur tidx I ==∗ enclave_prev tidx ∗ enclaves_cur (delete tidx cur_tb) ∗ enclaves_prev (insert tidx I prev_tb).
-  Proof.
-    iIntros (Hdisj) "Hcur_tb Hprev_tb Hcur".
-    iPoseProof (enclave_cur_compat with "Hcur Hcur_tb") as "%Hcurtbtidx".
-    iCombine "Hcur_tb Hcur" as "Hcurm".
-    iMod (own_update with "Hcurm") as "Hcurm".
-    { eapply (auth_update_dealloc _ _ (excl.Excl <$> (delete tidx cur_tb))).
-      rewrite fmap_delete.
-      now apply (@delete_singleton_local_update TIndex _ _ (excl EIdentity) (Excl <$> cur_tb)).
-    }
-    iMod (own_update with "Hprev_tb") as "(Hprev_tb & Hprev)".
-    { eapply (auth_update_alloc _ (to_agree <$> (insert tidx I prev_tb)) {[ tidx := to_agree I]} ).
-      rewrite fmap_insert -insert_empty.
-      eapply alloc_singleton_local_update; last done.
-      rewrite lookup_fmap.
-      enough (prev_tb !! tidx = None) as H by now rewrite H.
-      now apply (map_disjoint_Some_l _ _ _ _ Hdisj Hcurtbtidx).
-    }
-    iModIntro.
-    iSplitL "Hprev".
-    - now iExists I.
-    - now iFrame.
-      (* + now rewrite union_delete_insert. *)
-      (* + eapply map_disjoint_dom_2. *)
-      (*   set_solver. *)
-      (* + now eapply union_delete_insert. *)
-  Qed.
-
   Lemma get_sealing_cap_lword {lwr permitSeal permitUnseal σb σe σa} :
     get_sealing_cap (lword_get_word lwr) = Some (permitSeal, permitUnseal, σb, σe, σa) ->
     lwr = LSealRange (permitSeal, permitUnseal) σb σe σa.
@@ -111,9 +60,11 @@ Section cap_lang_rules.
   Ltac wp2_remember := iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
 
   Definition word_allows_deinit_or_true (lw : LWord) tidx :=
-    forall permitSeal permitUnseal σb σe σa, lw = LWSealable (LSSealRange (permitSeal, permitUnseal) σb σe σa) ->
-                                (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb ^+ 2)%f)%Z) ->
-                                tidx = tid_of_otype σb.
+    forall permitSeal permitUnseal σb σb2 σe σa,
+      lw = LWSealable (LSSealRange (permitSeal, permitUnseal) σb σe σa) ->
+      (σb + 2)%f = Some σb2 ->
+      (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? σb2%f)%Z) ->
+      tidx = tid_of_otype σb.
 
   (* TODO @Denis *)
   Lemma wp_edeinit E pc_p pc_b pc_e pc_a pc_v lw lwσ r lregs tidx eid (is_cur : bool) :
@@ -163,7 +114,8 @@ Section cap_lang_rules.
               (φ1 :=
                  lwr ← lregs !! r; (* σ should be a seal/unseal pair *)
                  '(p,σb,σe,_) ← get_sealing_cap (lword_get_word lwr);
-                 if decide ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
+                 σb2 ← (σb + 2)%f;
+                 if decide ((bool_decide (p = (true,true))) && (σe =? σb2)%ot) then
                    let tidx := tid_of_otype σb in
                    let cur_tb' := delete tidx cur_tb in
                    lregs' ← incrementLPC lregs;
@@ -202,10 +154,23 @@ Section cap_lang_rules.
     iIntros (seal Hlwrgc _). destruct seal as ((([permitSeal permitUnseal] & σb) & σe) & σa).
     eapply get_sealing_cap_lword in Hlwrgc; subst.
 
+    wp2_remember.
+    iApply wp2_diag_univ.
+    iSplit.
+    { iIntros "%Hσb2f _".
+      iDestruct (transiently_abort with "Hσ") as "(Hlr & Hlm & Hregs & Hall_tb & Hcur_tb & Hprev_tb & Hecauth & Hofrag & Hpc_a)".
+      iSplitR "Hφ Hofrag Hregs Hpc_a".
+      { iExists _, _, vmap, _, _, _ ; now iFrame. }
+      iApply "Hφ"; iFrame.
+      iPureIntro; constructor; last done.
+      now apply EDeInit_fail_no_seal_unseal_pair.
+    }
+    iIntros (σb2 Hσb2 _).
+
     (* annoying. *)
-    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb ^+ 2)%f)%Z) eqn:Hdec.
+    destruct (bool_decide ((permitSeal, permitUnseal) = (true, true)) && (σe =? (σb2)%f)%Z) eqn:Hdec.
     - destruct (andb_prop _ _ Hdec) as (Hseals%bool_decide_eq_true_1 & Hbounds%Z.eqb_eq%finz_to_z_eq).
-      inversion Hseals; subst; clear Hseals.
+      inversion Hseals; clear Hseals.
       rewrite (decide_True_pi (P := Is_true true) I).
       rewrite updatePC_incrementPC.
       destruct σ1; cbn.
@@ -251,7 +216,8 @@ Section cap_lang_rules.
         cbn in *.
         iPureIntro; intuition eauto.
         * f_equiv.
-          eapply (Hallow _ _ _ _ _ eq_refl).
+          subst σe.
+          eapply (Hallow _ _ _ _ _ _ eq_refl Hσb2).
           now eapply Is_true_true_2.
         * set_solver.
         * now rewrite union_delete_insert.
@@ -260,8 +226,8 @@ Section cap_lang_rules.
         * now rewrite union_delete_insert.
       + iApply "Hφ"; iFrame.
         iPureIntro.
+        subst.
         econstructor 1; try done.
-        admit.
         admit.
     - erewrite !(decide_False (H := Is_true_dec false)); eauto.
       iModIntro.

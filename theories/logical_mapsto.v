@@ -286,12 +286,6 @@ Proof.
   by destruct_lword lw; cbn.
 Qed.
 
-Lemma lword_get_word_to_lword (w : Word) (v : Version) :
-  lword_get_word (word_to_lword w v) = w.
-Proof.
-  by destruct w ; auto; destruct sb ; auto.
-Qed.
-
 (** The `reg_phys_log_corresponds` states that, the physical register file `phr` corresponds
     to the the logical register file `lr`, according to the view map `vmap` if:
     - the content of the register `phr` is the same as the words in `lr` w/o the version
@@ -2275,6 +2269,61 @@ Definition EC_frag `{ceriseG Σ} (n : ENum) : iProp Σ :=
 Proof. apply _. Defined.
 
 End Logical_mapsto.
+
+Lemma lword_get_word_to_lword (w : Word) (v : Version) :
+  lword_get_word (word_to_lword w v) = w.
+Proof.
+  by destruct w ; auto; destruct sb ; auto.
+Qed.
+
+Lemma enclave_cur_compat `{ceriseG Σ} {tidx eid cur_tb} :
+  enclave_cur tidx eid -∗ enclaves_cur cur_tb -∗ ⌜ cur_tb !! tidx = Some eid ⌝.
+Proof.
+  iIntros "Hcur Hcur_tb".
+  iDestruct (own_valid_2 with "Hcur_tb Hcur") as "%Hvalid".
+  iPureIntro.
+  apply auth_both_valid_discrete in Hvalid.
+  destruct Hvalid as (Hincl & _).
+  apply singleton_included_l in Hincl.
+  destruct Hincl as (I' & HeqI' & HII').
+  rewrite lookup_fmap in HeqI'.
+  destruct I';
+    last by (destruct (cur_tb !! tidx); apply leibniz_equiv in HeqI'; inversion HeqI').
+  rewrite Excl_included in HII'.
+  apply leibniz_equiv in HII'; subst.
+  apply leibniz_equiv in HeqI'.
+  destruct (cur_tb !! tidx);
+    now inversion HeqI'.
+Qed.
+
+
+Lemma enclave_update_deinit `{ceriseG Σ} {cur_tb prev_tb tidx I} :
+  cur_tb ##ₘ prev_tb ->
+  enclaves_cur cur_tb -∗ enclaves_prev prev_tb -∗ enclave_cur tidx I ==∗ enclave_prev tidx ∗ enclaves_cur (delete tidx cur_tb) ∗ enclaves_prev (insert tidx I prev_tb).
+Proof.
+  iIntros (Hdisj) "Hcur_tb Hprev_tb Hcur".
+  iPoseProof (enclave_cur_compat with "Hcur Hcur_tb") as "%Hcurtbtidx".
+  iCombine "Hcur_tb Hcur" as "Hcurm".
+  iMod (own_update with "Hcurm") as "Hcurm".
+  { eapply (auth_update_dealloc _ _ (excl.Excl <$> (delete tidx cur_tb))).
+    rewrite fmap_delete.
+    now apply (@delete_singleton_local_update TIndex _ _ (excl EIdentity) (Excl <$> cur_tb)).
+  }
+  iMod (own_update with "Hprev_tb") as "(Hprev_tb & Hprev)".
+  { eapply (auth_update_alloc _ (to_agree <$> (insert tidx I prev_tb)) {[ tidx := to_agree I]} ).
+    rewrite fmap_insert -insert_empty.
+    eapply alloc_singleton_local_update; last done.
+    rewrite lookup_fmap.
+    enough (prev_tb !! tidx = None) as Hprev_tbNone by now rewrite Hprev_tbNone.
+    now apply (map_disjoint_Some_l _ _ _ _ Hdisj Hcurtbtidx).
+  }
+  iModIntro.
+  iSplitL "Hprev".
+  - now iExists I.
+  - now iFrame.
+Qed.
+
+
 
 Definition state_interp_logical (σ : cap_lang.state) `{ReservedAddresses} `{!ceriseG Σ} : iProp Σ :=
   ∃ lr lm vmap (cur_tb prev_tb all_tb : gmap TIndex EIdentity) ,

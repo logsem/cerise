@@ -878,7 +878,8 @@ Section opsem.
   | EDeInit r =>
       wr   ← (reg φ) !! r; (* σ should be a seal/unseal pair *)
       '(p,σb,σe,_) ← get_sealing_cap wr;
-      when ((bool_decide (p = (true,true))) && (σe =? σb^+2)%ot) then
+      σb2 ← (σb + 2)%f;
+      when ((bool_decide (p = (true,true))) && (σe =? σb2)%ot) then
       let tidx := tid_of_otype σb in
 
       (* UPDATE THE MACHINE STATE *)
@@ -1163,6 +1164,7 @@ Proof. solve_decision. Defined.
     all: repeat destruct p.
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
     all: simplify_eq; try by exfalso.
+    1: destruct (f1 + 2)%f; cbn in *; try by exfalso.
     all: repeat destruct (tid_of_otype _); cbn in *.
     all: try destruct (_ && _).
     all: try apply updatePC_some in Heqo as [φ' Heqo]; eauto.
