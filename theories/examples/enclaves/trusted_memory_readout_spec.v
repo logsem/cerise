@@ -16,7 +16,7 @@ Section trusted_memory_readout_full_run.
   Context {CS: ClientSensor}.
 
   Lemma trusted_memory_readout_full_run_spec
-    (b_main : Addr) (pc_v : Version) (ts_mainN : namespace)
+    (b_main : Addr) (pc_v : Version)
 
     (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
     (assert_lt_offset : Z)
@@ -38,8 +38,6 @@ Section trusted_memory_readout_full_run.
     assertN ## link_tableN ->
     assertN ## ts_mainN ->
     link_tableN ## ts_mainN ->
-    clientN ## ts_mainN ->
-    sensorN ## ts_mainN ->
 
     ContiguousRegion b_main trusted_memory_readout_main_len ->
     SubBounds b_main (b_main ^+ trusted_memory_readout_main_len)%a b_main
@@ -69,7 +67,7 @@ Section trusted_memory_readout_full_run.
                   (⌜v = HaltedV⌝ → ∃ r : LReg, full_map r ∧ registers_mapsto r ∗ na_own logrel_nais ⊤)%I
                   ∨ ⌜v = FailedV⌝ }})%I.
   Proof.
-    intros ??????????? Hregion HsubBounds Hassert Hlink Hrmap.
+    intros ????????? Hregion HsubBounds Hassert Hlink Hrmap.
 
     iIntros "[  #(HlinkInv & HassertInv & HflagInv & HcodeInv) #[ Hcemap_inv Hinterp_wadv ] ]
              (HPC & Hr0 & Hrmap & Hna)".

@@ -113,8 +113,8 @@ Section trusted_memory_readout_main.
 
     ↑link_tableN ⊆ E ->
     ↑assertN ⊆ E ->
-    ↑clientN ⊆ E ->
-    ↑sensorN ⊆ E ->
+    ↑ts_clientN ⊆ E ->
+    ↑ts_sensorN ⊆ E ->
     assertN ## link_tableN ->
 
     (a_link + assert_lt_offset)%a = Some assert_entry →
@@ -300,13 +300,11 @@ Section trusted_memory_readout_main.
 
     iApply ("Hcontract_use" with "[%//] [%//]").
     iFrame "Hna HPC Hr0".
-    iSplitR. admit.
     iSplitL "Hr1". iExists _. iExact "Hr1".
     iSplitL "Hr2". iExists _. iExact "Hr2".
     iSplitL "Hr3". iExists _. iExact "Hr3".
-    iSplitL "Hr4". iExists _. iExact "Hr4".
-    clear w3 w4.
-    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3 & Hr3 & Hinterp_w3) & (%w4 & Hr4 & Hinterp_w4))".
+    clear w3.
+    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3 & Hr3 & Hinterp_w3))".
     cbn [updatePcPermL].
 
     iInstr "Hcode". (* Mov *)
@@ -340,7 +338,7 @@ Section trusted_memory_readout_main.
 
     iApply (wp_wand with "[-]") ; [  | iIntros (?) "H"; iLeft ; iApply "H"].
     iApply "Hcont"; iFrame.
-  Admitted.
+  Qed.
 
   Definition ts_main_inv b_main e_main pc_v main_code a_data link_cap ts_mainN
     := na_inv logrel_nais ts_mainN
@@ -349,7 +347,7 @@ Section trusted_memory_readout_main.
           ∗ ((a_data ^+ 1)%a, pc_v) ↦ₐ LCap RWX b_main e_main a_data pc_v).
 
   Lemma trusted_memory_readout_callback_code_sentry
-    (b_main : Addr) (pc_v : Version) (ts_mainN : namespace)
+    (b_main : Addr) (pc_v : Version)
 
     (b_link a_link e_link assert_entry : Addr) (link_tableN : namespace) (* linking *)
     (assert_lt_offset : Z)
@@ -368,8 +366,6 @@ Section trusted_memory_readout_main.
     assertN ## link_tableN ->
     assertN ## ts_mainN ->
     link_tableN ## ts_mainN ->
-    clientN ## ts_mainN ->
-    sensorN ## ts_mainN ->
 
     ContiguousRegion b_main trusted_memory_readout_main_len ->
     SubBounds b_main (b_main ^+ trusted_memory_readout_main_len)%a b_main
@@ -388,7 +384,7 @@ Section trusted_memory_readout_main.
     ⊢ interp (LCap E b_main (b_main ^+ trusted_memory_readout_main_len)%a
                 (b_main ^+ trusted_memory_readout_main_init_len)%a pc_v).
   Proof.
-    intros ??????????? HcontRegion HsubBounds Hassert Hlink.
+    intros ????????? HcontRegion HsubBounds Hassert Hlink.
     iIntros "[#(HlinkInv & HassertInv & HflagInv & HcodeInv) #Hcemap_inv]".
     iEval (rewrite fixpoint_interp1_eq /=).
     iIntros (regs); iNext ; iModIntro.

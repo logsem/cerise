@@ -77,7 +77,7 @@ Definition link_cap `{memory_layout} :=
 
 (** 1) Instantiate the class specific to the TC enclave *)
 Local Instance trusted_memory_readout_concrete `{memory_layout} : ClientSensor.
-Proof. apply (Build_ClientSensor ts_sensor_enclave_start ts_client_enclave_start ts_client_enclave_start ). Defined.
+Proof. apply (Build_ClientSensor ts_sensor_enclave_start ts_client_enclave_start). Defined.
 
 (** 2) Instantiate the verifier's program.
     It is given by the code in `trusted_memory_readout_main_code`
@@ -160,9 +160,6 @@ Section ts_adequacy.
           {memlayout: memory_layout}
   .
 
-  Definition trusted_memory_readoutN : namespace := nroot .@ "trusted_memory_readout".
-  Definition link_tableN := (trusted_memory_readoutN.@"link_table").
-  Definition ts_mainN := (trusted_memory_readoutN.@"main").
   Lemma ts_correct ecur etbl :
     let vinit := 0%nat in
     let P := ts_verifier_prog in
@@ -402,8 +399,6 @@ Section ts_adequacy.
     ; last (by iIntros (v) "H").
     iApply (trusted_memory_readout_full_run_spec with
              "[$Hadv $Hsystem_inv $Hinv_link $Hassert $Hprog_inv $Hflag_inv ] [ $HPC $Hown $Hr_adv $Hrmap]"); auto.
-    + solve_ndisj.
-    + solve_ndisj.
     + solve_ndisj.
     + solve_ndisj.
     + solve_ndisj.

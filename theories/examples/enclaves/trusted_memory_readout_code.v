@@ -10,8 +10,13 @@ Open Scope Z_scope.
 Class ClientSensor := {
     client_begin_addr : Addr;
     sensor_begin_addr : Addr;
-    sensor_mmio_addr  : Addr;
   }.
+
+Definition trusted_sensorN : namespace := nroot.@"trusted_memory_readout".
+Definition link_tableN := (trusted_sensorN.@"link_table").
+Definition ts_mainN := (trusted_sensorN.@"main").
+Definition ts_clientN := (trusted_sensorN.@"client").
+Definition ts_sensorN := (trusted_sensorN.@"sensor").
 
 Section SensorEnclaveData.
 
@@ -78,6 +83,8 @@ Section trusted_memory_readout_example.
      - PC   = (RX, sensor, sensor_end, sensor_init)
      - r_t0 = return pointer
      - r_t1 = mmio addr capability
+     - data capability is pointing to the begining:
+       sensor ↦ (RW, data, data_end, data)
      Returns:
      - public signing key:      r_t1 = (U, σ__s+1, σ__s+2, σ__s+1)
      - read_sensor entry point: r_t2 = Sealed σ__s+1 (E, sensor, sensor_end, sensor_read)
@@ -108,13 +115,14 @@ Section trusted_memory_readout_example.
       (* "Initialize" the sensor. *)
       Store r_t1 21;
 
-      (* Get the data capability *)
-      Lea r_t2 (begin - fail); (* r_t2 = (RX, sensor, sensor_end, sensor) *)
-      Load r_t3 r_t2;          (* r_t3 = (RW, data, data_end, addr) *)
+      (* Get the data capability and check it points to the beginning. *)
+      Mov r_t3 r_t2;           (* r_t3 = (RX, sensor, sensor_end, sensor_fail) *)
+      Lea r_t3 (begin - fail); (* r_t3 = (RX, sensor, sensor_end, sensor) *)
+      Load r_t3 r_t3;          (* r_t3 = (RW, data, data_end, addr) *)
       GetB r_t4 r_t3;          (* r_t4 = data *)
       GetA r_t5 r_t3;          (* r_t5 = addr *)
       Sub r_t4 r_t4 r_t5;      (* r_t4 = data - addr *)
-      Lea r_t3 r_t4;           (* r_t3 = (RW, data, data_end, data) *)
+      Jnz r_t2 r_t4;           (* Jump to fail if cursor is not at the beginning. *)
 
       (* Store mmio capability in private data. *)
       Lea r_t3 1;              (* r_t3 = (RW, data, data_end, data+1) *)
@@ -126,7 +134,7 @@ Section trusted_memory_readout_example.
       Lea r_t1 1%Z;            (* r_t1 = (SU, σ__s, σ__s+2, σ__s+1) *)
 
       (* Construct read_sensor entry point. *)
-      Lea r_t2 (read - begin); (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
+      Lea r_t2 (read - fail);  (* r_t2 = (RX, sensor, sensor_end, sensor_read) *)
       Restrict r_t2 E;         (* r_t2 = (E, sensor, sensor_end, sensor_read) *)
 
       (* Sign the entry point capability. *)
@@ -154,16 +162,11 @@ Section trusted_memory_readout_example.
      Returns:
      - r_t0 return pointer
      - r_t1 sensor addr (mmio_a)
-     - r_t2 return value (= 21)
-     Clobbers: r_t3 *)
+     - r_t2 return value (= 21) *)
   Definition sensor_instrs_read (begin read : Z) : list instr :=
     [ Mov r_t1 PC;                    (* r_t1 = (RX, sensor, sensor_end, sensor_read) *)
       Lea r_t1 (begin - read);        (* r_t1 = (RX, sensor, sensor_end, sensor) *)
-      Load r_t1 r_t1;                 (* r_t1 = (RW, data_b, data_e, ?a) *)
-      GetB r_t2 r_t1;                 (* r_t2 = data_b *)
-      GetA r_t3 r_t1;                 (* r_t3 = ?a *)
-      Sub r_t2 r_t2 r_t3;             (* r_t2 = data_b - ?a *)
-      Lea r_t1 r_t2;                  (* r_t1 = (RW, data_b, data_e, data_b) *)
+      Load r_t1 r_t1;                 (* r_t1 = (RW, data_b, data_e, data_b) *)
 
       (* Load mmio cap and sensor value *)
       (* cf https://github.com/proteus-core/cheritree/blob/e969919a30191a4e0ceec7282bb9ce982db0de73/morello/project/enclaveMorello/src/EL1Code/enclavecode/sensor_enclave.S#L106 *)
@@ -216,27 +219,23 @@ Section trusted_memory_readout_example.
   Definition hash_sensor : Z :=
     hash_concat (hash sensor_begin_addr) (hash sensor_code).
 
-  Definition sensorN : namespace := system_invN.@hash_sensor.
-
   (* Sealed predicate for sensor enclave *)
 
   (* The contract that the read sensor entry point should satisfy.  *)
   Definition sensor_enclave_read_sensor_contract
     (code_b code_e code_a : Addr) (code_v : Version) : iProp Σ :=
     ∀ E (ret : LWord) (φ : val → iPropI Σ),
-      ⌜↑sensorN ⊆ E⌝ →
+      ⌜↑ts_sensorN ⊆ E⌝ →
       na_own logrel_nais E
       ∗ PC ↦ᵣ LCap RX code_b code_e code_a code_v
       ∗ r_t0 ↦ᵣ ret
       ∗ (∃ w1, r_t1 ↦ᵣ w1)
       ∗ (∃ w2, r_t2 ↦ᵣ w2)
-      ∗ (∃ w3, r_t3 ↦ᵣ w3)
       ∗ ▷ (  na_own logrel_nais E
              ∗ PC ↦ᵣ updatePcPermL ret
              ∗ (r_t0 ↦ᵣ ret)
              ∗ (∃ mmio_a : Z, r_t1 ↦ᵣ LInt mmio_a)
              ∗ (r_t2 ↦ᵣ LInt 21)
-             ∗ (∃ w3, r_t3 ↦ᵣ w3 ∗ interp w3)
                -∗ WP Seq (Instr Executable) {{ φ }})
         -∗ WP Seq (Instr Executable) {{ φ }}.
 
@@ -369,7 +368,7 @@ Section trusted_memory_readout_example.
      - r_t0 return pointer
      - r_t1 sensor addr (mmio_a)
      - r_t2 return value (= 42)
-     Clobbers: r_t3, r_t4 *)
+     Clobbers: r_t3 *)
   Definition client_instrs_use (begin use : Z) : list instr :=
     [ Mov r_t1 PC;                    (* r_t1 = (RX, client, client_end, client_use) *)
 
@@ -385,7 +384,7 @@ Section trusted_memory_readout_example.
       Load r_t1 r_t1;                 (* r_t1 = (E, sensor, sensor_end, sensor_read) *)
 
       (* Save return pointer to a register unclobbered by sensor read *)
-      Mov r_t4 r_t0;                  (* r_t4 = return pointer *)
+      Mov r_t3 r_t0;                  (* r_t3 = return pointer *)
 
       (* Setup callback and jump to read sensor entry point. *)
       Mov r_t0 PC;
@@ -401,7 +400,8 @@ Section trusted_memory_readout_example.
       Add r_t2 r_t2 r_t2;             (* r_t2 = 42 *)
 
       (* Restore return pointer and kill callback capability. *)
-      Mov r_t0 r_t4;                  (* r_t0 = return pointer *)
+      Mov r_t0 r_t3;                  (* r_t0 = return pointer *)
+      Mov r_t3 0;
 
       (* Return to caller *)
       Jmp r_t0
@@ -447,31 +447,26 @@ Section trusted_memory_readout_example.
   Definition hash_client : Z :=
     hash_concat (hash client_begin_addr) (hash client_code).
 
-  Definition clientN : namespace := system_invN.@hash_client.
-
   (* Sealed predicate for client enclave *)
 
   (* The contract that the client enclave's use entry point should satisfy.  *)
   Definition client_enclave_use_contract
     (code_b code_e code_a : Addr) (code_v : Version) : iProp Σ :=
     ∀ E (ret : LWord) (φ : val → iPropI Σ),
-      ⌜↑clientN ⊆ E⌝ →
-      ⌜↑sensorN ⊆ E⌝ →
+      ⌜↑ts_clientN ⊆ E⌝ →
+      ⌜↑ts_sensorN ⊆ E⌝ →
       na_own logrel_nais E
       ∗ PC ↦ᵣ LCap RX code_b code_e code_a code_v
       ∗ r_t0 ↦ᵣ ret
-      ∗ interp ret
       ∗ (∃ w1, r_t1 ↦ᵣ w1)
       ∗ (∃ w2, r_t2 ↦ᵣ w2)
       ∗ (∃ w3, r_t3 ↦ᵣ w3)
-      ∗ (∃ w4, r_t4 ↦ᵣ w4)
       ∗ ▷ (  na_own logrel_nais E
              ∗ PC ↦ᵣ updatePcPermL ret
              ∗ (r_t0 ↦ᵣ ret)
              ∗ (∃ mmio_a : Z, r_t1 ↦ᵣ LInt mmio_a)
              ∗ (r_t2 ↦ᵣ LInt 42)
              ∗ (∃ w3, r_t3 ↦ᵣ w3 ∗ interp w3)
-             ∗ (∃ w4, r_t4 ↦ᵣ w4 ∗ interp w4)
                -∗ WP Seq (Instr Executable) {{ φ }})
         -∗ WP Seq (Instr Executable) {{ φ }}.
 
@@ -593,11 +588,6 @@ Section trusted_memory_readout_example.
     intros [_ e%hash_inj]%hash_concat_inj.
     apply (f_equal (map decodeInstrW ∘ firstn 3)) in e. cbn in e.
     rewrite !decode_encode_instr_inv in e. congruence.
-  Qed.
-
-  Lemma clientN_sensorN_disjoint : clientN ## sensorN.
-  Proof.
-    apply ndot_ne_disjoint, hash_client_sensor.
   Qed.
 
   Definition ts_enclaves_map : custom_enclaves_map (Σ := Σ) :=

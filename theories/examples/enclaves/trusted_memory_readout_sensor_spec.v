@@ -16,28 +16,29 @@ Section SensorEnclaveProofs.
   #[local] Notation cf_b := (pc_b ^+ 1)%a.
   #[local] Notation cf_e := (cf_b ^+ Z.of_nat (length sensor_lcode))%a.
 
-  Definition sensor_one_shot_inv (γ : gname) data_b data_e data_v : iProp Σ :=
-    (pending_auth γ ∗ (∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]]) ∨
-                        shot_token γ ∗
-     (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
-      ∃ mmio_b mmio_e mmio_a mmio_v,
-        ((data_b ^+ 1)%a, data_v) ↦ₐ LCap RW mmio_b mmio_e mmio_a mmio_v
-        ∗ ⌜ withinBounds mmio_b mmio_e mmio_a = true ⌝
-        ∗ (mmio_a, mmio_v) ↦ₐ LInt 21)).
+  Definition sensor_one_shot_inv (γ : gname) data_b data_e data_a data_v : iProp Σ :=
+      (pending_auth γ ∗ ∃ enclave_data, [[(data_b ^+ 1)%a,data_e]]↦ₐ{data_v}[[enclave_data]])
+    ∨ (shot_token γ ∗
+       ⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∗
+       ⌜ data_b = data_a ⌝ ∗
+       ∃ mmio_b mmio_e mmio_a mmio_v,
+         ((data_b ^+ 1)%a, data_v) ↦ₐ LCap RW mmio_b mmio_e mmio_a mmio_v
+         ∗ ⌜ withinBounds mmio_b mmio_e mmio_a = true ⌝
+         ∗ (mmio_a, mmio_v) ↦ₐ LInt 21).
 
   Definition sensor_na_inv pc_v data_b data_e data_a data_v ot γ : iProp Σ :=
     (codefrag cf_b pc_v sensor_lcode
      ∗ (pc_b, pc_v) ↦ₐ LCap RW data_b data_e data_a data_v
      ∗ (data_b, data_v) ↦ₐ LSealRange (true, true) ot (ot ^+ 2)%f ot
-     ∗ (sensor_one_shot_inv γ data_b data_e data_v)).
+     ∗ (sensor_one_shot_inv γ data_b data_e data_a data_v)).
 
-  Lemma sensor_one_shot_update γ data_b data_e data_v (Hdatarange : (data_b < data_e)%a) :
-    sensor_one_shot_inv γ data_b data_e data_v ==∗ shot_token γ ∗
+  Lemma sensor_one_shot_update γ data_b data_e data_a data_v (Hdatarange : (data_b < data_e)%a) :
+    sensor_one_shot_inv γ data_b data_e data_a data_v ==∗ shot_token γ ∗
     (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = false ⌝ ∨
      (⌜ withinBounds data_b data_e (data_b ^+ 1)%a = true ⌝ ∧
        ∃ lw, ((data_b ^+ 1)%a, data_v) ↦ₐ lw))%I.
   Proof.
-    iIntros "[(Hauth & %enclave_data & Hdata)|(Htoken & %Hdatabounds & Hdata)]".
+    iIntros "[(Hauth & %enclave_data & Hdata)|(Htoken & %Hdatabounds & Heq_b_a & Hdata)]".
     - iMod (shoot with "Hauth") as "[H Htoken]". iModIntro. iFrame.
       iDestruct (big_sepL2_length with "Hdata") as "%Hdata_len".
       rewrite map_length finz_seq_between_length /finz.dist /= in Hdata_len.
@@ -57,11 +58,11 @@ Section SensorEnclaveProofs.
 
   Lemma sensor_enclave_read_sensor_correct pc_v data_b data_e data_a data_v γ ot:
       shot_token γ
-    ∗ na_inv logrel_nais sensorN (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)
+    ∗ na_inv logrel_nais ts_sensorN (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)
     ⊢ sensor_enclave_read_sensor_contract pc_b pc_e (cf_b ^+ sensor_read_off)%a pc_v.
   Proof.
     iIntros "#(Htoken & Hts_inv)".
-    iIntros (E ret φ HsensorN) "(Hna & HPC & Hr0 & [%lw1 Hr1] & [%lw2 Hr2] & [%lw3 Hr3] & Hret)".
+    iIntros (E ret φ HsensorN) "(Hna & HPC & Hr0 & [%lw1 Hr1] & [%lw2 Hr2] & Hret)".
 
     iMod (na_inv_acc with "Hts_inv Hna") as "(>Hinv & Hna & Hclose)"; [solve_ndisj ..|].
     iDestruct "Hinv" as "(Hts_code & Hts_keys & Hts_addr & Hts_data)".
@@ -75,7 +76,7 @@ Section SensorEnclaveProofs.
     { apply le_addr_withinBounds; solve_addr. }
 
     (* Data memory *)
-    iDestruct ("Hts_data") as "[(Hauth & _)|(_ & %Hwb & %mmio_b & %mmio_e & %mmio_a & %mmio_v & Hts_data & %Hmmiobounds & Hts_mmio)]".
+    iDestruct ("Hts_data") as "[(Hauth & _)|(_ & %Hwb & %Heq_b_a & %mmio_b & %mmio_e & %mmio_a & %mmio_v & Hts_data & %Hmmiobounds & Hts_mmio)]".
     { iCombine "Hauth Htoken" gives % [Hl _]%auth_both_valid_discrete.
       exfalso. clear -Hl. apply option_included in Hl.
       destruct Hl as [|(? & ? & ? & ? & ?)]; discriminate. }
@@ -89,12 +90,6 @@ Section SensorEnclaveProofs.
       rewrite /sensor_read_off. solve_addr. }
 
     iInstr "Hts_code". (* Load r_t1 r_t1 *)
-    iInstr "Hts_code". (* GetB r_t2 r_t1 *)
-    iInstr "Hts_code". (* GetA r_t3 r_t1 *)
-    iInstr "Hts_code". (* Sub r_t2 r_t2 r_t3 *)
-    iInstr "Hts_code". (* Lea r_t1 r_t2 *)
-    { transitivity (Some data_b); solve_addr. }
-
     iInstr "Hts_code". (* Lea r_t1 1 *)
     { transitivity (Some (data_b ^+ 1)%a); solve_addr. }
 
@@ -111,14 +106,10 @@ Section SensorEnclaveProofs.
     (* Close the opened invariant *)
     iMod ("Hclose" with "[$Hna $Hts_code $Hts_addr $Hts_keys Htoken Hts_data Hts_mmio]") as "Hna".
     iNext. iRight. iFrame "Htoken".
-    iSplit; [easy|]. do 4 iExists _. by iFrame.
+    iSplit; [easy|]. iSplit; [easy|]. do 4 iExists _. by iFrame.
 
-    iApply ("Hret" with "[$Hna $HPC $Hr0 Hr1 Hr2 Hr3]").
-    { iSplitL "Hr1". by auto.
-      iSplitL "Hr2". by auto.
-      iExists _.
-      iSplitL "Hr3". by auto.
-      iApply interp_int. }
+    iApply ("Hret" with "[$Hna $HPC $Hr0 Hr1 $Hr2]").
+    eauto.
   Qed.
 
   Lemma sealed_sensor_interp (lw : LWord) :
@@ -156,24 +147,6 @@ Section SensorEnclaveProofs.
       with (<[r_t2:=w2]> (delete PC lregs)).
     2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
 
-    assert (exists w3, lregs !! r_t3 = Some w3) as Hrt3 by apply (Hfullmap r_t3).
-    destruct Hrt3 as [w3 Hr3].
-    replace (delete PC lregs)
-      with (<[r_t3:=w3]> (delete PC lregs)).
-    2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. }
-
-    (* assert (exists w4, lregs !! r_t4 = Some w4) as Hrt4 by apply (Hfullmap r_t4). *)
-    (* destruct Hrt4 as [w4 Hr4]. *)
-    (* replace (delete PC lregs) *)
-    (*   with (<[r_t4:=w4]> (delete PC lregs)). *)
-    (* 2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. } *)
-
-    (* assert (exists w5, lregs !! r_t5 = Some w5) as Hrt5 by apply (Hfullmap r_t5). *)
-    (* destruct Hrt5 as [w5 Hr5]. *)
-    (* replace (delete PC lregs) *)
-    (*   with (<[r_t5:=w5]> (delete PC lregs)). *)
-    (* 2: { rewrite insert_id; auto. rewrite lookup_delete_ne; auto. } *)
-
     (* EXTRACT REGISTERS FROM RMAP *)
     (* iExtractList "Hrmap" [r_t0;r_t1;r_t2;r_t3] as ["Hr0";"Hr1";"Hr2";"Hr3"]. *)
     iDestruct (big_sepM_delete _ _ r_t0 with "Hrmap") as "[Hr0 Hrmap]".
@@ -182,56 +155,40 @@ Section SensorEnclaveProofs.
     { by simplify_map_eq. }
     iDestruct (big_sepM_delete _ _ r_t2 with "Hrmap") as "[Hr2 Hrmap]".
     { by simplify_map_eq. }
-    iDestruct (big_sepM_delete _ _ r_t3 with "Hrmap") as "[Hr3 Hrmap]".
-    { by simplify_map_eq. }
-    (* iDestruct (big_sepM_delete _ _ r_t4 with "Hrmap") as "[Hr4 Hrmap]". *)
-    (* { by simplify_map_eq. } *)
-    (* iDestruct (big_sepM_delete _ _ r_t5 with "Hrmap") as "[Hr5 Hrmap]". *)
-    (* { by simplify_map_eq. } *)
-    replace (delete r_t3 _) with
-      ( delete r_t3 (delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs))))).
+    replace (delete r_t2 _) with
+      ( delete r_t2 (delete r_t1 (delete r_t0 (delete PC lregs)))).
     2:{
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t0) //.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t1) //.
       rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t2) //.
-      rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t3) //.
-      (* rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t4) //. *)
-      (* rewrite delete_insert_delete; repeat rewrite (delete_insert_ne _ r_t5) //. *)
       done.
     }
     iAssert (interp w0) as "Hinterp_w0".
     { iApply "Hinterp_map";eauto;done. }
 
-    iApply ("Hsensor_contract" with "[%] [$Hna $HPC $Hr0 Hr1 Hr2 Hr3 Hrmap]");
+    iApply ("Hsensor_contract" with "[%] [$Hna $HPC $Hr0 Hr1 Hr2 Hrmap]");
       first solve_ndisj.
     iSplitL "Hr1". iExists _. iExact "Hr1".
     iSplitL "Hr2". iExists _. iExact "Hr2".
-    iSplitL "Hr3". iExists _. iExact "Hr3".
 
     iDestruct (jmp_to_unknown with "[$Henclave_contract $Henclave_inv] [$Hinterp_w0]") as "Hjmp".
-
-    clear w3 Hr3.
-    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2 & (%w3 & Hr3 & #Hinterp_w3))".
+    iIntros "!> (Hna & HPC & Hr0 & [%mmio_a Hr1] & Hr2)".
 
     (* Wrap up the registers *)
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
-    { do 3 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
-    do 3 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
-    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
     { do 2 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 2 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
-    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
+    iDestruct (big_sepM_insert _ _ r_t1 with "[$Hrmap $Hr1]") as "Hrmap".
     { do 1 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 1 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
-    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hrmap $Hr3]") as "Hrmap".
+    iDestruct (big_sepM_insert _ _ r_t2 with "[$Hrmap $Hr2]") as "Hrmap".
     { do 0 ( rewrite lookup_delete_ne //) ; by rewrite lookup_delete. }
     do 0 (rewrite -delete_insert_ne //=); rewrite insert_delete_insert.
-    set (rmap' := (<[r_t3:=_]> _)).
+    set (rmap' := (<[r_t2:=_]> _)).
     iAssert ([∗ map] k↦y ∈ rmap', k ↦ᵣ y ∗ interp y)%I with "[Hrmap]" as "Hrmap".
     {
       subst rmap'.
       iApply (big_sepM_sep_2 with "[Hrmap]") ; first done.
-      iApply big_sepM_insert_2; first done.
       iApply big_sepM_insert_2; first (iApply interp_int).
       iApply big_sepM_insert_2; first (iApply interp_int).
       iApply big_sepM_insert_2; first done.
@@ -284,7 +241,7 @@ Section SensorEnclaveProofs.
 
     iMod pending_alloc as (γ) "Hauth".
 
-    iMod (na_inv_alloc logrel_nais _ (system_invN.@hash_sensor)
+    iMod (na_inv_alloc logrel_nais _ ts_sensorN
             (sensor_na_inv pc_v data_b data_e data_a data_v ot γ)
            with "[$Hts_code $Hts_addr $Hts_keys Hauth Hts_data]") as "#Hts_inv".
     { iNext. iLeft. iFrame "Hauth". by iExists enclave_data. }
@@ -494,15 +451,24 @@ Section SensorEnclaveProofs.
     clear lw_a.
 
     (* Get the data capability *)
-    iInstr "Hts_code". (* Lea r_t2 (begin - fail) *)
+    iInstr "Hts_code". (* Mov r_t3 r_t2 *)
+    iInstr "Hts_code". (* Lea r_tr (begin - fail) *)
     transitivity (Some pc_b); [rewrite /sensor_fail_off; subst cf_b; solve_addr|easy].
-    iInstr "Hts_code". (* Load r_t3 r_t2 *)
-    easy.
+    iInstr "Hts_code". (* Load r_t3 r_t3 *)
     iInstr "Hts_code". (* GetB r_t4 r_t3 *)
     iInstr "Hts_code". (* GetA r_t5 r_t3 *)
     iInstr "Hts_code". (* Sub r_t4 r_t4 r_t5 *)
-    iInstr "Hts_code". (* Lea r_t3 r_t4 *)
-    transitivity (Some data_b); solve_addr.
+
+    destruct (decide (data_b = data_a)) as [Heq_b_a|Hneq]; cycle 1.
+    { iInstr "Hts_code". (* Jnz r_t2 r_t4 *)
+      { injection. solve_addr. }
+      iInstr "Hts_code". (* Fail *)
+      wp_end; by iIntros (?).
+    }
+    subst data_a.
+    replace (data_b - data_b) with 0%Z by lia.
+
+    iInstr "Hts_code". (* Jnz r_t2 r_t4 *)
     iInstr "Hts_code". (* Lea r_t3 1 *)
     transitivity (Some (data_b ^+ 1)%a); solve_addr.
 
@@ -528,9 +494,9 @@ Section SensorEnclaveProofs.
     { transitivity (Some (ot ^+1)%ot); solve_addr. }
 
     (* Construct read_sensor entry point. *)
-    iInstr "Hts_code". (* Lea r_t1 (read - begin) *)
+    iInstr "Hts_code". (* Lea r_t1 (read - fail) *)
     { transitivity (Some (cf_b ^+ sensor_read_off))%a; [|easy].
-      rewrite /sensor_read_off. subst cf_b. solve_addr. }
+      rewrite /sensor_read_off /sensor_fail_off. subst cf_b. solve_addr. }
     iInstr "Hts_code". (* Restrict r_t2 Eperm *)
     { by rewrite decode_encode_perm_inv. }
     rewrite decode_encode_perm_inv.
@@ -587,7 +553,7 @@ Section SensorEnclaveProofs.
     (* Close the opened invariant *)
     iMod ("Hclose" with "[$Hna $Hts_code $Hts_addr $Hts_keys Htoken Hts_mmio Hmmio_a]") as "Hna".
     iNext. iRight. iFrame "Htoken".
-    iSplit; [easy|]. do 4 iExists _. by iFrame "Hts_mmio Hmmio_a".
+    iSplit; [easy|]. iSplit; [easy|]. do 4 iExists _. by iFrame "Hts_mmio Hmmio_a".
 
     (* Wrap up the registers *)
     iDestruct (big_sepM_insert _ _ r_t0 with "[$Hrmap $Hr0]") as "Hrmap".
