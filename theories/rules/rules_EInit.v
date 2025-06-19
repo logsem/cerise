@@ -491,11 +491,18 @@ Section cap_lang_rules.
       iApply wp_opt2_eqn_both.
       iDestruct (state_interp_transient_corr with "Hσ") as "%".
       destruct H as (lrt & lmt & vm & Hlrt & Hlmt & Hcorr).
-      assert (lmem ⊆ lmt). admit.
+      rewrite snd_fmap_pair_inv in Hlmt.
       unfold measure at 1, lmeasure at 1.
 
-      erewrite lmeasure_weaken.
-      2,3: eauto; try eapply HallowsMemory; admit.
+      erewrite lmeasure_weaken; eauto.
+      2: {
+        eapply incl_Forall; cycle 1.
+        eapply HallowsMemory; eauto.
+        rewrite /incl.
+        intros a HIna.
+        rewrite -!elem_of_list_In !elem_of_finz_seq_between in HIna |- *.
+        solve_addr.
+      }
 
       erewrite (lmeasure_measure _ (mem σ)).
       2: {
@@ -529,7 +536,7 @@ Section cap_lang_rules.
       iIntros (eid) "%Hlhash %Hhash".
       rewrite updatePC_incrementPC.
       cbn.
-      iApply wp2_opt_incrementPC; eauto.
+      (* iApply wp2_opt_incrementPC; eauto. *)
 
   Admitted.
 
