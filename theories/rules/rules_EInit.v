@@ -155,11 +155,31 @@ Section cap_lang_rules.
     hash_instr ← hash_lmemory_range m (b^+1)%a e v;
     Some (hash_concat (hash b) hash_instr).
 
+
+  Lemma lmeasure_weaken_aux (lmem lmt: LMem) (la : list Addr) (v : Version) :
+    lmem ⊆ lmt →
+    Forall (fun a => is_Some (lmem !! (a, v))) la →
+    lmemory_get_instrs lmem la v = lmemory_get_instrs lmt la v.
+  Proof.
+    intros Hincl Hall.
+    induction la ; first done.
+    rewrite Forall_cons in Hall. destruct Hall as [ [w Ha] Hall].
+    apply IHla in Hall.
+    assert (lmt !! (a, v) = Some w) as Ha' by (eapply lookup_weaken in Ha ; eauto).
+    cbn.
+    rewrite -/(lmemory_get_instrs lmem la v) -/(lmemory_get_instrs lmt la v).
+    by rewrite Ha Ha' Hall.
+  Qed.
+
   Lemma lmeasure_weaken {lmem lmt} {b e v} :
     lmem ⊆ lmt →
     Forall (fun a => is_Some (lmem !! (a, v))) (finz.seq_between b e) →
     hash_lmemory_range lmem b e v = hash_lmemory_range lmt b e v.
-  Admitted.
+  Proof.
+    intros Hincl Hall.
+    rewrite /hash_lmemory_range.
+    erewrite lmeasure_weaken_aux; eauto.
+  Qed.
 
   Definition exec_optL_EInit {A}
     (lregs : LReg) (lmem : LMem)
