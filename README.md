@@ -92,9 +92,9 @@ for an executing program is Seq (Instr Executable).
 
 In the program logic:
 
-| *name in paper*     | *name in mechanization* |
-|---------------------|-------------------------|
-| EC(ecn)             | EC⤇ ecn                 |
-| tidx ↦_{E}^{□} I    | enclave_all             |
-| tidx ↦_{E} I        | enclave_cur             |
-| DeInitialized(tidx) | enclave_prev            |
+| *name in paper*                | *name in mechanization* |
+|--------------------------------|-------------------------|
+| EC(ecn)                        | EC⤇ ecn                 |
+| tidx $\mapsto_{E}^{\square}$ I | enclave_all             |
+| tidx $\mapsto_{E}$ I           | enclave_cur             |
+| DeInitialized(tidx)            | enclave_prev            |
