@@ -158,7 +158,7 @@ Section fundamental.
         |
         ].
       { rewrite /allows_einit_memory.
-        intros ????? Hcontra.
+        intros ???? Hcontra.
         rewrite Hcontra in Hlregs_rcode; simplify_eq.
       }
       iNext.
@@ -189,126 +189,11 @@ Section fundamental.
     }
     destruct_word wcode; rewrite /read_reg_inr Hlregs_rcode in HVrcode; cbn in HVrcode, Hwcode;  simplify_eq.
 
-    destruct (readAllowed p_code) eqn:HreadAllowed; cycle 1.
-    { (* wcode in not a readable capability *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        |
-        ].
-      { rewrite /allows_einit_memory.
-        intros ????? Hcontra Hread.
-        rewrite Hcontra in Hlregs_rcode; simplify_eq.
-        by rewrite Hread in HreadAllowed.
-      }
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        clear -Hrcode Hlregs_rcode HreadAllowed.
-        rewrite Hlregs_rcode in Hrcode; simplify_eq.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    destruct ( decide (a_pc ∈ (finz.seq_between b_code e_code)))
-      as [Hcode_apc_disjoint|Hcode_apc_disjoint].
-    { (* code overlap with pc, the sweep will fail *)
-      admit.
-      (* TODO need to open the points-to of bcode to ecode, but exclude apc... *)
-      (* iDestruct (memMap_resource_1 with "Ha") as "Hmem". *)
-
-      (* iApply (wp_einit with "[$Hmap $Hmem $HEC]") *)
-      (* ;eauto *)
-      (* ; [ by simplify_map_eq *)
-      (*   | rewrite /subseteq /map_subseteq /set_subseteq_instance *)
-      (*     ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto *)
-      (*   | by simplify_map_eq *)
-      (*   | *)
-      (*   | *)
-      (*   ]. *)
-      (* iNext. *)
-      (* iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)". *)
-      (* iDestruct "Hspec" as "[Hspec | Hspec]". *)
-      (* (* Contradiction *) *)
-      (* + iDestruct "Hspec" *)
-      (*     as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid) *)
-      (*          "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot *)
-      (*          & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size *)
-      (*          & %Hvalid_update_code & %Hvalid_update_data & %Hlmem' *)
-      (*          & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved *)
-      (*          & %Hincr & -> & Henclave_live & #Henclave_all)". *)
-      (*   exfalso. *)
-      (*   simplify_map_eq. *)
-      (*   clear -Hunique_regs_code Hrcode Hrdata Hrcode_neq_pc Hcode_apc_disjoint Hb_code i. *)
-      (*   simplify_map_eq. *)
-      (*   apply isCorrectLPC_isCorrectPC in i; cbn in i. *)
-      (*   apply isCorrectPC_le_addr in i. *)
-      (*   eapply (map_Forall_lookup_1 _ _ PC) in Hunique_regs_code ; last by simplify_map_eq. *)
-      (*   rewrite decide_False in Hunique_regs_code; auto. *)
-      (*   apply Hunique_regs_code. *)
-      (*   rewrite /overlap_wordL /overlap_word /=. *)
-      (*   rewrite elem_of_finz_seq_between in Hcode_apc_disjoint. *)
-      (*   destruct (code_b <? b_pc)%a eqn:Hcode_b; solve_addr. *)
-      (* + iDestruct "Hspec" as "(_ & -> & -> & ->)". *)
-      (*   iApply wp_pure_step_later; auto. *)
-      (*   iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro]. *)
-      (*   { iNext. iExists Ecn, ot_ec. *)
-      (*     iFrame "∗#%". *)
-      (*   } *)
-      (*   iDestruct (memMap_resource_1 with "Hmem") as "Ha". *)
-      (*   iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro]. *)
-      (*   iNext; iIntros "_". *)
-      (*   iApply wp_value; auto. iIntros; discriminate. *)
-    }
-
-    (* Open the code region *)
-    iDestruct (interp_open_region $ mask_sys with "Hinterp_wcode")
-      as (Ps_code) "[%Hlen_Ps_code Hmod]" ; eauto.
-    { eapply Forall_forall. intros a' Ha'.
-      subst mask_sys mask_init.
-      eapply namespaces.coPset_subseteq_difference_r; first solve_ndisj.
-      assert (a' ≠ a_pc) by set_solver.
-      solve_ndisj.
-    }
-    iMod "Hmod" as (lws_code) "(%Hlen_lws_code & %Hpers_Ps_code
-      & Hcode & HPs_code & Hreadcond_Ps_code & Hcls_code)".
-    name_current_mask mask_code.
-
-    assert ( allows_einit_memory (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs)
-               (<[(a_pc, v_pc):=lw_pc]> (logical_region_map (finz.seq_between b_code e_code) lws_code v_code)) rcode
-      ) as Hallow_memory_0.
-      { rewrite /allows_einit_memory.
-        intros ????? Hcontra Hread.
-        rewrite Hcontra in Hlregs_rcode; simplify_eq.
-        admit.
-      }
-
     destruct (decide (p_code = RX)) as [->|Hrx]; cycle 1.
     { (* wcode in not a RX capability *)
-    iDestruct (big_sepM_insert with "[$Hcode $Ha]") as "Hmem".
-    { rewrite !logical_region_notin; auto. }
+      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+    (* iDestruct (big_sepM_insert with "[$Hcode $Ha]") as "Hmem". *)
+    (* { rewrite !logical_region_notin; auto. } *)
 
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
@@ -317,7 +202,12 @@ Section fundamental.
           ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
         | by simplify_map_eq
         |
+        |
         ].
+      { rewrite /allows_einit_memory.
+        intros ???? Hcontra.
+        rewrite Hcontra in Hlregs_rcode; simplify_eq.
+      }
       iNext.
       iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
       iDestruct "Hspec" as "[Hspec | Hspec]".
@@ -334,218 +224,8 @@ Section fundamental.
         rewrite Hlregs_rcode in Hrcode; simplify_eq.
       + iDestruct "Hspec" as "(_ & -> & -> & ->)".
         iApply wp_pure_step_later; auto.
-        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
-        match goal with
-        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
-            set (lmem0 := m)
-        end.
-        assert (
-            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
-              ⊆ lmem0) as Hmem_code.
-        { subst lmem0.
-          eapply delete_subseteq_r.
-          { eapply logical_region_notin; eauto.
-          }
-          set_solver.
-        }
-        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
-        ; first (eapply Hmem_code).
-        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
-        {
-          iNext.
-          iApply region_inv_construct; auto.
-        }
-        iModIntro.
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
         { iNext. iExists Ecn, ot_ec. iFrame "∗#%". }
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    (* TODO now we need to manage the data capability........ *)
-
-    destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
-    { (* Code capability is too small *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        clear -Hrcode Hlregs_rcode Hb_code Hcode_size.
-        rewrite Hlregs_rcode in Hrcode; simplify_eq; solve_addr.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    destruct (is_log_cap wdata) eqn:Hwdata; cycle 1.
-    { (* wdata in not a capability *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        clear -Hrdata Hlregs_rdata Hwdata.
-        simplify_map_eq.
-        rewrite Hlregs_rdata in Hrdata; simplify_eq.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-    destruct_word wdata; rewrite /read_reg_inr Hlregs_rdata in HVrdata; cbn in HVrdata, Hwdata;  simplify_eq.
-
-    destruct (decide (p_data = RW)) as [->|Hrx]; cycle 1.
-    { (* wdata in not a RW capability *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        clear -Hrdata Hlregs_rdata Hrx.
-        rewrite Hlregs_rdata in Hrdata; simplify_eq.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    destruct (decide (b_data < e_data)%a) as [Hb_data|Hb_data]; cycle 1.
-    { (* Data capability is too small *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        clear -Hrdata Hlregs_rdata Hb_data Hdata_size.
-        rewrite Hlregs_rdata in Hrdata; simplify_eq; solve_addr.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    destruct (decide (is_Some (a_pc + 1)%a)) as [Hpca_next | Hpca_next]; cycle 1.
-    { (* The PC overflows *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        incrementLPC_inv as (p_pc'&b_pc'&e_pc'&a_pc'&v_pc'& ? & HPC & Z & Hregs'); simplify_map_eq.
-        solve_addr.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
         iDestruct (memMap_resource_1 with "Hmem") as "Ha".
         iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
         iNext; iIntros "_".
@@ -562,7 +242,16 @@ Section fundamental.
           ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
         | by simplify_map_eq
         |
+        |
         ].
+      { rewrite /allows_einit_memory.
+        intros ????? Hcontra.
+        simplify_map_eq.
+        clear -Hcontra i.
+        apply isCorrectLPC_isCorrectPC_iff, isCorrectPC_le_addr in i.
+        apply not_elem_of_finz_seq_between in Hcontra.
+        solve_addr.
+      }
       iNext.
       iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
       iDestruct "Hspec" as "[Hspec | Hspec]".
@@ -588,13 +277,369 @@ Section fundamental.
         iApply wp_value; auto. iIntros; discriminate.
     }
 
+    destruct ( decide (a_pc ∈ (finz.seq_between b_code e_code)))
+      as [Hcode_apc_disjoint|Hcode_apc_disjoint].
+    { (* code overlap with pc, the sweep will fail *)
+      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
+
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        |
+        ].
+      { rewrite /allows_einit_memory.
+        intros ???? Hregs Hcontra.
+        rewrite Hregs in Hlregs_rcode; simplify_eq.
+      }
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        simplify_map_eq.
+        clear -Hunique_regs_code Hrcode Hrdata Hcode_apc_disjoint Hrcode_PC i.
+        simplify_map_eq.
+        apply isCorrectLPC_isCorrectPC in i; cbn in i.
+        apply isCorrectPC_le_addr in i.
+        eapply (map_Forall_lookup_1 _ _ PC) in Hunique_regs_code ; last by simplify_map_eq.
+        rewrite decide_False in Hunique_regs_code; auto.
+        apply Hunique_regs_code.
+        rewrite /overlap_wordL /overlap_word /=.
+        rewrite elem_of_finz_seq_between in Hcode_apc_disjoint.
+        destruct (code_b <? b_pc)%a eqn:Hcode_b; solve_addr.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+
+    (* Open the code region *)
+    iDestruct (interp_open_region $ mask_sys with "Hinterp_wcode")
+      as (Ps_code) "[%Hlen_Ps_code Hmod]" ; eauto.
+    { eapply Forall_forall. intros a' Ha'.
+      subst mask_sys mask_init.
+      eapply namespaces.coPset_subseteq_difference_r; first solve_ndisj.
+      assert (a' ≠ a_pc) by set_solver.
+      solve_ndisj.
+    }
+    iMod "Hmod" as (lws_code) "(%Hlen_lws_code & %Hpers_Ps_code
+      & Hcode & HPs_code & Hreadcond_Ps_code & Hcls_code)".
+    name_current_mask mask_code.
+
+    assert ( allows_einit_memory (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs)
+               (<[(a_pc, v_pc):=lw_pc]> (logical_region_map (finz.seq_between b_code e_code)
+                                           lws_code v_code)) a_pc rcode
+      ) as Hallow_memory_0.
+      { rewrite /allows_einit_memory.
+        intros ???? Hregs ?.
+        rewrite Hregs in Hlregs_rcode; simplify_eq.
+        admit.
+      }
+
+    iDestruct (big_sepM_insert with "[$Hcode $Ha]") as "Hmem".
+    { rewrite !logical_region_notin; auto. }
+
+    destruct (decide (b_code < e_code)%a) as [Hb_code|Hb_code]; cycle 1.
+    { (* Code capability is too small *)
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        clear -Hrcode Hlregs_rcode Hb_code Hcode_size.
+        rewrite Hlregs_rcode in Hrcode; simplify_eq; solve_addr.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+
+    destruct (is_log_cap wdata) eqn:Hwdata; cycle 1.
+    { (* wdata in not a capability *)
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        clear -Hrdata Hlregs_rdata Hwdata.
+        simplify_map_eq.
+        rewrite Hlregs_rdata in Hrdata; simplify_eq.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+    destruct_word wdata; rewrite /read_reg_inr Hlregs_rdata in HVrdata; cbn in HVrdata, Hwdata;  simplify_eq.
+
+    destruct (decide (p_data = RW)) as [->|Hrx]; cycle 1.
+    { (* wdata in not a RW capability *)
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        clear -Hrdata Hlregs_rdata Hrx.
+        rewrite Hlregs_rdata in Hrdata; simplify_eq.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+
+    destruct (decide (b_data < e_data)%a) as [Hb_data|Hb_data]; cycle 1.
+    { (* Data capability is too small *)
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        clear -Hrdata Hlregs_rdata Hb_data Hdata_size.
+        rewrite Hlregs_rdata in Hrdata; simplify_eq; solve_addr.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+
+    destruct (decide (is_Some (a_pc + 1)%a)) as [Hpca_next | Hpca_next]; cycle 1.
+    { (* The PC overflows *)
+      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
+      ;eauto
+      ; [ by simplify_map_eq
+        | rewrite /subseteq /map_subseteq /set_subseteq_instance
+          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
+        | by simplify_map_eq
+        |
+        ].
+      iNext.
+      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
+      iDestruct "Hspec" as "[Hspec | Hspec]".
+      (* Contradiction *)
+      + iDestruct "Hspec"
+          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
+               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
+               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
+               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
+               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
+               & %Hincr & -> & Henclave_live & #Henclave_all)".
+        exfalso.
+        incrementLPC_inv as (p_pc'&b_pc'&e_pc'&a_pc'&v_pc'& ? & HPC & Z & Hregs'); simplify_map_eq.
+        solve_addr.
+      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec.
+          iFrame "∗#%".
+        }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+    }
+
+
     destruct (decide (PC = rdata)) as [Heq|Hrdata_neq_pc]; first (clear -Heq Hlregs_rdata Hp; simplify_map_eq; naive_solver).
     assert (rcode ≠ rdata) as Hrcode_neq_rdata by ( intros ->; simplify_map_eq ).
 
     destruct ( decide (a_pc ∈ (finz.seq_between b_data e_data)))
       as [Hdata_apc_disjoint|Hdata_apc_disjoint].
     { (* data overlap with pc, the sweep will fail *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -628,11 +673,30 @@ Section fundamental.
         destruct (data_b <? b_pc)%a eqn:Hdata_b; solve_addr.
       + iDestruct "Hspec" as "(_ & -> & -> & ->)".
         iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
         { iNext. iExists Ecn, ot_ec.
           iFrame "∗#%".
         }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
         iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
         iNext; iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
@@ -641,7 +705,6 @@ Section fundamental.
     destruct ( decide ((finz.seq_between b_code e_code) ## (finz.seq_between b_data e_data)))
       as [Hcode_data_disjoint|Hcode_data_disjoint]; cycle 1.
     { (* code and data overlap, the sweep will fail *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -676,11 +739,30 @@ Section fundamental.
         apply Hcode_data_disjoint; set_solver + Hunique_regs_data.
       + iDestruct "Hspec" as "(_ & -> & -> & ->)".
         iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
         { iNext. iExists Ecn, ot_ec.
           iFrame "∗#%".
         }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
         iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
         iNext; iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
@@ -688,7 +770,6 @@ Section fundamental.
 
     destruct (ot_ec + 2)%ot as [ot_ec2|] eqn:Hot_ec2; cycle 1.
     { (* The OType overflows *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
       iApply (wp_einit with "[$Hmap $Hmem $HEC]")
       ;eauto
       ; [ by simplify_map_eq
@@ -714,65 +795,36 @@ Section fundamental.
         rewrite Hot in Hot_ec2; done.
       + iDestruct "Hspec" as "(_ & -> & -> & ->)".
         iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r; last done.
+          eapply logical_region_notin; eauto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
         iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
         { iNext. iExists Ecn, ot_ec.
           iFrame "∗#%".
         }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
-        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
-        iNext; iIntros "_".
-        iApply wp_value; auto. iIntros; discriminate.
-    }
-
-    destruct ( decide (a_pc ∈ (finz.seq_between b_code e_code)))
-      as [Hcode_apc_disjoint|Hcode_apc_disjoint].
-    { (* code overlap with pc, the sweep will fail *)
-      iDestruct (memMap_resource_1 with "Ha") as "Hmem".
-      iApply (wp_einit with "[$Hmap $Hmem $HEC]")
-      ;eauto
-      ; [ by simplify_map_eq
-        | rewrite /subseteq /map_subseteq /set_subseteq_instance
-          ; intros rr _; apply elem_of_dom; rewrite lookup_insert_is_Some'; eauto
-        | by simplify_map_eq
-        |
-        ].
-      iNext.
-      iIntros (lregs' lmem' retv tidx ot) "(Hmem & Hregs & HEC & Hspec)".
-      iDestruct "Hspec" as "[Hspec | Hspec]".
-      (* Contradiction *)
-      + iDestruct "Hspec"
-          as (glmem lmem'' code_b code_e code_a code_v data_b data_e data_a data_v hash_instrs eid)
-               "(%Hrcode_PC & %Htidx_next & %Htidx & %Htidx_even & [%Hhash_instrs %Heid] & %Hot
-               & %Hrcode & %Hrdata & %Hcode_size & %Hdata_size
-               & %Hvalid_update_code & %Hvalid_update_data & %Hlmem'
-               & %Hunique_regs_code & %Hunique_regs_data & %Hcode_z & %Hcode_reserved & %data_reserved
-               & %Hincr & -> & Henclave_live & #Henclave_all)".
-        exfalso.
-        simplify_map_eq.
-        clear -Hunique_regs_code Hrcode Hrdata Hrcode_neq_pc Hcode_apc_disjoint Hb_code i.
-        simplify_map_eq.
-        apply isCorrectLPC_isCorrectPC in i; cbn in i.
-        apply isCorrectPC_le_addr in i.
-        eapply (map_Forall_lookup_1 _ _ PC) in Hunique_regs_code ; last by simplify_map_eq.
-        rewrite decide_False in Hunique_regs_code; auto.
-        apply Hunique_regs_code.
-        rewrite /overlap_wordL /overlap_word /=.
-        rewrite elem_of_finz_seq_between in Hcode_apc_disjoint.
-        destruct (code_b <? b_pc)%a eqn:Hcode_b; solve_addr.
-      + iDestruct "Hspec" as "(_ & -> & -> & ->)".
-        iApply wp_pure_step_later; auto.
-        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
-        { iNext. iExists Ecn, ot_ec.
-          iFrame "∗#%".
-        }
-        iDestruct (memMap_resource_1 with "Hmem") as "Ha".
         iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
         iNext; iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
     }
 
     (* We now have all the necessary information for opening all the memory invariant. *)
-
 
     (* Open the data region *)
     iDestruct (interp_open_region $ mask_code with "Hinterp_wdata")
@@ -799,13 +851,21 @@ Section fundamental.
     name_current_mask mask_data.
 
     (* Create a single memory map with all resources, as expected by the WP rule *)
-    iDestruct (big_sepM_union with "[$Hcode $Hdata]") as "Hmem".
+    iDestruct (big_sepM_union with "[$Hmem $Hdata]") as "Hmem".
     { rewrite /logical_region_map.
       apply map_disjoint_list_to_map_zip_r_2; auto.
       + cbn in *; f_equal; simplify_eq.
         by rewrite map_length.
       + apply Forall_forall.
         intros la Hla.
+        assert (la ≠ (a_pc, v_pc)).
+        { destruct la as [a v].
+          rewrite /logical_region in Hla.
+          rewrite elem_of_list_fmap in Hla.
+          destruct Hla as (a' & ? & Hla) ; simplify_eq.
+          intro ; simplify_eq.
+        }
+        rewrite lookup_insert_ne.
         apply not_elem_of_list_to_map_1.
         rewrite fst_zip; eauto.
         * intro Hcontra.
@@ -817,11 +877,21 @@ Section fundamental.
           rewrite map_length.
           cbn in Hlen_lws_code; simplify_eq.
           lia.
+        * done.
     }
-    iDestruct (big_sepM_insert with "[$Hmem $Ha]") as "Hmem".
-    { rewrite lookup_union.
-      rewrite !logical_region_notin; auto.
-    }
+    rewrite -insert_union_l.
+
+    assert (
+  allows_einit_memory (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs)
+    (<[(a_pc, v_pc):=lw_pc]>
+       (logical_region_map (finz.seq_between b_code e_code) lws_code v_code
+        ∪ logical_region_map (finz.seq_between b_data e_data) lws_data v_data)) a_pc rcode
+      ) as Hallow_memory.
+      { rewrite /allows_einit_memory.
+        intros ???? Hregs ?.
+        rewrite Hregs in Hlregs_rcode; simplify_eq.
+        admit.
+      }
 
     destruct (hash_lmemory_range
                 (<[(a_pc, v_pc):=lw_pc]>

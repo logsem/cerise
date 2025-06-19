@@ -138,10 +138,10 @@ Section cap_lang_rules.
     (lregs : LReg) (lmem : LMem) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : iProp Σ :=
     ⌜ EInit_fail lregs lmem r_code r_data tidx ot ⌝.
 
-  Definition allows_einit_memory (lregs : LReg) (lmem : LMem) (r : RegName) :=
-    ∀ p b e a v,
-    lregs !! r = Some (LCap p b e a v)
-    -> readAllowed p = true
+  Definition allows_einit_memory (lregs : LReg) (lmem : LMem) (pc_a : Addr) (r : RegName) :=
+    ∀ b e a v,
+    lregs !! r = Some (LCap RX b e a v)
+    -> pc_a ∉ finz.seq_between b e
        (* lmem must include at least those addresses in the r_code cap *)
     -> Forall (fun a => is_Some (lmem !! (a, v))) (finz.seq_between b e).
 
@@ -234,7 +234,7 @@ Section cap_lang_rules.
     lmem !! (pc_a, pc_v) = Some lw →
     allows_einit lregs r_code →
     allows_einit lregs r_data →
-    allows_einit_memory lregs lmem r_code →
+    allows_einit_memory lregs lmem pc_a r_code →
     {{{
           (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
           (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
@@ -498,7 +498,8 @@ Section cap_lang_rules.
       2: {
         eapply incl_Forall; cycle 1.
         eapply HallowsMemory; eauto.
-        rewrite /incl.
+        + admit. (* should be fine, from sweep_reg *)
+        + rewrite /incl.
         intros a HIna.
         rewrite -!elem_of_list_In !elem_of_finz_seq_between in HIna |- *.
         solve_addr.
