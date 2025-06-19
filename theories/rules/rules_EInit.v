@@ -138,6 +138,13 @@ Section cap_lang_rules.
     (lregs : LReg) (lmem : LMem) (r_code r_data : RegName) (tidx : TIndex) (ot : OType) : iProp Σ :=
     ⌜ EInit_fail lregs lmem r_code r_data tidx ot ⌝.
 
+  Definition allows_einit_memory (lregs : LReg) (lmem : LMem) (r : RegName) :=
+    ∀ p b e a v,
+    lregs !! r = Some (LCap p b e a v)
+    -> readAllowed p = true
+       (* lmem must include at least those addresses in the r_code cap *)
+    -> Forall (fun a => is_Some (lmem !! (a, v))) (finz.seq_between b e).
+
   Definition allows_einit (lregs : LReg) (r : RegName) :=
     ∀ p b e a v,
     lregs !! r = Some (LCap p b e a v)
@@ -147,6 +154,12 @@ Section cap_lang_rules.
   Definition lmeasure (m : LMem) (b e: Addr) v : option Z :=
     hash_instr ← hash_lmemory_range m (b^+1)%a e v;
     Some (hash_concat (hash b) hash_instr).
+
+  Lemma lmeasure_weaken {lmem lmt} {b e v} :
+    lmem ⊆ lmt →
+    Forall (fun a => is_Some (lmem !! (a, v))) (finz.seq_between b e) →
+    hash_lmemory_range lmem b e v = hash_lmemory_range lmt b e v.
+  Admitted.
 
   Definition exec_optL_EInit {A}
     (lregs : LReg) (lmem : LMem)
@@ -167,7 +180,7 @@ Section cap_lang_rules.
                 s_b ← @finz.of_z zB (2 * Z.of_nat ec)%Z ;
                 s_e ← @finz.of_z zB (2 * Z.of_nat ec + 2)%Z ;
                 eid ← lmeasure lmem b e v;
-                newPC ← incrementLPC (<[r2 := LInt 0]> (<[r1 := (LCap machine_base.E b e (b ^+ 1)%a v)]> lregs));
+                newPC ← incrementLPC (<[r2 := LInt 0]> (<[r1 := (LCap machine_base.E b e (b ^+ 1)%a (v+1))]> lregs));
                 kont newPC (* missing stuff from below.. *)
                      (* (update_reg *)
                      (*    (update_reg *)
@@ -201,6 +214,7 @@ Section cap_lang_rules.
     lmem !! (pc_a, pc_v) = Some lw →
     allows_einit lregs r_code →
     allows_einit lregs r_data →
+    allows_einit_memory lregs lmem r_code →
     {{{
           (▷ [∗ map] k↦y ∈ lregs, k ↦ᵣ y) ∗
           (▷ [∗ map] la↦lw ∈ lmem, la ↦ₐ lw) ∗
@@ -222,7 +236,7 @@ Section cap_lang_rules.
         )
     }}}.
   Proof.
-    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HrcodeAllowEInit HrdataAllowEInit φ) "(>Hregs & >Hmem & HECv) Hφ".
+    iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HrcodeAllowEInit HrdataAllowEInit HallowsMemory φ) "(>Hregs & >Hmem & HECv) Hφ".
     (*  extract the pc  *)
     rewrite (big_sepM_delete _ lmem). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
     (* iApply wp_lift_atomic_head_step_no_fork; auto. *)
@@ -455,9 +469,27 @@ Section cap_lang_rules.
 
       iApply wp_opt2_bind.
       iApply wp_opt2_eqn_both.
+      iDestruct (state_interp_transient_corr with "Hσ") as "%".
+      destruct H as (lrt & lmt & vm & Hlrt & Hlmt & Hcorr).
+      assert (lmem ⊆ lmt). admit.
       unfold measure at 1, lmeasure at 1.
+
+      erewrite lmeasure_weaken.
+      2,3: eauto; try eapply HallowsMemory; admit.
+
       erewrite (lmeasure_measure _ (mem σ)).
-      2,3: admit.
+      2: {
+        eapply (is_cur_lword_lea vm RX RX f (f ^+ 1)%a f0 f0 _ _ _ (LCap RX f f0 _ _)).
+        rewrite Is_true_true.
+        apply isWithin_of_le.
+        solve_addr.
+        all: try easy.
+
+        eapply lreg_corresponds_read_iscur.
+        by destruct Hcorr.
+        by eapply lookup_weaken in Hlccap. }
+
+      2: eauto.
       iApply wp2_diag_univ.
       iSplit.
 
@@ -476,6 +508,8 @@ Section cap_lang_rules.
 
       iIntros (eid) "%Hlhash %Hhash".
       rewrite updatePC_incrementPC.
+      cbn.
+      iApply wp2_opt_incrementPC; eauto.
 
   Admitted.
 
