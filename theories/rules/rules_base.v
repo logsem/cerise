@@ -1791,6 +1791,8 @@ Section cap_lang_rules_opt.
     now eapply (proj2 (proj1 HLinv)).
   Qed.
 
+  (** Updates the transient state with a register update to dst that writes
+      a word lw2 **)
   Lemma update_state_interp_transient_from_regs_mod {σ σt lr lrt lm lmt dst lw2}:
     dst ∈ dom lrt ->
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw2 cur_map) ->
@@ -1826,6 +1828,8 @@ Section cap_lang_rules_opt.
     eapply (update_state_interp_from_regs_mod (lw2 := LWInt z)); now eauto.
   Qed.
 
+  (** Updates the transient state with a register update to dst that writes
+      an int z **)
   Lemma update_state_interp_transient_int {σ σt lr lrt lm lmt dst z}:
     dst ∈ dom lrt ->
     state_interp_transient σ σt lr lrt lm lmt ⊢
@@ -1876,6 +1880,8 @@ Section cap_lang_rules_opt.
     eapply state_corresponds_cap_cur_word ; eauto; by cbn.
   Qed.
 
+  (** Updates the transient state with a register update to dst that writes
+      a value lw retrieved from memory using the capability in r **)
   Lemma update_state_interp_transient_from_cap_mod
     {σ σt lr lrt lm lmt dst lw2 r p b e a v}:
     dst ∈ dom lrt ->
@@ -1927,6 +1933,8 @@ Section cap_lang_rules_opt.
     all: apply (is_cur_regs_mono Hlregs_incl); auto.
 Qed.
 
+  (** Updates the transient state with a memory update to address la, writing
+      a word lw **)
   Lemma update_state_interp_transient_from_mem_mod {σ σt lr lrt} {lm lmt : LMemF} la lw lw' :
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_word lw cur_map) ->
     (forall cur_map, is_cur_regs lrt cur_map -> is_cur_addr la cur_map) ->

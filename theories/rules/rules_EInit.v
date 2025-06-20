@@ -200,8 +200,8 @@ Section cap_lang_rules.
                 s_b ← @finz.of_z zB (2 * Z.of_nat ec)%Z ;
                 s_e ← @finz.of_z zB (2 * Z.of_nat ec + 2)%Z ;
                 eid ← lmeasure lmem b e v;
-                newPC ← incrementLPC (<[r2 := LInt 0]> (<[r1 := (LCap machine_base.E b e (b ^+ 1)%a (v+1))]> lregs));
-                kont newPC (* missing stuff from below.. *)
+                lregs' ← incrementLPC (<[r2 := LInt 0]> (<[r1 := (LCap machine_base.E b e (b ^+ 1)%a (v+1))]> lregs));
+                kont lregs' (* missing stuff from below.. *)
                      (* (update_reg *)
                      (*    (update_reg *)
                      (*       (update_enumcur *)
@@ -534,10 +534,45 @@ Section cap_lang_rules.
         discriminate Hhash. exact eq_refl.
       }
 
-      iIntros (eid) "%Hlhash %Hhash".
+    (* TODO: state update changes first, see rules_Store *)
+      (*    |>> update_reg r1 (WCap E b e (b^+1)%a) (* Position cursor at address b+1: entry point always at base address *) *)
+      (*    |>> update_reg r2 (WInt 0) (* Erase the supplied dcap from r2 *) *)
+      (*    |>> updatePC *)
+
+      (* φ  |>> update_mem b' seals    (* store seals at base address of enclave's data section *) *)
+      rewrite (update_state_interp_transient_from_mem_mod (f2, v0+1) (LSealRange (true, true) s_b s_e s_b) _).
+
+      (*    |>> update_mem b dcap      (* store dcap at base address of enclave's code section *) *)
+      rewrite (update_state_interp_transient_from_mem_mod (f, v+1) (LCap RW f2 f3 f4 v0) _).
+
+      (* TODO: *)
+      (*    |>> update_etable (enumcur φ) eid (* create a new index in the ETable *) *)
+      (*    |>> update_enumcur ((enumcur φ)+1)  (* increment EC := EC + 1 *) *)
+
+
+
+      rewrite big_sepM_fmap. cbn.
+      iIntros (eid) "%Hlmeasure %Hmeasure".
       rewrite updatePC_incrementPC.
-      cbn.
-      (* iApply wp2_opt_incrementPC; eauto. *)
+      iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+      iApply (wp2_opt_incrementPC with "[Hσ Hφ]").
+      { apply elem_of_dom. by repeat (rewrite lookup_insert_is_Some'; right). }
+
+      iSplitL "".
+
+      (* failure case: increment pc failed. *)
+        (* how do I prove the spatial goals without my transient state assump? (needed above for the incrementpc) *)
+        admit.
+        iApply "Hφ". iFrame. admit.
+      }
+      {
+        iIntros.
+        iApply wp2_val.
+        iModIntro. cbn.
+        (* Should work with the update lemmas below? *)
+        Search (state_interp_logical _).
+        admit.
+      }
 
   Admitted.
 
