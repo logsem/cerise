@@ -46,6 +46,16 @@ Proof.
       set_solver.
 Qed.
 
+Lemma elem_of_logical_region (a : Addr) (la : list Addr) (v : Version) :
+  a ∈ la <->
+    (a, v) ∈ logical_region la v.
+Proof.
+  split; rewrite /logical_region; intros Ha.
+  - by apply elem_of_list_fmap; exists a.
+  - apply elem_of_list_fmap in Ha.
+    by destruct Ha as (? & ? & ?); simplify_eq.
+Qed.
+
 Section fundamental.
   Context {Σ:gFunctors} {ceriseg:ceriseG Σ} {sealsg: sealStoreG Σ}
           {nainv: logrel_na_invs Σ}
@@ -350,7 +360,13 @@ Section fundamental.
       { rewrite /allows_einit_memory.
         intros ???? Hregs ?.
         rewrite Hregs in Hlregs_rcode; simplify_eq.
-        admit.
+        rewrite Forall_forall.
+        intros a Ha.
+        rewrite lookup_insert_ne; last by set_solver + H Ha.
+        rewrite /logical_region_map.
+        apply list_to_map_lookup_is_Some.
+        rewrite fst_zip; eauto; last (rewrite logical_region_length; lia).
+        by apply elem_of_logical_region.
       }
 
     iDestruct (big_sepM_insert with "[$Hcode $Ha]") as "Hmem".
@@ -882,16 +898,25 @@ Section fundamental.
     rewrite -insert_union_l.
 
     assert (
-  allows_einit_memory (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs)
-    (<[(a_pc, v_pc):=lw_pc]>
-       (logical_region_map (finz.seq_between b_code e_code) lws_code v_code
-        ∪ logical_region_map (finz.seq_between b_data e_data) lws_data v_data)) a_pc rcode
+        allows_einit_memory (<[PC:=LCap p_pc b_pc e_pc a_pc v_pc]> lregs)
+          (<[(a_pc, v_pc):=lw_pc]>
+             (logical_region_map (finz.seq_between b_code e_code) lws_code v_code
+                ∪ logical_region_map (finz.seq_between b_data e_data) lws_data v_data)) a_pc rcode
       ) as Hallow_memory.
-      { rewrite /allows_einit_memory.
-        intros ???? Hregs ?.
-        rewrite Hregs in Hlregs_rcode; simplify_eq.
-        admit.
-      }
+    { rewrite /allows_einit_memory.
+      intros ???? Hregs ?.
+      rewrite Hregs in Hlregs_rcode; simplify_eq.
+      rewrite Forall_forall.
+      intros a Ha.
+      rewrite lookup_insert_ne; last by set_solver + H Ha.
+      rewrite lookup_union union_is_Some.
+      left.
+      rewrite /logical_region_map.
+      apply list_to_map_lookup_is_Some.
+      rewrite fst_zip; eauto; last (rewrite logical_region_length; lia).
+      by apply elem_of_logical_region.
+    }
+    clear Hallow_memory_0.
 
     destruct (hash_lmemory_range
                 (<[(a_pc, v_pc):=lw_pc]>
@@ -994,7 +1019,6 @@ Section fundamental.
     iDestruct "Hspec" as "[Hspec | Hspec]"; cycle 1.
     {
       iDestruct "Hspec" as "(%Hspec & -> & -> & ->)".
-      exfalso.
       inversion Hspec
         as [
            | wcode Hrcode Hwcode
@@ -1018,9 +1042,63 @@ Section fundamental.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
       - rewrite lookup_insert_ne // Hlregs_rdata in Hrdata; simplify_eq.
-      - admit. (* added new constructor for sweep failure *)
-      - admit. (* added new constructor for out of bounds casts *)
-      - incrementLPC_inv; simplify_map_eq; eauto.
+      - (* constructor for sweep failure: no contradiction here, but enters the machine Fail state *)
+        iApply wp_pure_step_later; auto.
+        iDestruct (big_sepM_insert_delete with "Hmem") as "[Ha Hmem]".
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem0 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_code)%a e_code) (lws_code) v_code
+              ⊆ lmem0) as Hmem_code.
+        { subst lmem0.
+          eapply delete_subseteq_r.
+          { eapply logical_region_notin; eauto.
+          }
+          eapply map_union_subseteq_l.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hcode Hmem]"
+        ; first (eapply Hmem_code).
+        match goal with
+        | _ : _ |- context [environments.Esnoc _ (INamed "Hmem") (big_opM _ _ ?m)] =>
+            set (lmem1 := m)
+        end.
+        assert (
+            logical_region_map (finz.seq_between (b_data)%a e_data) (lws_data) v_data
+              ⊆ lmem1) as Hmem_data.
+        { subst lmem1.
+          eapply (delete_subseteq_list_r); eauto.
+          + apply logical_region_map_disjoint; auto.
+            set_solver + Hcode_data_disjoint.
+          + subst lmem0.
+            eapply delete_subseteq_r.
+            { eapply logical_region_notin; eauto.
+            }
+            eapply map_union_subseteq_r.
+            apply logical_region_map_disjoint; auto.
+        }
+        iDestruct (big_sepM_insert_difference with "Hmem") as "[Hdata Hmem]"
+        ; first (eapply Hmem_data).
+        iMod ("Hcls_data" with "[Hdata HPs_data Hreadcond_Ps_data]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_code" with "[Hcode HPs_code Hreadcond_Ps_code]") as "_".
+        {
+          iNext.
+          iApply region_inv_construct; auto.
+        }
+        iModIntro.
+        iMod ("Hcls_sys" with "[ HEC Hfree Halloc]") as "_"; [|iModIntro].
+        { iNext. iExists Ecn, ot_ec. iFrame "∗#%". }
+        iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
+        iNext; iIntros "_".
+        iApply wp_value; auto. iIntros; discriminate.
+      - admit. (* out of bounds casts: need more information in the WP rule *)
+      - exfalso. incrementLPC_inv; simplify_map_eq; eauto.
         rewrite Hincr /is_Some in Hpca_next; naive_solver.
       - simplify_eq.
         opose proof (otype_unification ot ot_ec _ _) as -> ; eauto.

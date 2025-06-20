@@ -2488,6 +2488,17 @@ Qed.
 
 (** Miscellaneous about logical regions *)
 (* TODO move definition to regions.v ? *)
+
+Lemma elem_of_logical_region (a : Addr) (la : list Addr) (v : Version) :
+  a ∈ la <->
+    (a, v) ∈ logical_region la v.
+Proof.
+  split; rewrite /logical_region; intros Ha.
+  - by apply elem_of_list_fmap; exists a.
+  - apply elem_of_list_fmap in Ha.
+    by destruct Ha as (? & ? & ?); simplify_eq.
+Qed.
+
 Definition logical_region_map
   (la : list Addr) (lws : list LWord) (v : Version) : gmap LAddr LWord :=
   list_to_map (zip (logical_region la v) lws).
