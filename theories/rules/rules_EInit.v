@@ -68,8 +68,8 @@ Section cap_lang_rules.
     lregs !! r_data = Some (LCap p' b' e' a' v')->
     EInit_fail lregs lmem r_code r_data tidx ot
   (* Casting to bounded Z fails (max enum exceeded?) *)
-  | EInit_fail_enum_bound_exceeded {zB} z :
-    @finz.of_z zB z = None →
+  | EInit_fail_enum_bound_exceeded :
+    @finz.of_z _ (2 * tidx) = (None : option OType) →
     EInit_fail lregs lmem r_code r_data tidx ot
   (* the PCC overflows *)
   | EInit_fail_pc_overflow
@@ -295,6 +295,13 @@ Section cap_lang_rules.
     (* regular path: PC does not equal r_code *)
     (* intro transient modality *)
 
+    iAssert (⌜enumcur σ = tidx⌝)%I as "%HEC".
+    { rewrite /state_interp_logical.
+      iDestruct "Hσ" as (??????) "(_&_&_&_&_&_&HEC&_)".
+      iCombine "HEC" "HECv" as "HEC".
+      iDestruct (own_valid with "HEC") as "%HEC_valid".
+      by apply excl_auth.excl_auth_agree_L in HEC_valid.
+    }
     iDestruct (state_interp_transient_intro_nodfracs (lr := lregs) (lm := lmem) with "[$Hregs $Hσ $Hmem]") as "Hσ".
 
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
@@ -467,6 +474,7 @@ Section cap_lang_rules.
         iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
         iApply "Hφ". iFrame.
         iRight. iSplit; try easy. iPureIntro.
+        rewrite -HEC.
         by eapply EInit_fail_enum_bound_exceeded. }
 
       iIntros (s_b) "%Hs_b _".
@@ -479,7 +487,17 @@ Section cap_lang_rules.
         iDestruct (state_interp_transient_elim_abort with "Hσ") as "($ & Hregs & Hmem)". rewrite big_sepM_fmap. cbn.
         iApply "Hφ". iFrame.
         iRight. iSplit; try easy. iPureIntro.
-        by eapply EInit_fail_enum_bound_exceeded. }
+        eapply (EInit_fail_otype_overflow _ _ _ _ tidx s_b).
+        + rewrite -HEC /tid_of_otype.
+          clear -Hs_b.
+          admit.
+        + clear -Hs_b.
+          admit.
+        + apply finz_of_z_is_Some_spec in Hs_b.
+          rewrite -Hs_b in H.
+          clear -H Hs_b.
+          admit.
+      }
 
       iIntros (s_e) "%Hs_e _".
 

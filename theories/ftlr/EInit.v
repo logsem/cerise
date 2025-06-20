@@ -1097,7 +1097,7 @@ Section fundamental.
         iMod ("Hcls" with "[HP Ha]");[iExists lw_pc;iFrame|iModIntro].
         iNext; iIntros "_".
         iApply wp_value; auto. iIntros; discriminate.
-      - admit. (* out of bounds casts: need more information in the WP rule *)
+      - simplify_eq.
       - exfalso. incrementLPC_inv; simplify_map_eq; eauto.
         rewrite Hincr /is_Some in Hpca_next; naive_solver.
       - simplify_eq.
@@ -2046,6 +2046,6 @@ Section fundamental.
         destruct (decide (ri = rcode)); simplify_map_eq; first by rewrite !fixpoint_interp1_eq.
         iDestruct ("Hreg" $! ri _ Hri Hvs) as "Hinterp_dst"; eauto.
       }
-  Admitted.
+  Qed.
 
 End fundamental.
