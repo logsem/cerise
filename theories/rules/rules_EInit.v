@@ -271,13 +271,13 @@ Section cap_lang_rules.
     (m : Mem) (ec : ENum) {zB : Z}
     (kont : LReg → option A) : option A.
     refine (
-    if decide (negb (bool_decide (r1 = PC))) then
+    if negb (bool_decide (r1 = PC)) then
       ccap          ← lregs !! r1;
       '(p, b, e, _, v) ← lword_get_cap ccap;
       if decide (p = RX) then
         if decide (b < e)%a then
           dcap          ← lregs !! r2;
-          '(p', b', e', _) ← get_wcap (lword_get_word dcap);
+          '(p', b', e', _ , _) ← lword_get_cap dcap;
           if decide (p' = RW) then
             if decide (b' < e')%a then
               if decide (code_sweep && data_sweep && (ensures_is_z m (b ^+ 1)%a e)) then
@@ -343,7 +343,6 @@ Section cap_lang_rules.
     iIntros (Hinstr Hvpc HPC Dregs Hmem_pc HrcodeAllowEInit HrdataAllowEInit HallowsMemory φ) "(>Hregs & >Hmem & HECv) Hφ".
     (*  extract the pc  *)
     rewrite (big_sepM_delete _ lmem). 2: apply Hmem_pc. iDestruct "Hmem" as "[Hpc_a Hmem]".
-    (* iApply wp_lift_atomic_head_step_no_fork; auto. *)
     iApply (wp_instr_exec_opt Hvpc HPC Hinstr Dregs with "[$Hregs $Hpc_a Hmem Hφ HECv]").
     iModIntro.
 
@@ -351,36 +350,31 @@ Section cap_lang_rules.
     iModIntro.
     iIntros (wa) "(%Hppc & %Hpmema & %Hcorrpc & %Hdinstr) _".
     iCombine "Hpc_a Hmem" as "Hmem".
-    rewrite -(big_sepM_delete (fun x y => mapsto x (DfracOwn (pos_to_Qp 1)) y) _ _ _ Hmem_pc).
+    rewrite -(big_sepM_delete (fun x y => mapsto x (DfracOwn 1) y) _ _ _ Hmem_pc).
 
     set (code_sweep := (sweep_reg (mem σ) (reg σ) r_code)).
     set (data_sweep := (sweep_reg (mem σ) (reg σ) r_data)).
 
 
-    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep (mem σ) (enumcur σ) _) (φ2 := _)).
+    iApply (wp_wp2 (φ1 := exec_optL_EInit lregs lmem r_code r_data code_sweep data_sweep (mem σ) (enumcur σ) _)).
     iModIntro.
 
     unfold exec_optL_EInit.
 
     (* split on whether code cap register is PC... *)
-    destruct (decide (negb (bool_decide (r_code = PC)))) eqn:Hpc_eqb; cbn in *; simplify_eq; rewrite Hpc_eqb; clear Hpc_eqb.
+    destruct (negb (bool_decide (r_code = PC))) eqn:Hpc_eqb; cbn in *; simplify_eq; rewrite Hpc_eqb.
     all: revgoals.
     { (* case where they are equal: crash the machine *)
-      unfold wp_opt2.
-      unfold exec_optL_EInit.
       iModIntro.
-      iFrame.
+      iFrame "Hσ".
       iApply "Hφ". iFrame.
       iRight.
-      iSplit. iPureIntro. constructor 1.
-      - by apply negb_prop_classical, bool_decide_unpack in n.
-      - easy. }
-    assert ( r_code ≠ PC ) as Hpc_neq_code.
-    { intro; simplify_eq.
-      rewrite -bool_decide_not in i.
-      apply bool_decide_unpack in i; done.
+      iSplit; last easy.
+      iPureIntro.
+      constructor 1.
+      now apply negb_false_iff, Is_true_true, bool_decide_unpack in Hpc_eqb.
     }
-    clear i.
+    assert ( r_code ≠ PC ) as Hpc_neq_code by (intro; simplify_eq).
 
     (* regular path: PC does not equal r_code *)
     (* intro transient modality *)
@@ -388,8 +382,7 @@ Section cap_lang_rules.
     iDestruct "Hσ" as "(%lr & %lm & %vmap & %cur_tb & %prev_tb & %all_tb & Hlr & Hlm & %Hetable & Hcur_tb & Hprev_tb & Hall_tb & Hecauth & %Hdomcurtb & %Hdomtbcompl & %Htbdisj & %Htbcompl & %Hcorr0)".
 
     iAssert (⌜enumcur σ = tidx⌝)%I as "%HEC".
-    { iCombine "Hecauth" "HECv" as "HEC".
-      iDestruct (own_valid with "HEC") as "%HEC_valid".
+    { iDestruct (own_valid_2 with "Hecauth HECv") as "%HEC_valid".
       by apply excl_auth.excl_auth_agree_L in HEC_valid. }
 
     (* derive frag ⊆ auth *)
@@ -407,46 +400,24 @@ Section cap_lang_rules.
 
     iIntros (lccap ccap) "-> %Hlccap %Hccap".
 
-    iApply wp_opt2_bind.
+    iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
 
-    unfold lword_get_cap.
-    destruct lccap eqn:Hccap_shape; cbn.
+    iApply wp2_word_get_cap; iSplit; iIntros.
 
     (* why can't I use multi-goal selectors with curly braces? *)
+    (* domi: I think that might be an Ltac2 feature...*)
     1: {
-      iModIntro.
-      iIntros.
       iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
       iSplitR "Hφ Hregs Hmem HECv".
-      iExists lr, lm, vmap, _, _, _; now iFrame.
+      { iExists lr, lm, vmap, _, _, _; now iFrame. }
       iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
       iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_ccap_not_a_cap.
+      eapply EInit_fail_ccap_not_a_cap; first done.
+      apply is_log_cap_is_cap_false_iff.
+      destruct (lword_get_word lccap) as [ | [ | ] | ]; (easy || now discriminate).
     }
-    2: {
-      iModIntro.
-      iIntros.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
-      iSplitR "Hφ Hregs Hmem HECv".
-      iExists lr, lm, vmap, _, _, _; now iFrame.
-      iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
-      iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_ccap_not_a_cap.
-    }
+    destruct lccap as [ | [ | ] | ]; cbn in *; inversion H; subst f f0 f1 p0 v0; clear H H0.
 
-    destruct sb eqn:Hsb_shape; cbn.
-    2: {
-      iModIntro.
-      iIntros.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
-      iSplitR "Hφ Hregs Hmem HECv".
-      iExists lr, lm, vmap, _, _, _; now iFrame.
-      iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
-      iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_ccap_not_a_cap.
-    }
-
-    iModIntro.
     destruct (decide (p = RX)).
 
     2: { (* we do not have RX permissions for ccap. *)
@@ -457,9 +428,11 @@ Section cap_lang_rules.
       iExists lr, lm, vmap, _, _, _; now iFrame.
       iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
       iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_ccap_no_rx. }
+      by eapply EInit_fail_ccap_no_rx.
+    }
+    subst p.
 
-    destruct (decide (f < f0)%a).
+    destruct (decide (b < e)%a).
     2: { (* ccap is too small to store dcap at address b *)
       iModIntro.
       iIntros.
@@ -468,7 +441,8 @@ Section cap_lang_rules.
       iExists lr, lm, vmap, _, _, _; now iFrame.
       iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
       iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_ccap_small. }
+      by eapply EInit_fail_ccap_small.
+    }
 
     iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
     iApply wp_opt2_mono2.
@@ -478,46 +452,25 @@ Section cap_lang_rules.
 
     iIntros (ldcap dcap) "-> %Hldcap %Hdcap".
 
-    unfold get_wcap.
-    destruct ldcap eqn:Hdcap_shape; cbn.
-    1: {
-      iModIntro.
-      iIntros.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
+    iApply wp_opt2_bind; iApply wp_opt2_eqn_both.
+    iApply wp2_word_get_cap.
+    iSplit; iIntros.
+    { iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
       iSplitR "Hφ Hregs Hmem HECv".
       iExists lr, lm, vmap, _, _, _; now iFrame.
       iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
       iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_dcap_not_a_cap. }
-
-    (* is DCAP a cap? *)
-    destruct sb0 eqn:Hsb0_shape; cbn.
-
-    2: {
-      iModIntro.
-      iIntros.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
-      iSplitR "Hφ Hregs Hmem HECv".
-      iExists lr, lm, vmap, _, _, _; now iFrame.
-      iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
-      iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_dcap_not_a_cap. }
-
-    2: {
-      iModIntro.
-      iIntros.
-      iDestruct (transiently_abort with "Hσ") as "(Hσr & Hσm & Hregs & Hmem & Hcur_tb & Hall_tb & Hecauth & HECv)".
-      iSplitR "Hφ Hregs Hmem HECv".
-      iExists lr, lm, vmap, _, _, _; now iFrame.
-      iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
-      iRight. iSplit; try easy. iPureIntro.
-      by eapply EInit_fail_dcap_not_a_cap. }
-
+      eapply EInit_fail_dcap_not_a_cap; first done.
+      apply is_log_cap_is_cap_false_iff.
+      destruct (lword_get_word ldcap) as [ | [ | ] | ]; (easy || now discriminate).
+    }
     (* DCAP is now definitely a cap *)
+    destruct ldcap as [ | [ | ] | ]; cbn in *; inversion H; subst p0 f f0 f1 v1; clear H H0.
+
 
 
     (* Does DCAP have the right perms? *)
-    destruct (decide (p0 = RW)).
+    destruct (decide (p = RW)).
 
     2: {
       iModIntro.
@@ -528,8 +481,9 @@ Section cap_lang_rules.
       iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
       iRight. iSplit; try easy. iPureIntro.
       by eapply EInit_fail_dcap_no_rw. }
+    subst p.
 
-    destruct (decide (f2 < f3)%a).
+    destruct (decide (b0 < e0)%a).
     2: { (* dcap is too small to store seals at address b' *)
       iModIntro.
       iIntros.
@@ -585,7 +539,7 @@ Section cap_lang_rules.
       assert (r_code ≠ r_data) as Hneq_rcode_data by (intro ; simplify_map_eq).
 
       assert (Hcode_data_disjoint :
-               (finz.seq_between f f0) ## (finz.seq_between f2 f3)).
+               (finz.seq_between b e) ## (finz.seq_between b0 e0)).
       { clear -Hneq_rcode_data Hccap Hdcap Hcode_sweep.
         unfold sweep_reg, sweep_memory_reg, sweep_registers_reg in Hcode_sweep.
         rewrite Hccap in Hcode_sweep.
@@ -600,7 +554,7 @@ Section cap_lang_rules.
         apply overlap_word_disjoint in Hdcap.
         done. }
 
-      destruct (decide (ensures_is_z (mem σ) (f ^+ 1)%a f0)).
+      destruct (decide (ensures_is_z (mem σ) (b ^+ 1)%a e)).
 
       2: {
         (* no caps sweep was not successful. *)
@@ -627,8 +581,9 @@ Section cap_lang_rules.
         iExists lr, lm, vmap, _, _, _; now iFrame.
         iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
         iRight. iSplit; try easy. iPureIntro.
-        rewrite -HEC.
-        by eapply EInit_fail_enum_bound_exceeded. }
+        eapply EInit_fail_enum_bound_exceeded.
+        now rewrite -HEC.
+      }
 
       iIntros (s_b) "%Hs_b _".
       iApply wp_opt2_bind. iApply wp_opt2_eqn_both.
@@ -641,7 +596,7 @@ Section cap_lang_rules.
         iExists lr, lm, vmap, _, _, _; now iFrame.
         iApply ("Hφ" with "[$Hregs $Hmem $HECv]").
         iRight. iSplit; try easy. iPureIntro.
-        eapply (EInit_fail_otype_overflow _ _ _ _ tidx s_b).
+        eapply (EInit_fail_otype_overflow _ _ _ _ _ s_b).
         + rewrite -HEC /tid_of_otype.
           clear -Hs_b.
           destruct (Z.even s_b) eqn:HZeven; cycle 1.
@@ -659,11 +614,10 @@ Section cap_lang_rules.
 
       (* measure the enclave footprint *)
 
-      subst p p0.
       iApply wp_opt2_bind.
       iApply wp_opt2_eqn_both.
       unfold measure at 1, lmeasure at 1.
-      assert (Hpc_notin_code : pc_a ∉ (finz.seq_between f f0)).
+      assert (Hpc_notin_code : pc_a ∉ (finz.seq_between b e)).
       {   eapply sweep_implies_no_pc; eauto.
           eapply isCorrectPC_le_addr in Hcorrpc.
           rewrite elem_of_finz_seq_between; solve_addr. }
@@ -673,14 +627,14 @@ Section cap_lang_rules.
         eapply incl_Forall; cycle 1.
         eapply HallowsMemory; eauto.
         rewrite /incl.
-        intros a HIna.
-        rewrite -!elem_of_list_In !elem_of_finz_seq_between in HIna |- *.
+        intros a' HIna'.
+        rewrite -!elem_of_list_In !elem_of_finz_seq_between in HIna' |- *.
         solve_addr.
       }
 
       erewrite (lmeasure_measure _ (mem σ)); eauto.
       2: {
-        eapply (is_cur_lword_lea vmap RX RX f (f ^+ 1)%a f0 f0 _ _ _ (LCap RX f f0 _ _)).
+        eapply (is_cur_lword_lea vmap RX RX b (b ^+ 1)%a e e _ _ _ (LCap RX b e _ _)).
         rewrite Is_true_true.
         apply isWithin_of_le.
         solve_addr.
@@ -704,7 +658,7 @@ Section cap_lang_rules.
         iRight. iSplit; try easy. iPureIntro.
         eapply EInit_fail_hash_fail; eauto.
         unfold lmeasure in Hhash.
-        by destruct (hash_lmemory_range lmem (f ^+ 1)%a f0 v).
+        by destruct (hash_lmemory_range lmem (b ^+ 1)%a e v).
       }
 
       iIntros (eid) "%Hlmeasure %Hmeasure".
@@ -721,7 +675,7 @@ Section cap_lang_rules.
         iMod (update_state_interp_next_version (src := r_data) with "[$Hσr $Hσm $Hregs $Hmem]") as
           "(%Hvm & Hσr & Hσm & %Hcorr' & Hregs & Hmem)"; cycle 1; eauto.
         rewrite -map_full_own.
-        iMod (gen_heap_update_inSepM _ _ (f2,v0+1) (LSealRange (true, true) s_b s_e s_b) with
+        iMod (gen_heap_update_inSepM _ _ (b0,v0+1) (LSealRange (true, true) s_b s_e s_b) with
                "Hσm Hmem") as "(Hσm & Hmem)"; eauto.
         {
           destruct Hvm as (_&_&_&Hall).
@@ -730,7 +684,7 @@ Section cap_lang_rules.
           apply elem_of_finz_seq_between; solve_addr.
         }
         rewrite map_full_own.
-        eapply (state_phys_log_corresponds_update_mem (la := (f2, v0+1))
+        eapply (state_phys_log_corresponds_update_mem (la := (b0, v0+1))
           (lw := LSealRange (true, true) s_b s_e s_b)) in Hcorr'; cycle 1.
         { (* TODO turn into lemma *)
           rewrite finz_seq_between_cons ; eauto.
@@ -741,7 +695,7 @@ Section cap_lang_rules.
         }
         { by cbn. }
         cbn in Hcorr'.
-        set (mem' := (<[f2:=WSealRange (true, true) s_b s_e s_b]> (mem σ))).
+        set (mem' := (<[b0:=WSealRange (true, true) s_b s_e s_b]> (mem σ))).
         iMod (update_state_interp_next_version (src := r_code) (σm := mem') with "[$Hσr $Hσm $Hregs $Hmem]") as
           "(%Hvm' & Hσr & Hσm & %Hcorr'' & Hregs & Hmem)"; eauto.
         { (* TODO turn into lemma *)
@@ -761,15 +715,15 @@ Section cap_lang_rules.
         { by simplify_map_eq. }
         { by simplify_eq. }
         rewrite -map_full_own.
-        iMod (gen_heap_update_inSepM _ _ (f,v+1) (LCap RW f2 f3 f4 (v0+1)) with "Hσm Hmem") as "(Hσm & Hmem)"; eauto.
+        iMod (gen_heap_update_inSepM _ _ (b,v+1) (LCap RW b0 e0 a0 (v0+1)) with "Hσm Hmem") as "(Hσm & Hmem)"; eauto.
         {
           destruct Hvm' as (_&_&_&Hall).
           rewrite Forall_forall in Hall.
           apply Hall; eauto.
           apply elem_of_finz_seq_between; solve_addr.
         }
-        eapply (state_phys_log_corresponds_update_mem (la := (f, v+1))
-          (lw := LCap RW f2 f3 f4 (v0 + 1))) in Hcorr''; cycle 1.
+        eapply (state_phys_log_corresponds_update_mem (la := (b, v+1))
+          (lw := LCap RW b0 e0 a0 (v0 + 1))) in Hcorr''; cycle 1.
         { (* TODO turn into lemma *)
           rewrite finz_seq_between_cons ; eauto.
           cbn.
@@ -777,16 +731,16 @@ Section cap_lang_rules.
           rewrite /update_version_addr_vmap.
           by simplify_map_eq.
         }
-        { change ( LCap RW f2 f3 f4 (v0 + 1)) with ( next_version_lword ( LCap RW f2 f3 f4 v0)).
+        { change ( LCap RW b0 e0 a0 (v0 + 1)) with ( next_version_lword ( LCap RW b0 e0 a0 v0)).
           assert (
-              is_cur_word (next_version_lword (LCap RW f2 f3 f4 v0)) (update_version_region_vmap (finz.seq_between f2 f3) v0 vmap)
+              is_cur_word (next_version_lword (LCap RW b0 e0 a0 v0)) (update_version_region_vmap (finz.seq_between b0 e0) v0 vmap)
             ) as ?.
           { destruct Hcorr0 as [? _]; eauto.
             eapply update_version_word_region_update_lword; eauto.
             eapply lreg_corresponds_read_iscur; eauto.
             eapply lookup_weaken ; eauto.
           }
-          eapply (update_version_notin_is_cur_word _ _ _ _ _ _ _ _ (LCap RX f f0 f1 v))
+          eapply (update_version_notin_is_cur_word _ _ _ _ _ _ _ _ (LCap RX b e a v))
           ; eauto.
           clear -Hcode_sweep Hccap Hdcap Hneq_rcode_data.
           eapply sweep_reg_spec in Hcode_sweep; eauto.
@@ -844,7 +798,7 @@ Section cap_lang_rules.
         iMod (own_update with "HEC") as "(Hecauth & HECv)".
         apply (excl_auth_update _ _ (enumcur σ + 1)).
 
-        iMod (gen_heap_update_inSepM _ _ r_code (LCap machine_base.E f f0 (f ^+ 1)%a (v+1)) with
+        iMod (gen_heap_update_inSepM _ _ r_code (LCap machine_base.E b e (b ^+ 1)%a (v+1)) with
                "Hσr Hregs") as "(Hσr & Hregs)"; eauto.
         { by simplify_map_eq. }
         iMod (gen_heap_update_inSepM _ _ r_data (LInt 0) with "Hσr Hregs") as "(Hσr & Hregs)"; eauto.
@@ -888,9 +842,9 @@ Section cap_lang_rules.
         {
           eapply (state_phys_log_corresponds_update_reg (lw := LInt 0)); eauto. constructor. (* ints are always current... *)
           eapply (state_phys_log_corresponds_update_reg
-                    (lw := LCap machine_base.E f f0 (f ^+ 1)%a (v+1))); eauto.
+                    (lw := LCap machine_base.E b e (b ^+ 1)%a (v+1))); eauto.
           cbn.
-          intros a Ha.
+          intros a' Ha'.
           rewrite /update_version_addr_vmap.
           apply update_version_region_vmap_lookup; auto.
           apply finz_seq_between_NoDup.
@@ -955,18 +909,16 @@ Section cap_lang_rules.
         apply bind_Some in Hlmeasure as (lhash&Hlmeasure&Hlhash_range); simplify_eq.
         apply bind_Some in Hmeasure as (hash&Hmeasure&Hhash_range); simplify_eq.
         set (lmem2 :=
-                  (update_version_region lm (finz.seq_between f2 f3) v0 lmem)).
+                  (update_version_region lm (finz.seq_between b0 e0) v0 lmem)).
         set (lmem3 :=
                (update_version_region
-                  (update_version_region lm (finz.seq_between f2 f3) v0 lm)
-                  (finz.seq_between f f0) v
-                  (update_version_region lm (finz.seq_between f2 f3) v0 lmem))).
-        iExists lm, lmem2, lmem3, f, f0, f1, v, f2, f3, f4, v0, _, _.
+                  (update_version_region lm (finz.seq_between b0 e0) v0 lm)
+                  (finz.seq_between b e) v
+                  (update_version_region lm (finz.seq_between b0 e0) v0 lmem))).
+        iExists lm, lmem2, lmem3, b, e, a, v, b0, e0, a0, v0, _, _.
         rewrite !map_fmap_singleton; iFrame.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        (* - by rewrite HEC. *)
+        iPureIntro.
+        intuition eauto.
         { assert (tid_of_otype s_b = enumcur σ); last done.
           clear - Hs_b Hs_e.
           rewrite /tid_of_otype.
@@ -975,18 +927,9 @@ Section cap_lang_rules.
           replace (Z.to_nat s_b) with (2 * Z.to_nat (enumcur σ)) by solve_finz.
           apply finz_of_z_is_Some_spec in Hs_b.
           rewrite Nat.mul_comm Nat.div_mul; lia. }
-        iSplit; first eauto.
-        { iPureIntro. by eapply finz_even_mul2. }
-        iSplit; first eauto.
-        iSplit; first eauto.
-        { iPureIntro. solve_addr. }
-        iSplit; first eauto.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        { iPureIntro.
-          apply is_valid_updated_lmemory_update_version_region; eauto.
+        { by eapply finz_even_mul2. }
+        { solve_addr. }
+        { apply is_valid_updated_lmemory_update_version_region; eauto.
           - apply finz_seq_between_NoDup.
           - eapply state_corresponds_last_version_lword_region; eauto; cycle 1.
             ++ eapply lookup_weaken in Hldcap. apply Hldcap. apply Hlrsub.
@@ -994,28 +937,24 @@ Section cap_lang_rules.
           - eapply state_corresponds_access_lword_region; eauto; cycle 1.
             ++ eapply lookup_weaken in Hldcap. apply Hldcap. apply Hlrsub.
             ++ done. }
-        iSplit; first eauto.
-        { iPureIntro.
-        (* eauto using is_valid_updated_lmemory_update_version_region, lookup_weaken, finz_seq_between_NoDup, state_corresponds_last_version_lword_region, state_corresponds_access_lword_region. *)
-          apply is_valid_updated_lmemory_update_version_region; eauto.
-          - by apply update_version_region_mono.
-          - apply finz_seq_between_NoDup.
+        {(* eauto using is_valid_updated_lmemory_update_version_region, lookup_weaken, finz_seq_between_NoDup, state_corresponds_last_version_lword_region, state_corresponds_access_lword_region. *)
+          apply is_valid_updated_lmemory_update_version_region; eauto using update_version_region_mono, finz_seq_between_NoDup.
           - (* data and code don't overlap, moreover old version was cur in lm *)
             assert (Hnovupdate : Forall (λ a : Addr,  lm !! (a, v + 1) = None)
-    (finz.seq_between f f0)).
+    (finz.seq_between b e)).
             { eapply (state_corresponds_last_version_lword_region); cycle 2.
               + eapply lookup_weaken in Hlccap; eauto.
               + eauto.
               + done. }
             rewrite Forall_forall in Hnovupdate.
             rewrite Forall_forall.
-            intros a Hain.
+            intros a' Ha'in.
             rewrite update_version_region_notin_preserves_lmem.
             by apply Hnovupdate.
             by set_solver.
 
           - rewrite Forall_forall.
-            intros a Hain.
+            intros a' Hain.
             rewrite update_version_region_notin_preserves_lmem.
             2: by set_solver.
             clear Hcorr'' Hcorr' Hcorr0 Hincrement Hlincrement.
@@ -1025,12 +964,8 @@ Section cap_lang_rules.
             apply Hlccap in Hain.
             eapply lookup_weaken_is_Some; eauto. }
 
-
-        iSplit; first eauto.
-        { iPureIntro.
-          subst lmem2.
-          Set Nested Proofs Allowed.
-          assert (f2 ∉ finz.seq_between f f0).
+        { subst lmem2.
+          assert (b0 ∉ finz.seq_between b e).
           {
           clear -Hcode_sweep Hdcap Hccap Hneq_rcode_data l l0.
           eapply sweep_reg_spec in Hcode_sweep; eauto.
@@ -1044,7 +979,7 @@ Section cap_lang_rules.
           intro; simplify_eq.
           apply Hunique.
           rewrite elem_of_finz_seq_between in H.
-          destruct (f <? f2)%a eqn:Hf2 ; try solve_addr.
+          destruct (b <? b0)%a eqn:Hb0 ; try solve_addr.
           }
           rewrite -update_version_region_insert; auto.
           replace s_e with (s_b ^+ 2)%f by solve_finz.
@@ -1053,41 +988,30 @@ Section cap_lang_rules.
           ; rewrite elem_of_finz_seq_between in H
           ; solve_finz.
         }
-        iSplit; first eauto.
-        { iPureIntro.
-           apply andb_prop in Hcode_sweep.
+        {  apply andb_prop in Hcode_sweep.
            eapply unique_in_registersL_mono; eauto.
            destruct Hcode_sweep.
            eapply sweep_registers_reg_spec in H0; eauto.
            cbn in H0.
            eapply state_corresponds_unique_in_registers; eauto.
            eapply lookup_weaken; eauto. }
-        iSplit; first eauto.
-        { iPureIntro.
-           apply andb_prop in Hdata_sweep.
+        {  apply andb_prop in Hdata_sweep.
            eapply unique_in_registersL_mono; eauto.
            destruct Hdata_sweep.
            eapply sweep_registers_reg_spec in H0; eauto.
            cbn in H0.
            eapply state_corresponds_unique_in_registers; eauto.
            eapply lookup_weaken; eauto. }
-        iSplit; first eauto.
-        { iPureIntro.
-          eapply ensures_is_z_mono; try eauto.
+        {  eapply ensures_is_z_mono; try eauto.
           eapply ensures_is_z_corresponds; eauto.
           destruct Hcorr0 as [Hcorr0 _].
-          assert (lr !! r_code = Some (LCap RX f f0 f1 v) )
+          assert (lr !! r_code = Some (LCap RX b e a v) )
             as Hlccap' by (eapply lookup_weaken ; eauto).
           eapply lreg_corresponds_read_iscur in Hlccap'; eauto.
           eapply is_cur_lword_lea; eauto; try done.
           rewrite Is_true_true.
           eapply isWithin_of_le;solve_addr.
         }
-
-        iSplit; first eauto.
-        iSplit; first eauto.
-        iSplit; first eauto.
-        eauto.
       }
       Unshelve.
       all : try exact 0%ot.
