@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="./">Project Page</a>
+      <a href="./indexpage.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<h1 class="libtitle">cap_machine.proofmode.solve_addr_extra</h1>
+
+<div class="code">
+<span class="id" title="keyword">From</span> <span class="id" title="var">cap_machine</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="cap_machine.machine_base.html#"><span class="id" title="library">machine_base</span></a> <a class="idref" href="cap_machine.proofmode.classes.html#"><span class="id" title="library">classes</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">machine_utils</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="machine_utils.solve_finz.html#"><span class="id" title="library">solve_finz</span></a>.<br/>
+
+<br/>
+<span class="comment">(*&nbsp;Extend&nbsp;<span class="inlinecode"><span class="id" title="var">solve_finz</span></span>&nbsp;to&nbsp;handle&nbsp;more&nbsp;pure&nbsp;arithmetic&nbsp;goals&nbsp;from<br/>
+&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" title="var">machine_base.v</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" title="var">classes.v</span></span>&nbsp;*)</span><br/>
+
+<br/>
+<span class="id" title="keyword">Ltac</span> <span class="id" title="var">without_evars</span> <span class="id" title="var">c</span> :=<br/>
+&nbsp;&nbsp;(<span class="id" title="var">has_evar</span> <span class="id" title="var">c</span>; <span class="id" title="tactic">fail</span> 1) || <span class="id" title="tactic">idtac</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Global Ltac</span> <span class="id" title="var">zify_finz_op_nonbranching_step_hook</span> ::=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">lazymatch</span> <span class="id" title="keyword">goal</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">H</span> : <a class="idref" href="machine_utils.classes.html#IncrFinZ"><span class="id" title="class">IncrFinZ</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> |- <span class="id" title="var">_</span> =&gt; <span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.classes.html#IncrFinZ"><span class="id" title="class">IncrFinZ</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span><br/>
+&nbsp;&nbsp;| |- <a class="idref" href="machine_utils.classes.html#IncrFinZ"><span class="id" title="class">IncrFinZ</span></a> ?<span class="id" title="var">a</span> ?<span class="id" title="var">z</span> ?<span class="id" title="var">a'</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">without_evars</span> <span class="id" title="var">a</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">z</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">a'</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="machine_utils.classes.html#IncrFinZ"><span class="id" title="class">IncrFinZ</span></a><br/>
+&nbsp;&nbsp;| <span class="id" title="var">H</span> : <a class="idref" href="cap_machine.machine_base.html#withinBounds"><span class="id" title="definition">withinBounds</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> |- <span class="id" title="var">_</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#withinBounds_le_addr"><span class="id" title="lemma">withinBounds_le_addr</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span><br/>
+&nbsp;&nbsp;| |- <a class="idref" href="cap_machine.machine_base.html#withinBounds"><span class="id" title="definition">withinBounds</span></a> ?<span class="id" title="var">b</span> ?<span class="id" title="var">e</span> ?<span class="id" title="var">a</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">without_evars</span> <span class="id" title="var">b</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">e</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">a</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#le_addr_withinBounds'"><span class="id" title="lemma">le_addr_withinBounds'</span></a><br/>
+&nbsp;&nbsp;| <span class="id" title="var">H</span> : <a class="idref" href="cap_machine.machine_base.html#isCorrectPC"><span class="id" title="inductive">isCorrectPC</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#e6756e10c36f149b18b4a8741ed83079"><span class="id" title="notation">(</span></a><span class="id" title="var">_</span><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#e6756e10c36f149b18b4a8741ed83079"><span class="id" title="notation">,</span></a> <span class="id" title="var">_</span><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#e6756e10c36f149b18b4a8741ed83079"><span class="id" title="notation">,</span></a> <span class="id" title="var">_</span><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#e6756e10c36f149b18b4a8741ed83079"><span class="id" title="notation">,</span></a> <span class="id" title="var">_</span><a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#e6756e10c36f149b18b4a8741ed83079"><span class="id" title="notation">)</span></a> |- <span class="id" title="var">_</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#isCorrectPC_le_addr"><span class="id" title="axiom">isCorrectPC_le_addr</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">H</span> : <a class="idref" href="cap_machine.machine_base.html#isWithin"><span class="id" title="definition">isWithin</span></a> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> |- <span class="id" title="var">_</span> =&gt; <span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#isWithin_implies"><span class="id" title="axiom">isWithin_implies</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H</span><br/>
+&nbsp;&nbsp;| |- <a class="idref" href="cap_machine.machine_base.html#isWithin"><span class="id" title="definition">isWithin</span></a> ?<span class="id" title="var">b</span> ?<span class="id" title="var">e</span> ?<span class="id" title="var">b'</span> ?<span class="id" title="var">e'</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.Init.Datatypes.html#true"><span class="id" title="constructor">true</span></a> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">without_evars</span> <span class="id" title="var">b</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">e</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">b'</span>; <span class="id" title="var">without_evars</span> <span class="id" title="var">e'</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="cap_machine.machine_base.html#isWithin_of_le"><span class="id" title="axiom">isWithin_of_le</span></a><br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+
+<br/>
+<span class="comment">(*&nbsp;tests&nbsp;*)</span><br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">Coq</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="http://coq.inria.fr/distrib/V8.18.0/stdlib//Coq.ZArith.ZArith.html#"><span class="id" title="library">ZArith</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Goal</span> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">forall</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="binder, definition"><span id="d:1" class="id">d</span></span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="binder, definition"><span id="d':2" class="id">d'</span></span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="binder, definition"><span id="d'':3" class="id">d''</span></span></a><a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">,</span></a><br/>
+&nbsp;&nbsp;<a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">(</span></a><a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">+</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">1)%</span></a><a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">a</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">=</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">Some</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d''</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">-&gt;</span></a><br/>
+&nbsp;&nbsp;<a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">(</span></a><a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">+</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">2)%</span></a><a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">a</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">=</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">Some</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d'</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">-&gt;</span></a><br/>
+&nbsp;&nbsp;<a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">withinBounds</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d'</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">d''</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">=</span></a> <a id="Unnamed_thm" class="idref" href="#Unnamed_thm"><span class="id" title="definition">true</span></a>.<br/>
+<span class="id" title="keyword">Proof</span>. <span class="id" title="tactic">intros</span>. <span class="id" title="var">solve_addr</span>. <span class="id" title="keyword">Qed</span>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
