@@ -1,0 +1,23 @@
+(include_subdirs qualified)
+
+(rocq.theory
+ (name cap_machine)
+ (package cerise)
+ ; Not maintained since the refactoring of the exercises (0e11b2f6)
+ (modules :standard \ exercises.increment)
+ (rocqdoc_header ../extra/header.html)
+ (rocqdoc_footer ../extra/footer.html)
+ (rocqdoc_flags
+   --external https://plv.mpi-sws.org/coqdoc/stdpp/ stdpp
+   --external https://plv.mpi-sws.org/coqdoc/iris/ iris
+   --toc --toc-depth 2 --html --interpolate
+   --index indexpage --no-lib-name --parse-comments
+ )
+ (flags :standard
+        -w -convert_concl_no_check
+        -w -several-object-files
+        -w -ssr-search-moved
+        -w -deprecated-instance-without-locality
+ )
+ (theories stdpp iris Ltac2 Equations Stdlib machine_utils)
+)

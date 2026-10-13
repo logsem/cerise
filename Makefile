@@ -1,34 +1,36 @@
-# Is CI_EXAMPLES used in any place ?
-CI_EXAMPLES    :=    theories/examples/buffer.v \
-					 theories/examples/minimal_counter.v \
-					 theories/examples/counter/counter_adequacy.v \
-					 theories/examples/adder_adequacy.v \
-					 theories/examples/counter_binary/counter_binary.v \
-					 theories/examples/counter_binary/counter_binary_preamble.v \
-					 theories/examples/lse.v \
-					 theories/examples/dynamic_sealing.v \
-					 theories/examples/ocpl_lowval_like.v
+EXTRA_DIR = extra
+BUILD_DOC_DIR = _build/default/theories/cap_machine.html
+PUBLISH_DIR = html
 
-FUNDAMENTAL		:=	 theories/fundamental.v
-COQMAKEFILE 	?=   Makefile.coq
-COQ_PROJ 		?= _RocqProject
+.PHONY: all theories fundamental pretty-timed rocqdoc html clean check-admitted
 
-all: $(COQMAKEFILE)
-		+@$(MAKE) -f $^ $@
+all: theories rocqdoc
 
-# Forward `make` commands to `$(COQMAKEFILE)`
-%: $(COQMAKEFILE)
-		+@$(MAKE) -f $^ $@
+theories:
+	dune build --display short --trace-file cerise.trc
 
-fundamental: export TGTS=${FUNDAMENTAL:.v=.vo}
-fundamental: $(COQMAKEFILE) only
+# Only build files up to the Fundamental Theorem
+fundamental:
+	dune build --display short theories/fundamental.vo
 
-$(COQMAKEFILE): $(COQ_PROJ)
-		rocq makefile -f $^ -o $@
+pretty-timed: theories
+	./pretty-print-trace.sh cerise.trc
 
-# Do not forward the sources of `$(COQMAKEFILE)` themselves
-Makefile Makefile.coq.local $(COQ_PROJ): ;
+rocqdoc: theories
+	dune build @doc --display short
 
-.PHONY: all fundamental ci
+html: rocqdoc
+	rm -rf $(PUBLISH_DIR)
+	mkdir $(PUBLISH_DIR)
+	cp $(BUILD_DOC_DIR)/* $(PUBLISH_DIR)
+	chmod -R +w $(PUBLISH_DIR)
+	cp $(EXTRA_DIR)/resources/* $(PUBLISH_DIR)
 
-# Thanks to Vincent Lafeychine for the help to refactor the Makefile
+clean:
+	dune clean
+	rm -rf $(PUBLISH_DIR)
+	rm -f cerise.trc
+
+# Adapted from https://github.com/AbsInt/CompCert/blob/master/Makefile
+check-admitted:
+	@grep -w 'admit\|Admitted\|ADMITTED' -r ./theories ./machine_utils/theories || echo "Nothing admitted."

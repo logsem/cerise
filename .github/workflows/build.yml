@@ -36,10 +36,10 @@ jobs:
       - name: Build
         run: |
             find ./theories -name "*.v" -exec ./disable-qed.sh {} +;
-            opam exec -- make pretty-timed -j2
+            opam exec -- make pretty-timed
 
       - name: Build docs
-        run: opam exec -- make coqdoc
+        run: opam exec -- make html
 
       - name: Deploy docs (if main branch)
         uses: peaceiris/actions-gh-pages@v3

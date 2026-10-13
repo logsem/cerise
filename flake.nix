@@ -141,6 +141,18 @@
             propagatedBuildInputs = [stdpp];
           };
 
+          machine_utils = rocq.pkgs.mkRocqDerivation {
+            pname = "machine_utils";
+            opam-name = "machine_utils";
+            src = ./machine_utils;
+
+            propagatedBuildInputs = [iris pkgs.ocamlPackages.odoc];
+
+            preBuild = "dune() { command dune $@ --display=short; }";
+            useDune = true;
+            version = "0.0.0";
+          };
+
         in
           rocq.pkgs.mkRocqDerivation {
             inherit meta version;
@@ -149,11 +161,10 @@
             opam-name = name;
             src = ./.;
 
-            # `machine_utils` is built from the submodule, see `_RocqProject`
-            propagatedBuildInputs = [iris equations];
+            propagatedBuildInputs = [machine_utils equations];
 
-            # Brings `findlib` in scope, so that Rocq can find the Equations plugin
-            mlPlugin = true;
+            preBuild = "dune() { command dune $@ --display=short; }";
+            useDune = true;
           };
         default = packages.theories;
       };

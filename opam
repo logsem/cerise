@@ -4,6 +4,8 @@ opam-version: "2.0"
 maintainer: ""
 authors: [ "anonymous" ]
 depends: [
+  "dune" {= "3.21.0"}
+  "odoc"
   "rocq-core" {= "9.1.1"}
   "rocq-stdlib" {= "9.0.0"}
   "rocq-stdpp" {= "1.13.0"}

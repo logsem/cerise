@@ -45,9 +45,14 @@ env)` and then `opam install -y .` (this will continue from where it failed).
 
 ## Building
 
+The development is built with [dune](https://dune.build):
+
 ```
-make -jN  # replace N with the number of CPU cores of your machine
+make theories  # or `dune build`
 ```
+
+Running `make` also builds the documentation, and `make html` gathers it into
+the `html` directory.
 
 It is possible to run `make fundamental` to only build files up to the
 Fundamental Theorem.
