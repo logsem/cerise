@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="config.js"></script>
+<script type="text/javascript" src="coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+    <div id="header">
+        <span class="left">
+            <span class="modulename"> <script> document.write(document.title) </script> </span>
+        </span>
+
+        <span class="button" id="toggle-proofs"></span>
+
+        <span class="right">
+            <a href="./">Project Page</a>
+            <a href="./indexpage.html"> Index </a>
+            <a href="./toc.html"> Table of Contents </a>
+        </span>
+    </div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+        <div id="main">
+            <h1>Cerise: Program verification on a capability machine in presence of untrusted code</h1>
+            <h4><a href="https://www.cs.au.dk/~ageorges/">Aïna Linn Georges</a>,
+                <a href="http://gallium.inria.fr/~agueneau/">Armaël Guéneau</a>,
+                <a href="https://distrinet.cs.kuleuven.be/people/ThomasVanStrydonck">Thomas Van Strydonck</a>,
+                <a href="https://cs.au.dk/~timany/">Amin Timany</a>,
+                <a href="https://alix.trieu.dev/">Alix Trieu</a>,
+                <a href="https://soft.vub.ac.be/~dodevrie/">Dominique Devriese</a>,
+                <a href="https://www.cs.au.dk/~birke/">Lars Birkedal</a></h4>
+
+            <p>The complete list of modules in the development can be found in
+                the <a href="toc.html">Table of Contents</a>. We give below an overview of
+                the contents of the formalization.
+            </p>
+
+            <h2>Operational semantics</h2>
+            <ul>
+                <li><a href="cap_machine.addr_reg.html">addr_reg</a>:
+                    Defines registers and the set of (finite) memory addresses.
+                </li>
+
+                <li><a href="cap_machine.machine_base.html">machine_base</a>: Contains
+                    the syntax (permissions, capability, instructions, ...) of the
+                    capability machine.
+                </li>
+
+                <li><a href="cap_machine.machine_parameters.html">machine_parameters</a>:
+                    Defines a number of "settings" for the machine, that parameterize
+                    the whole development (e.g. the specific encoding scheme for
+                    instructions, etc.).
+                </li>
+
+                <li><a href="cap_machine.cap_lang.html">cap_lang</a>: Defines the
+                    operational semantics of the machine, and the embedding of the capability
+                    machine language into Iris.
+                </li>
+
+                <li><a href="cap_machine.machine_run.html">machine_run</a>: Defines an
+                    executable version of the operational semantics, allowing to use
+                    them as an interpreter to run a concrete machine configuration.
+                </li>
+            </ul>
+
+
+            <h2>Program logic</h2>
+            <ul>
+                <li><a href="cap_machine.region.html">region</a>: Auxiliary definitions
+                    to reason about consecutive range of addresses and memory words.
+                </li>
+
+                <li><a href="cap_machine.rules.rules_base.html">rules.rules_base</a>:
+                    Contains some of the core resource algebras for the program logic,
+                    namely the definition for points to predicates with permissions.
+                </li>
+
+                <li><a href="cap_machine.rules.html">rules</a>: Imports all the Hoare
+                    triple rules for each instruction. These rules are separated into separate
+                    files (located in the <code>rules/</code> folder).
+                </li>
+            </ul>
+
+            <h2>Logical relation</h2>
+            <ul>
+                <li><a href="cap_machine.logrel.html">logrel</a>: The definition of the
+                    logical relation.
+                </li>
+
+                <li><a href="cap_machine.fundamental.html">fundamental</a>: Establishes
+                    the *fundamental theorem of our logical relation*. Each case (one
+                    for each instruction) is proved in a separate file (located in
+                    the <code>ftlr/</code> folder), which are all imported and applied
+                    in this file.
+                </li>
+            </ul>
+
+            <h2>Case studies</h2>
+            <h3>Building blocks</h3>
+            <ul>
+                <li><a href="cap_machine.examples.macros.html">examples.macros</a>,
+                    <a href="cap_machine.examples.macros_new.html">examples.macros_new</a>:
+                    Some useful macros and their proof (in particular,
+                    the <code>crtcls</code> macro used to implement closures).
+                </li>
+
+                <li><a href="cap_machine.examples.malloc.html">examples.malloc</a>: A
+                    simple malloc implementation, and its proof.
+                </li>
+
+                <li><a href="cap_machine.examples.assert.html">examples.assert</a>:
+                    Implementation and proof for the assert routine.
+                </li>
+
+                <li><a href="cap_machine.examples.call.html">examples.call</a>,
+                    <a href="cap_machine.examples.callback.html">examples.callback</a>:
+                    A heap based calling convention: the calling convention
+                    invokes <code>malloc</code> to dynamically allocate heap space,
+                    store the activation record and the locals, and clear all non
+                    parameter and continuation registers.
+                </li>
+
+                <li><a href="cap_machine.examples.template_adequacy.html">examples.template_adequacy</a>:
+                    Iris adequacy statements specialized to reason about
+                    known code interacting with unknown code while maintaining an invariant (over
+                    private state).
+                </li>
+
+                <li><a href="cap_machine.examples.template_adequacy_ocpl.html">
+                        examples.template_adequacy_ocpl
+                    </a>:
+                    Adequacy statement integrating the use of the
+                    malloc and assert macro; establishes that assert never fails, by showing as an
+                    invariant that the "failure" flag of the assert routine is never raised.
+                </li>
+            </ul>
+
+            <h3>Example programs & libraries</h3>
+            <ul>
+                <li><a href="cap_machine.examples.buffer.html">examples.buffer</a>: Very
+                    simple example of a program sharing a statically allocated sub-buffer with an
+                    adversary.
+                </li>
+
+                <li><a href="cap_machine.examples.minimal_counter.html">examples.minimal_counter</a>:
+                    Simple counter program, only relying on statically allocated memory, sharing
+                    an "increment" closure with the adversary.
+                </li>
+
+                <li><a href="cap_machine.examples.lse.html">examples.lse</a>,
+                    <a href="cap_machine.examples.lse_adequacy.html">examples.lse_adequacy</a>:
+                    Example showing how one can reason on capabilities with a RO
+                    permission, and in particular obtain than their contents cannot
+                    change even after being shared with an adversary. Relies on malloc,
+                    assert, and the heap-based calling convention.
+                </li>
+
+                <li><a href="cap_machine.examples.dynamic_sealing.html">examples.dynamic_sealing</a>,
+                    <a href="cap_machine.examples.keylist.html">examples.keylist</a>:
+                    a library implementing dynamic sealing, with
+                    <code>keylist</code> providing its underlying data-structure as an
+                    associative list.
+                </li>
+
+                <li><a href="cap_machine.examples.interval.interval.html">examples.interval</a>,
+                    <a href="cap_machine.examples.interval.interval_closure.html">examples.interval_closure</a>:
+                    a library of "secure" intervals, using
+                    dynamic sealing to provide data abstraction for the concrete representation of
+                    intervals.
+                </li>
+
+                <li><a href="cap_machine.examples.interval.interval_client.html">examples.interval_client</a>,
+                    <a href="cap_machine.examples.interval.interval_client_closure.html">examples.interval_client_closure</a>,
+                    <a href="cap_machine.examples.interval.interval_client_adequacy.html">examples.interval_client_adequacy</a>:
+                    a client of the interval library, demonstrating
+                    the data abstraction properties that it provides.
+                </li>
+
+                <li><a href="cap_machine.examples.adder.html">examples.adder</a>,
+                    <a href="cap_machine.examples.adder_adequacy.html">examples.adder_adequacy</a>:
+                    The simple example detailed in our JFLA article
+                    (<a href="http://gallium.inria.fr/~agueneau/publis/iris-capabilities-lse-draft.pdf">en</a>/<a href="http://gallium.inria.fr/~agueneau/publis/georges-etal-lse-fr-2021.pdf">fr</a>).
+                    Exposes one closure that enables increasing the value of a reference. The
+                    first file proves a separation-logic specification for the system, and the
+                    "adequacy" file extracts it into a self-contained statement depending only on
+                    the operational semantics.
+                </li>
+
+                <li><a href="cap_machine.examples.counter.counter.html">examples.counter</a>,
+                    <a href="cap_machine.examples.counter.counter_preamble.html">examples.counter_preamble</a>,
+                    <a href="cap_machine.examples.counter.counter_adequacy.html">examples.counter_adequacy</a>:
+                    A counter module, with
+                    an increment, read, and reset closure. Relies on the malloc routine to allocate
+                    its memory, and the assert routine to signal failure (which we then prove cannot
+                    happen).
+                </li>
+            </ul>
+        </div>
+    </div>
+</body>
+
+</html>
