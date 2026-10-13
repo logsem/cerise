@@ -172,7 +172,7 @@ Section cap_lang_spec_rules.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
      iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
-     iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
+     iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert_eq;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
 
@@ -180,7 +180,7 @@ Section cap_lang_spec_rules.
      { (* Success *)
        iFrame. incrementPC_inv; simplify_map_eq.
        (* FIXME: tedious *)
-       rewrite insert_commute // insert_insert insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq insert_insert_ne // insert_insert_eq.
        iDestruct (regs_of_map_2 with "Hmap") as "[? ?]"; eauto. by iFrame. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }
@@ -213,7 +213,7 @@ Section cap_lang_spec_rules.
    Proof.
      iIntros (Hinstr Hvpc Hpca' Ha' Hnep Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1 & >Hrv)".
      iDestruct (map_of_regs_3 with "HPC Hrv Hr1") as "[Hmap (%&%&%)]".
-     iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert;eauto|..].
+     iMod (step_lea with "[$Hmap $Hown $Hj $Hpc_a]") as (retv regs') "(Hj & #Hspec & Hpc_a & Hmap)"; eauto;[rewrite lookup_insert_eq;eauto|..].
      by rewrite !dom_insert; set_solver+.
      iDestruct "Hspec" as %Hspec.
 
@@ -221,8 +221,8 @@ Section cap_lang_spec_rules.
      { (* Success *)
         iFrame. incrementPC_inv; simplify_map_eq.
        (* FIXME: tedious *)
-       rewrite (insert_commute _ PC r1) // insert_insert.
-       rewrite (insert_commute _ r1 PC) // (insert_commute _ r1 rv) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq.
+       rewrite (insert_insert_ne _ r1 PC) // (insert_insert_ne _ r1 rv) // insert_insert_eq.
        iApply (regs_of_map_3 with "Hmap"); eauto. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }

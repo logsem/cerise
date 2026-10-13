@@ -2,7 +2,7 @@ From iris.algebra Require Import auth agree excl gmap frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
-Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From cap_machine Require Import stdpp_extra iris_extra cap_lang
      region rules_base rules rules_binary rules_binary_base.
 From cap_machine.proofmode Require Import disjoint_regions_tactics.
@@ -154,7 +154,7 @@ Proof.
   { cbn. intros a e Hlen. rewrite finz_seq_between_cons. 2: solve_addr.
     cbn. iIntros "H". iDestruct (big_sepM_insert with "H") as "[? H]".
     { rewrite -not_elem_of_list_to_map /=.
-      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%list_elem_of_fmap.
       solve_addr. }
     iFrame. iApply (IHl with "H"). solve_addr. }
 Qed.
@@ -193,16 +193,16 @@ Proof.
     rewrite /mbkregion /=.
     cbn. iIntros "H H'". iDestruct (big_sepM_insert with "H") as "[? H]".
     { rewrite -not_elem_of_list_to_map /=.
-      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%list_elem_of_fmap.
       solve_addr. }
     iDestruct (big_sepM_insert with "H'") as "[? H']".
     { rewrite -not_elem_of_list_to_map /=.
-      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%list_elem_of_fmap.
       solve_addr. }
     rewrite (finz_seq_between_cons a). 2: solve_addr. simpl.
     iApply big_sepM_insert.
     { rewrite -not_elem_of_list_to_map /=.
-      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%elem_of_list_fmap.
+      intros [ [? ?] [-> [? ?]%elem_of_zip_l%elem_of_finz_seq_between] ]%list_elem_of_fmap.
       solve_addr. }
     iFrame. iApply (IHl with "H H'"). solve_addr. solve_addr. }
 Qed.

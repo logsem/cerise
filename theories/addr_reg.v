@@ -1,7 +1,7 @@
-From Coq Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
-From Coq.micromega Require Import ZifyClasses.
+From Stdlib Require Import Eqdep_dec. (* Needed to prove decidable equality on RegName *)
+From Stdlib.micromega Require Import ZifyClasses.
 From stdpp Require Import gmap fin_maps list.
-From Coq Require Import ssreflect.
+From Stdlib Require Import ssreflect.
 From cap_machine Require Import stdpp_extra.
 From machine_utils Require Export finz.
 
@@ -149,11 +149,11 @@ Proof.
   rewrite /all_registers.
   destruct r1.
   - do 32 (apply elem_of_cons; right).
-      by apply elem_of_list_singleton.
+      by apply list_elem_of_singleton.
   - induction n.
     + apply elem_of_cons; left.
       apply f_equal. apply eq_proofs_unicity. decide equality.
-    + apply elem_of_list_lookup_2 with (S n).
+    + apply list_elem_of_lookup_2 with (S n).
       repeat (destruct n;
                 first (simpl;do 2 f_equal;apply eq_proofs_unicity;decide equality)).
       simpl in *. inversion fin.

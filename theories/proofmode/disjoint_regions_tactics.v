@@ -46,7 +46,7 @@ Lemma AddrRegionRange_singleton a :
   AddrRegionRange [a] a (a^+1)%a.
 Proof.
   unfold ByReflexivity. cbn. intros ?%Z.eqb_neq.
-  intros a' ->%elem_of_list_singleton. solve_addr.
+  intros a' ->%list_elem_of_singleton. solve_addr.
 Qed.
 #[export] Hint Resolve AddrRegionRange_singleton : disj_regions.
 
@@ -64,7 +64,7 @@ Lemma AddrRegionsRange_single l b e :
   AddrRegionRange l b e →
   AddrRegionsRange [l] b e.
 Proof.
-  intros Hl l' a ->%elem_of_list_singleton ?%Hl. solve_addr.
+  intros Hl l' a ->%list_elem_of_singleton ?%Hl. solve_addr.
 Qed.
 #[export] Hint Resolve AddrRegionsRange_single | 1 : disj_regions.
 
@@ -95,7 +95,7 @@ Proof.
     + specialize (HInd l x ltac:(constructor) Hx). apply elem_of_finz_seq_between.
       solve_addr.
     + assert (HI: AddrRegionsRange ll b e).
-      { intros ? ? ? ?. eapply HInd. apply elem_of_list_further; eassumption.
+      { intros ? ? ? ?. eapply HInd. apply list_elem_of_further; eassumption.
         auto. }
       specialize (IHll _ _ HI).
       rewrite elem_of_subseteq in IHll.

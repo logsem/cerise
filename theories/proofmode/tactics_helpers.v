@@ -1,7 +1,7 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import cap_lang region contiguous.
 From cap_machine.rules_binary Require Import rules_binary_base.
 
@@ -99,12 +99,12 @@ Ltac iCombinePtrn :=
   iCombine "Hsi" "Hsprog_done" as "Hsprog_done".
 
 Ltac consider_next_reg_both r1 r2 :=
-  destruct (decide (r1 = r2));[subst;rewrite !(lookup_insert _ r2);eauto|rewrite !(lookup_insert_ne _ r2);auto].
+  destruct (decide (r1 = r2));[subst;rewrite !(lookup_insert_eq _ r2);eauto|rewrite !(lookup_insert_ne _ r2);auto].
 
 (* Inline version *)
 Ltac consider_next_reg_both1 r1 r2 H1 H2 :=
   destruct (decide (r1 = r2));
-  [ subst; rewrite !(lookup_insert _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
+  [ subst; rewrite !(lookup_insert_eq _ r2) in H1, H2; eauto | rewrite !(lookup_insert_ne _ r2) in H1, H2; auto ].
 
 Ltac iCorrectPC i j :=
   eapply isCorrectPC_contiguous_range with (a0 := i) (an := j); eauto; [];
@@ -124,4 +124,4 @@ Ltac iContiguous_le Ha index :=
   eapply contiguous_between_middle_bounds with (i:=index) in Ha;eauto;clear -Ha;solve_addr.
 
 Ltac consider_next_reg r1 r2 :=
-  destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto].
+  destruct (decide (r1 = r2));[subst;rewrite lookup_insert_eq;eauto|rewrite lookup_insert_ne;auto].

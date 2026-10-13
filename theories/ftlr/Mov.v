@@ -21,9 +21,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_Mov with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -42,7 +42,7 @@ Section fundamental.
       destruct (reg_eq_dec dst PC).
       { subst dst.
         simplify_map_eq.
-        repeat rewrite insert_insert.
+        repeat rewrite insert_insert_eq.
         destruct src; simpl in *; try discriminate.
         destruct (reg_eq_dec PC r0).
         { subst r0. simplify_map_eq.
@@ -56,7 +56,7 @@ Section fundamental.
             + iModIntro.
               destruct p''; simpl in Hpft; try discriminate; repeat (rewrite fixpoint_interp1_eq); simpl; auto.
           - iApply (wp_bind (fill [SeqCtx])).
-            iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert|].
+            iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [apply lookup_insert_eq|].
             iApply (wp_notCorrectPC with "HPC"); [eapply not_isCorrectPC_perm; destruct p''; simpl in Hpft; try discriminate; eauto|].
             iNext. iIntros "HPC /=".
             iApply wp_pure_step_later; auto.
@@ -73,7 +73,7 @@ Section fundamental.
           destruct (reg_eq_dec PC x0); auto; right; split; auto.
         - iIntros (ri v Hri Hvs).
           destruct (reg_eq_dec ri dst).
-          + subst ri. rewrite lookup_insert in Hvs.
+          + subst ri. rewrite lookup_insert_eq in Hvs.
             destruct src; simplify_map_eq.
             * repeat rewrite fixpoint_interp1_eq; auto.
             * destruct (reg_eq_dec PC r0).
@@ -81,7 +81,7 @@ Section fundamental.
                 - simplify_map_eq.
                   rewrite !fixpoint_interp1_eq /=.
                   destruct Hp as [Hp | Hp]; subst p''; try subst g'';
-                    (iFrame "Hinv Hexec"). }
+                    iFrame "Hinv". }
               simplify_map_eq.
               iDestruct ("Hreg" $! r0 _ _ H0) as "Hr0". auto.
           + repeat rewrite lookup_insert_ne in Hvs; auto.

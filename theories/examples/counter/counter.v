@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros fundamental.
 From cap_machine.proofmode Require Import tactics_helpers.
 
@@ -335,22 +335,22 @@ Section counter.
       [apply decode_encode_instrW_inv|iCorrectPC link a_last|].
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert _ _ r_t5 with "[$Hregs $Hr_t5]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
     iDestruct (big_sepM_insert _ _ r_t4 with "[$Hregs $Hr_t4]") as "Hregs".
-    { rewrite !lookup_insert_ne; auto. apply lookup_delete. }
+    { rewrite !lookup_insert_ne; auto. apply lookup_delete_eq. }
     iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne; auto. apply lookup_delete. }
+    { rewrite !lookup_insert_ne;auto. rewrite lookup_delete_ne; auto. apply lookup_delete_eq. }
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete. }
+    { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete_eq. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]).
       apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs".
-    { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete. }
+    { rewrite !lookup_insert_ne;auto. repeat (rewrite lookup_delete_ne;[|by auto]). apply lookup_delete_eq. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne;auto. rewrite !lookup_delete_ne//.
       apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
-    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_insert).
+    repeat (repeat (rewrite -delete_insert_ne;[|by auto]);rewrite insert_delete_eq).
     set regs' := <[_:=_]> _.
     (* jump to unknown code *)
     iDestruct (jmp_to_unknown _ with "Hcallback") as "Hcallback_now".

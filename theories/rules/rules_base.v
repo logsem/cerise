@@ -258,8 +258,8 @@ Section cap_lang_rules.
     iMod (gen_heap_update with "Hh Hl") as "[Hh Hl]". iModIntro.
     iSplitL "Hh"; eauto.
     rewrite (big_sepM_delete _ (<[l:=v]> σ') l).
-    { rewrite delete_insert_delete. iFrame. }
-    rewrite lookup_insert //.
+    { rewrite delete_insert_eq. iFrame. }
+    rewrite lookup_insert_eq //.
   Qed.
 
   Program Definition wp_lift_atomic_base_step_no_fork_determ {s E Φ} e1 :
@@ -304,8 +304,8 @@ Section cap_lang_rules.
   Lemma memMap_resource_1 (a : Addr) (w : Word)  :
         a ↦ₐ w  ⊣⊢ ([∗ map] a↦w ∈ <[a:=w]> ∅, a ↦ₐ w)%I.
   Proof.
-    rewrite big_sepM_delete; last by apply lookup_insert.
-    rewrite delete_insert; last by auto. rewrite -memMap_resource_0.
+    rewrite big_sepM_delete; last by apply lookup_insert_eq.
+    rewrite delete_insert_id; last by auto. rewrite -memMap_resource_0.
     iSplit; iIntros "HH".
     - iFrame.
     - by iDestruct "HH" as "[HH _]".
@@ -314,8 +314,8 @@ Section cap_lang_rules.
   Lemma memMap_resource_1_dq (a : Addr) (w : Word) dq :
         a ↦ₐ{dq} w  ⊣⊢ ([∗ map] a↦w ∈ <[a:=w]> ∅, a ↦ₐ{dq} w)%I.
   Proof.
-    rewrite big_sepM_delete; last by apply lookup_insert.
-    rewrite delete_insert; last by auto. rewrite big_sepM_empty.
+    rewrite big_sepM_delete; last by apply lookup_insert_eq.
+    rewrite delete_insert_id; last by auto. rewrite big_sepM_empty.
     iSplit; iIntros "HH".
     - iFrame.
     - by iDestruct "HH" as "[HH _]".
@@ -325,9 +325,9 @@ Section cap_lang_rules.
     a1 ≠ a2 → ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↦ₐ w)%I ⊣⊢ a1 ↦ₐ w1 ∗ a2 ↦ₐ w2.
   Proof.
     intros.
-    rewrite big_sepM_delete; last by apply lookup_insert.
-    rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert.
-    rewrite delete_insert; auto.
+    rewrite big_sepM_delete; last by apply lookup_insert_eq.
+    rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert_id; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert_eq.
+    rewrite delete_insert_id; auto.
     rewrite -memMap_resource_0.
     iSplit; iIntros "HH".
     - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame.
@@ -535,8 +535,8 @@ Section cap_lang_rules.
     iModIntro.
     iSplitL "Hh"; eauto.
     iDestruct (big_sepM_insert _ _ l with "[$Hmap $Hl]") as "H".
-    apply lookup_delete.
-    rewrite insert_delete_insert. iFrame.
+    apply lookup_delete_eq.
+    rewrite insert_delete_eq. iFrame.
   Qed.
 
   (* ----------------------------------- FAIL RULES ---------------------------------- *)
@@ -823,7 +823,7 @@ Proof.
     f_equal. f_equal.
     assert (HH: forall (reg1 reg2:Reg), reg1 = reg2 -> reg1 !! PC = reg2 !! PC)
       by (intros * ->; auto).
-    apply HH in Hu. rewrite !lookup_insert in Hu. by simplify_eq. }
+    apply HH in Hu. rewrite !lookup_insert_eq in Hu. by simplify_eq. }
   {  inversion Hu. }
 Qed.
 

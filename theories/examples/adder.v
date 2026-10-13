@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel macros fundamental.
 From cap_machine.proofmode Require Import tactics_helpers.
 
@@ -365,7 +365,7 @@ Section adder.
       iDestruct "Hrmap'" as %Hrmap'. rewrite /interp_conf.
       (* extract registers relevant for f from the map *)
       iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]".
-      by rewrite lookup_insert.
+      by rewrite lookup_insert_eq.
       destruct (Hrmap' r_t0) as [rv0 Hrv0].
       iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr0 Hregs]".
       by rewrite lookup_delete_ne // lookup_insert_ne //.
@@ -404,25 +404,25 @@ Section adder.
         iDestruct ("Hprog_f_close" with "[$HnaI $Hprog_f]") as ">HnaI". (* close *)
         (* Put the registers back in the map *)
         iDestruct (big_sepM_insert with "[$Hregs $Hr0]") as "Hregs".
-        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
+        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete_eq //.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_eq.
         iDestruct (big_sepM_insert with "[$Hregs $Hr1]") as "Hregs".
-        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
+        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete_eq //.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_eq.
         iDestruct (big_sepM_insert with "[$Hregs $Hr2]") as "Hregs".
-        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
+        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete_eq //.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_eq.
         iDestruct (big_sepM_insert with "[$Hregs $Hr3]") as "Hregs".
-        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
+        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete_eq //.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_eq.
         iDestruct (big_sepM_insert with "[$Hregs $Hrenv]") as "Hregs".
-        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete //.
-        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_insert.
+        by repeat (rewrite lookup_delete_ne //;[]); rewrite lookup_delete_eq //.
+        repeat (rewrite -delete_insert_ne //;[]). rewrite insert_delete_eq.
         match goal with |- context [ ([∗ map] _↦_ ∈ ?r, _)%I ] => set rmap'' := r end.
         iApply "Hcont"; cycle 1.
         { iFrame. iApply (big_sepM_sep with "[$Hregs HrV]"). cbn beta.
           repeat (iApply big_sepM_insert_2; first by rewrite /= !fixpoint_interp1_eq //).
-          rewrite delete_insert_delete.
+          rewrite delete_insert_eq.
           iApply big_sepM_intro. iModIntro.
           iIntros (r' ? Hr'). eapply lookup_delete_Some in Hr' as [? Hr'].
           by unshelve iSpecialize ("HrV" $! r' _ _ Hr'). }

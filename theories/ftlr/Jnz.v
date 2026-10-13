@@ -21,9 +21,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_Jnz with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -37,14 +37,14 @@ Section fundamental.
       iApply wp_value; auto. iIntros; discriminate. }
     { match goal with
       | H: incrementPC _ = Some _ |- _ => apply incrementPC_Some_inv in H as (p''&b''&e''&a''& ? & HPC & Z & Hregs')
-      end. simplify_map_eq. rewrite insert_insert.
+      end. simplify_map_eq. rewrite insert_insert_eq.
       iApply wp_pure_step_later; auto. iMod ("Hcls" with "[Ha HP]");[iExists w;iFrame|iModIntro]. iNext.
       iIntros "_".
       iApply ("IH" $! r with "[%] [] [Hmap] [$Hown]"); try iClear "IH"; eauto. iModIntro.
       rewrite !fixpoint_interp1_eq /=.
       destruct Hp as [-> | ->];iFrame "Hinv". }
     { simplify_map_eq. iApply wp_pure_step_later; auto.
-      rewrite !insert_insert.
+      rewrite !insert_insert_eq.
 
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
 
@@ -72,14 +72,14 @@ Section fundamental.
           { iIntros (ri v Hri Hvs).
             rewrite lookup_insert_ne in Hvs; auto.
               unshelve iSpecialize ("Hreg" $! ri _ _ Hvs); eauto. }
-          { rewrite insert_insert. iApply "Hmap". }
+          { rewrite insert_insert_eq. iApply "Hmap". }
           auto.
       }
      (* Non-capability cases *)
 
       all: iNext; iIntros "_".
      all: iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap] /=";
-      [apply lookup_insert|]; simpl.
+      [apply lookup_insert_eq|]; simpl.
      all: rewrite /updatePcPerm; iApply (wp_bind (fill [SeqCtx]));
         iApply (wp_notCorrectPC with "HPC"); [intros HFalse; inversion HFalse| ].
      all: repeat iNext; iIntros "HPC /=".

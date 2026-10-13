@@ -62,7 +62,7 @@ Ltac solve_lookup_some :=
 repeat (
     lazymatch goal with
     | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg = Some _ =>
-        rewrite lookup_insert; reflexivity
+        rewrite lookup_insert_eq; reflexivity
     | |- (<[ ?reg := ?w ]> ?rmap) !! ?reg' = Some _ =>
         rewrite lookup_insert_ne; [ | solve [auto]]
     | |- (delete ?reg ?rmap) !! ?reg' = Some _ =>

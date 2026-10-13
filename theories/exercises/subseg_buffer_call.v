@@ -1,5 +1,5 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel rules.
 From cap_machine.proofmode Require Import tactics_helpers proofmode register_tactics.
@@ -653,14 +653,12 @@ Hlink& Hentry_malloc& Hentry_assert& Hna& #Hw0& #Hadv)".
     iApply big_sepM_insert_2 ; first iFrame "#".
     iApply big_sepM_insert_2 ; cycle 1.
     (* The remaining registers contains WInt*)
-    { iApply big_sepM_intro. iIntros "!>" (r ?).
-      (set rmap' := delete r_t7 _ ).
-      destruct ((create_gmap_default (map_to_list rmap').*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
-      apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
-      iIntros (?). simplify_eq. done. iIntros (?). done. }
+    { iApply big_sepM_intro. iIntros "!>" (r ? Hsome).
+      apply create_gmap_default_lookup_is_Some in Hsome as [_ ->].
+      iApply interp_int. }
 
     (* The activation code is safe to share - ie. safe to execute *)
-    { cbn beta. rewrite !fixpoint_interp1_eq.
+    { cbn beta. iApply fixpoint_interp1_eq.
       iIntros (r). iNext; iModIntro.
       iIntros "([% #Hrmap_safe] & Hrmap & Hna)".
       iHide "Hinterp_buffer" as Hinterp_buffer.

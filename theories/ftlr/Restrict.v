@@ -48,9 +48,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_Restrict with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -74,12 +74,12 @@ Section fundamental.
         destruct (decide (ri = dst)).
         { subst ri.
           rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
+          rewrite lookup_insert_eq in Hvs; inversion Hvs. simplify_eq.
           unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
           iApply (interp_weakening with "IH Hreg"); auto; solve_addr. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
-        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+        { subst regs'. rewrite insert_insert_eq. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }
@@ -105,12 +105,12 @@ Section fundamental.
         destruct (decide (ri = dst)).
         { subst ri.
           rewrite lookup_insert_ne in Hdst; auto.
-          rewrite lookup_insert in Hvs; inversion Hvs. simplify_eq.
+          rewrite lookup_insert_eq in Hvs; inversion Hvs. simplify_eq.
           unshelve iSpecialize ("Hreg" $! dst _ _ Hdst); eauto.
           iApply (interp_weakening_ot with "Hreg"); auto; solve_addr. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
-        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+        { subst regs'. rewrite insert_insert_eq. iApply "Hmap". }
       iModIntro.
       iApply (interp_weakening with "IH Hinv"); auto; try solve_addr.
       { destruct Hp; by subst p. }

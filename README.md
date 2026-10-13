@@ -1,4 +1,4 @@
-This repository contains the Coq mechanization of a capability machine and
+This repository contains the Rocq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
 The repository depends on the submodule `machine_utils`. After cloning Cerise,
@@ -31,7 +31,7 @@ The simplest option is to create a fresh *local* opam switch with everything
 needed, by running the following commands:
 
 ```
-opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.14.0
+opam switch create -y --repositories=default,rocq-released=https://rocq-prover.org/opam/released . ocaml-base-compiler.4.14.0
 eval $(opam env)
 ```
 
@@ -45,9 +45,14 @@ env)` and then `opam install -y .` (this will continue from where it failed).
 
 ## Building
 
+The development is built with [dune](https://dune.build):
+
 ```
-make -jN  # replace N with the number of CPU cores of your machine
+make theories  # or `dune build`
 ```
+
+Running `make` also builds the documentation, and `make html` gathers it into
+the `html` directory.
 
 It is possible to run `make fundamental` to only build files up to the
 Fundamental Theorem.

@@ -4,7 +4,7 @@
     We assume the user already knows how to use Iris, for instance with Heaplang.
  *)
 
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules.
 From cap_machine.proofmode Require Import proofmode tactics_helpers contiguous.
 Open Scope Z_scope.

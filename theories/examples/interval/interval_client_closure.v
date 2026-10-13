@@ -1,6 +1,6 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import dynamic_sealing keylist malloc.
@@ -215,7 +215,7 @@ Section interval_client.
 
     iIntros "((%Hfull&#Hrmap_valid) & Hrmap & Hown)".
     iDestruct (big_sepM_delete _ _ PC with "Hrmap") as "[HPC Hregs]";
-      [by simplify_map_eq|rewrite delete_insert_delete].
+      [by simplify_map_eq|rewrite delete_insert_eq].
     destruct Hfull with r_t0 as [w0 Hr_t0].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[Hr_t0 Hregs]";[by simplify_map_eq|].
 
@@ -388,7 +388,7 @@ Section interval_client.
     { iApply fixpoint_interp1_eq. iIntros (r). iNext. iModIntro.
       iIntros "((%Hfullr & #Hr_valid) & Hr & Hown)".
       iDestruct (big_sepM_delete _ _ PC with "Hr") as "[HPC Hregs]";
-        [by simplify_map_eq|rewrite delete_insert_delete].
+        [by simplify_map_eq|rewrite delete_insert_eq].
       iMod (na_inv_acc with "Hact Hown") as "(>Hact_code & Hown & Hcls)";auto.
       destruct Hfullr with r_t20 as [w20 Hr_t20].
       iDestruct (big_sepM_delete _ _ r_t20 with "Hregs") as "[Hr_t20 Hregs]";[by simplify_map_eq|].
@@ -427,7 +427,7 @@ Section interval_client.
     { iApply fixpoint_interp1_eq. iIntros (r). iNext. iModIntro.
       iIntros "((%Hfullr & #Hr_valid) & Hr & Hown)".
       iDestruct (big_sepM_delete _ _ PC with "Hr") as "[HPC Hregs]";
-        [by simplify_map_eq|rewrite delete_insert_delete].
+        [by simplify_map_eq|rewrite delete_insert_eq].
       iMod (na_inv_acc with "Hint_env Hown") as "(>Hact_code & Hown & Hcls)";auto.
       iDestruct "Hact_code" as (? ? (?&?&?)) "(Hb&Hb1&Hb2&%Heq&%Hbounds'&Hact1&Hact2&Hact3)".
       destruct Hbounds' as (?&?). destruct Heq as (?&?&?). simplify_eq.
@@ -466,7 +466,7 @@ Section interval_client.
     { iApply fixpoint_interp1_eq. iIntros (r). iNext. iModIntro.
       iIntros "((%Hfullr & #Hr_valid) & Hr & Hown)".
       iDestruct (big_sepM_delete _ _ PC with "Hr") as "[HPC Hregs]";
-        [by simplify_map_eq|rewrite delete_insert_delete].
+        [by simplify_map_eq|rewrite delete_insert_eq].
       iMod (na_inv_acc with "Hint_env Hown") as "(>Hact_code & Hown & Hcls)";auto.
       iDestruct "Hact_code" as (? ? (?&?&?)) "(Hb&Hb1&Hb2&%Heq&%Hbounds'&Hact1&Hact2&Hact3)".
       destruct Hbounds' as (?&?). destruct Heq as (?&?&?). simplify_eq.
@@ -506,7 +506,7 @@ Section interval_client.
     { iApply fixpoint_interp1_eq. iIntros (r). iNext. iModIntro.
       iIntros "((%Hfullr & #Hr_valid) & Hr & Hown)".
       iDestruct (big_sepM_delete _ _ PC with "Hr") as "[HPC Hregs]";
-        [by simplify_map_eq|rewrite delete_insert_delete].
+        [by simplify_map_eq|rewrite delete_insert_eq].
       iMod (na_inv_acc with "Hint_env Hown") as "(>Hact_code & Hown & Hcls)";auto.
       iDestruct "Hact_code" as (? ? (?&?&?)) "(Hb&Hb1&Hb2&%Heq&%Hbounds'&Hact1&Hact2&Hact3)".
       destruct Hbounds' as (?&?). destruct Heq as (?&?&?). simplify_eq.

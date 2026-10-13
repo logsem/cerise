@@ -597,33 +597,33 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
-      by rewrite lookup_delete. rewrite !insert_delete_insert.
+      by rewrite lookup_delete_eq. rewrite !insert_delete_eq.
       iDestruct (big_sepM_insert with "[$Hsmap $Hs4]") as "Hsmap".
-      by rewrite lookup_delete. rewrite !insert_delete_insert.
+      by rewrite lookup_delete_eq. rewrite !insert_delete_eq.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
-      by rewrite lookup_insert_ne // lookup_delete //.
+      by rewrite lookup_insert_ne // lookup_delete_eq //.
       iDestruct (big_sepM_insert with "[$Hsmap $Hs3]") as "Hsmap".
-      by rewrite lookup_insert_ne // lookup_delete //.
-      rewrite !(insert_commute _ r_t3) // !insert_delete_insert.
+      by rewrite lookup_insert_ne // lookup_delete_eq //.
+      rewrite !(insert_insert_ne _ r_t3) // !insert_delete_eq.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
-      by rewrite !lookup_insert_ne // lookup_delete //.
+      by rewrite !lookup_insert_ne // lookup_delete_eq //.
       iDestruct (big_sepM_insert with "[$Hsmap $Hs2]") as "Hsmap".
-      by rewrite !lookup_insert_ne // lookup_delete //.
-      rewrite !(insert_commute _ r_t2 r_t4) // !(insert_commute _ r_t2 r_t3) //.
-      rewrite !insert_delete_insert.
-      rewrite !(insert_commute _ r_t3 r_t2) // !(insert_commute _ r_t4 r_t2) //.
-      rewrite !(insert_commute _ r_t4 r_t3) //. iFrame.
+      by rewrite !lookup_insert_ne // lookup_delete_eq //.
+      rewrite !(insert_insert_ne _ r_t2 r_t4) // !(insert_insert_ne _ r_t2 r_t3) //.
+      rewrite !insert_delete_eq.
+      rewrite !(insert_insert_ne _ r_t3 r_t2) // !(insert_insert_ne _ r_t4 r_t2) //.
+      rewrite !(insert_insert_ne _ r_t4 r_t3) //. iFrame.
       iExists size. auto. }
     { auto. }
   Qed.
 
   Ltac consider_next_reg r1 r2 :=
-    destruct (decide (r1 = r2));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne;auto].
+    destruct (decide (r1 = r2));[subst;rewrite lookup_insert_eq;eauto|rewrite lookup_insert_ne;auto].
 
   (* same tactic, but now operating on inline hypothesis. *)
   Ltac consider_next_reg1 r1 r2 H1 H2 :=
     destruct (decide (r1 = r2));
-    [ subst; rewrite lookup_insert in H1, H2; eauto | rewrite lookup_insert_ne in H1, H2; auto ].
+    [ subst; rewrite lookup_insert_eq in H1, H2; eauto | rewrite lookup_insert_ne in H1, H2; auto ].
 
   Lemma allocate_region_inv E ba ea :
     [[ba,ea]]↦ₐ[[region_addrs_zeroes ba ea]] ∗ [[ba,ea]]↣ₐ[[region_addrs_zeroes ba ea]]
@@ -651,8 +651,8 @@ Section SimpleMalloc.
     iDestruct (interp_reg_dupl r.1 with "Hregs_valid") as "[_ Hregs_valid']".
     iDestruct "Hregs_valid" as "[% Hregs_valid]".
     iSplit;auto.
-    iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
-    iDestruct (big_sepM_delete _ _ PC with "Hsregs") as "[HsPC Hsregs]";[rewrite lookup_insert;eauto|].
+    iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert_eq;eauto|].
+    iDestruct (big_sepM_delete _ _ PC with "Hsregs") as "[HsPC Hsregs]";[rewrite lookup_insert_eq;eauto|].
     destruct H with r_t0 as [ [? ?] [? ?] ].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[r_t0 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hsregs") as "[s_t0 Hsregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
@@ -691,14 +691,14 @@ Section SimpleMalloc.
     (* Next is the interesting part of the spec: we must allocate the invariants making the malloced region valid *)
     iMod (allocate_region_inv with "[$Hbe $Hsbe]") as "#Hbe".
     rewrite -!(delete_insert_ne _ r_t1)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-    iDestruct (big_sepM_insert with "[$Hsregs $Hs_t1]") as "Hsregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
+    iDestruct (big_sepM_insert with "[$Hsregs $Hs_t1]") as "Hsregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
     rewrite -!(delete_insert_ne _ r_t0)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
-    iDestruct (big_sepM_insert with "[$Hsregs $Hs_t0]") as "Hsregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq delete_insert_eq].
+    iDestruct (big_sepM_insert with "[$Hsregs $Hs_t0]") as "Hsregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
     rewrite -!(delete_insert_ne _ PC)//.
-    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
-    iDestruct (big_sepM_insert with "[$Hsregs $HsPC]") as "Hsregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hregs $HPC]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
+    iDestruct (big_sepM_insert with "[$Hsregs $HsPC]") as "Hsregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
     set regs := <[PC:=updatePcPerm (WCap p b' e' a)]>
                             (<[r_t0:=WCap p b' e' a]> (<[r_t1:=WCap RWX ba ea ba]> (<[r_t2:=WInt 0%Z]> (<[r_t3:=WInt 0%Z]> (<[r_t4:=WInt 0%Z]> r.1))))).
     iDestruct ("Hcont" $! (regs,regs) with "[$Hown Hregs Hsregs Hbe $Hj]") as "[_ $]".
@@ -718,7 +718,7 @@ Section SimpleMalloc.
         consider_next_reg1 x r_t4 Hv1s Hv2s. inversion Hv1s. inversion Hv2s. by rewrite logrel_binary.fixpoint_interp1_eq.
         iApply "Hregs_valid'"; auto.
     }
-    { rewrite /regs. rewrite insert_insert /=. iFrame. }
+    { rewrite /regs. rewrite insert_insert_eq /=. iFrame. }
   Qed.
 
 

@@ -1,7 +1,6 @@
-From iris.algebra Require Import frac auth list.
+From iris.algebra Require Import frac auth list mra.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
-From cap_machine Require Import monotone.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.proofmode Require Import contiguous tactics_helpers solve_pure proofmode map_simpl register_tactics.
@@ -462,8 +461,8 @@ Section sealing.
     iInsertList "Hregs" [r_t8;r_t9;r_t10].
     iApply "Hφ"; iFrame "∗ #".
     iSplit ; first by iPureIntro.
-    rewrite delete_commute //.
-    rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //.
+    rewrite delete_delete //.
+    rewrite !(insert_insert_ne _ r_t3) // !(insert_insert_ne _ r_t4) // !(insert_insert_ne _ r_t5) // !(insert_insert_ne _ r_t6) // !(insert_insert_ne _ r_t7) // !(insert_insert_ne _ r_t8) // !(insert_insert_ne _ r_t9) // !(insert_insert_ne _ r_t10) //.
 Qed.
 
 End sealing.

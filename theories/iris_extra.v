@@ -52,7 +52,7 @@ Proof.
   { iIntros (l2) "HΦ H". destruct l2 as [| a2' l2]; [done|]. cbn. iDestruct "H" as "[Ha1 H]".
     iDestruct (IHl1 with "HΦ H") as %?.
     iAssert (⌜a1' ∉ l1⌝)%I as %?.
-    { iIntros (Hin). destruct (elem_of_list_lookup_1 _ _ Hin) as [k ?].
+    { iIntros (Hin). destruct (list_elem_of_lookup_1 _ _ Hin) as [k ?].
       iDestruct (big_sepL2_length with "H") as %Hlen12.
       destruct (lookup_lt_is_Some_2 l2 k).
       { rewrite -Hlen12 -lookup_lt_is_Some; eauto. }
@@ -174,9 +174,9 @@ Proof.
   rewrite take_drop.
   assert (take i b ++ bi :: drop (S i) b = <[i:=bi]> b) as ->;[|iFrame].
   assert (<[i:=bi]> b !! i = Some bi) as Hsome'.
-  { apply list_lookup_insert. lia. }
+  { apply list_lookup_insert_eq. lia. }
   apply take_drop_middle in Hsome'. rewrite -Hsome'.
-  rewrite take_insert;[|lia]. rewrite drop_insert_gt;[|lia]. auto.
+  rewrite take_insert_ge;[|lia]. rewrite drop_insert_lt;[|lia]. auto.
 Qed.
 
 Lemma region_addrs_exists `{Σ : gFunctors} {A B: Type} (a : list A) (φ : A → B → iProp Σ) :
@@ -356,20 +356,20 @@ Lemma big_sepL_merge {PROP: bi} {A: Type} (l: list A) (HNoDup: NoDup l) (φ: A -
 Proof.
   iInduction (l) as [|x l] "IH"; iIntros (l1 l2 H) "Hl1 Hl2".
   - iApply big_sepL_nil; auto.
-  - iApply big_sepL_cons. destruct (H x ltac:(eapply elem_of_list_here)) as [H'|H']; eapply elem_of_list_lookup in H'; destruct H' as [k H'].
+  - iApply big_sepL_cons. destruct (H x ltac:(eapply list_elem_of_here)) as [H'|H']; eapply list_elem_of_lookup in H'; destruct H' as [k H'].
     + iDestruct (big_sepL_delete with "Hl1") as "[$ Hl1]"; eauto.
       iAssert ([∗ list] a ∈ delete k l1, φ a)%I with "[Hl1]" as "Hl1".
       { iApply (big_sepL_impl with "[Hl1]"); auto.
         iApply (big_sepL_delete' with "Hl1"). }
       assert (Hincl: ∀ a : A, a ∈ l → a ∈ delete k l1 ∨ a ∈ l2).
-      { intros. destruct (H a ltac:(eapply elem_of_list_further; eauto)).
-        - left. eapply elem_of_list_lookup in H1. destruct H1.
-          eapply elem_of_list_lookup. assert (x0 <> k).
+      { intros. destruct (H a ltac:(eapply list_elem_of_further; eauto)).
+        - left. eapply list_elem_of_lookup in H1. destruct H1.
+          eapply list_elem_of_lookup. assert (x0 <> k).
           + red; intros; subst x0. rewrite H1 in H'; inversion H'.
             inversion HNoDup. eapply H5. subst. auto.
           + assert  (x0 < k \/ k <= x0) by lia. destruct H3.
-            * exists x0. rewrite lookup_delete_lt; auto.
-            * exists (x0 - 1). rewrite lookup_delete_ge; auto; try lia.
+            * exists x0. rewrite list_lookup_delete_lt; auto.
+            * exists (x0 - 1). rewrite list_lookup_delete_ge; auto; try lia.
               replace (S (x0 - 1)) with x0; auto. lia.
         - right. auto. }
       inversion HNoDup. iApply ("IH" $! H3 (delete k l1) l2 Hincl with "[$Hl1] [$Hl2]").
@@ -378,15 +378,15 @@ Proof.
       { iApply (big_sepL_impl with "[Hl2]"); auto.
         iApply (big_sepL_delete' with "Hl2"). }
       assert (Hincl: ∀ a : A, a ∈ l → a ∈ l1 ∨ a ∈ delete k l2).
-      { intros. destruct (H a ltac:(eapply elem_of_list_further; eauto)).
+      { intros. destruct (H a ltac:(eapply list_elem_of_further; eauto)).
         - left. auto.
-        - right. eapply elem_of_list_lookup in H1. destruct H1.
-          eapply elem_of_list_lookup. assert (x0 <> k).
+        - right. eapply list_elem_of_lookup in H1. destruct H1.
+          eapply list_elem_of_lookup. assert (x0 <> k).
           + red; intros; subst x0. rewrite H1 in H'; inversion H'.
             inversion HNoDup. subst. eapply H5. auto.
           + assert  (x0 < k \/ k <= x0) by lia. destruct H3.
-            * exists x0. rewrite lookup_delete_lt; auto.
-            * exists (x0 - 1). rewrite lookup_delete_ge; auto; try lia.
+            * exists x0. rewrite list_lookup_delete_lt; auto.
+            * exists (x0 - 1). rewrite list_lookup_delete_ge; auto; try lia.
               replace (S (x0 - 1)) with x0; auto. lia. }
       inversion HNoDup. iApply ("IH" $! H3 l1 (delete k l2) Hincl with "[$Hl1] [$Hl2]").
 Qed.
@@ -447,8 +447,8 @@ Proof.
       { apply elem_of_dom. rewrite Hdom dom_insert_L.
         apply elem_of_union_l, elem_of_singleton; auto. }
       rewrite -(insert_id m' a ρ); auto.
-      rewrite -insert_delete_insert.
-      iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete|auto|].
+      rewrite -insert_delete_eq.
+      iDestruct (big_sepM2_insert with "Hmap") as "[Hφ Hmap]";[apply lookup_delete_eq|auto|].
       iApply big_sepM_insert;auto.
       iDestruct ("IH" with "Hmap") as "Hmap". iFrame.
 Qed.
@@ -480,11 +480,11 @@ Proof.
     { apply elem_of_dom. rewrite -list_to_set_map_to_list. apply elem_of_list_to_set. auto. }
     iDestruct (big_sepM_delete _ _ a with "Hm") as "[Ha Hm]";eauto.
     iApply big_sepM_delete;[|iFrame].
-    { rewrite Hm.  apply lookup_insert. }
-    rewrite Hm /= delete_insert_delete.
+    { rewrite Hm.  apply lookup_insert_eq. }
+    rewrite Hm /= delete_insert_eq.
     iApply ("IH" $! (delete a m));[..|iFrame].
     + iPureIntro. rewrite map_to_list_delete_fst;eauto.
-    + iPureIntro. rewrite delete_notin;auto.
+    + iPureIntro. rewrite delete_id;auto.
       destruct (create_gmap_default l b !! a) eqn:Hsome';auto.
       exfalso. apply NoDup_cons in Hdup as [Hnin Hdup].
       apply Hnin. apply create_gmap_default_lookup_is_Some in Hsome' as [Hin Hsome'].

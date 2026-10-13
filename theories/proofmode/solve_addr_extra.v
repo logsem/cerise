@@ -28,7 +28,7 @@ Global Ltac zify_finz_op_nonbranching_step_hook ::=
 
 
 (* tests *)
-From Coq Require Import ZArith.
+From Stdlib Require Import ZArith.
 
 Goal forall d d' d'',
   (d + 1)%a = Some d'' ->

@@ -107,14 +107,14 @@ Section definitionsS.
   Lemma regspec_pointsto_agree l q1 q2 v1 v2 : regspec_pointsto l q1 v1 -∗ regspec_pointsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_pointsto own_valid !uPred.discrete_valid
+    rewrite /regspec_pointsto own_valid !internal_cmra_valid_discrete
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [[_ Hr]%singleton_valid _]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma regspec_pointsto_valid r q v : regspec_pointsto r q v -∗ ✓ q.
   Proof.
-    rewrite /regspec_pointsto own_valid !uPred.discrete_valid
+    rewrite /regspec_pointsto own_valid !internal_cmra_valid_discrete
             !auth_frag_valid. iPureIntro.
     intros [_ [[? _]%singleton_valid _]]. auto.
   Qed.
@@ -142,14 +142,14 @@ Section definitionsS.
   Lemma memspec_pointsto_agree l q1 q2 v1 v2 : memspec_pointsto l q1 v1 -∗ memspec_pointsto l q2 v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hr1 Hr2". iCombine "Hr1 Hr2" as "Hr".
-    rewrite /regspec_pointsto own_valid !uPred.discrete_valid
+    rewrite /regspec_pointsto own_valid !internal_cmra_valid_discrete
             !auth_frag_valid.
     iDestruct "Hr" as %[_ [_ [_ Hr]%singleton_valid]].
     simpl in Hr. apply @to_agree_op_inv_L with (A:=leibnizO Word) in Hr;auto. apply _.
   Qed.
   Lemma memspec_pointsto_valid r q v : memspec_pointsto r q v -∗ ✓ q.
   Proof.
-    rewrite /memspec_pointsto own_valid !uPred.discrete_valid
+    rewrite /memspec_pointsto own_valid !internal_cmra_valid_discrete
             !auth_frag_valid. iPureIntro.
     intros [_ [_ [? _]%singleton_valid]]. auto.
   Qed.
@@ -310,9 +310,9 @@ Section cap_lang_spec_resources.
     a1 ≠ a2 → ([∗ map] a↦w ∈  <[a1:=w1]> (<[a2:=w2]> ∅), a ↣ₐ w)%I ⊣⊢ a1 ↣ₐ w1 ∗ a2 ↣ₐ w2.
   Proof.
     intros.
-    rewrite big_sepM_delete; last by apply lookup_insert.
-    rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert.
-    rewrite delete_insert; auto.
+    rewrite big_sepM_delete; last by apply lookup_insert_eq.
+    rewrite (big_sepM_delete _ _ a2 w2); rewrite delete_insert_id; try by rewrite lookup_insert_ne. 2: by rewrite lookup_insert_eq.
+    rewrite delete_insert_id; auto.
     iSplit; iIntros "HH".
     - iDestruct "HH" as "[H1 [H2 _ ] ]".  iFrame.
     - iDestruct "HH" as "[H1 H2]". iFrame. done.
@@ -396,9 +396,7 @@ Section cap_lang_spec_resources.
       rewrite Hσ'.
       eapply (memspec_heap_valid_inSepM e σ σ') in Hσ'.
       iApply (Hσ' with "[$]"). eauto. }
-    iPureIntro. eapply map_leibniz. intro.
-    eapply leibniz_equiv_iff. auto.
-    Unshelve. typeclasses eauto. apply option_leibniz.
+    iPureIntro. by apply map_eq.
   Qed.
   Lemma regspec_heap_valid_allSepM e σ σ' q :
       (forall l, is_Some (σ' !! l)) →
@@ -413,9 +411,7 @@ Section cap_lang_spec_resources.
       rewrite Hσ'.
       eapply (regspec_heap_valid_inSepM e σ σ') in Hσ'.
       iApply (Hσ' with "[$]"). eauto. }
-    iPureIntro. eapply map_leibniz. intro.
-    eapply leibniz_equiv_iff. auto.
-    Unshelve. typeclasses eauto. apply option_leibniz.
+    iPureIntro. by apply map_eq.
   Qed.
 
   Lemma memspec_v_implies_m_v:
@@ -442,8 +438,8 @@ Section cap_lang_spec_resources.
     iMod (memspec_pointsto_update with "Hh Hl") as "[Hh Hl]". iModIntro.
     iSplitL "Hh"; eauto.
     rewrite (big_sepM_delete _ (<[l:=v]> σ') l).
-    { rewrite delete_insert_delete. iFrame. }
-    rewrite lookup_insert //.
+    { rewrite delete_insert_eq. iFrame. }
+    rewrite lookup_insert_eq //.
   Qed.
   Lemma regspec_heap_update_inSepM e σ σ' l v :
       is_Some (σ' !! l) →
@@ -457,8 +453,8 @@ Section cap_lang_spec_resources.
     iMod (regspec_pointsto_update with "Hh Hl") as "[Hh Hl]". iModIntro.
     iSplitL "Hh"; eauto.
     rewrite (big_sepM_delete _ (<[l:=v]> σ') l).
-    { rewrite delete_insert_delete. iFrame. }
-    rewrite lookup_insert //.
+    { rewrite delete_insert_eq. iFrame. }
+    rewrite lookup_insert_eq //.
   Qed.
 
   Lemma spec_memMap_resource_2ne_apply (a1 a2 : Addr) (w1 w2 : Word)  :
@@ -557,7 +553,7 @@ Ltac iFailStep fail_type :=
             end);
     repeat (match goal with
             | H : context [<[_:=_]> _ !! _] |- _ =>
-              revert H; rewrite lookup_insert; intros H
+              revert H; rewrite lookup_insert_eq; intros H
             end); simplify_eq.
 
 Section cap_lang_spec_rules.

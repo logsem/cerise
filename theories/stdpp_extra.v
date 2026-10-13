@@ -1,4 +1,4 @@
-From Coq Require Import ssreflect.
+From Stdlib Require Import ssreflect.
 From stdpp Require Import countable gmap list.
 
 
@@ -58,7 +58,7 @@ Proof.
     + rewrite -(list_to_map_to_list m) in Hsome.
       eapply not_elem_of_list_to_map in Hsome. done.
   - intros [x Hix].
-    apply elem_of_list_fmap.
+    apply list_elem_of_fmap.
     exists (i,x). auto.
 Qed.
 
@@ -146,7 +146,7 @@ Proof.
   induction ks; auto.
   simpl.
   apply not_elem_of_cons in Hnin as [Hneq Hnin].
-  rewrite -delete_commute; auto.
+  rewrite -delete_delete; auto.
   f_equal. by apply IHks.
 Qed.
 
@@ -167,7 +167,7 @@ Proof.
   induction 1.
   { reflexivity. }
   { cbn. rewrite IHPermutation //. }
-  { cbn. rewrite delete_commute //. }
+  { cbn. rewrite delete_delete //. }
   { rewrite IHPermutation1 //. }
 Qed.
 
@@ -177,8 +177,8 @@ Lemma delete_list_swap {A B : Type} `{EqDecision A, Countable A}
   delete a (delete a' (delete_list (l1 ++ l2) M)).
 Proof.
   induction l1.
-  - apply delete_commute.
-  - simpl. repeat rewrite (delete_commute _ _ a0).
+  - apply delete_delete.
+  - simpl. repeat rewrite (delete_delete _ _ a0).
     f_equiv. apply IHl1.
 Qed.
 
@@ -327,7 +327,7 @@ Proof.
   - done.
   - apply Himpl in H.
     apply rtc_once in H.
-    apply rtc_transitive with y; auto.
+    apply rtc_trans with y; auto.
 Qed.
 
 Lemma rtc_or_intro {A : Type} (R Q : A → A → Prop) (x y : A) :
@@ -336,7 +336,7 @@ Lemma rtc_or_intro {A : Type} (R Q : A → A → Prop) (x y : A) :
 Proof.
   intros HR. induction HR.
   - done.
-  - apply rtc_transitive with y; auto.
+  - apply rtc_trans with y; auto.
     apply rtc_once. by left.
 Qed.
 
@@ -346,7 +346,7 @@ Lemma rtc_or_intro_l {A : Type} (R Q : A → A → Prop) (x y : A) :
 Proof.
   intros HR. induction HR.
   - done.
-  - apply rtc_transitive with y; auto.
+  - apply rtc_trans with y; auto.
     apply rtc_once. by right.
 Qed.
 
@@ -358,7 +358,7 @@ Proof.
   intros Hax.
   rewrite /not.
   intros Hal.
-  by apply elem_of_list_difference in Hal as [Ha' Hax_not].
+  by apply list_elem_of_difference in Hal as [Ha' Hax_not].
 Qed.
 
 Lemma list_difference_nil {A : Type} `{EqDecision A} (l : list A) :
@@ -374,7 +374,7 @@ Lemma list_difference_length_cons {A : Type} `{EqDecision A}
   list_difference [a] (a :: l2) = [].
 Proof.
   simpl.
-  assert (a ∈ a :: l2); first apply elem_of_list_here.
+  assert (a ∈ a :: l2); first apply list_elem_of_here.
   destruct (decide_rel elem_of a (a :: l2)); auto; last contradiction.
 Qed.
 
@@ -408,7 +408,7 @@ Proof.
   intros Hnotin.
   induction l1.
   - simpl.
-    assert (b ∈ (b :: l2)); first apply elem_of_list_here.
+    assert (b ∈ (b :: l2)); first apply list_elem_of_here.
     destruct (decide_rel elem_of b (b :: l2)); last contradiction.
     rewrite list_difference_skip; auto.
   - simpl in *.
@@ -437,7 +437,7 @@ Proof.
   apply not_elem_of_cons in Hna.
   destruct Hna as [Hne Hna].
   destruct (decide_rel elem_of a [b]).
-  - apply elem_of_list_singleton in e. congruence.
+  - apply list_elem_of_singleton in e. congruence.
   - simpl. rewrite list_difference_skip; auto.
       by rewrite list_difference_nil.
 Qed.
@@ -453,18 +453,18 @@ Proof.
   induction l1; auto.
   destruct (decide (b = a)).
   - subst.
-    assert (a ∈ a :: l1); first apply elem_of_list_here.
+    assert (a ∈ a :: l1); first apply list_elem_of_here.
     rewrite ->NoDup_cons in Hndup. destruct Hndup as [Hni Hndup].
     assert (¬ (a ∈ l1)) as Hni'.
     { rewrite /not. intros Hin. contradiction. }
     simpl.
-    assert (a ∈ [a]); first apply elem_of_list_here.
+    assert (a ∈ [a]); first apply list_elem_of_here.
     destruct (decide_rel elem_of a [a]); last contradiction.
     rewrite Nat.sub_0_r.
     apply list_difference_length_ni; auto.
   - simpl.
     assert (¬ (a ∈ [b])).
-    { rewrite /not. intros Hin. apply elem_of_list_singleton in Hin. congruence. }
+    { rewrite /not. intros Hin. apply list_elem_of_singleton in Hin. congruence. }
     destruct (decide_rel elem_of a [b]); first contradiction.
     rewrite Nat.sub_0_r /=.
     inversion Hndup; subst.
@@ -503,16 +503,16 @@ Proof.
   induction l; auto.
   simpl. rewrite IHl.
   destruct (decide_rel elem_of a l1).
-  - apply elem_of_list_In in e.
+  - apply list_elem_of_In in e.
     apply Permutation_in with _ _ _ a in Hl; auto.
-    apply elem_of_list_In in Hl.
+    apply list_elem_of_In in Hl.
     destruct (decide_rel elem_of a l2);[|contradiction].
     done.
-  - revert n; rewrite elem_of_list_In; intros n.
+  - revert n; rewrite list_elem_of_In; intros n.
     assert (¬ In a l2) as Hnin.
     { intros Hcontr. apply Permutation_sym in Hl.
       apply Permutation_in with _ _ _ a in Hl; auto. }
-    revert Hnin; rewrite -elem_of_list_In; intro Hnin.
+    revert Hnin; rewrite -list_elem_of_In; intro Hnin.
     destruct (decide_rel elem_of a l2);[contradiction|].
     done.
 Qed.
@@ -565,12 +565,12 @@ Proof.
   split.
   - intros Hk.
     induction l; inversion Hk.
-    + by rewrite lookup_insert.
-    + destruct (decide (a = k)); [subst; by rewrite lookup_insert|].
+    + by rewrite lookup_insert_eq.
+    + destruct (decide (a = k)); [subst; by rewrite lookup_insert_eq|].
       rewrite lookup_insert_ne; auto.
   - intros Hl.
     induction l; inversion Hl.
-    destruct (decide (a = k)); [subst;apply elem_of_list_here|].
+    destruct (decide (a = k)); [subst;apply list_elem_of_here|].
     apply elem_of_cons. right.
     apply IHl. simplify_map_eq. auto.
 Qed.
@@ -581,7 +581,7 @@ Proof.
   revert x v d. induction l as [| a l]; cbn.
   - done.
   - intros x v d. destruct (decide (a = x)) as [->|].
-    + rewrite lookup_insert. intros; simplify_eq. repeat constructor.
+    + rewrite lookup_insert_eq. intros; simplify_eq. repeat constructor.
     + rewrite lookup_insert_ne //. intros [? ?]%IHl. subst. repeat constructor; auto.
 Qed.
 
@@ -676,7 +676,7 @@ Proof.
   - by apply NoDup_nil.
   - destruct a. simpl in Hdup. apply NoDup_cons in Hdup as [Hin Hdup].
     apply NoDup_cons. split;auto.
-    intros Hcontr. apply Hin. apply elem_of_list_fmap.
+    intros Hcontr. apply Hin. apply list_elem_of_fmap.
     exists (a,b). simpl. split;auto.
 Qed.
 
@@ -719,7 +719,7 @@ Proof.
       assert (NoDup ((i0, x) :: l)) as Hdup'.
       { rewrite Hl. apply NoDup_map_to_list. }
       assert (i0 ∈ l.*1) as HWInt.
-      { apply elem_of_list_fmap. exists (i0,x0). simpl. split;auto. }
+      { apply list_elem_of_fmap. exists (i0,x0). simpl. split;auto. }
       apply NoDup_cons in Hdup as [Hcontr ?]. by apply Hcontr.
     }
     assert ((i0, x0) ∈ (i, x) :: l) as Hin'.
@@ -736,7 +736,7 @@ Proof.
   - rewrite map_to_list_empty. simpl. by apply NoDup_nil.
   - rewrite map_to_list_insert;auto.
     simpl. rewrite NoDup_cons. split.
-    + intros Hcontr%elem_of_list_fmap.
+    + intros Hcontr%list_elem_of_fmap.
       destruct Hcontr as [ab [Heqab Hcontr] ].
       destruct ab as [a b]. subst. simpl in *.
       apply elem_of_map_to_list in Hcontr. rewrite Hcontr in H0. inversion H0.
@@ -757,14 +757,14 @@ Proof.
   set l' := zip l (repeat x (length l)).
   assert (l = l'.*1) as Heq;[rewrite fst_zip;auto;rewrite repeat_length;lia|].
   intros i0. split.
-  - intros Hinx%elem_of_list_fmap.
+  - intros Hinx%list_elem_of_fmap.
     destruct Hinx as [ [? ?] [? Hinx] ]. simpl in *. subst a.
     apply elem_of_map_to_list in Hinx.
-    destruct (decide (i = i0));[subst i;rewrite lookup_delete in Hinx;inversion Hinx|].
+    destruct (decide (i = i0));[subst i;rewrite lookup_delete_eq in Hinx;inversion Hinx|].
     rewrite lookup_delete_ne in Hinx;auto.
     apply elem_of_map_to_list in Hinx.
     assert (i0 ∈ (map_to_list m).*1) as Hinx'.
-    { apply elem_of_list_fmap. exists (i0,b). split;auto. }
+    { apply list_elem_of_fmap. exists (i0,b). split;auto. }
     revert Hinx'. rewrite -Hl =>Hinx'.
     by apply elem_of_cons in Hinx' as [Hcontr | Hinx'];[congruence|].
   - intros Hinx. assert (i ≠ i0) as Hne;[congruence|simplify_map_eq].
@@ -782,7 +782,7 @@ Lemma submseteq_list_difference {A} `{EqDecision A} (l1 l2 l3 : list A) :
 Proof.
   intros Hdup Hnin Hsub.
   apply NoDup_submseteq;auto.
-  intros x Hx. apply elem_of_list_difference.
+  intros x Hx. apply list_elem_of_difference.
   split.
   - eapply elem_of_submseteq;eauto.
   - intros Hcontr. apply Hnin in Hcontr. done.
@@ -968,13 +968,13 @@ Tactic Notation "simpl_map" "by" tactic3(tac) := repeat
   match goal with
   | H : context[ ∅ !! _ ] |- _ => rewrite lookup_empty in H
   | H : context[ (<[_:=_]>_) !! _ ] |- _ =>
-    rewrite lookup_insert in H || (rewrite lookup_insert_ne in H; [| by tac])
+    rewrite lookup_insert_eq in H || (rewrite lookup_insert_ne in H; [| by tac])
   | H : context[ (alter _ _ _) !! _] |- _ =>
-    rewrite lookup_alter in H || (rewrite lookup_alter_ne in H; [| by tac])
+    rewrite lookup_alter_eq in H || (rewrite lookup_alter_ne in H; [| by tac])
   | H : context[ (delete _ _) !! _] |- _ =>
-    rewrite lookup_delete in H || (rewrite lookup_delete_ne in H; [| by tac])
+    rewrite lookup_delete_eq in H || (rewrite lookup_delete_ne in H; [| by tac])
   | H : context[ {[ _ := _ ]} !! _ ] |- _ =>
-    rewrite lookup_singleton in H || (rewrite lookup_singleton_ne in H; [| by tac])
+    rewrite lookup_singleton_eq in H || (rewrite lookup_singleton_ne in H; [| by tac])
   | H : context[ (_ <$> _) !! _ ] |- _ => rewrite lookup_fmap in H
   | H : context[ (omap _ _) !! _ ] |- _ => rewrite lookup_omap in H
   | H : context[ lookup (A:=?A) ?i (?m1 ∪ ?m2) ] |- _ =>
@@ -985,13 +985,13 @@ Tactic Notation "simpl_map" "by" tactic3(tac) := repeat
     rewrite E in H; clear E
   | |- context[ ∅ !! _ ] => rewrite lookup_empty
   | |- context[ (<[_:=_]>_) !! _ ] =>
-    rewrite lookup_insert || (rewrite lookup_insert_ne; [| by tac])
+    rewrite lookup_insert_eq || (rewrite lookup_insert_ne; [| by tac])
   | |- context[ (alter _ _ _) !! _ ] =>
-    rewrite lookup_alter || (rewrite lookup_alter_ne; [| by tac])
+    rewrite lookup_alter_eq || (rewrite lookup_alter_ne; [| by tac])
   | |- context[ (delete _ _) !! _ ] =>
-    rewrite lookup_delete || (rewrite lookup_delete_ne; [| by tac])
+    rewrite lookup_delete_eq || (rewrite lookup_delete_ne; [| by tac])
   | |- context[ {[ _ := _ ]} !! _ ] =>
-    rewrite lookup_singleton || (rewrite lookup_singleton_ne; [| by tac])
+    rewrite lookup_singleton_eq || (rewrite lookup_singleton_ne; [| by tac])
   | |- context[ (_ <$> _) !! _ ] => rewrite lookup_fmap
   | |- context[ (omap _ _) !! _ ] => rewrite lookup_omap
   | |- context [ lookup (A:=?A) ?i ?m ] =>

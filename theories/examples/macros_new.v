@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode spec_patterns coq_tactics ltac_tactics reduction.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import rules logrel.
 From cap_machine Require Export iris_extra addr_reg_sample contiguous malloc salloc assert.
 From cap_machine.proofmode Require Import classes tactics_helpers solve_pure proofmode map_simpl.
@@ -694,15 +694,15 @@ Section macros.
 
     destruct (decide (r0 ∈ r')).
     { iDestruct (big_sepM_insert _ _ r0 with "[Hr0 $Hreg]") as "Hreg".
-      by rewrite lookup_delete//. by iFrame.
+      by rewrite lookup_delete_eq//. by iFrame.
       iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont]"); eauto.
       { iPureIntro. set_solver. }
       { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
         iFrame. iDestruct ("Hcont" with "Hcode") as "Hcode". iFrame.
-        iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete//.
+        iDestruct (big_sepM_insert with "Hreg") as "[? ?]". by rewrite lookup_delete_eq//.
         iApply (big_sepM_delete _ _ r0). done. iFrame. }
       { iPureIntro. solve_pure_addr. }
-      { rewrite insert_delete_insert. iPureIntro. set_solver. } }
+      { rewrite insert_delete_eq. iPureIntro. set_solver. } }
     { iApply ("IH" with "[] [] Hreg HPC Hrclear [Hφ Hcont Hr0]"); eauto.
       { iPureIntro. set_solver. }
       { iNext. iIntros "(? & Hreg & Hcode)". iApply "Hφ".
@@ -940,8 +940,8 @@ Section macros.
     changePCto (a_first ^+ length (crtcls_instrs f_m))%a.
     iApply "Hφ". iFrame "∗".
     iSplitR; [eauto|].
-    rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
-    rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
+    rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
+    rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hrmap_dom; set_solver].
     clear -Hrmap_dom; iFrameMapSolve "Hregs".
   Qed.
 

@@ -1,4 +1,4 @@
-From Coq Require Import ZArith.
+From Stdlib Require Import ZArith.
 From stdpp Require Import base.
 From cap_machine Require Export machine_base.
 From iris.proofmode Require Import proofmode.

@@ -307,7 +307,7 @@ Section cap_lang_rules.
        incrementPC_inv.
        pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H6) as Hloadv; eauto.
        simplify_map_eq.
-       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq (insert_insert_ne _ r1 PC) // insert_insert_eq.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto.
        iApply "Hφ". iFrame. }
      { (* Failure (contradiction) *)
@@ -415,7 +415,7 @@ Section cap_lang_rules.
        incrementPC_inv.
        pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H4) as Hloadv; eauto.
        simplify_map_eq.
-       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq (insert_insert_ne _ r1 PC) // insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
@@ -516,7 +516,7 @@ Section cap_lang_rules.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite insert_insert insert_insert.
+       rewrite insert_insert_eq insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr2]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
@@ -555,7 +555,7 @@ Section cap_lang_rules.
        rewrite -memMap_resource_1_dq.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite insert_commute //= insert_insert insert_commute //= insert_insert.
+       rewrite insert_insert_ne //= insert_insert_eq insert_insert_ne //= insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.

@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
-Require Import Eqdep_dec List.
+From iris.proofmode Require Import proofmode.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros register_tactics.
 From cap_machine Require Import fundamental logrel rules.
 From cap_machine.proofmode Require Import tactics_helpers proofmode.
@@ -427,7 +427,7 @@ Section closure_program.
    ; try (iFrame ; iFrame "#").
    - subst rmap. solve_map_dom.
    - subst rmap.
-     iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
+     iDestruct (big_sepM_sep _ (λ (k : RegName) v, interp v)%I with "[Hregs]") as "Hregs".
      { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
        iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
        iApply ("Hrsafe" $! r'); auto. }

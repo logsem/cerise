@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
-Require Import Eqdep_dec List.
+From iris.proofmode Require Import proofmode.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel.
 From cap_machine.proofmode Require Import tactics_helpers proofmode register_tactics.

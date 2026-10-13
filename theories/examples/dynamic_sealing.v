@@ -1,9 +1,9 @@
-From iris.algebra Require Import frac auth list.
+From iris.algebra Require Import frac auth list mra.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel.
-From cap_machine Require Import monotone keylist.
+From cap_machine Require Import keylist.
 From cap_machine.proofmode Require Import tactics_helpers solve_pure proofmode contiguous map_simpl.
 
 Section sealing.
@@ -264,8 +264,8 @@ Section sealing.
     iDestruct (big_sepM_delete _ _ r_t7 with "Hregs") as "[Hr_t7 Hregs]";[apply Hw7|].
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
-    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [apply lookup_delete_eq|].
+    rewrite insert_delete_eq.
 
     focus_block 1 "Hprog" as a_middle Ha_middle "Hprog" "Hcont".
     iApply appendb_spec; try iFrame "∗ #"; auto. rewrite dom_insert_L Hdom. set_solver.
@@ -286,13 +286,13 @@ Section sealing.
     unfocus_block "Hprog" "Hcont" as "Hprog".
     iApply "Hφ"; iFrame "∗ #".
     iSplit; eauto.
-    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete|].
+    iDestruct (big_sepM_insert _ _ r_t3 with "[$Hregs $Hr_t3]") as "Hregs"; [apply lookup_delete_eq|].
     map_simpl "Hregs".
     iDestruct (big_sepM_insert _ _ r_t2 with "[$Hregs $Hr_t2]") as "Hregs"; [simplify_map_eq;auto|].
     map_simpl "Hregs".
     iDestruct (big_sepM_insert _ _ r_t7 with "[$Hregs $Hr_t7]") as "Hregs"; [simplify_map_eq;auto|].
     map_simpl "Hregs".
-    repeat rewrite -(insert_commute _ _ r_t7)//.
+    repeat rewrite -(insert_insert_ne _ _ r_t7)//.
   Qed.
 
   Lemma sealLL_alloc ι ll Ep Φ {Hpers : ∀ w, Persistent (Φ w)} :
@@ -300,7 +300,7 @@ Section sealing.
     |={Ep}=> ∃ γ, sealLL ι ll γ Φ.
   Proof.
     iIntros "Hll".
-    iMod (own_alloc (● principal prefR [])) as (γ) "Hown".
+    iMod (own_alloc (● to_mra (R:=prefR) [])) as (γ) "Hown".
     { eapply auth_auth_valid. repeat red. apply I. }
     iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ [∗ list] aw ∈ awvals, Φ aw.2)) with "[Hll Hown]")%I as "Hinv".
     { iNext. iExists (WInt 0%Z). iFrame.
@@ -374,8 +374,8 @@ Section sealing.
       solve_addr. }
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete|].
-    rewrite insert_delete_insert.
+    iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [apply lookup_delete_eq|].
+    rewrite insert_delete_eq.
 
     rewrite /make_seal_preamble_instrs.
     focus_block 3 "Hprog" as a_middle1 Ha_middle1 "Hprog" "Hcont".
@@ -396,11 +396,11 @@ Section sealing.
     iGo "Hprog".
     unfocus_block "Hprog" "Hcont" as "Hprog".
 
-    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete|].
+    iDestruct (big_sepM_insert _ _ r_t9 with "[$Hregs $Hr_t9]") as "Hregs"; [apply lookup_delete_eq|].
     iDestruct (big_sepM_insert _ _ r_t8 with "[$Hregs $Hr_t8]") as "Hregs"; [simplify_map_eq; auto|].
     (* TODO debug why map_simpl "Hregs" loops here ?? *)
-    rewrite insert_delete_insert. rewrite (delete_commute _ _ r_t8)//.
-    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_insert.
+    rewrite insert_delete_eq. rewrite (delete_delete _ _ r_t8)//.
+    rewrite -(delete_insert_ne _ r_t8); auto. rewrite insert_delete_eq.
 
     focus_block 5 "Hprog" as a_middle3 Ha_middle3 "Hprog" "Hcont".
     iApply crtcls_spec_alt; iFrameAutoSolve. 3: iFrame "# ∗".
@@ -450,8 +450,8 @@ Section sealing.
     iApply "Hφ"; iFrame "∗ #".
     iSplitR "Hregs".
     { iFrame "%". }
-    { rewrite delete_commute //.
-      rewrite !(insert_commute _ r_t3) // !(insert_commute _ r_t4) // !(insert_commute _ r_t5) // !(insert_commute _ r_t6) // !(insert_commute _ r_t7) // !(insert_commute _ r_t8) // !(insert_commute _ r_t9) // !(insert_commute _ r_t10) //. }
+    { rewrite delete_delete //.
+      rewrite !(insert_insert_ne _ r_t3) // !(insert_insert_ne _ r_t4) // !(insert_insert_ne _ r_t5) // !(insert_insert_ne _ r_t6) // !(insert_insert_ne _ r_t7) // !(insert_insert_ne _ r_t8) // !(insert_insert_ne _ r_t9) // !(insert_insert_ne _ r_t10) //. }
   Qed.
 
 End sealing.

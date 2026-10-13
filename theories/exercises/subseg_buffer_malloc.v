@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
-From iris.proofmode Require Import tactics.
-Require Import Eqdep_dec List.
+From iris.proofmode Require Import proofmode.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import malloc macros.
 From cap_machine Require Import fundamental logrel rules.
 From cap_machine.examples Require Import template_adequacy.
@@ -209,7 +209,7 @@ Section malloc_program.
     iFrame.
 
     iInsertList "Hgen" [r_t3;r_t2;r_t1].
-    rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
+    rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
     iAssumption.
   Qed.
 
@@ -310,10 +310,10 @@ Section malloc_program.
       consider_next_reg r r_t0; [iIntros (Hr0) ; by inversion Hr0 |].
       consider_next_reg r r_t30; [iIntros (Hr0) ; by inversion Hr0 |].
       consider_next_reg r r_t1; [iIntros (Hr0) ; by inversion Hr0 |].
-      consider_next_reg r r_t2; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
-      consider_next_reg r r_t3; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
-      consider_next_reg r r_t4; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
-      consider_next_reg r r_t5; [iIntros (Hr0) ; inversion Hr0; by rewrite !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t2; [iIntros (Hr0) ; inversion Hr0; by rewrite /interp /= !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t3; [iIntros (Hr0) ; inversion Hr0; by rewrite /interp /= !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t4; [iIntros (Hr0) ; inversion Hr0; by rewrite /interp /= !fixpoint_interp1_eq /= |].
+      consider_next_reg r r_t5; [iIntros (Hr0) ; inversion Hr0; by rewrite /interp /= !fixpoint_interp1_eq /= |].
       iIntros (Hr).
       iDestruct (big_sepM_delete _ _ r with "Hmap_interp") as "[Hr_t7 Hregs]"; eauto.
 Qed.
@@ -378,7 +378,7 @@ Qed.
       apply regmap_full_dom in Hrfull.
       rewrite Hrfull.
       set_solver.
-    - iDestruct (big_sepM_sep _ (λ k v, interp v)%I with "[Hregs]") as "Hregs".
+    - iDestruct (big_sepM_sep _ (λ (k : RegName) v, interp v)%I with "[Hregs]") as "Hregs".
       { iSplitL. by iApply "Hregs". iApply big_sepM_intro. iModIntro.
         iIntros (r' ? HH). repeat eapply lookup_delete_Some in HH as [? HH].
         iApply ("Hrsafe" $! r'); auto. }

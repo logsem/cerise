@@ -184,11 +184,11 @@ Section roe.
       clear -Hcont_rest; solve_addr. }
     (* prepare the registers *)
     iDestruct (big_sepM_delete _ _ r_adv with "Hregs") as "[Hr_adv Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//
-                                                                                    lookup_delete_ne//; apply lookup_insert|].
-    rewrite (delete_insert_ne _ _ r_adv)// !(insert_commute _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert.
+                                                                                    lookup_delete_ne//; apply lookup_insert_eq|].
+    rewrite (delete_insert_ne _ _ r_adv)// !(insert_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// (delete_insert_ne _ _ r_adv)// delete_insert_id.
     2: { rewrite !lookup_delete_ne// !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom. clear; set_solver. }
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete|].
-    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_commute _ _ r_t1)// insert_delete_insert.
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[rewrite !lookup_delete_ne// !lookup_insert_ne//; apply lookup_delete_eq|].
+    rewrite - !(delete_insert_ne _ r_t1)// 2!(delete_delete _ _ r_t1)// insert_delete_eq.
     (* apply the call spec *)
     iApply (wp_wand _ _ _ (λ v0 : language.val cap_lang, True ∨ ⌜v0 = FailedV⌝)%I with "[-]");[|auto].
     rewrite -/(call _ _ _ _).
@@ -247,13 +247,13 @@ Section roe.
     iFrame. iApply big_sepM_sep. iFrame.
     iApply big_sepM_insert_2.
     (* Prove that the closure is valid *)
-    { cbn beta. rewrite !fixpoint_interp1_eq.
+    { cbn beta. rewrite /interp /= !fixpoint_interp1_eq.
       iIntros (r). iNext. iModIntro.
       iIntros "([% #Hreg_val] & Hreg & Hown)".
       rewrite /interp_conf.
       (* get the registers we need *)
-      iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; [rewrite lookup_insert;eauto|].
-      rewrite delete_insert_delete.
+      iDestruct (big_sepM_delete _ _ PC with "Hreg") as "[HPC Hreg]"; [rewrite lookup_insert_eq;eauto|].
+      rewrite delete_insert_eq.
       assert (is_Some (r !! r_t1)) as [wrt1 Hwrt1];[auto|].
       iDestruct (big_sepM_delete _ _ r_t1 with "Hreg") as "[Hr_t1 Hreg]"; [rewrite lookup_delete_ne//;eauto|].
       assert (is_Some (r !! r_t2)) as [wrt2 Hwrt2];[auto|].
@@ -332,7 +332,7 @@ Section roe.
       iEpilogue "(HPC & Hi & Hr_t5)". iCombine "Hi" "Hprog_done" as "Hprog_done".
 
       (* prepare memory for the assert macro *)
-      iDestruct (contiguous_between_program_split with "Hprog") as
+      iDestruct (contiguous_between_program_split (assert_instrs f_a) [halt] with "Hprog") as
       (ai_assert ai_rest'' a_assert_end) "(Hassert_prog & Hprog & #Hcont)".
       { repeat (apply contiguous_between_cons_inv in Hcont_rest' as [_ [? [_ Hcont_rest'] ] ];
                 apply contiguous_between_cons_inv_first in Hcont_rest' as Heq'; subst x). apply Hcont_rest'. }
@@ -379,14 +379,14 @@ Section roe.
       iMod ("Hcls" with "[$Hown Hprog_done Hi Hassert_prog]") as "Hown".
       { iNext. iDestruct "Hprog_done" as "($&$&$&$)".
         rewrite Heqapp''. iApply (big_sepL2_app with "Hassert_prog [Hi]"). iFrame. done. }
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert -delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert - !delete_insert_ne//].
-      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete|rewrite insert_delete_insert].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t5]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq -delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t4]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t3]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t0]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_env]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t2]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $Hr_t1]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq - !delete_insert_ne//].
+      iDestruct (big_sepM_insert with "[$Hreg $HPC]") as "Hreg";[apply lookup_delete_eq|rewrite insert_delete_eq].
 
       iApply wp_value. iIntros (_).
       iExists _. iFrame. iPureIntro.
@@ -396,16 +396,15 @@ Section roe.
     (* the shared RO capability *)
     iApply big_sepM_insert_2.
     { cbn beta. rewrite decode_encode_perm_inv.
-      rewrite !fixpoint_interp1_eq. iSimpl. apply finz_seq_between_singleton in Hincr. rewrite Hincr.
+      rewrite /interp /= !fixpoint_interp1_eq. iSimpl. apply finz_seq_between_singleton in Hincr. rewrite Hincr.
       iApply big_sepL_singleton. iExists (λne (w : leibnizO Word), ⌜w = WInt 1%Z⌝)%I. rewrite /roe_inv. iFrame "Hb".
       iNext. iModIntro. iIntros (w ->). rewrite !fixpoint_interp1_eq. done. }
     (* adversary *)
     iApply big_sepM_insert_2. done.
     (* the remaining 0'ed out capabilities *)
-    { iApply big_sepM_intro. iIntros "!>" (r ?).
-      destruct ((create_gmap_default (map_to_list (delete r_t7 (delete r_t0 rmap))).*1 (WInt 0%Z : Word)) !! r) eqn:Hsome.
-      apply create_gmap_default_lookup_is_Some in Hsome as [Hsome ->]. rewrite !fixpoint_interp1_eq.
-      iIntros (?). simplify_eq. done. iIntros (?). done. }
+    { iApply big_sepM_intro. iIntros "!>" (r ? Hsome).
+      apply create_gmap_default_lookup_is_Some in Hsome as [_ ->].
+      iApply interp_int. }
   Qed.
 
 End roe.

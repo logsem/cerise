@@ -1,9 +1,9 @@
 From iris.algebra Require Import auth agree excl gmap frac.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
 From stdpp Require Import gmap fin_maps fin_sets.
-Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      logrel_binary fundamental_binary linking
@@ -317,7 +317,7 @@ Proof.
     intros. rewrite dom_insert_L. apply elem_of_union_r. auto.
     intros. rewrite dom_insert_L. apply elem_of_union_r. auto.
   - intros. destruct (decide (a = a0)).
-    + subst. rewrite lookup_insert in H10. inv H10. auto.
+    + subst. rewrite lookup_insert_eq in H10. inv H10. auto.
     + rewrite lookup_insert_ne// in H10. apply Hints in H10. auto.
   - auto.
   - exists (WCap p b e a_main). split;auto. clear -Hw_main Hw_main_addr1. simpl in *.
@@ -393,7 +393,7 @@ Section Adequacy.
     - intros. intros Hcontr. inversion Hcontr.
     - intros. split;intros.
       inversion H;subst;auto. inversion H2.
-      rewrite /singleton /Singleton_list. apply elem_of_list_singleton. auto.
+      rewrite /singleton /Singleton_list. apply list_elem_of_singleton. auto.
     - intros. split;intros.
       rewrite /union /Union_list in H.
       apply elem_of_app in H. auto.
@@ -416,7 +416,7 @@ Section Adequacy.
         rewrite lookup_insert_ne. auto. intros Hcontr;subst. rewrite H3 in Hin. done. }
       iFrame.
       specialize Hcond with i x.
-      rewrite lookup_insert in Hcond.
+      rewrite lookup_insert_eq in Hcond.
       destruct Hcond as [Hint | Heq];auto.
       - iApply inv_alloc. iNext. iExists x,x. iFrame.
         iApply fixpoint_interp1_eq.
@@ -540,24 +540,24 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
+    iDestruct (mkregion_prepare with "[Hlink_table]") as ">Hlink_table"; [|iExact "Hlink_table"|]. by apply link_table_size.
+    iDestruct (mkregion_prepare with "[Hmalloc_mem]") as ">Hmalloc_mem"; [|iExact "Hmalloc_mem"|].
     { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
+    iDestruct (mkregion_prepare with "[Hmalloc_code]") as ">Hmalloc_code"; [|iExact "Hmalloc_code"|].
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
+    iDestruct (mkregion_prepare with "[Hcounter_preamble]") as ">Hcounter_preamble"; [|iExact "Hcounter_preamble"|].
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
-    iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
+    iDestruct (mkregion_prepare with "[Hcounter_body]") as ">Hcounter_body"; [|iExact "Hcounter_body"|]. by apply counter_body_size.
+    iDestruct (mkregion_prepare_spec with "[Hlink_table_spec]") as ">Hlink_table_spec"; [|iExact "Hlink_table_spec"|]. by apply link_table_size.
+    iDestruct (mkregion_prepare_spec with "[Hmalloc_mem_spec]") as ">Hmalloc_mem_spec"; [|iExact "Hmalloc_mem_spec"|].
     { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
+    iDestruct (mkregion_prepare_spec with "[Hmalloc_code_spec]") as ">Hmalloc_code_spec"; [|iExact "Hmalloc_code_spec"|].
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
+    iDestruct (mkregion_prepare_spec with "[Hcounter_preamble_spec]") as ">Hcounter_preamble_spec"; [|iExact "Hcounter_preamble_spec"|].
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
+    iDestruct (mkregion_prepare_spec with "[Hcounter_body_spec]") as ">Hcounter_body_spec"; [|iExact "Hcounter_body_spec"|]. by apply counter_body_size.
 
     rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
     rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
@@ -650,7 +650,7 @@ Section Adequacy.
       - iSplit;auto.
         iApply big_sepL_forall.
         iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
+        apply list_elem_of_lookup_2 in Hin.
         apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
         apply elem_of_dom in Hin as [? ?].
         iExists interp. iSplit;auto.
@@ -659,7 +659,7 @@ Section Adequacy.
       - iSplit;auto.
         iApply big_sepL_forall.
         iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
+        apply list_elem_of_lookup_2 in Hin.
         apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
         apply elem_of_dom in Hin as [? ?].
         iExists interp. iSplit;auto.
@@ -676,18 +676,18 @@ Section Adequacy.
       - iSplit.
         + iPureIntro. intros x. simpl.
           rewrite Hreg1;clear.
-          destruct (decide (x = PC));[subst;rewrite lookup_insert;eauto|].
+          destruct (decide (x = PC));[subst;rewrite lookup_insert_eq;eauto|].
           rewrite lookup_insert_ne//. pose proof (all_registers_correct x).
           rewrite -elem_of_dom dom_gset_to_gmap elem_of_list_to_set.
           auto.
         + iIntros (r v1 v2 Hne Hr Hr'). rewrite Hreg1 in Hr,Hr'.
-          destruct (decide (PC = r));[subst;rewrite lookup_insert in Hr,Hr';inv Hr;inv Hr';auto|].
+          destruct (decide (PC = r));[subst;rewrite lookup_insert_eq in Hr,Hr';inv Hr;inv Hr';auto|].
           rewrite lookup_insert_ne in Hr,Hr';auto.
           apply lookup_gset_to_gmap_Some in Hr as [? <-].
           apply lookup_gset_to_gmap_Some in Hr' as [? <-].
           iApply fixpoint_interp1_eq. auto.
-      - rewrite Hreg1 insert_insert Heq. iFrame.
-      - rewrite Hreg1 insert_insert Heq. iFrame. }
+      - rewrite Hreg1 insert_insert_eq Heq. iFrame.
+      - rewrite Hreg1 insert_insert_eq Heq. iFrame. }
 
 
     unfold interp_conf.
@@ -825,24 +825,24 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
+    iDestruct (mkregion_prepare with "[Hlink_table]") as ">Hlink_table"; [|iExact "Hlink_table"|]. by apply link_table_size.
+    iDestruct (mkregion_prepare with "[Hmalloc_mem]") as ">Hmalloc_mem"; [|iExact "Hmalloc_mem"|].
     { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
+    iDestruct (mkregion_prepare with "[Hmalloc_code]") as ">Hmalloc_code"; [|iExact "Hmalloc_code"|].
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
+    iDestruct (mkregion_prepare with "[Hcounter_preamble]") as ">Hcounter_preamble"; [|iExact "Hcounter_preamble"|].
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
-    iDestruct (mkregion_prepare_spec with "[$Hlink_table_spec]") as ">Hlink_table_spec". by apply link_table_size.
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_mem_spec]") as ">Hmalloc_mem_spec".
+    iDestruct (mkregion_prepare with "[Hcounter_body]") as ">Hcounter_body"; [|iExact "Hcounter_body"|]. by apply counter_body_size.
+    iDestruct (mkregion_prepare_spec with "[Hlink_table_spec]") as ">Hlink_table_spec"; [|iExact "Hlink_table_spec"|]. by apply link_table_size.
+    iDestruct (mkregion_prepare_spec with "[Hmalloc_mem_spec]") as ">Hmalloc_mem_spec"; [|iExact "Hmalloc_mem_spec"|].
     { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare_spec with "[$Hmalloc_code_spec]") as ">Hmalloc_code_spec".
+    iDestruct (mkregion_prepare_spec with "[Hmalloc_code_spec]") as ">Hmalloc_code_spec"; [|iExact "Hmalloc_code_spec"|].
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_preamble_spec]") as ">Hcounter_preamble_spec".
+    iDestruct (mkregion_prepare_spec with "[Hcounter_preamble_spec]") as ">Hcounter_preamble_spec"; [|iExact "Hcounter_preamble_spec"|].
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare_spec with "[$Hcounter_body_spec]") as ">Hcounter_body_spec". by apply counter_body_size.
+    iDestruct (mkregion_prepare_spec with "[Hcounter_body_spec]") as ">Hcounter_body_spec"; [|iExact "Hcounter_body_spec"|]. by apply counter_body_size.
 
     rewrite -/(counter_left _) -/(counter_left_preamble _ _ _).
     rewrite -/(counter_right _) -/(counter_right_preamble _ _ _).
@@ -936,7 +936,7 @@ Section Adequacy.
       - iSplit;auto.
         iApply big_sepL_forall.
         iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
+        apply list_elem_of_lookup_2 in Hin.
         apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
         apply elem_of_dom in Hin as [? ?].
         iExists interp. iSplit;auto.
@@ -945,7 +945,7 @@ Section Adequacy.
       - iSplit;auto.
         iApply big_sepL_forall.
         iIntros (k x Hin).
-        apply elem_of_list_lookup_2 in Hin.
+        apply list_elem_of_lookup_2 in Hin.
         apply elem_of_finz_seq_between in Hin. apply Hcanaddress in Hin.
         apply elem_of_dom in Hin as [? ?].
         iExists interp. iSplit;auto.
@@ -962,18 +962,18 @@ Section Adequacy.
       - iSplit.
         + iPureIntro. intros x. simpl.
           rewrite Hreg1;clear.
-          destruct (decide (x = PC));[subst;rewrite lookup_insert;eauto|].
+          destruct (decide (x = PC));[subst;rewrite lookup_insert_eq;eauto|].
           rewrite lookup_insert_ne//. pose proof (all_registers_correct x).
           rewrite -elem_of_dom dom_gset_to_gmap elem_of_list_to_set.
           auto.
         + iIntros (r v1 v2 Hne Hr Hr'). rewrite Hreg1 in Hr,Hr'.
-          destruct (decide (PC = r));[subst;rewrite lookup_insert in Hr,Hr';inv Hr;inv Hr';auto|].
+          destruct (decide (PC = r));[subst;rewrite lookup_insert_eq in Hr,Hr';inv Hr;inv Hr';auto|].
           rewrite lookup_insert_ne in Hr,Hr';auto.
           apply lookup_gset_to_gmap_Some in Hr as [? <-].
           apply lookup_gset_to_gmap_Some in Hr' as [? <-].
           iApply fixpoint_interp1_eq. auto.
-      - rewrite Hreg1 insert_insert Heq. iFrame.
-      - rewrite Hreg1 insert_insert Heq. iFrame. }
+      - rewrite Hreg1 insert_insert_eq Heq. iFrame.
+      - rewrite Hreg1 insert_insert_eq Heq. iFrame. }
 
     unfold interp_conf.
     iModIntro.

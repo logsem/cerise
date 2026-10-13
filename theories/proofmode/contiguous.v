@@ -162,7 +162,7 @@ Section Contiguous.
     (a0 <= ai ∧ ai < an)%a.
   Proof.
     intros Hc Hin.
-    apply elem_of_list_lookup_1 in Hin as [? ?].
+    apply list_elem_of_lookup_1 in Hin as [? ?].
     eapply contiguous_between_middle_bounds; eauto.
   Qed.
 

@@ -99,10 +99,10 @@ Section cap_lang_spec_rules.
     by unfold regs_of; rewrite !dom_insert; set_solver+.
 
     destruct Hspec as [ | | ];eauto.
-    { incrementPC_inv;[|rewrite lookup_insert;eauto]. congruence. }
-    { iFrame. incrementPC_inv. rewrite insert_insert.
-      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. rewrite lookup_insert in H6; simplify_eq. by iFrame. }
-    { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. simplify_eq. }
+    { incrementPC_inv;[|rewrite lookup_insert_eq;eauto]. congruence. }
+    { iFrame. incrementPC_inv. rewrite insert_insert_eq.
+      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. rewrite lookup_insert_eq in H6; simplify_eq. by iFrame. }
+    { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq in H4. simplify_eq. }
   Qed.
 
   Lemma step_jnz_success_jmp E K r1 r2 pc_p pc_b pc_e pc_a w w1 w2 :
@@ -128,16 +128,15 @@ Section cap_lang_spec_rules.
       by unfold regs_of; rewrite !dom_insert; set_solver+.
 
     assert (nonZero w2 = true).
-    { unfold nonZero, Zneq_bool in *.
-      repeat case_match; try congruence; subst. exfalso.
-      apply Hne. f_equal. by apply Z.compare_eq. }
+    { unfold nonZero. destruct w2 as [z | |]; auto.
+      apply negb_true_iff, Z.eqb_neq. intros ->. by apply Hne. }
 
    destruct Hspec as [ | | ].
-   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. congruence. }
-   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5. simplify_eq. congruence. }
-   { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert in H5.
-     rewrite lookup_insert_ne// lookup_insert in H6.
-     simplify_eq. rewrite insert_insert. iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. by iFrame.
+   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq in H5. simplify_eq. congruence. }
+   { exfalso. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq in H5. simplify_eq. congruence. }
+   { rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq in H5.
+     rewrite lookup_insert_ne// lookup_insert_eq in H6.
+     simplify_eq. rewrite insert_insert_eq. iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto. by iFrame.
    }
   Qed.
 

@@ -255,7 +255,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite !insert_insert.
+       rewrite !insert_insert_eq.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -298,7 +298,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       do 2 rewrite insert_insert.
+       do 2 rewrite insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -338,7 +338,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       do 2 rewrite insert_insert.
+       do 2 rewrite insert_insert_eq.
        iDestruct (regs_of_map_1 with "[$Hmap]") as "HPC"; eauto. iFrame. }
       { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -382,7 +382,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       do 2 rewrite insert_insert.
+       do 2 rewrite insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -433,17 +433,17 @@ Section cap_lang_rules.
        destruct H5 as [Hrr2 _]. simplify_map_eq.
        destruct (a0 =? pc_a)%a eqn:Heq; subst mem.
        -  apply Z.eqb_eq, finz_to_z_eq in Heq. subst a0.
-          rewrite insert_insert.
+          rewrite insert_insert_eq.
           rewrite memMap_resource_1.
           incrementPC_inv.
-          simplify_map_eq. rewrite insert_insert.
+          simplify_map_eq. rewrite insert_insert_eq.
           iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame.
 
        - apply Z.eqb_neq in Heq.
-         rewrite insert_commute; last congruence. rewrite insert_insert.
+         rewrite insert_insert_ne; last congruence. rewrite insert_insert_eq.
          iDestruct (memMap_resource_2ne with "Hmem") as "[Ha0 Hpc_a]"; first congruence.
          incrementPC_inv.
-         rewrite lookup_insert_ne in H6; last congruence. simplify_map_eq. rewrite insert_insert.
+         rewrite lookup_insert_ne in H6; last congruence. simplify_map_eq. rewrite insert_insert_eq.
          iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame.
      }
      { (* Failure (contradiction) *)
@@ -540,7 +540,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       do 2 rewrite insert_insert.
+       do 2 rewrite insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hsrc]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -585,7 +585,7 @@ Section cap_lang_rules.
        rewrite memMap_resource_1.
        incrementPC_inv.
        simplify_map_eq.
-       do 2 rewrite insert_insert.
+       do 2 rewrite insert_insert_eq.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -629,11 +629,11 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        destruct H7 as [Hrr2 _]. simplify_map_eq.
-       rewrite insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite insert_insert.
+       rewrite insert_insert_eq.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -675,11 +675,11 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
-       rewrite insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite insert_insert.
+       rewrite insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -721,11 +721,11 @@ Section cap_lang_rules.
      { (* Success *)
        iApply "Hφ".
        destruct H5 as [Hrr2 _]. simplify_map_eq.
-       rewrite insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq.
        iDestruct (memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq.
-       rewrite insert_insert.
+       rewrite insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hdst]"; eauto. iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
