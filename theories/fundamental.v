@@ -58,7 +58,7 @@ Section fundamental.
       rewrite /interp_ref_inv /=.
       iInv (logN.@a) as (w) "[>Ha HP]" "Hcls".
       iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-        first apply (lookup_insert _ _ (WCap p b e a)).
+        first apply (lookup_insert_eq _ _ (WCap p b e a)).
       destruct (decodeInstrW w) eqn:Hi. (* proof by cases on each instruction *)
       + (* Jmp *)
         iApply (jmp_case with "[] [] [] [] [] [Hown] [Ha] [HP] [Hcls] [HPC] [Hmap]");
@@ -134,17 +134,17 @@ Section fundamental.
         iNext ; iIntros "_".
         iApply wp_value.
         iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=".
-        apply lookup_insert. rewrite delete_insert_delete. iFrame.
-        rewrite insert_insert. iIntros (_).
+        apply lookup_insert_eq. rewrite delete_insert_eq. iFrame.
+        rewrite insert_insert_eq. iIntros (_).
         iExists (<[PC:=WCap p b e a]> r). iFrame.
         iAssert (∀ r0 : RegName, ⌜is_Some (<[PC:=WCap p b e a]> r !! r0)⌝)%I as "HA".
         { iIntros. destruct (reg_eq_dec PC r0).
-          - subst r0; rewrite lookup_insert; eauto.
+          - subst r0; rewrite lookup_insert_eq; eauto.
           - rewrite lookup_insert_ne; auto. }
         iFrame "HA".
    - (* Not correct PC *)
      iDestruct ((big_sepM_delete _ _ PC) with "Hmreg") as "[HPC Hmap]";
-       first apply (lookup_insert _ _ (WCap p b e a)).
+       first apply (lookup_insert_eq _ _ (WCap p b e a)).
      iApply (wp_notCorrectPC with "HPC"); eauto.
      iNext. iIntros "HPC /=".
      iApply wp_pure_step_later; auto.
@@ -161,8 +161,8 @@ Section fundamental.
     all: iClear "Hw"; iIntros "(? & Hreg & ?)"; unfold interp_conf.
     all: iApply (wp_wand with "[-]"); [ | iIntros (?) "H"; iApply "H"].
     all: iApply (wp_bind (fill [SeqCtx])); cbn.
-    all: unfold registers_pointsto; rewrite -insert_delete_insert.
-    all: iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]"; first by rewrite lookup_delete.
+    all: unfold registers_pointsto; rewrite -insert_delete_eq.
+    all: iDestruct (big_sepM_insert with "Hreg") as "[HPC ?]"; first by rewrite lookup_delete_eq.
     all: iApply (wp_notCorrectPC with "HPC"); first by inversion 1.
     all: iNext; iIntros; cbn; iApply wp_pure_step_later; auto.
     all: iNext; iIntros "_"; iApply wp_value; iIntros (?); congruence.
@@ -231,12 +231,12 @@ Section fundamental.
     iDestruct (big_sepM_sep with "Hr") as "(Hr & HrV)".
     iSplitL "HrV"; [iSplit|].
     { unfold full_map. iIntros (r).
-      destruct (decide (r = PC)). { subst r. rewrite lookup_insert //. }
+      destruct (decide (r = PC)). { subst r. rewrite lookup_insert_eq //. }
       rewrite lookup_insert_ne //. iPureIntro. rewrite -elem_of_dom Hrmap. set_solver. }
     { iIntros (ri v Hri Hvs).
       rewrite lookup_insert_ne // in Hvs.
       iDestruct (big_sepM_lookup _ _ ri with "HrV") as "HrV"; eauto. }
-    rewrite insert_insert. iApply big_sepM_insert.
+    rewrite insert_insert_eq. iApply big_sepM_insert.
     { apply not_elem_of_dom. rewrite Hrmap. set_solver. }
     iFrame.
   Qed.

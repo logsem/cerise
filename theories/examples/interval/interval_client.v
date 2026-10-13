@@ -1,6 +1,6 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.examples Require Import dynamic_sealing keylist malloc.
@@ -74,9 +74,9 @@ Section interval_client.
         apply not_elem_of_app in Hnin as Hninl1. destruct Hninl1 as [Hninl1 _].
         apply not_elem_of_app in Hnin' as Hninl2. destruct Hninl2 as [Hninl _].
         apply elem_of_cons in Hin1 as [Heq | Hin1];cycle 1.
-        { exfalso. apply Hninl1. apply elem_of_list_fmap. exists (a,b1). auto. }
+        { exfalso. apply Hninl1. apply list_elem_of_fmap. exists (a,b1). auto. }
         inv Heq. apply elem_of_cons in Hin2 as [Heq | Hin2]; cycle 1.
-        { exfalso. apply Hninl. apply elem_of_list_fmap. exists (a,b2). auto. }
+        { exfalso. apply Hninl. apply list_elem_of_fmap. exists (a,b2). auto. }
         inv Heq. auto.
       + destruct l1;[inversion Hin1|]. destruct l2;[inversion Hin2|].
         destruct p as [a0 b0]. destruct p0 as [a0' b0'].

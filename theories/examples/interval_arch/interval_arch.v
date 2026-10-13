@@ -1,6 +1,6 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.proofmode Require Import
@@ -276,7 +276,7 @@ Section interval.
     destruct w2 as [z2 | |]; try inversion Hisz2. clear Hisz2.
 
     (* at this point, we assume that the inputs were ints *)
-    iDestruct (big_sepM_delete with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|rewrite delete_insert_delete].
+    iDestruct (big_sepM_delete _ _ r_t3 with "Hregs") as "[Hr_t3 Hregs]";[by simplify_map_eq|rewrite delete_insert_eq].
     do 3 (iInstr "Hblock").
 
     (* we are about to do the conditional jump. this can only be done manually. In each case, we will have to store *)
@@ -341,10 +341,10 @@ Section interval.
       { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iInsertList "Hregs" [r_t20;r_t8;r_t7;r_t6;r_t3;r_t2].
-      do 4 (rewrite (insert_commute _ _ r_t4);[|by auto]).
-      do 4 (rewrite (insert_commute _ _ r_t5);[|by auto]).
-      rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
-      rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
+      do 4 (rewrite (insert_insert_ne _ _ r_t4);[|by auto]).
+      do 4 (rewrite (insert_insert_ne _ _ r_t5);[|by auto]).
+      rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
+      rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
 
       iApply (wp_wand with "[-]").
       iApply "Hφ". 2: {auto. }
@@ -394,10 +394,10 @@ Section interval.
       { iExists _,_,_,_,_. iFrame. rewrite (addr_incr_eq Ha_mid2). iSimpl. iFrame. auto. }
       iMod ("Hcls" with "[$Hown $Hcode]") as "Hown".
       iInsertList "Hregs" [r_t20;r_t8;r_t7;r_t6;r_t3;r_t2].
-      do 4 (rewrite (insert_commute _ _ r_t4);[|by auto]).
-      do 4 (rewrite (insert_commute _ _ r_t5);[|by auto]).
-      rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
-      rewrite (delete_notin); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
+      do 4 (rewrite (insert_insert_ne _ _ r_t4);[|by auto]).
+      do 4 (rewrite (insert_insert_ne _ _ r_t5);[|by auto]).
+      rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
+      rewrite (delete_id); [ | apply not_elem_of_dom_1; clear -Hdom; set_solver].
 
       iApply (wp_wand with "[-]").
       iApply "Hφ". 2: {auto. }
@@ -471,7 +471,10 @@ Section interval.
     iDestruct "Hr_t20" as (w20) "Hr_t20".
     iInsert "Hregs" r_t20.
 
-    iApply makeint_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
+    iApply (makeint_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ φ
+              (λ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I
+             with "[$HPC $Hr_t0 $Hr_env $Hr_t1 $Hr_t2 $Hregs $Hseal_env $HsealLL $Hown $Hretval
+                    $Hmalloc $Htable $Hprog $Hφ]"); iFrameAutoSolve; auto.
     { rewrite dom_insert_L !dom_delete_L Hdom. rewrite !singleton_union_difference_L. set_solver+. }
     iSplitR.
     { iNext. iIntros (Hcontr). done. }
@@ -668,7 +671,9 @@ Section interval.
     iDestruct (interp_valid_sealed with "Hv_t1") as "Hv_t1". iFrame.
     }
 
-    iApply imin_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
+    iApply (imin_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ φ Φs
+              (λ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I);
+      iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitR;eauto.
     { iNext. iIntros (Hcontr). done. }
 
@@ -868,7 +873,9 @@ Section interval.
     iDestruct (interp_valid_sealed with "Hv_t1") as "Hv_t1". iFrame.
     }
 
-    iApply imax_spec;iFrameAutoSolve;[..|iFrame "∗ #"];auto.
+    iApply (imax_spec _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ φ Φs
+              (λ v, ⌜v = HaltedV⌝ → ∃ r, full_map r ∧ registers_pointsto r ∗ na_own logrel_nais ⊤)%I);
+      iFrameAutoSolve;[..|iFrame "∗ #"];auto.
     iSplitR.
     { iNext. iIntros (Hcontr). done. }
 

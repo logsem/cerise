@@ -110,14 +110,13 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
     assert (nonZero w2 = true).
-    { unfold nonZero, Zneq_bool in *.
-      repeat case_match; try congruence; subst. exfalso.
-      apply Hne. f_equal. by apply Z.compare_eq. }
+    { unfold nonZero. destruct w2 as [z | |]; auto.
+      apply negb_true_iff, Z.eqb_neq. intros ->. by apply Hne. }
 
    destruct Hspec as [ | | ].
    { exfalso. simplify_map_eq. congruence. }
    { exfalso. simplify_map_eq. congruence. }
-   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert_eq.
      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
   Qed.
 
@@ -142,14 +141,13 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
     assert (nonZero w2 = true).
-    { unfold nonZero, Zneq_bool in *.
-      repeat case_match; try congruence; subst. exfalso.
-      apply Hne. f_equal. by apply Z.compare_eq. }
+    { unfold nonZero. destruct w2 as [z | |]; auto.
+      apply negb_true_iff, Z.eqb_neq. intros ->. by apply Hne. }
 
    destruct Hspec as [ | | ].
    { exfalso. simplify_map_eq. congruence. }
    { exfalso. simplify_map_eq. congruence. }
-   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert_eq.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
@@ -170,7 +168,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
    destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ].
-   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert_eq.
      iDestruct (regs_of_map_1 with "Hmap") as "?"; eauto; iFrame. }
   Qed.
 
@@ -195,14 +193,13 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
     assert (nonZero w2 = true).
-    { unfold nonZero, Zneq_bool in *.
-      repeat case_match; try congruence; subst. exfalso.
-      apply Hne. f_equal. by apply Z.compare_eq. }
+    { unfold nonZero. destruct w2 as [z | |]; auto.
+      apply negb_true_iff, Z.eqb_neq. intros ->. by apply Hne. }
 
    destruct Hspec as [ | | ].
    { exfalso. simplify_map_eq. congruence. }
    { exfalso. simplify_map_eq. congruence. }
-   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert_eq.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
@@ -226,7 +223,7 @@ Section cap_lang_rules.
     iNext. iIntros (regs' retv) "(#Hspec & Hpc_a & Hmap)". iDestruct "Hspec" as %Hspec.
 
    destruct Hspec as [ | | ]; [ by simplify_map_eq .. | ].
-   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert.
+   { iApply "Hφ". iFrame. simplify_map_eq. rewrite insert_insert_eq.
      iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
   Qed.
 
@@ -254,7 +251,7 @@ Section cap_lang_rules.
 
    destruct Hspec as [ | | ]; try incrementPC_inv; simplify_map_eq; eauto.
    { congruence. }
-   { iApply "Hφ". iFrame. rewrite insert_insert.
+   { iApply "Hφ". iFrame. rewrite insert_insert_eq.
      iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
   Qed.
 

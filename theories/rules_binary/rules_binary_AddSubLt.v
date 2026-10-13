@@ -114,7 +114,7 @@ Section cap_lang_spec_rules.
     iMod (step_AddSubLt with "[$Hmap $Hown $Hj Hpc_a]") as (? ? Hspec) "(Hj & HH)"; eauto; simplify_map_eq; eauto.
       by erewrite regs_of_is_AddSubLt; eauto; rewrite !dom_insert; set_solver+.
     destruct Hspec as [* Hsucc |].
-    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert in H4. }
+    { (* Success (contradiction) *) by rewrite /= lookup_insert_ne// lookup_insert_ne// lookup_insert_eq in H4. }
     { (* Failure, done *) by iFrame. }
   Qed.
 
@@ -145,8 +145,8 @@ Section cap_lang_spec_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iFrame. incrementPC_inv; simplify_map_eq.
-      rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
-              (insert_commute _ dst PC) // insert_insert.
+      rewrite (insert_insert_ne _ PC dst) // insert_insert_eq (insert_insert_ne _ r2 dst) //
+              (insert_insert_ne _ dst PC) // insert_insert_eq.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto. congruence. }
@@ -179,12 +179,12 @@ Section cap_lang_spec_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iFrame. incrementPC_inv; simpl in *; simplify_map_eq_alt.
-      rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
-              (insert_commute _ PC dst) // insert_insert.
+      rewrite (insert_insert_ne _ PC dst) // insert_insert_eq (insert_insert_ne _ r2 dst) //
+              (insert_insert_ne _ PC dst) // insert_insert_eq.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail; simpl in *; simplify_map_eq_alt.
-      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert; eauto]. congruence. }
+      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert_eq; eauto]. congruence. }
   Qed.
 
   Lemma step_add_sub_lt_success_z_dst E K dst pc_p pc_b pc_e pc_a w ins n1 n2 pc_a' :
@@ -211,11 +211,11 @@ Section cap_lang_spec_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iFrame. simpl in *. incrementPC_inv; simplify_map_eq_alt.
-      rewrite (insert_commute _ PC dst) // insert_insert insert_commute // insert_insert.
+      rewrite (insert_insert_ne _ PC dst) // insert_insert_eq insert_insert_ne // insert_insert_eq.
       iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail; simpl in *; simplify_map_eq_alt.
-      incrementPC_inv; [|rewrite lookup_insert_ne// lookup_insert; eauto]. congruence. }
+      incrementPC_inv; [|rewrite lookup_insert_ne// lookup_insert_eq; eauto]. congruence. }
   Qed.
 
   Lemma step_add_sub_lt_success_dst_z E K dst pc_p pc_b pc_e pc_a w ins n1 n2 pc_a' :
@@ -242,11 +242,11 @@ Section cap_lang_spec_rules.
     destruct Hspec as [| * Hfail].
     { (* Success *)
       iFrame. simpl in *. incrementPC_inv; simplify_map_eq_alt.
-      rewrite (insert_commute _ PC dst) // insert_insert insert_commute // insert_insert.
+      rewrite (insert_insert_ne _ PC dst) // insert_insert_eq insert_insert_ne // insert_insert_eq.
       iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; by iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail;simpl in *;simplify_map_eq_alt; eauto.
-      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert;eauto]. congruence. }
+      incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert_eq;eauto]. congruence. }
   Qed.
 
 End cap_lang_spec_rules.

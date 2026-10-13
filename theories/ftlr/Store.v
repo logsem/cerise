@@ -63,7 +63,7 @@ Section fundamental.
     - destruct Hallows as ((Hrinr & Hra & Hwb) & Haeq).
       apply andb_prop in Hwb as [Hle Hge].
       revert Hle Hge. rewrite !Z.leb_le Z.ltb_lt =>Hle Hge.
-      assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+      assert (r1 ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert_eq.
       rewrite lookup_insert_ne in Hrinr; last by congruence.
       iDestruct ("Hreg" $! r1 _ n Hrinr) as "Hvsrc".
       iAssert (inv (logN.@a0) ((interp_ref_inv a0) interp))%I as "#Hinva".
@@ -121,12 +121,12 @@ Section fundamental.
     - pose(Hallows' := Hallows).
       destruct Hallows' as ((Hrinr & Hra & Hwb) & Hne).
       iDestruct "HStoreRes" as (w0 ->) "HStoreRest".
-      iSplitR. rewrite lookup_insert_ne; auto. by rewrite lookup_insert.
+      iSplitR. rewrite lookup_insert_ne; auto. by rewrite lookup_insert_eq.
       iExists p,b,e,a0. iSplit;auto.
       iPureIntro. case_decide;auto.
       exists w0. by simplify_map_eq.
     - iDestruct "HStoreRes" as "->".
-      iSplitR. by rewrite lookup_insert.
+      iSplitR. by rewrite lookup_insert_eq.
       iExists p,b,e,a0. repeat iSplitR; auto.
       case_decide as Hdec1; last by done.
       apply not_and_l in Hallows as [Hallows | Hallows]; try contradiction.
@@ -154,14 +154,14 @@ Section fundamental.
     case_decide as Hdec. destruct Hdec as [Hallows Heq].
     -  destruct Hallows as [Hrinr [Hra Hwb] ].
        iDestruct "HLoadRes" as (w0) "[-> [Hval Hcls] ]".
-       simplify_map_eq. rewrite insert_insert.
+       simplify_map_eq. rewrite insert_insert_eq.
        rewrite memMap_resource_2ne; last auto. iDestruct "Hmem" as  "[Ha1 Haw]".
        iMod ("Hcls" with "[Ha1 Hvalid]") as "_";[iNext;iExists storev;iFrame|]. iModIntro.
        rewrite decide_False; [done|]. apply not_and_r. right. auto.
     - apply not_and_r in Hdec as [| <-%dec_stable].
       * by exfalso.
       * iDestruct "HLoadRes" as "->".
-        rewrite insert_insert.
+        rewrite insert_insert_eq.
         rewrite -memMap_resource_1. simplify_map_eq. by iFrame.
   Qed.
 
@@ -170,15 +170,15 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
     assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
-      rewrite e0 lookup_insert; unfold is_Some. by eexists.
+      rewrite e0 lookup_insert_eq; unfold is_Some. by eexists.
         by rewrite lookup_insert_ne.
     }
 
@@ -211,7 +211,7 @@ Section fundamental.
     iDestruct (mem_map_implies_pure_conds with "HStoreMem") as %(HReadPC & HStoreAP); auto.
 
     iApply (wp_store with "[Hmap HMemRes]"); eauto.
-    { by rewrite lookup_insert. }
+    { by rewrite lookup_insert_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. }
     { iSplitR "Hmap"; auto. }
@@ -255,7 +255,7 @@ Section fundamental.
       }
 
       simplify_map_eq.
-      rewrite insert_insert.
+      rewrite insert_insert_eq.
 
       iModIntro; iNext; iIntros "_".
       iApply ("IH" with "[%] [] Hmap [$Hown]");auto.

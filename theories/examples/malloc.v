@@ -192,16 +192,16 @@ Section SimpleMalloc.
     iApply (wp_wand with "[-]").
     { iApply "Hφ". iFrame.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr4]") as "Hrmap".
-      by rewrite lookup_delete. rewrite insert_delete_insert.
+      by rewrite lookup_delete_eq. rewrite insert_delete_eq.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr3]") as "Hrmap".
-      by rewrite lookup_insert_ne // lookup_delete //.
-      rewrite insert_commute // insert_delete_insert.
+      by rewrite lookup_insert_ne // lookup_delete_eq //.
+      rewrite insert_insert_ne // insert_delete_eq.
       iDestruct (big_sepM_insert with "[$Hrmap $Hr2]") as "Hrmap".
-      by rewrite !lookup_insert_ne // lookup_delete //.
-      rewrite (insert_commute _ r_t2 r_t4) // (insert_commute _ r_t2 r_t3) //.
-      rewrite insert_delete_insert.
-      rewrite (insert_commute _ r_t3 r_t2) // (insert_commute _ r_t4 r_t2) //.
-      rewrite (insert_commute _ r_t4 r_t3) //. iFrame.
+      by rewrite !lookup_insert_ne // lookup_delete_eq //.
+      rewrite (insert_insert_ne _ r_t2 r_t4) // (insert_insert_ne _ r_t2 r_t3) //.
+      rewrite insert_delete_eq.
+      rewrite (insert_insert_ne _ r_t3 r_t2) // (insert_insert_ne _ r_t4 r_t2) //.
+      rewrite (insert_insert_ne _ r_t4 r_t3) //. iFrame.
       iExists size. auto. }
     { auto. }
   Qed.
@@ -213,7 +213,7 @@ Section SimpleMalloc.
     iIntros "#Hmalloc".
     rewrite fixpoint_interp1_eq /=. iIntros (r). iNext. iModIntro.
     iIntros "(#[% Hregs_valid] & Hregs & Hown)".
-    iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert;eauto|].
+    iDestruct (big_sepM_delete _ _ PC with "Hregs") as "[HPC Hregs]";[rewrite lookup_insert_eq;eauto|].
     destruct H with r_t0 as [? ?].
     iDestruct (big_sepM_delete _ _ r_t0 with "Hregs") as "[r_t0 Hregs]";[rewrite !lookup_delete_ne// !lookup_insert_ne//;eauto|].
     destruct H with r_t1 as [? ?].
@@ -230,9 +230,9 @@ Section SimpleMalloc.
     iMod (region_integers_alloc _ _ _ _ _ RWX with "Hbe") as "#Hbe"; auto.
     by apply Forall_replicate.
     rewrite -!(delete_insert_ne _ r_t1)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t1]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq].
     rewrite -!(delete_insert_ne _ r_t0)//.
-    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete|rewrite insert_delete_insert delete_insert_delete].
+    iDestruct (big_sepM_insert with "[$Hregs $Hr_t0]") as "Hregs";[apply lookup_delete_eq|rewrite insert_delete_eq delete_insert_eq].
     set regs := <[_:=_]> _.
 
     iApply ("Hcont" $! regs).
@@ -240,18 +240,18 @@ Section SimpleMalloc.
       rewrite regmap_full_dom; eauto. }
     iFrame. iApply big_sepM_sep. iFrame. iApply big_sepM_intro.
     iIntros "!>" (r' w Hr'). subst regs.
-    destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert in Hr'. by simplify_eq. }
+    destruct (decide (r' = r_t0)). { subst r'. rewrite lookup_insert_eq in Hr'. by simplify_eq. }
     destruct (decide (r' = r_t1)).
-    { subst r'. rewrite lookup_insert_ne // lookup_insert in Hr'. simplify_eq. iApply "Hbe". }
+    { subst r'. rewrite lookup_insert_ne // lookup_insert_eq in Hr'. simplify_eq. iApply "Hbe". }
     destruct (decide (r' = r_t2)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
+    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert_eq in Hr'.
+      simplify_eq. rewrite /interp /= !fixpoint_interp1_eq //. }
     destruct (decide (r' = r_t3)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
+    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert_eq in Hr'.
+      simplify_eq. rewrite /interp /= !fixpoint_interp1_eq //. }
     destruct (decide (r' = r_t4)).
-    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert in Hr'.
-      simplify_eq. rewrite /interp !fixpoint_interp1_eq //. }
+    { subst r'. repeat (rewrite lookup_insert_ne // in Hr'; []). rewrite lookup_insert_eq in Hr'.
+      simplify_eq. rewrite /interp /= !fixpoint_interp1_eq //. }
     repeat (rewrite lookup_insert_ne // in Hr'; []). apply lookup_delete_Some in Hr' as [? Hr'].
     unshelve iSpecialize ("Hregs_valid" $! r' _ _ Hr'). done. done.
   Qed.

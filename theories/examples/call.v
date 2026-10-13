@@ -341,7 +341,7 @@ Section call.
       by iDestruct (regname_dupl_false with "Hi1 Hr_t0") as "Hfalse".
       by iDestruct (regname_dupl_false with "Hi1 Hr1") as "Hfalse".
     }
-    iAssert (⌜∀ r, r ∈ {[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} → r ≠ r1⌝)%I as %Hneregs.
+    iAssert (⌜∀ r, r ∈ ({[r_t1; r_t2; r_t3; r_t4; r_t5; r_t6]} : gset RegName) → r ≠ r1⌝)%I as %Hneregs.
     { iIntros (r Hin Hcontr). subst. apply Hsub in Hin.
       apply elem_of_dom in Hin as [x Hx].
       iDestruct (big_sepM_delete with "Hgen") as "[Hr Hgen]";[apply Hx|].
@@ -398,7 +398,7 @@ Section call.
     (* in order to store the locals, we need to extract locals from the map *)
     rewrite !delete_insert_ne;auto. 2: { apply Hneregs. constructor. }
     rewrite delete_union. rewrite !insert_union_l.
-    rewrite (delete_notin (mlocals ∪ mparams));[|disjoint_from_rmap rmap].
+    rewrite (delete_id (mlocals ∪ mparams));[|disjoint_from_rmap rmap].
     iDestruct (big_sepM_union with "Hgenlocalsparams") as "[Hgen Hlocalsparams]".
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
       apply map_disjoint_insert_l_2. apply lookup_union_None in Hnone as [? ?];auto.
@@ -444,9 +444,9 @@ Section call.
 
     (* malloc 7 *)
     (* prepare the registers *)
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t6]") as "Hgen";[apply lookup_delete_eq|rewrite insert_delete_eq].
     rewrite -delete_insert_ne;[|apply Hneregs;constructor]. rewrite - !delete_insert_ne;auto.
-    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete|rewrite insert_delete_insert].
+    iDestruct (big_sepM_insert with "[$Hgen $Hr_t1]") as "Hgen";[apply lookup_delete_eq|rewrite insert_delete_eq].
     iDestruct (big_sepM_union with "[$Hmlocals $Hparams]") as "Hlocalsparams";[auto|].
     iDestruct (big_sepM_union with "[$Hgen $Hlocalsparams]") as "Hgenlocalsparams".
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
@@ -582,8 +582,8 @@ Section call.
     iEpilogue "(HPC & Hi & Hr_t0)"; iCombine "Hi" "Hprog_done" as "Hprog_done".
     (* store r_t0 r_t6 *)
     (* first we must get r_t6 *)
-    rewrite (insert_commute _ _ r_t6)// -(insert_union_l _ _ r_t6) delete_insert_ne// !(insert_commute _ _ r_t6)//.
-    iDestruct (big_sepM_delete with "Hgenlocalsparams") as "[Hr_t6 Hgenlocalsparams]";[apply lookup_insert|].
+    rewrite (insert_insert_ne _ _ r_t6)// -(insert_union_l _ _ r_t6) delete_insert_ne// !(insert_insert_ne _ _ r_t6)//.
+    iDestruct (big_sepM_delete with "Hgenlocalsparams") as "[Hr_t6 Hgenlocalsparams]";[apply lookup_insert_eq|].
     (* next we get the next memory of the activation *)
     destruct l;[inversion Hlength_l|].
     iDestruct (region_pointsto_cons with "Hbl'") as "[Ha6 Hbl']";[iContiguous_next Hcontbl' 5|iContiguous_le Hcontbl' 6|].
@@ -624,7 +624,7 @@ Section call.
         rewrite stdpp_extra.list_difference_length;auto.
         apply NoDup_list_difference,all_registers_NoDup. apply NoDup_singleton.
         apply NoDup_submseteq. apply NoDup_singleton.
-        intros ? ->%elem_of_list_singleton. apply elem_of_list_difference. split. apply all_registers_correct.
+        intros ? ->%list_elem_of_singleton. apply list_elem_of_difference. split. apply all_registers_correct.
         repeat (apply not_elem_of_cons;split;auto);apply not_elem_of_nil. }
       assert (NoDup all_registers) as Hdup1.
       { apply all_registers_NoDup. }
@@ -711,11 +711,11 @@ Section call.
 
     (* rebuild register map *)
     (* we begin by clearning up the current register map *)
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert insert_insert].
-    rewrite - !insert_union_l delete_insert_delete - !delete_insert_ne//.
-    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete|rewrite insert_delete_insert].
-    rewrite !(insert_commute _ _ r_t2)// insert_insert. rewrite !(insert_commute _ _ r_t3)// insert_insert.
-    rewrite !(insert_commute _ _ r_t4)// insert_insert. rewrite !(insert_commute _ _ r_t5)// insert_insert.
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t6]") as "Hgenlocalsparams";[apply lookup_delete_eq|rewrite insert_delete_eq insert_insert_eq].
+    rewrite - !insert_union_l delete_insert_eq - !delete_insert_ne//.
+    iDestruct (big_sepM_insert with "[$Hgenlocalsparams $Hr_t1]") as "Hgenlocalsparams";[apply lookup_delete_eq|rewrite insert_delete_eq].
+    rewrite !(insert_insert_ne _ _ r_t2)// insert_insert_eq. rewrite !(insert_insert_ne _ _ r_t3)// insert_insert_eq.
+    rewrite !(insert_insert_ne _ _ r_t4)// insert_insert_eq. rewrite !(insert_insert_ne _ _ r_t5)// insert_insert_eq.
     rewrite !insert_union_l.
     (* next we separate the params from the map, since we do not want to clear it *)
     iDestruct (big_sepM_union with "Hgenlocalsparams") as "[Hgen Hlocalsparams]".
@@ -725,9 +725,9 @@ Section call.
     iDestruct (big_sepM_union with "[$Hgen $Hlocals]") as "Hgenlocals".
     { repeat (apply map_disjoint_insert_l_2;[disjoint_from_rmap rmap|]).
       apply map_disjoint_insert_l_2;auto. do 2 (apply lookup_union_None in Hnone as [? Hnone]). auto. }
-    repeat (rewrite (insert_commute _ _ r1);[|apply Hneregs;constructor]). rewrite -insert_union_l.
-    iDestruct (big_sepM_delete with "Hgenlocals") as "[Hradv Hgenlocals]"; [apply lookup_insert|].
-    rewrite delete_insert.
+    repeat (rewrite (insert_insert_ne _ _ r1);[|apply Hneregs;constructor]). rewrite -insert_union_l.
+    iDestruct (big_sepM_delete with "Hgenlocals") as "[Hradv Hgenlocals]"; [apply lookup_insert_eq|].
+    rewrite delete_insert_id.
     2: { rewrite - !insert_union_l. repeat (rewrite lookup_insert_ne;[|apply Hneregs;constructor]).
          do 2 apply lookup_union_None in Hnone as [? Hnone]. apply lookup_union_None. split; auto. }
 
@@ -828,10 +828,23 @@ Section call.
     { apply region_addrs_of_contiguous_between in Hcontbl' as <-. iFrame. done. }
     rewrite Heqapp1 Heqapp2 Heqapp3 Heqapp4.
     rewrite /call.
-    iDestruct "Hprog_done" as "(?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&?&malloc&?&locals&malloc')".
+    iDestruct "Hprog_done" as
+      "(Hl4&H22&H21&H20&H19&H18&H17&H15&H14&H12&H11&H9&H8&H6&H5&H3&H2&H0&Hl3&malloc&Hl2&locals&malloc')".
     iApply (big_sepL2_app with "malloc'").
     iApply (big_sepL2_app with "locals").
-    iFrame.
+    iApply big_sepL2_cons; iFrame "Hl2".
+    iApply (big_sepL2_app with "malloc").
+    iApply big_sepL2_cons; iFrame "Hl3". iApply big_sepL2_cons; iFrame "H0". iApply big_sepL2_cons; iFrame "H2".
+    iApply big_sepL2_cons; iFrame "H3". iApply big_sepL2_cons; iFrame "H5". iApply big_sepL2_cons; iFrame "H6".
+    iApply big_sepL2_cons; iFrame "H8". iApply big_sepL2_cons; iFrame "H9". iApply big_sepL2_cons; iFrame "H11".
+    iApply big_sepL2_cons; iFrame "H12". iApply big_sepL2_cons; iFrame "H14". iApply big_sepL2_cons; iFrame "H15".
+    iApply big_sepL2_cons; iFrame "H17". iApply big_sepL2_cons; iFrame "H18". iApply big_sepL2_cons; iFrame "H19".
+    iApply big_sepL2_cons; iFrame "H20". iApply big_sepL2_cons; iFrame "H21". iApply big_sepL2_cons; iFrame "H22".
+    (* Make both sides syntactically equal, otherwise the kernel tries to compute [instrs] at Qed time *)
+    rewrite -/instrs /rclear.
+    iApply (big_sepL2_app with "Hrclear").
+    iApply big_sepL2_cons; iFrame "Hl4".
+    done.
   Qed.
 
 End call.

@@ -35,11 +35,11 @@ Section fundamental.
   Proof.
     intros Hp Hsome HisCorrect Hbae Hi.
     iIntros "#IH #Hspec #Hinv #Hreg #Hinva #Hread Hsmap Hown Hs Ha Ha' HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_Subseg with "[$Ha $Hmap]"); eauto.
-    { eapply lookup_insert. }
+    { eapply lookup_insert_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
@@ -51,9 +51,9 @@ Section fundamental.
     iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Subseg _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
-    { rewrite lookup_insert. eauto. }
+    { rewrite lookup_insert_eq. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert_eq;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs'" as %HSpec'.
@@ -72,8 +72,8 @@ Section fundamental.
       iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
 
       destruct (reg_eq_dec dst PC).
-      + subst dst. rewrite lookup_insert in H5; inv H5.
-        rewrite lookup_insert in H0; inv H0. rewrite !insert_insert.
+      + subst dst. rewrite lookup_insert_eq in H5; inv H5.
+        rewrite lookup_insert_eq in H0; inv H0. rewrite !insert_insert_eq.
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
         { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
@@ -87,17 +87,17 @@ Section fundamental.
           iApply (interp_weakening with "IH Hspec Hinv"); auto.
           rewrite /Is_true PermFlowsToReflexive //. }
       + rewrite lookup_insert_ne in H5; auto.
-        rewrite lookup_insert in H5; inv H5.
+        rewrite lookup_insert_eq in H5; inv H5.
         assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
         rewrite Heq lookup_insert_ne in H0'; auto.
         iDestruct ("Hreg" $! dst _ _ n H0 H0') as "Hinvdst".
         iApply ("IH" $! (_,_) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg.
-          destruct (reg_eq_dec dst reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
-          destruct (reg_eq_dec PC reg); [subst reg; rewrite lookup_insert; eauto|rewrite lookup_insert_ne;auto].
+          destruct (reg_eq_dec dst reg); [subst reg; rewrite lookup_insert_eq; eauto|rewrite lookup_insert_ne;auto].
+          destruct (reg_eq_dec PC reg); [subst reg; rewrite lookup_insert_eq; eauto|rewrite lookup_insert_ne;auto].
           destruct Hsome with reg;auto. }
         { iIntros. simpl. destruct (reg_eq_dec dst r0).
-          - subst r0. rewrite !lookup_insert in H8, H7. simplify_eq. rewrite /interp.
+          - subst r0. rewrite !lookup_insert_eq in H8, H7. simplify_eq. rewrite /interp.
             generalize (isWithin_implies _ _ _ _ H4). intros [A B].
             iApply (interp_weakening with "IH Hspec Hinvdst"); auto; try solve_addr.
             unfold Is_true. rewrite PermFlowsToReflexive. auto.
@@ -111,9 +111,9 @@ Section fundamental.
         { iModIntro. rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
   - incrementPC_inv; simplify_map_eq.
     destruct (reg_eq_dec dst PC).
-    + subst dst. rewrite lookup_insert in H4; inv H4.
+    + subst dst. rewrite lookup_insert_eq in H4; inv H4.
     + rewrite lookup_insert_ne in H4; auto.
-      rewrite lookup_insert in H4; inv H4.
+      rewrite lookup_insert_eq in H4; inv H4.
       assert (H0':=H0). rewrite lookup_insert_ne in H0; auto.
       rewrite Heq lookup_insert_ne in H0'; auto.
       iDestruct ("Hreg" $! dst _ _ n H0 H0') as "Hinvdst".

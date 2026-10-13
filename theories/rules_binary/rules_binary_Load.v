@@ -149,18 +149,18 @@ Section cap_lang_spec_rules.
     iMod (step_Load with "[$Hown $Hj $Hmap $Hmem]") as (retv regs') "(Hj & #Hspec & Hmem & Hmap)"; eauto; simplify_map_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { destruct (a =? pc_a)%a; by simplify_map_eq. }
-    { eapply mem_implies_allow_load_map; eauto. rewrite lookup_insert_ne// lookup_insert;eauto. }
+    { eapply mem_implies_allow_load_map; eauto. rewrite lookup_insert_ne// lookup_insert_eq;eauto. }
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as [ | * Hfail ].
      { (* Success *)
        destruct H2 as [Hrr2 _].
-       rewrite lookup_insert_ne// lookup_insert in Hrr2. simplify_eq.
-       incrementPC_inv. rewrite lookup_insert_ne// lookup_insert in H2. simplify_eq.
+       rewrite lookup_insert_ne// lookup_insert_eq in Hrr2. simplify_eq.
+       incrementPC_inv. rewrite lookup_insert_ne// lookup_insert_eq in H2. simplify_eq.
        iDestruct (memMap_resource_2gen_d with "[Hmem]") as "[Hpc_a Ha]".
        {iExists mem; iSplitL; auto. }
        pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H3) as Hloadv; eauto.
-       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq (insert_insert_ne _ r1 PC) // insert_insert_eq.
        iDestruct (regs_of_map_2 with "[$Hmap]") as "[HPC Hr1]"; eauto. rewrite Hloadv. by iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; try incrementPC_inv; simplify_map_eq; eauto.
@@ -218,10 +218,10 @@ Section cap_lang_spec_rules.
     iDestruct "Hmem'" as %Hmem.
 
     iMod (step_Load with "[$Hown $Hj $Hmap $Hmem]") as (retv regs') "(Hj & #Hspec & Hmem & Hmap)"; eauto.
-    { rewrite lookup_insert;eauto. }
+    { rewrite lookup_insert_eq;eauto. }
     { by rewrite !dom_insert; set_solver+. }
     { destruct (a =? pc_a)%a; by simplify_map_eq. }
-    { eapply mem_implies_allow_load_map; eauto. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert. eauto. }
+    { eapply mem_implies_allow_load_map; eauto. rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq. eauto. }
     iDestruct "Hspec" as %Hspec.
 
     destruct Hspec as [ | * Hfail ].
@@ -233,13 +233,13 @@ Section cap_lang_spec_rules.
        incrementPC_inv.
        pose proof (mem_implies_loadv _ _ _ _ _ _ Hmem H5) as Hloadv; eauto.
        simplify_map_eq_alt.
-       rewrite (insert_commute _ PC r1) // insert_insert (insert_commute _ r1 PC) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq (insert_insert_ne _ r1 PC) // insert_insert_eq.
        iDestruct (regs_of_map_3 with "[$Hmap]") as "[HPC [Hr1 Hr2] ]"; eauto.
        by iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq_alt.
        destruct o;congruence.
-       incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert;eauto]. congruence. }
+       incrementPC_inv;[|rewrite lookup_insert_ne// lookup_insert_eq;eauto]. congruence. }
   Qed.
 
   Lemma step_load_success_alt E K r1 r2 pc_p pc_b pc_e pc_a w w' w'' p b e a pc_a' :

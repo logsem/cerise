@@ -154,7 +154,7 @@ Section cap_lang_spec_rules.
     iIntros (Hinstr Hvpc Hpca' Hflows HpE Hnclose) "(Hown & Hj & >HPC & >Hpc_a & >Hr1)".
     iDestruct (map_of_regs_2 with "HPC Hr1") as "[Hmap %]".
     iMod (step_Restrict with "[$Hown $Hj $Hmap $Hpc_a]") as (retv regs' Hspec) "(Hj & Hpc_a & Hregs)";
-      eauto; simplify_map_eq_alt; try rewrite lookup_insert; eauto.
+      eauto; simplify_map_eq_alt; try rewrite lookup_insert_eq; eauto.
       by unfold regs_of; rewrite !dom_insert; set_solver+.
 
      assert (pc_p ≠ E).
@@ -163,8 +163,8 @@ Section cap_lang_spec_rules.
      destruct Hspec as [| | * Hfail].
      { (* Success *)
        iFrame. incrementPC_inv; simplify_map_eq.
-       rewrite (insert_commute _ PC r1) // insert_insert
-               (insert_commute _ PC r1) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq
+               (insert_insert_ne _ PC r1) // insert_insert_eq.
        iDestruct (regs_of_map_2 with "Hregs") as "(?&?)"; eauto; by iFrame. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }

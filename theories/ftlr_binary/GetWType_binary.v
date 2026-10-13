@@ -31,9 +31,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome HisCorrect Hbae Hi.
     iIntros "#IH #Hspec #Hinv #Hreg #Hinva #Hread Hsmap Hown Hs Ha Ha' HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_GetWType with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq. reflexivity. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -47,9 +47,9 @@ Section fundamental.
     iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_GetWType _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
-    { rewrite lookup_insert. eauto. }
+    { rewrite lookup_insert_eq. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert_eq;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs" as %HSpec'.
@@ -69,13 +69,13 @@ Section fundamental.
       iMod (do_step_pure _ [] with "[$Hspec $Hs']") as "Hs' /=";auto.
 
       destruct (decide (PC = dst));simplify_eq;simplify_map_eq.
-      - rewrite !insert_insert. rewrite lookup_insert in H1. inv H1.
-      - rewrite (insert_commute _ _ PC)// insert_insert.
+      - rewrite !insert_insert_eq. rewrite lookup_insert_eq in H1. inv H1.
+      - rewrite (insert_insert_ne _ _ PC)// insert_insert_eq.
         iApply ("IH" $! ((<[dst:=_]> r1),(<[dst:=_]> r1)) with "[] [] Hmap Hsmap Hown Hs' Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto.
-          destruct (decide (dst = reg));[subst;rewrite lookup_insert|rewrite !lookup_insert_ne//];eauto. }
+          destruct (decide (dst = reg));[subst;rewrite lookup_insert_eq|rewrite !lookup_insert_ne//];eauto. }
         { simpl. iIntros (rr v1 v2 Hne Hv1s Hv2s).
-          destruct (decide (rr = dst));[subst;rewrite lookup_insert in Hv1s, Hv2s|].
+          destruct (decide (rr = dst));[subst;rewrite lookup_insert_eq in Hv1s, Hv2s|].
           - rewrite /interp !fixpoint_interp1_eq /=; simplify_eq; auto.
           - rewrite !lookup_insert_ne// in Hv1s,Hv2s. simplify_eq.
             revert Heq; rewrite map_eq' =>Heq.
@@ -83,7 +83,7 @@ Section fundamental.
             specialize (Heq rr w). rewrite !lookup_insert_ne// in Heq. apply Heq in Hsome' as Heq'.
             by iSpecialize ("Hreg" $! rr _ _ Hne Hsome' Heq').
         }
-        { rewrite lookup_insert_ne// lookup_insert in H1. simplify_eq.
+        { rewrite lookup_insert_ne// lookup_insert_eq in H1. simplify_eq.
           rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
     }
   Qed.

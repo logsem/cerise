@@ -1,4 +1,4 @@
-From Coq Require Import ZArith Lia.
+From Stdlib Require Import ZArith Lia.
 From stdpp Require Import list.
 From cap_machine Require Import addr_reg.
 From machine_utils Require Import solve_finz.

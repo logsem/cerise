@@ -2,7 +2,7 @@ From iris.algebra Require Import auth agree excl gmap frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
-Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
@@ -154,11 +154,11 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare with "[$Hf]") as ">Hf". by apply f_size.
-    iDestruct (mkregion_prepare with "[$Hg]") as ">Hg". by apply g_size.
-    iDestruct (mkregion_prepare with "[$Hact]") as ">Hact".
+    iDestruct (mkregion_prepare with "[Hf]") as ">Hf"; [|iExact "Hf"|]. by apply f_size.
+    iDestruct (mkregion_prepare with "[Hg]") as ">Hg"; [|iExact "Hg"|]. by apply g_size.
+    iDestruct (mkregion_prepare with "[Hact]") as ">Hact"; [|iExact "Hact"|].
       rewrite act_len; by apply act_size.
-    iDestruct (mkregion_prepare with "[$Hadv]") as ">Hadv". by apply adv_size.
+    iDestruct (mkregion_prepare with "[Hadv]") as ">Hadv"; [|iExact "Hadv"|]. by apply adv_size.
 
     (* Allocate the invariant about x *)
 

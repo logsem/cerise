@@ -80,7 +80,7 @@ Section Linking.
           eapply H2. exists sy. eapply elem_of_union. right; auto. }
     { intros; destruct (exp !! s) eqn:Hexp.
       - destruct (decide (f = a)).
-        + subst f; rewrite lookup_insert.
+        + subst f; rewrite lookup_insert_eq.
           right. assert (s0 = s) as ->; eauto.
           eapply elem_of_union in H2. destruct H2.
           * generalize (proj1 (elem_of_singleton _ _) H2). inversion 1; subst; auto.

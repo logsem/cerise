@@ -7,7 +7,7 @@
     for instance with Heaplang. Learning material for Iris is available
     at this URL: https://iris-project.org/ *)
 
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From cap_machine Require Import rules.
 From cap_machine.proofmode Require Import tactics_helpers proofmode contiguous.
 Open Scope Z_scope.

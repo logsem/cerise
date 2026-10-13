@@ -1,4 +1,4 @@
-This repository contains the Coq mechanization of a capability machine and
+This repository contains the Rocq mechanization of a capability machine and
 principles to reason about the interaction of known and unknown code.
 
 The repository depends on the submodule `machine_utils`. After cloning Cerise,
@@ -31,7 +31,7 @@ The simplest option is to create a fresh *local* opam switch with everything
 needed, by running the following commands:
 
 ```
-opam switch create -y --repositories=default,coq-released=https://coq.inria.fr/opam/released . ocaml-base-compiler.4.14.0
+opam switch create -y --repositories=default,rocq-released=https://rocq-prover.org/opam/released . ocaml-base-compiler.4.14.0
 eval $(opam env)
 ```
 

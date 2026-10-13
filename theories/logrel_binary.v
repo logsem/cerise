@@ -13,7 +13,7 @@ Ltac auto_equiv_binary :=
   end;
   (* Normalize away equalities. *)
   repeat match goal with
-  | H : _ ≡{_}≡ _ |-  _ => apply (discrete_iff _ _) in H
+  | H : _ ≡{_}≡ _ |-  _ => apply (discrete_iff _ _ _) in H
   | H : _ ≡ _ |-  _ => apply leibniz_equiv in H
   | H : _ = _ ∧ _ = _ |- _ => destruct H as [? ?]
   | _ => progress simplify_eq
@@ -292,7 +292,7 @@ Section logrel.
         destruct p,p'; try contradiction; try done;
         iDestruct "Hinterp" as "[(%&%&%) Hinterp]";simplify_eq;
           try (iDestruct (extract_from_region_inv with "Hinterp") as (P) "[Hinv Hiff]"; [eauto|iExists P;iSplit;eauto]).
-        all: rewrite lookup_insert in Hw;inversion Hw;simplify_eq; done.
+        all: rewrite lookup_insert_eq in Hw;inversion Hw;simplify_eq; done.
       + rewrite lookup_insert_ne // in Hw.
         destruct (r.1 !! reg) eqn:Hsome;rewrite Hsome in Hw; inversion Hw.
         assert (is_Some(r.2 !! reg)) as [? Hsome'];[by destruct H0 with reg|].
@@ -348,14 +348,14 @@ Section logrel.
     - iIntros (Hin).
       iDestruct "Hv" as "[% Hv]".
       simpl in *. destruct H0 with reg as [_ [? ?] ].
-      destruct (decide (reg = PC));[by subst;rewrite lookup_insert;rewrite lookup_insert in Hin|].
+      destruct (decide (reg = PC));[by subst;rewrite lookup_insert_eq;rewrite lookup_insert_eq in Hin|].
       rewrite lookup_insert_ne// in Hin. rewrite lookup_insert_ne//.
       iSpecialize ("Hv" $! reg _ _ n Hin H1). rewrite H1.
       iDestruct (interp_eq with "Hv") as %->. auto.
     - iIntros (Hin).
       iDestruct "Hv" as "[% Hv]".
       simpl in *. destruct H0 with reg as [ [? ?] _].
-      destruct (decide (reg = PC));[by subst;rewrite lookup_insert; rewrite lookup_insert in Hin|].
+      destruct (decide (reg = PC));[by subst;rewrite lookup_insert_eq; rewrite lookup_insert_eq in Hin|].
       rewrite lookup_insert_ne// in Hin; rewrite lookup_insert_ne//.
       iSpecialize ("Hv" $! reg _ _ n H1 Hin). rewrite H1.
       iDestruct (interp_eq with "Hv") as %->. auto.

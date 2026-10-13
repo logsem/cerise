@@ -21,7 +21,7 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #Hread Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     destruct (reg_eq_dec PC r0).
     * subst r0.
       iApply (wp_jmp_successPC with "[HPC Ha]"); eauto; first iFrame. 
@@ -33,7 +33,7 @@ Section fundamental.
       (* reconstruct registers *)
       iNext. 
       iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+        [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
       (* apply IH *)
       iIntros "_".
       iApply ("IH" $! _ _ b e a with "[] [] [Hmap] [$Hown]"); eauto.
@@ -48,7 +48,7 @@ Section fundamental.
       iApply wp_pure_step_later; auto. 
       (* reconstruct regions *)
       iDestruct ((big_sepM_delete _ _ r0) with "[Hsrc Hmap]") as "Hmap /=";
-        [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+        [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
       rewrite -delete_insert_ne // insert_id; auto.
 
       iMod ("Hcls" with "[HP Ha]");[iExists w;iFrame|iModIntro].
@@ -64,12 +64,12 @@ Section fundamental.
           iClear "Hinv".
           rewrite fixpoint_interp1_eq; simpl.
 
-          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
+          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete_eq|]. rewrite insert_delete_eq; auto.
           iDestruct ("HPCv" with "[$Hmap $Hown]") as "Hcont"; auto.
         - iAssert (PC ↦ᵣ WCap p' b' e' a')%I  with "[HPC]" as "HPC".
           { destruct p'; auto. congruence. }
 
-          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete|]. rewrite insert_delete_insert; auto.
+          iDestruct (big_sepM_insert _ _ PC with "[$Hmap $HPC]") as "Hmap"; [apply lookup_delete_eq|]. rewrite insert_delete_eq; auto.
           iNext; iIntros "_".
           iApply ("IH" $! (<[PC:=WCap p' b' e' a']> r) with "[%] [] [Hmap] [$Hown]").
           { cbn. intros. by repeat (rewrite lookup_insert_is_Some'; right). }
@@ -81,7 +81,7 @@ Section fundamental.
               unshelve iSpecialize ("Hreg" $! r0 _ _ Hsomesrc); eauto. }
             { repeat (rewrite lookup_insert_ne in Hvs); auto.
               iApply "Hreg"; auto. } }
-          { rewrite insert_insert. iApply "Hmap". }
+          { rewrite insert_insert_eq. iApply "Hmap". }
           iModIntro.
           unshelve iSpecialize ("Hreg" $! r0 _ _ Hsomesrc); eauto.
       }

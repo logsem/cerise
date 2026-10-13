@@ -11,7 +11,7 @@ CI_EXAMPLES    :=    theories/examples/buffer.v \
 
 FUNDAMENTAL		:=	 theories/fundamental.v
 COQMAKEFILE 	?=   Makefile.coq
-COQ_PROJ 		?= _CoqProject
+COQ_PROJ 		?= _RocqProject
 
 all: $(COQMAKEFILE)
 		+@$(MAKE) -f $^ $@
@@ -24,7 +24,10 @@ fundamental: export TGTS=${FUNDAMENTAL:.v=.vo}
 fundamental: $(COQMAKEFILE) only
 
 $(COQMAKEFILE): $(COQ_PROJ)
-		coq_makefile -f $^ -o $@
+		rocq makefile -f $^ -o $@
+
+# Do not forward the sources of `$(COQMAKEFILE)` themselves
+Makefile Makefile.coq.local $(COQ_PROJ): ;
 
 .PHONY: all fundamental ci
 

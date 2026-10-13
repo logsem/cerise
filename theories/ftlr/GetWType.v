@@ -21,9 +21,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_GetWType with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -43,7 +43,7 @@ Section fundamental.
         try iClear "IH"; eauto.
       { cbn; intro. repeat (rewrite lookup_insert_is_Some'; right); eauto. }
       { iIntros (ri v Hri Hvs).
-        rewrite insert_commute // lookup_insert_ne // in Hvs.
+        rewrite insert_insert_ne // lookup_insert_ne // in Hvs.
         destruct (decide (ri = dst)); simplify_map_eq.
         * repeat rewrite fixpoint_interp1_eq; auto.
         * by iApply "Hreg". }

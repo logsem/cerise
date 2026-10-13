@@ -14,7 +14,7 @@ Ltac auto_equiv :=
   end;
   (* Normalize away equalities. *)
   repeat match goal with
-  | H : _ ≡{_}≡ _ |-  _ => apply (discrete_iff _ _) in H
+  | H : _ ≡{_}≡ _ |-  _ => apply (discrete_iff _ _ _) in H
   | H : _ ≡ _ |-  _ => apply leibniz_equiv in H
   | _ => progress simplify_eq
   end;
@@ -556,7 +556,7 @@ Section logrel.
       iApply fixpoint_interp1_eq. destruct p;try done.
       all: iApply big_sepL_forall; iIntros (k x Hlook); iExists interp.
       all: iSplit;[|(try iSplitR);iIntros (?);iNext;iModIntro;auto].
-      all: apply elem_of_list_lookup_2,elem_of_finz_seq_between,Hin,elem_of_app in Hlook.
+      all: apply list_elem_of_lookup_2,elem_of_finz_seq_between,Hin,elem_of_app in Hlook.
       all: destruct Hlook as [Hl1 | [->|Hl2]%elem_of_cons];
           [iDestruct (big_sepL_elem_of with "Hl1v") as "$";auto|iFrame "#"|
             iDestruct (big_sepL_elem_of with "Hl2v") as "$";auto].

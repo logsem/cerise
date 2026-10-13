@@ -337,7 +337,7 @@ Proof.
   rewrite /assert_library_content in Hfail.
   assert (list_to_map [(assert_flag, WInt 0)] ⊆ m) as Hassert_flag.
   { etrans;[|eauto]. apply map_union_subseteq_r. disjoint_map_to_list.
-    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !list_elem_of_singleton.
     pose proof assert_code_size. pose proof assert_cap_size.
     pose proof assert_flag_size. intros [ [? ?]|?] ->; solve_addr. }
   simpl in Hassert_flag.
@@ -537,7 +537,7 @@ Section int_client_adequacy.
           set_solver+Hne.
       }
       iDestruct (big_sepM_delete _ _ salloc_optr with "Hinit") as "[Hsa_optr _]".
-      { rewrite delete_insert; simplify_map_eq; auto. }
+      { rewrite delete_insert_id; simplify_map_eq; auto. }
 
       pose proof salloc_code_size as Hsalloc_size.
       pose proof salloc_memptr_size as Hsalloc_memptr_size.
@@ -615,22 +615,22 @@ Section int_client_adequacy.
       pose proof assert_code_size. pose proof assert_cap_size. pose proof assert_flag_size.
       rewrite map_filter_union.
       2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
-           rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+           rewrite elem_of_app elem_of_finz_seq_between !list_elem_of_singleton.
            intros [ [? ?]|?]; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
       { eapply map_disjoint_filter. disjoint_map_to_list.
         apply elem_of_disjoint. intro.
-        rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+        rewrite elem_of_app elem_of_finz_seq_between !list_elem_of_singleton.
         intros [ [? ?]|?]; solve_addr. }
       rewrite map_filter_id.
       2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
            2: solve_addr. apply elem_of_union in HH.
            rewrite elem_of_singleton. destruct HH as [HH|HH].
            rewrite -> elem_of_list_to_set, elem_of_finz_seq_between in HH; solve_addr.
-           rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
+           rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, list_elem_of_singleton in HH; solve_addr. }
       iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
       { disjoint_map_to_list. apply elem_of_disjoint. intro.
-        rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
+        rewrite elem_of_finz_seq_between !list_elem_of_singleton. solve_addr. }
       iDestruct (mkregion_sepM_to_sepL2 with "Hassert") as "Hassert". solve_addr.
       rewrite /assert_inv. iExists assert_cap.
       rewrite (_: assert_cap = assert_start ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
@@ -770,13 +770,13 @@ Section int_client_adequacy.
     { apply not_elem_of_dom. rewrite Hdom. set_solver+. }
     iDestruct (big_sepM_insert _ _ PC with "[$Hrmap $HPC]") as "Hrmap".
     { apply not_elem_of_dom. rewrite dom_insert_L Hdom. set_solver+. }
-    rewrite -(insert_insert _ PC _ (WInt 0)).
+    rewrite -(insert_insert_eq _ PC _ (WInt 0)).
     iDestruct ("Hcont" with "[$Hown $Hrmap]") as "Hcont".
     { rewrite /interp_reg /=. iSplit.
       iPureIntro. intros. simpl. apply elem_of_dom. rewrite !dom_insert_L Hdom.
       pose proof (all_registers_s_correct x1) as Hx1. set_solver +Hx1.
       iIntros (r v Hrv). rewrite lookup_insert_ne//.
-      destruct (decide (r_t0 = r));[subst;rewrite lookup_insert|rewrite lookup_insert_ne//].
+      destruct (decide (r_t0 = r));[subst;rewrite lookup_insert_eq|rewrite lookup_insert_ne//].
       iIntros (Heq);inversion Heq. auto.
       iIntros (Hin). iDestruct (big_sepM_lookup _ _ r with "Hrmapvalid") as %Hncap;[apply Hin|].
       destruct v;inversion Hncap. iApply fixpoint_interp1_eq. eauto. }

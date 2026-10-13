@@ -1,6 +1,6 @@
 From iris.algebra Require Import frac.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import rules macros.
 From cap_machine Require Import rules_binary logrel_binary fundamental_binary.
 From cap_machine.proofmode Require Import tactics_helpers.
@@ -242,14 +242,14 @@ Section counter.
             consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             iApply "Hregs_valid"; auto.
-        - rewrite !insert_insert.
+        - rewrite !insert_insert_eq.
           iSplitL "HPC Hrmap".
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
       }
@@ -429,14 +429,14 @@ Section counter.
             consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             iApply "Hregs_valid"; auto.
-        - rewrite !insert_insert.
+        - rewrite !insert_insert_eq.
           iSplitL "HPC Hrmap".
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
       }
@@ -569,8 +569,8 @@ Section counter.
     iDestruct (jmp_or_fail_spec with "Hspec Hcallback") as "Hcallback_now".
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs";[apply lookup_delete|].
-    iDestruct (big_sepM_insert _ _ r_ret with "[$Hsegs $Hs_ret]") as "Hsegs";[apply lookup_delete|].
+    iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs";[apply lookup_delete_eq|].
+    iDestruct (big_sepM_insert _ _ r_ret with "[$Hsegs $Hs_ret]") as "Hsegs";[apply lookup_delete_eq|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hsegs $Hs_env]") as "Hsegs".
@@ -579,7 +579,7 @@ Section counter.
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsegs $Hs_t1]") as "Hsegs".
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
-    rewrite !insert_delete_insert.
+    rewrite !insert_delete_eq.
 
     (* now we are ready to apply the jump or fail pattern *)
     iDestruct (interp_eq with "Hcallback") as %<-.
@@ -611,14 +611,14 @@ Section counter.
             consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done. consider_next_reg_both1 r r_ret Hv1s Hv2s. simplify_eq. rewrite !fixpoint_interp1_eq. done.
             iApply "Hregs_val"; auto.
-        - rewrite !insert_insert.
+        - rewrite !insert_insert_eq.
           iSplitL "Hregs HPC".
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
       }
@@ -748,8 +748,8 @@ Section counter.
     iDestruct (jmp_or_fail_spec with "Hspec Hcallback") as "Hcallback_now".
 
     (* reassemble registers *)
-    iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs";[apply lookup_delete|].
-    iDestruct (big_sepM_insert _ _ r_ret with "[$Hsegs $Hs_ret]") as "Hsegs";[apply lookup_delete|].
+    iDestruct (big_sepM_insert _ _ r_ret with "[$Hregs $Hr_ret]") as "Hregs";[apply lookup_delete_eq|].
+    iDestruct (big_sepM_insert _ _ r_ret with "[$Hsegs $Hs_ret]") as "Hsegs";[apply lookup_delete_eq|].
     iDestruct (big_sepM_insert _ _ r_env with "[$Hregs $Hr_env]") as "Hregs".
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_env with "[$Hsegs $Hs_env]") as "Hsegs".
@@ -758,7 +758,7 @@ Section counter.
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom1. clear; set_solver. }
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hsegs $Hs_t1]") as "Hsegs".
     { rewrite !lookup_insert_ne// !lookup_delete_ne//. apply not_elem_of_dom. rewrite Hdom2. clear; set_solver. }
-    rewrite !insert_delete_insert.
+    rewrite !insert_delete_eq.
 
     (* now we are ready to apply the jump or fail pattern *)
     iDestruct (interp_eq with "Hcallback") as %<-.
@@ -790,14 +790,14 @@ Section counter.
             consider_next_reg_both1 r r_t0 Hv1s Hv2s. by simplify_eq. consider_next_reg_both1 r r_t1 Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done.
             consider_next_reg_both1 r r_env Hv1s Hv2s. rewrite !fixpoint_interp1_eq. simplify_eq. done. consider_next_reg_both1 r r_ret Hv1s Hv2s. simplify_eq. rewrite !fixpoint_interp1_eq. done.
             iApply "Hregs_val"; auto.
-        - rewrite !insert_insert.
+        - rewrite !insert_insert_eq.
           iSplitL "Hregs HPC".
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom1. clear;set_solver.
-          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert|]. iFrame.
-            rewrite delete_insert. iFrame.
+          + iApply (big_sepM_delete _ _ PC);[apply lookup_insert_eq|]. iFrame.
+            rewrite delete_insert_id. iFrame.
             repeat (rewrite lookup_insert_ne;auto).
             apply not_elem_of_dom. rewrite Hdom2. clear;set_solver.
       }

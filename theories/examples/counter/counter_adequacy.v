@@ -2,7 +2,7 @@ From iris.algebra Require Import auth agree excl gmap frac.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
-Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From cap_machine Require Import
      stdpp_extra iris_extra
      rules logrel fundamental.
@@ -252,17 +252,17 @@ Section Adequacy.
 
     (* Massage points-to into sepL2s with permission-pointsto *)
 
-    iDestruct (mkregion_prepare with "[$Hlink_table]") as ">Hlink_table". by apply link_table_size.
-    iDestruct (mkregion_prepare with "[$Hassert]") as ">Hassert". by apply assert_code_size.
-    iDestruct (mkregion_prepare with "[$Hmalloc_mem]") as ">Hmalloc_mem".
+    iDestruct (mkregion_prepare with "[Hlink_table]") as ">Hlink_table"; [|iExact "Hlink_table"|]. by apply link_table_size.
+    iDestruct (mkregion_prepare with "[Hassert]") as ">Hassert"; [|iExact "Hassert"|]. by apply assert_code_size.
+    iDestruct (mkregion_prepare with "[Hmalloc_mem]") as ">Hmalloc_mem"; [|iExact "Hmalloc_mem"|].
     { rewrite length_replicate /finz.dist. clear.
       generalize malloc_mem_start malloc_end malloc_mem_size. solve_addr. }
-    iDestruct (mkregion_prepare with "[$Hmalloc_code]") as ">Hmalloc_code".
+    iDestruct (mkregion_prepare with "[Hmalloc_code]") as ">Hmalloc_code"; [|iExact "Hmalloc_code"|].
       by apply malloc_code_size.
-    iDestruct (mkregion_prepare with "[$Hadv]") as ">Hadv". rewrite length_app /=. by apply adv_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_preamble]") as ">Hcounter_preamble".
+    iDestruct (mkregion_prepare with "[Hadv]") as ">Hadv"; [|iExact "Hadv"|]. rewrite length_app /=. by apply adv_size.
+    iDestruct (mkregion_prepare with "[Hcounter_preamble]") as ">Hcounter_preamble"; [|iExact "Hcounter_preamble"|].
       by apply counter_preamble_size.
-    iDestruct (mkregion_prepare with "[$Hcounter_body]") as ">Hcounter_body". by apply counter_body_size.
+    iDestruct (mkregion_prepare with "[Hcounter_body]") as ">Hcounter_body"; [|iExact "Hcounter_body"|]. by apply counter_body_size.
     rewrite -/(counter _ _) -/(counter_preamble _ _).
 
     (* Split the link table *)
@@ -296,7 +296,7 @@ Section Adequacy.
       2: { generalize malloc_code_size. solve_addr. } iFrame.
       iPureIntro. generalize malloc_code_size malloc_mem_size malloc_memptr_size. cbn.
       clear; unfold malloc_subroutine_instrs_length; intros; repeat split; solve_addr. }
-    iDestruct (simple_malloc_subroutine_valid with "[$Hinv_malloc]") as "Hmalloc_val".
+    iDestruct (simple_malloc_subroutine_valid with "[]") as "Hmalloc_val"; [iExact "Hinv_malloc"|].
 
     (* Show validity of the adversary capability *)
     assert (contiguous_between (finz.seq_between adv_start adv_end) adv_start adv_end) as Hcont.
@@ -309,7 +309,7 @@ Section Adequacy.
     apply region_addrs_of_contiguous_between in Hcontadv as Heq'.
 
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end' adv_start))%I with "[Hadv]" as ">#Hadv".
-    { rewrite Heq'. iApply (region_valid_in_region _ _ _ _ adv_val); eauto.
+    { rewrite Heq'. iApply (region_valid_in_region _ _ _ _ adv_val with "Hadv"); eauto.
       apply Forall_forall. intros. set_solver+. }
 
     iAssert (|={⊤}=> interp (WCap RWX adv_start adv_end adv_start))%I with "[Hmalloc]" as ">#Hadv'".

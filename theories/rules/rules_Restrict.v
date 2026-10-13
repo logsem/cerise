@@ -213,7 +213,7 @@ Section cap_lang_rules.
      destruct Hspec as [| | * Hfail].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-       rewrite !insert_insert.
+       rewrite !insert_insert_eq.
        iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame.
      }
      { (* Success with WSealRange (contradiction) *)
@@ -251,8 +251,8 @@ Section cap_lang_rules.
     destruct Hspec as [| | * Hfail].
     { (* Success *)
       iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-      rewrite (insert_commute _ PC r1) // insert_insert
-              (insert_commute _ PC r1) // insert_insert.
+      rewrite (insert_insert_ne _ PC r1) // insert_insert_eq
+              (insert_insert_ne _ PC r1) // insert_insert_eq.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }
@@ -286,7 +286,7 @@ Section cap_lang_rules.
      destruct Hspec as [ | | * Hfail ].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-       rewrite !insert_insert.
+       rewrite !insert_insert_eq.
        iApply (regs_of_map_1 with "Hmap"). }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }
@@ -324,8 +324,8 @@ Section cap_lang_rules.
      destruct Hspec as [| | * Hfail].
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-       rewrite (insert_commute _ PC r1) // insert_insert
-               (insert_commute _ PC r1) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq
+               (insert_insert_ne _ PC r1) // insert_insert_eq.
        iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }
@@ -365,8 +365,8 @@ Section cap_lang_rules.
        simplify_map_eq. }
     { (* Success *)
       iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-      rewrite (insert_commute _ PC r1) // insert_insert
-              (insert_commute _ PC r1) // insert_insert.
+      rewrite (insert_insert_ne _ PC r1) // insert_insert_eq
+              (insert_insert_ne _ PC r1) // insert_insert_eq.
       iDestruct (regs_of_map_3 with "Hmap") as "(?&?&?)"; eauto; iFrame. }
     { (* Failure (contradiction) *)
       destruct Hfail; simplify_map_eq; eauto; try congruence.
@@ -401,8 +401,8 @@ Section cap_lang_rules.
        simplify_map_eq. }
      { (* Success *)
        iApply "Hφ". iFrame. incrementPC_inv; simplify_map_eq.
-       rewrite (insert_commute _ PC r1) // insert_insert
-               (insert_commute _ PC r1) // insert_insert.
+       rewrite (insert_insert_ne _ PC r1) // insert_insert_eq
+               (insert_insert_ne _ PC r1) // insert_insert_eq.
        iDestruct (regs_of_map_2 with "Hmap") as "(?&?)"; eauto; iFrame. }
      { (* Failure (contradiction) *)
        destruct Hfail; simplify_map_eq; eauto; try congruence.

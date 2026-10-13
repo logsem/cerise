@@ -2,12 +2,13 @@
 
 From iris.algebra Require Export cmra auth.
 From iris.base_logic Require Import base_logic.
-Local Arguments validN _ _ _ !_ /.
+From iris.bi Require Import sbi_unfold.
+Local Arguments validN _ _ _ _ !_ /.
 Local Arguments valid _ _  !_ /.
 Local Arguments op _ _ _ !_ /.
 Local Arguments pcore _ _ !_ /.
-Local Arguments ofe_dist !_ /.
-Local Arguments ofe_equiv ! _ /.
+Local Arguments ofe_dist _ !_ /.
+Local Arguments ofe_equiv _ !_ /.
 
 Definition monotone {A : Type} (R : relation A) : Type := list A.
 
@@ -32,8 +33,8 @@ Qed.
 Lemma Below_principal a b : Below a (principal R b) ↔ R a b.
 Proof.
   split.
-  - intros (c & ->%elem_of_list_singleton & ?); done.
-  - intros Hab; exists b; split; first apply elem_of_list_singleton; done.
+  - intros (c & ->%list_elem_of_singleton & ?); done.
+  - intros Hab; exists b; split; first apply list_elem_of_singleton; done.
 Qed.
 
 (* OFE *)
@@ -83,9 +84,9 @@ Proof.
 Qed.
 
 Instance monotone_validN_ne n :
-  Proper (dist n ==> impl) (@validN (monotone R) _ n).
+  Proper (dist n ==> impl) (@validN _ (monotone R) _ n).
 Proof. intros x y ?; rewrite /impl; auto. Qed.
-Instance monotone_validN_proper n : Proper (equiv ==> iff) (@validN (monotone R) _ n).
+Instance monotone_validN_proper n : Proper (equiv ==> iff) (@validN _ (monotone R) _ n).
 Proof. move=> x y /equiv_dist H; auto. Qed.
 
 Instance monotone_op_ne' x : NonExpansive (op x).
@@ -153,9 +154,9 @@ Lemma principal_injN_general n a b :
   principal R a ≡{n}≡ principal R b → R a a → R a b.
 Proof.
   rewrite /principal /dist /monotone_dist => Hab Haa.
-  - destruct (Hab a) as [Ha _]; edestruct Ha as [? [?%elem_of_list_singleton ?]];
+  - destruct (Hab a) as [Ha _]; edestruct Ha as [? [?%list_elem_of_singleton ?]];
     subst; eauto.
-    eexists _; split; first apply elem_of_list_singleton; eauto.
+    eexists _; split; first apply list_elem_of_singleton; eauto.
 Qed.
 
 Lemma principal_inj_general a b :
@@ -196,7 +197,7 @@ Lemma principal_R_opN `{!Transitive R} n a b :
   R a b → principal R a ⋅ principal R b ≡{n}≡ principal R b.
 Proof.
   intros; apply principal_R_opN_base; intros c; rewrite /principal.
-  setoid_rewrite elem_of_list_singleton => ->; eauto.
+  setoid_rewrite list_elem_of_singleton => ->; eauto.
 Qed.
 
 Lemma principal_R_op `{!Transitive R} a b :
@@ -207,7 +208,7 @@ Lemma principal_op_RN n a b x :
   R a a → principal R a ⋅ x ≡{n}≡ principal R b → R a b.
 Proof.
   intros Ha HR.
-  destruct (HR a) as [[z [HR1%elem_of_list_singleton HR2]] _];
+  destruct (HR a) as [[z [HR1%list_elem_of_singleton HR2]] _];
     last by subst; eauto.
   rewrite /op /monotone_op /principal Below_app Below_principal; auto.
 Qed.
@@ -243,7 +244,7 @@ Lemma monotone_equivI `{!(∀ n : nat, Proper (dist n ==> dist n ==> iff) R)}
       `{!Reflexive R} `{!AntiSymm (≡) R} {M} a b :
   principal R a ≡ principal R b ⊣⊢ (a ≡ b : uPred M).
 Proof.
-  uPred.unseal. do 2 split.
+  sbi_unfold=> n. split.
   - intros Hx. exact: principal_injN.
   - intros Hx. exact: principal_ne.
 Qed.
@@ -258,12 +259,12 @@ Proof.
   split; first done.
   intros n; specialize (Habz n).
   intros x; split.
-  - intros (y & ->%elem_of_list_singleton & Hy2).
+  - intros (y & ->%list_elem_of_singleton & Hy2).
     by exists na; split; first constructor.
   - intros (y & [->|Hy1]%elem_of_cons & Hy2).
     + by exists na; split; first constructor.
     + exists na; split; first constructor.
-      specialize (Habz x) as [_ [c [->%elem_of_list_singleton Hc2]]].
+      specialize (Habz x) as [_ [c [->%list_elem_of_singleton Hc2]]].
       { exists y; split; first (by apply elem_of_app; right); eauto. }
       etrans; eauto.
 Qed.

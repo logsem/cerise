@@ -63,7 +63,7 @@ Section fundamental.
          apply andb_prop in Hwb as [Hle Hge].
 
          (* Unlike in the old proof, we now go the other way around, and prove that the source register could not have been the PC, since both addresses differ. This saves us some cases.*)
-         assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert.
+         assert (src ≠ PC) as n. refine (addr_ne_reg_ne Hrinr _ Haeq). by rewrite lookup_insert_eq.
 
          rewrite lookup_insert_ne in Hrinr; last by congruence.
          iDestruct ("Hreg" $! src _ n Hrinr) as "Hvsrc".
@@ -129,17 +129,17 @@ Section fundamental.
     -  pose(Hallows' := Hallows). destruct Hallows' as [Hrinr [Hra Hwb] ].
        (* case_decide as Haeq. *)
        iDestruct "HLoadRes" as (w0) "[% _]".
-       iSplitR. rewrite H1 lookup_insert_ne; auto. by rewrite lookup_insert.
+       iSplitR. rewrite H1 lookup_insert_ne; auto. by rewrite lookup_insert_eq.
        iExists p,b,e,a0. iSplitR; auto.
        case_decide; last by exfalso.
        iExists w0. rewrite H1.
-         by rewrite lookup_insert.
+         by rewrite lookup_insert_eq.
     - iDestruct "HLoadRes" as "->".
-      iSplitR. by rewrite lookup_insert.
+      iSplitR. by rewrite lookup_insert_eq.
       iExists p,b,e,a0. iSplitR; auto.
       case_decide as Hdec1; last by done.
       apply not_and_r in Hdec as [| <-%dec_stable]; first by exfalso.
-      iExists w. by rewrite lookup_insert.
+      iExists w. by rewrite lookup_insert_eq.
   Qed.
 
   Lemma allow_load_mem_later:
@@ -195,15 +195,15 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
 
     (* To read out PC's name later, and needed when calling wp_load *)
     assert(∀ x : RegName, is_Some (<[PC:=WCap p b e a]> r !! x)) as Hsome'.
     {
       intros. destruct (decide (x = PC)).
-      rewrite e0 lookup_insert; unfold is_Some. by eexists.
+      rewrite e0 lookup_insert_eq; unfold is_Some. by eexists.
       by rewrite lookup_insert_ne.
     }
 
@@ -231,7 +231,7 @@ Section fundamental.
     iDestruct (allow_load_mem_later with "HLoadMem") as "HLoadMem"; auto.
 
     iApply (wp_load with "[Hmap HLoadRest]");eauto.
-    { by rewrite lookup_insert. }
+    { by rewrite lookup_insert_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. rewrite lookup_insert_is_Some'; eauto. }
     { iSplitR "Hmap"; auto. }
@@ -255,7 +255,7 @@ Section fundamental.
       2 : {
         assert (x ≠ RX ∧ x ≠ RWX). split; by auto.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
-        { subst. by rewrite lookup_insert. }
+        { subst. by rewrite lookup_insert_eq. }
         iNext; iIntros "_".
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. iIntros "!> _".
@@ -278,7 +278,7 @@ Section fundamental.
         rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
         { subst ri.
-          rewrite lookup_insert in Hvs; auto. inversion Hvs.
+          rewrite lookup_insert_eq in Hvs; auto. inversion Hvs.
           destruct (decide (a = a0)).
           - simplify_eq. iFrame "Hw".
           - iClear "HLoadRes Hwrite". rewrite decide_True. iFrame "#". auto.
@@ -286,7 +286,7 @@ Section fundamental.
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. }
        }
-       { subst regs'. rewrite insert_insert. iApply "Hmap". }
+       { subst regs'. rewrite insert_insert_eq. iApply "Hmap". }
        { iModIntro.
          destruct (decide (PC = dst)); simplify_eq.
          - simplify_map_eq. rewrite (fixpoint_interp1_eq).

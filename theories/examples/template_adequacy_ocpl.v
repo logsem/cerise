@@ -119,7 +119,7 @@ Proof.
   assert (list_to_map [(assert_flag layout, WInt 0)] ⊆ m) as Hassert_flag.
   { etrans;[|eauto]. eapply map_union_subseteq_r'. 2: done.
     pose proof (libs_disjoint layout) as Hdisjoint. disjoint_map_to_list.
-    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !elem_of_list_singleton.
+    apply elem_of_disjoint. intro. rewrite elem_of_app !elem_of_finz_seq_between !list_elem_of_singleton.
     intros [ [? ?]|?] ->; solve_addr. }
   eapply (lookup_weaken _ _ (assert_flag layout) (WInt 0)) in Hassert_flag.
     by simplify_eq. by simplify_map_eq.
@@ -225,22 +225,22 @@ Proof.
     pose proof (assert_flag_size layout).
     rewrite map_filter_union.
     2: { disjoint_map_to_list. apply elem_of_disjoint. intro.
-         rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+         rewrite elem_of_app elem_of_finz_seq_between !list_elem_of_singleton.
          intros [ [? ?]|?]; solve_addr. }
     iDestruct (big_sepM_union with "Hassert") as "[Hassert _]".
     { eapply map_disjoint_filter. disjoint_map_to_list.
       apply elem_of_disjoint. intro.
-      rewrite elem_of_app elem_of_finz_seq_between !elem_of_list_singleton.
+      rewrite elem_of_app elem_of_finz_seq_between !list_elem_of_singleton.
       intros [ [? ?]|?]; solve_addr. }
     rewrite map_filter_id.
     2: { intros ? ? HH%elem_of_dom_2. rewrite !dom_union_L dom_mkregion_eq in HH.
          2: solve_addr. apply elem_of_union in HH.
          rewrite elem_of_singleton. destruct HH as [HH|HH].
          rewrite -> elem_of_list_to_set, elem_of_finz_seq_between in HH; solve_addr.
-         rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, elem_of_list_singleton in HH; solve_addr. }
+         rewrite -> dom_list_to_map_singleton, elem_of_list_to_set, list_elem_of_singleton in HH; solve_addr. }
     iDestruct (big_sepM_union with "Hassert") as "[Hassert Hcap]".
     { disjoint_map_to_list. apply elem_of_disjoint. intro.
-      rewrite elem_of_finz_seq_between !elem_of_list_singleton. solve_addr. }
+      rewrite elem_of_finz_seq_between !list_elem_of_singleton. solve_addr. }
     iDestruct (mkregion_sepM_to_sepL2 with "Hassert") as "Hassert". solve_addr.
     rewrite (_: assert_cap layout = assert_start layout ^+ length assert_subroutine_instrs)%a. 2: solve_addr.
     iFrame "Hassert". iDestruct (big_sepM_insert with "Hcap") as "[Hcap _]". done.

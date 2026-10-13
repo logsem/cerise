@@ -41,9 +41,9 @@ Section fundamental.
   Proof.
     intros Hp Hsome i Hbae Hi.
     iIntros "#IH #Hinv #Hinva #Hreg #[Hread Hwrite] Hown Ha HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_UnSeal with "[$Ha $Hmap]"); eauto.
     { simplify_map_eq; auto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
@@ -74,7 +74,7 @@ Section fundamental.
       { (* Error case *)
         simplify_map_eq.
         iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]".
-        { subst. by rewrite lookup_insert. }
+        { subst. by rewrite lookup_insert_eq. }
         iApply (wp_bind (fill [SeqCtx])).
         iApply (wp_notCorrectPC_perm with "[HPC]"); eauto. split; auto.
         iIntros "!> _".
@@ -92,10 +92,10 @@ Section fundamental.
         rewrite lookup_insert_ne in Hvs; auto.
         destruct (decide (ri = dst)).
         { subst ri.
-          rewrite lookup_insert in Hvs; inversion Hvs. auto. }
+          rewrite lookup_insert_eq in Hvs; inversion Hvs. auto. }
         { repeat (rewrite lookup_insert_ne in Hvs); auto.
           iApply "Hreg"; auto. } }
-        { subst regs'. rewrite insert_insert. iApply "Hmap". }
+        { subst regs'. rewrite insert_insert_eq. iApply "Hmap". }
       iModIntro.
       destruct (reg_eq_dec PC dst) as [Heq | Hne]; simplify_map_eq.
       - iApply (interp_weakening with "IH HVsb"); auto; try solve_addr. (* HNoError used here *)

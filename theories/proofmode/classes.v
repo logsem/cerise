@@ -1,4 +1,4 @@
-From Coq Require Import ZArith.
+From Stdlib Require Import ZArith.
 From stdpp Require Import base option.
 From cap_machine Require Import machine_base machine_parameters addr_reg.
 From machine_utils Require Export classes.

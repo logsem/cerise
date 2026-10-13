@@ -154,19 +154,19 @@ Section cap_lang_spec_rules.
     iDestruct (spec_memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
 
     iMod (step_store _ _ pc_p with "[$Hown $Hj $Hmap $Hmem]") as (retv regs' mem' Hspec) "(Hj & Hmem & Hregs)";
-      eauto; simplify_map_eq_alt; try rewrite lookup_insert; eauto.
+      eauto; simplify_map_eq_alt; try rewrite lookup_insert_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
-      rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert;eauto. }
+      rewrite lookup_insert_ne// lookup_insert_ne// lookup_insert_eq;eauto. }
 
     destruct Hspec.
      { (* Success *)
        destruct H6 as [Hrr2 _]. simpl in *. simplify_map_eq_alt. simplify_map_eq.
-       rewrite insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv.
        simplify_map_eq_alt.
-       rewrite insert_insert.
+       rewrite insert_insert_eq.
        iDestruct (rules_binary_base.regs_of_map_3 with "[$Hregs]") as "[HPC [Hsrc Hdst] ]"; eauto. iFrame. done. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.
@@ -199,20 +199,20 @@ Section cap_lang_spec_rules.
     iDestruct (spec_memMap_resource_2ne_apply with "Hi Hsrca") as "[Hmem %]"; auto.
 
     iMod (step_store _ _ pc_p with "[$Hown $Hj $Hmap $Hmem]") as (retv regs' mem' Hspec) "(Hj & Hmem & Hregs)";
-      eauto; simplify_map_eq_alt; try rewrite lookup_insert; eauto.
+      eauto; simplify_map_eq_alt; try rewrite lookup_insert_eq; eauto.
     { by rewrite !dom_insert; set_solver+. }
     { eapply mem_neq_implies_allow_store_map with (a := a); eauto.
-      rewrite lookup_insert_ne// lookup_insert. eauto. }
+      rewrite lookup_insert_ne// lookup_insert_eq. eauto. }
 
     destruct Hspec.
      { (* Success *)
        iFrame.
        destruct H4 as [Hrr2 _]. simplify_map_eq_alt.
-       rewrite insert_commute // insert_insert.
+       rewrite insert_insert_ne // insert_insert_eq.
        iDestruct (rules_binary_base.memMap_resource_2ne with "Hmem") as "[Hpc_a Ha]";auto.
        incrementPC_inv. simpl in *.
        simplify_map_eq_alt.
-       rewrite insert_insert.
+       rewrite insert_insert_eq.
        iDestruct (rules_binary_base.regs_of_map_2 with "[$Hregs]") as "[HPC Hdst]"; eauto. by iFrame. }
      { (* Failure (contradiction) *)
        destruct X; try incrementPC_inv; simplify_map_eq; eauto.

@@ -1,4 +1,4 @@
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import rules.
 From cap_machine Require Export iris_extra addr_reg_sample.
 From cap_machine.proofmode Require Import classes tactics_helpers proofmode_instr_rules.

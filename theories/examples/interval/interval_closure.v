@@ -1,6 +1,6 @@
 From iris.algebra Require Import agree auth gmap.
 From iris.proofmode Require Import proofmode.
-Require Import Eqdep_dec List.
+From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.proofmode Require Import tactics_helpers contiguous solve_pure proofmode map_simpl.
@@ -268,21 +268,21 @@ Section interval_closure.
     iDestruct (big_sepM_insert _ _ r_t1 with "[$Hregs $Hr_t1]") as "Hregs"; [by simplify_map_eq|].
     iDestruct (big_sepM_insert _ _ r_temp6 with "[$Hregs $Hr_temp6]") as "Hregs"; [by simplify_map_eq|].
 
-    repeat (rewrite -(delete_insert_ne _ r_t1)//); rewrite !(delete_commute _ _ r_t1)//;
+    repeat (rewrite -(delete_insert_ne _ r_t1)//); rewrite !(delete_delete _ _ r_t1)//;
     rewrite -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)// -(delete_insert_ne _ r_t1)//.
-    rewrite insert_delete_insert.
+    rewrite insert_delete_eq.
 
-    repeat (rewrite -(delete_insert_ne _ r_t2)//); rewrite !(delete_commute _ _ r_t2)//.
-    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete_insert.
+    repeat (rewrite -(delete_insert_ne _ r_t2)//); rewrite !(delete_delete _ _ r_t2)//.
+    rewrite -(delete_insert_ne _ r_t2)//. rewrite insert_delete_eq.
 
-    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete_insert.
+    do 4 (rewrite -(delete_insert_ne _ r_temp6)//). rewrite insert_delete_eq.
 
-    rewrite (delete_commute _ _ r_temp1)//. rewrite insert_delete_insert.
+    rewrite (delete_delete _ _ r_temp1)//. rewrite insert_delete_eq.
 
-    rewrite (insert_commute _ r_t2 r_t3)//. rewrite delete_insert_delete.
-    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete_insert.
+    rewrite (insert_insert_ne _ r_t2 r_t3)//. rewrite delete_insert_eq.
+    do 2 (rewrite -(delete_insert_ne _ r_t3)//). rewrite insert_delete_eq.
 
-    rewrite (insert_commute _ r_temp1 r_t2)//. rewrite insert_insert.
+    rewrite (insert_insert_ne _ r_temp1 r_t2)//. rewrite insert_insert_eq.
 
     iApply make_seal_spec;iFrameAutoSolve;[..|iFrame "Hmalloc Hb_rs Hown Hregs"].
     { rewrite !dom_insert_L. rewrite Hdom. set_solver+. }
@@ -295,14 +295,14 @@ Section interval_closure.
     iDestruct "HsealLL" as (γ) "#HsealLL".
 
     (* get some registers *)
-    rewrite !(insert_commute _ _ r_temp1)// !(delete_insert_ne _ _ r_temp1)//
-            !(insert_commute _ _ r_temp1)//.
+    rewrite !(insert_insert_ne _ _ r_temp1)// !(delete_insert_ne _ _ r_temp1)//
+            !(insert_insert_ne _ _ r_temp1)//.
     assert (is_Some (rmap !! r_temp2)) as [w1 Hr_temp2];[apply elem_of_dom;rewrite Hdom;set_solver+|].
     iDestruct (big_sepM_delete _ _ r_temp2 with "Hregs") as "[Hr_temp2 Hregs]".
     { rewrite !lookup_insert_ne// !lookup_delete_ne// !lookup_insert_ne//. }
     rewrite delete_insert_ne//.
     iDestruct (big_sepM_delete _ _ r_temp1 with "Hregs") as "[Hr_temp1 Hregs]";[by simplify_map_eq|].
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
 
     rewrite updatePcPerm_cap_non_E;[|inv Hpc_p;auto].
     iGo "Hblock". solve_addr+Henvsize Henvincr.

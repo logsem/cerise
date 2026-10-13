@@ -69,24 +69,24 @@ Section simpl_gmap.
     induction rm; simpl; auto.
     - intros. destruct (decide (k0 = k)).
       + subst k0. rewrite H.
-        rewrite insert_insert.
+        rewrite insert_insert_eq.
         eapply IHrm; eauto.
       + case_eq (fm k); intros.
         * cbn. destruct (decide (k1 = k')).
-          { subst k1. rewrite insert_insert H0.
-            rewrite insert_insert.
+          { subst k1. rewrite insert_insert_eq H0.
+            rewrite insert_insert_eq.
             eapply IHrm. auto.
           }
-          { simpl. rewrite insert_commute; auto.
+          { simpl. rewrite insert_insert_ne; auto.
             rewrite H0.
             erewrite IHrm; eauto.
-            rewrite insert_commute; eauto. }
+            rewrite insert_insert_ne; eauto. }
         * simpl. rewrite H0. eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite H. rewrite insert_delete_insert. eapply IHrm; eauto.
+      + subst k0; rewrite H. rewrite insert_delete_eq. eapply IHrm; eauto.
       + simpl. case_eq (fm k); intros.
         * destruct (decide (k1 = k')).
-          { subst k1. rewrite !insert_delete_insert.
+          { subst k1. rewrite !insert_delete_eq.
             eapply IHrm; eauto. }
           { erewrite <- delete_insert_ne; auto.
             erewrite IHrm, delete_insert_ne; eauto. }
@@ -100,22 +100,22 @@ Section simpl_gmap.
   Proof.
     induction rm; simpl; auto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0. rewrite H. rewrite delete_insert_delete. eauto.
+      + subst k0. rewrite H. rewrite delete_insert_eq. eauto.
       + simpl. case_eq (fm k); intros.
         * destruct (decide (k1 = k')).
-          { subst k1. rewrite !delete_insert_delete.
+          { subst k1. rewrite !delete_insert_eq.
             eapply IHrm; eauto. }
           { rewrite delete_insert_ne; auto.
             erewrite IHrm, <- delete_insert_ne; eauto. }
         * eauto.
     - intros. destruct (decide (k0 = k)).
-      + subst k0; rewrite H delete_idemp. eauto.
+      + subst k0; rewrite H delete_delete_eq. eauto.
       + simpl. case_eq (fm k); intros.
         * destruct (decide (k1 = k')).
-          { subst k1. rewrite !delete_idemp.
+          { subst k1. rewrite !delete_delete_eq.
             eapply IHrm; eauto. }
-          { rewrite delete_commute; auto.
-            erewrite IHrm, delete_commute; eauto. }
+          { rewrite delete_delete; auto.
+            erewrite IHrm, delete_delete; eauto. }
         * eauto.
   Qed.
 
@@ -206,9 +206,9 @@ Local Ltac2 replace_with (lhs: constr) (rhs: constr) :=
 Ltac2 rec make_list_from_unions h x :=
   match! x with
   | union ?a (singleton ?b) =>
-    ltac1:(h b |- try (rewrite (delete_notin _ b); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
+    ltac1:(h b |- try (rewrite (delete_id _ b); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver; fail])) (Ltac1.of_constr h) (Ltac1.of_constr b);
     make_list_from_unions h a
-  | singleton ?x => ltac1:(h x |- try (rewrite (delete_notin _ x); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver+; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
+  | singleton ?x => ltac1:(h x |- try (rewrite (delete_id _ x); [|simplify_map_eq; rewrite -not_elem_of_dom h; set_solver+; fail])) (Ltac1.of_constr h) (Ltac1.of_constr x)
   end.
 
 Ltac2 post_process k m :=
@@ -236,7 +236,7 @@ Local Ltac box_all := repeat (match goal with
 Ltac simpl_rmap_compute :=
   clear_all; box_all; vm_compute simpl_rmap; subst.
 
-Ltac2 map_simpl_aux k a x encode :=
+Ltac2 map_simpl_aux k a x _encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];
@@ -244,7 +244,7 @@ Ltac2 map_simpl_aux k a x encode :=
   cbn [denote list_lookup lookup];
   post_process k m.
 
-Ltac2 map_simpl_aux_debug k a x encode :=
+Ltac2 map_simpl_aux_debug k a x _encode :=
   let (x', m, fm) := (reify_helper k a x []) in
   let env := make_list fm in
   replace_with x '(@denote _ _ _ _ $x' (fun n => @list_lookup _ n $env) $m) > [() | reflexivity];

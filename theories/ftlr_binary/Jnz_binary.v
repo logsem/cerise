@@ -31,11 +31,11 @@ Section fundamental.
   Proof.
     intros Hp Hsome HisCorrect Hbae Hi.
     iIntros "#IH #Hspec #Hinv #Hreg #Hinva #Hread Hsmap Hown Hs Ha Ha' HP Hcls HPC Hmap".
-    rewrite delete_insert_delete.
+    rewrite delete_insert_eq.
     iDestruct ((big_sepM_delete _ _ PC) with "[HPC Hmap]") as "Hmap /=";
-      [apply lookup_insert|rewrite delete_insert_delete;iFrame|]. simpl.
+      [apply lookup_insert_eq|rewrite delete_insert_eq;iFrame|]. simpl.
     iApply (wp_Jnz with "[$Ha $Hmap]"); eauto.
-    { eapply lookup_insert. }
+    { eapply lookup_insert_eq. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
       apply elem_of_dom. apply lookup_insert_is_Some'; eauto. destruct Hsome with rr; eauto. }
     iIntros "!>" (regs' retv). iDestruct 1 as (HSpec) "[Ha Hmap]".
@@ -47,9 +47,9 @@ Section fundamental.
     iDestruct (interp_reg_eq r1 r2 (WCap p b e a) with "[]") as %Heq;[iSplit;auto|]. rewrite -!Heq.
 
     iMod (step_Jnz _ [SeqCtx] with "[$Ha' $Hsmap $Hs $Hspec]") as (retv' regs'') "(Hs' & Hs & Ha' & Hsmap) /=";[rewrite Heqw in Hi|..];eauto.
-    { rewrite lookup_insert. eauto. }
+    { rewrite lookup_insert_eq. eauto. }
     { rewrite /subseteq /map_subseteq /set_subseteq_instance. intros rr _.
-      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert;eauto|rewrite lookup_insert_ne //].
+      apply elem_of_dom. destruct (decide (PC = rr));[subst;rewrite lookup_insert_eq;eauto|rewrite lookup_insert_ne //].
       destruct Hsome with rr;eauto. }
     { solve_ndisj. }
     iDestruct "Hs'" as %HSpec'.
@@ -65,7 +65,7 @@ Section fundamental.
         iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w',w'; iFrame|iModIntro].
         iApply wp_pure_step_later; auto. iNext.
         iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /=";auto.
-        rewrite lookup_insert in H2; inv H2. rewrite !insert_insert.
+        rewrite lookup_insert_eq in H2; inv H2. rewrite !insert_insert_eq.
         iIntros "_".
         iApply ("IH" $! (r1,r1) with "[] [] Hmap Hsmap Hown Hs Hspec").
         { iPureIntro. simpl. intros reg. destruct Hsome with reg;auto. }
@@ -77,12 +77,12 @@ Section fundamental.
           rewrite Heqrr in Hv2s.
           by iDestruct ("Hreg" $! rr _ _ Hne Hv1s Hv2s) as "Hrr". }
         { rewrite !fixpoint_interp1_eq /=. destruct Hp as [-> | ->];iDestruct "Hinv" as "[_ $]";auto. }
-      - rewrite !insert_insert. subst w'.
+      - rewrite !insert_insert_eq. subst w'.
         iMod ("Hcls" with "[Ha Ha' HP]") as "_"; [iExists w,w; iFrame|iModIntro].
         iApply wp_pure_step_later; auto.
         case_eq (isCorrectPCb (updatePcPerm w'0)); intro HPCb.
         + destruct (reg_eq_dec dst PC).
-          * subst dst. rewrite lookup_insert// in H1; inv H1.
+          * subst dst. rewrite lookup_insert_eq// in H1; inv H1.
             replace (updatePcPerm (WCap p b e a)) with ((WCap p b e a):Word); [|destruct Hp; subst p; auto].
             iNext. iMod (do_step_pure _ [] with "[$Hspec $Hs]") as "Hs /="; auto.
             iIntros "_".
@@ -111,7 +111,7 @@ Section fundamental.
                   iApply "Hreg".
                 + replace (<[PC:=WCap RX b0 e0 a0]> r2) with (<[PC:=WCap RX b0 e0 a0]> r1); auto.
                   unfold_leibniz. eapply map_eq. intros.
-                  destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert; auto|rewrite !lookup_insert_ne; auto].
+                  destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert_eq; auto|rewrite !lookup_insert_ne; auto].
                   assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                   { rewrite Heq; auto. }
                   rewrite !lookup_insert_ne in H3; auto.
@@ -123,14 +123,14 @@ Section fundamental.
               - destruct p0; auto. congruence.
               - replace (<[PC:=WCap p0 b0 e0 a0]> r2) with (<[PC:=WCap p0 b0 e0 a0]> r1); [destruct p0; auto; congruence|].
                 unfold_leibniz. eapply map_eq. intros.
-                destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert; auto|rewrite !lookup_insert_ne; auto].
+                destruct (reg_eq_dec PC i); [subst i; rewrite !lookup_insert_eq; auto|rewrite !lookup_insert_ne; auto].
                 assert (<[PC:=WCap p b e a]> r1 !! i = <[PC:=WCap p b e a]> r2 !! i).
                 { rewrite Heq; auto. }
                 rewrite !lookup_insert_ne in H3; auto. }
         + iNext. iMod (do_step_pure _ [] with "[$Hs]") as "Hs /="; auto.
           simpl. iIntros "_".
           iApply (wp_bind (fill [SeqCtx])).
-          iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [eapply lookup_insert|].
+          iDestruct ((big_sepM_delete _ _ PC) with "Hmap") as "[HPC Hmap]"; [eapply lookup_insert_eq|].
           iApply (wp_notCorrectPC with "HPC"); [eapply isCorrectPCb_nisCorrectPC; auto|].
           iNext.
           iIntros. iApply wp_pure_step_later; auto.

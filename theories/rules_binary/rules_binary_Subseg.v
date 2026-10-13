@@ -246,8 +246,8 @@ Section cap_lang_spec_rules.
     { (* Success *)
       iFrame. incrementPC_inv; simplify_map_eq.
       unfold addr_of_argument, z_of_argument in *. simplify_map_eq.
-      rewrite (insert_commute _ PC dst) // insert_insert (insert_commute _ r2 dst) //
-              (insert_commute _ r1 dst) // (insert_commute _ PC dst) // insert_insert.
+      rewrite (insert_insert_ne _ PC dst) // insert_insert_eq (insert_insert_ne _ r2 dst) //
+              (insert_insert_ne _ r1 dst) // (insert_insert_ne _ PC dst) // insert_insert_eq.
       iDestruct (regs_of_map_4 with "Hmap") as "(?&?&?&?)"; eauto; by iFrame. }
      { (* Success with WSealRange (contradiction) *)
        simplify_map_eq. }
