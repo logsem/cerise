@@ -113,7 +113,6 @@ theories/ftlr_binary/UnSeal_binary.v
 theories/fundamental_binary.v
 
 # Misc for examples
-theories/monotone.v
 theories/examples/addr_reg_sample.v
 theories/proofmode/disjoint_regions_tactics.v
 theories/proofmode/mkregion_helpers.v

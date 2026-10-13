@@ -1,9 +1,9 @@
-From iris.algebra Require Import frac auth list.
+From iris.algebra Require Import frac auth list mra.
 From iris.proofmode Require Import proofmode.
 From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel.
-From cap_machine Require Import monotone keylist.
+From cap_machine Require Import keylist.
 From cap_machine.proofmode Require Import tactics_helpers solve_pure proofmode contiguous map_simpl.
 
 Section sealing.
@@ -300,7 +300,7 @@ Section sealing.
     |={Ep}=> ∃ γ, sealLL ι ll γ Φ.
   Proof.
     iIntros "Hll".
-    iMod (own_alloc (● principal prefR [])) as (γ) "Hown".
+    iMod (own_alloc (● to_mra (R:=prefR) [])) as (γ) "Hown".
     { eapply auth_auth_valid. repeat red. apply I. }
     iMod (na_inv_alloc logrel_nais _ ι (∃ hd : Word, ll ↦ₐ hd ∗ (∃ awvals : list (Addr * Word), isList hd awvals ∗ Exact γ awvals ∗ [∗ list] aw ∈ awvals, Φ aw.2)) with "[Hll Hown]")%I as "Hinv".
     { iNext. iExists (WInt 0%Z). iFrame.

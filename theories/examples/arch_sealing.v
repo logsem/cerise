@@ -1,7 +1,6 @@
-From iris.algebra Require Import frac auth list.
+From iris.algebra Require Import frac auth list mra.
 From iris.proofmode Require Import proofmode.
 From Stdlib Require Import Eqdep_dec List.
-From cap_machine Require Import monotone.
 From cap_machine Require Import addr_reg_sample macros_new.
 From cap_machine Require Import rules logrel fundamental.
 From cap_machine.proofmode Require Import contiguous tactics_helpers solve_pure proofmode map_simpl register_tactics.

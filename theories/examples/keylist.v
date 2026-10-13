@@ -1,13 +1,13 @@
-From iris.algebra Require Import frac auth list.
+From iris.algebra Require Import frac auth list mra.
 From iris.proofmode Require Import proofmode.
 From Stdlib Require Import Eqdep_dec List.
 From cap_machine Require Import addr_reg_sample macros_new.
-From cap_machine Require Import rules logrel monotone.
+From cap_machine Require Import rules logrel.
 From cap_machine.proofmode Require Import contiguous tactics_helpers solve_pure proofmode map_simpl.
 
 Definition addrwordLO := listO (prodO (leibnizO Addr) (leibnizO Word)).
 Definition prefR (al al' : addrwordLO) := al `prefix_of` al'.
-Class sealLLG Σ := CCounterG { ccounter_inG :: inG Σ (authUR (monotoneUR prefR)) }.
+Class sealLLG Σ := CCounterG { ccounter_inG :: inG Σ (authUR (mraUR prefR)) }.
 
 Section list.
   Context {Σ:gFunctors} {memg:memG Σ} {regg:regG Σ} {seals:sealStoreG Σ}
@@ -18,33 +18,33 @@ Section list.
   (* ------------------------------------------------------------------------------------------------- *)
   (* --------------------------- The monotone list of addresses -------------------------------------- *)
 
-  Definition Exact γ a := (own γ (● (principal prefR a)))%I.
-  Definition prefLL γ a := (own γ (◯ (principal prefR a)))%I.
+  Definition Exact γ a := (own γ (● (to_mra (R:=prefR) a)))%I.
+  Definition prefLL γ a := (own γ (◯ (to_mra (R:=prefR) a)))%I.
 
   Lemma get_full_pref γ a :
     Exact γ a ==∗ Exact γ a ∗ prefLL γ a.
   Proof.
     iIntros "H".
-    iMod (own_update _ _ ((● (principal prefR a)) ⋅ (◯ (principal prefR a)))
+    iMod (own_update _ _ ((● (to_mra (R:=prefR) a)) ⋅ (◯ (to_mra (R:=prefR) a)))
             with "H") as "[$ $]"; last done.
     apply auth_update_alloc.
     apply local_update_unital_discrete.
     intros ? ?; rewrite left_id; intros <-.
     split; first done.
-      by rewrite principal_R_op.
+      by rewrite to_mra_R_op.
   Qed.
 
   Lemma get_partial_pref γ a a' :
     a' `prefix_of` a → Exact γ a ==∗ Exact γ a ∗ prefLL γ a'.
   Proof.
     iIntros (Hpre) "H".
-    iMod (own_update _ _ ((● (principal prefR a)) ⋅ (◯ (principal prefR a')))
+    iMod (own_update _ _ ((● (to_mra (R:=prefR) a)) ⋅ (◯ (to_mra (R:=prefR) a')))
             with "H") as "[$ $]"; last done.
     apply auth_update_alloc.
     apply local_update_unital_discrete.
     intros ? ?; rewrite left_id; intros <-.
     split; first done.
-      by rewrite principal_R_op.
+      by rewrite to_mra_R_op.
   Qed.
 
   Lemma know_pref γ a a' :
@@ -52,20 +52,20 @@ Section list.
   Proof.
     iIntros "H1 H2".
       by iDestruct (own_valid_2 with "H1 H2") as
-        %[?%(principal_included (R := prefR)) _]%auth_both_valid_discrete.
+        %[?%(to_mra_included (R := prefR)) _]%auth_both_valid_discrete.
   Qed.
 
   Lemma update_ll γ a a' :
     a `prefix_of` a' → Exact γ a ==∗ Exact γ a' ∗ prefLL γ a'.
   Proof.
     iIntros (Hs) "H".
-    iMod (own_update _ _ ((● (principal prefR a')) ⋅ (◯ (principal prefR a')))
+    iMod (own_update _ _ ((● (to_mra (R:=prefR) a')) ⋅ (◯ (to_mra (R:=prefR) a')))
             with "H") as "[$ $]"; last done.
     apply auth_update_alloc.
     apply local_update_unital_discrete.
     intros ? ?; rewrite left_id; intros <-.
     split; first done.
-    by rewrite (comm op) (principal_R_op a a').
+    by rewrite (comm op) (to_mra_R_op a a').
   Qed.
 
   Lemma snoc_ll γ a al :

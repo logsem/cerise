@@ -1,4 +1,4 @@
-From iris.algebra Require Import auth agree excl gmap gset frac.
+From iris.algebra Require Import auth agree excl gmap gset frac mra.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
@@ -10,7 +10,6 @@ From cap_machine.examples.interval_arch Require Import
      interval_client_closure_arch interval_client_arch interval_closure_arch.
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine Require Import monotone.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.

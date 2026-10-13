@@ -1,4 +1,4 @@
-From iris.algebra Require Import auth agree excl gmap gset frac.
+From iris.algebra Require Import auth agree excl gmap gset frac mra.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
@@ -9,7 +9,6 @@ From cap_machine.examples Require Import addr_reg_sample malloc macros_new dynam
 From cap_machine.examples.interval Require Import interval_client_closure interval_client interval_closure.
 From cap_machine.proofmode Require Export mkregion_helpers disjoint_regions_tactics.
 From cap_machine.examples Require Import template_adequacy.
-From cap_machine Require Import monotone.
 
 Instance DisjointList_list_Addr : DisjointList (list Addr).
 Proof. exact (@disjoint_list_default _ _ app []). Defined.
@@ -683,7 +682,7 @@ Theorem template_adequacy `{memory_layout}
   (∀ w, m' !! assert_flag = Some w → w = WInt 0%Z).
 Proof.
   intros ? ? Hints ?.
-  pose proof (template_adequacy_no_seals (GFunctor (authUR (monotoneUR keylist.prefR))) (* The extra resource needed by seal library *)
+  pose proof (template_adequacy_no_seals (GFunctor (authUR (mraUR keylist.prefR))) (* The extra resource needed by seal library *)
                                 int_client_prog adv_prog library interval_client_table adv_table flag_inv) as Hadequacy.
   eapply Hadequacy;eauto.
   { apply flag_inv_is_initial_memory. auto. }
